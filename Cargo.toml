@@ -16,19 +16,19 @@ itertools = { version = "0.13.0", default-features = false }
 # Use GoldilocksPoseidon2Engine
 # openvm-stark-backend = { git = "https://github.com/openvm-org/stark-backend.git", tag = "v1.0.0-rc.0" }
 # openvm-stark-sdk = { git = "https://github.com/openvm-org/stark-backend.git", tag = "v1.0.0-rc.0" }
-openvm-stark-backend = { git = "https://github.com/darth-cy/stark-backend.git", branch = "feat/goldilocks_poseidon2" }
-openvm-stark-sdk = { git = "https://github.com/darth-cy/stark-backend.git", branch = "feat/goldilocks_poseidon2" }
+openvm-stark-backend = { git = "https://github.com/darth-cy/stark-backend.git", branch = "feat/monty_goldilocks_poseidon2" }
+openvm-stark-sdk = { git = "https://github.com/darth-cy/stark-backend.git", branch = "feat/monty_goldilocks_poseidon2" }
 
 # Plonky3
-p3-air = { git = "https://github.com/darth-cy/Plonky3.git", branch = "feat/monty_goldilocks" }
-p3-field = { git = "https://github.com/darth-cy/Plonky3.git", branch = "feat/monty_goldilocks" }
-p3-commit = { git = "https://github.com/darth-cy/Plonky3.git", branch = "feat/monty_goldilocks" }
-p3-matrix = { git = "https://github.com/darth-cy/Plonky3.git", branch = "feat/monty_goldilocks" }
-p3-util = { git = "https://github.com/darth-cy/Plonky3.git", branch = "feat/monty_goldilocks" }
-p3-challenger = { git = "https://github.com/darth-cy/Plonky3.git", branch = "feat/monty_goldilocks" }
-p3-goldilocks = { git = "https://github.com/darth-cy/Plonky3.git", branch = "feat/monty_goldilocks" }
-p3-monty-31 = { git = "https://github.com/darth-cy/Plonky3.git", branch = "feat/monty_goldilocks" }
-p3-symmetric = { git = "https://github.com/darth-cy/Plonky3.git", branch = "feat/monty_goldilocks" }
+p3-air = { git = "https://github.com/Plonky3/Plonky3.git", rev = "b0591e9" }
+p3-field = { git = "https://github.com/Plonky3/Plonky3.git", rev = "b0591e9" }
+p3-commit = { git = "https://github.com/Plonky3/Plonky3.git", rev = "b0591e9" }
+p3-matrix = { git = "https://github.com/Plonky3/Plonky3.git", rev = "b0591e9" }
+p3-util = { git = "https://github.com/Plonky3/Plonky3.git", rev = "b0591e9" }
+p3-challenger = { git = "https://github.com/Plonky3/Plonky3.git", rev = "b0591e9" }
+p3-monty-31 = { git = "https://github.com/Plonky3/Plonky3.git", rev = "b0591e9" }
+p3-symmetric = { git = "https://github.com/Plonky3/Plonky3.git", rev = "b0591e9" }
+monty-goldilocks = { git = "https://github.com/scroll-tech/monty-goldilocks.git" }
 
 # WHIR
 whir = { git = "https://github.com/scroll-tech/whir.git" }

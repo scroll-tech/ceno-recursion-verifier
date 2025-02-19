@@ -547,23 +547,23 @@ name = "ceno-recursion-verifier"
 version = "0.1.0"
 dependencies = [
  "itertools 0.13.0",
+ "monty-goldilocks",
  "openvm",
  "openvm-circuit",
  "openvm-native-circuit",
  "openvm-native-compiler",
  "openvm-native-compiler-derive",
  "openvm-native-recursion",
- "openvm-stark-backend 1.0.0-rc.0 (git+https://github.com/darth-cy/stark-backend.git?branch=feat%2Fgoldilocks_poseidon2)",
- "openvm-stark-sdk 1.0.0-rc.0 (git+https://github.com/darth-cy/stark-backend.git?branch=feat%2Fgoldilocks_poseidon2)",
- "p3-air 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-challenger 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-commit 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-field 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-goldilocks 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-matrix 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-monty-31 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-symmetric 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-util 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
+ "openvm-stark-backend 1.0.0-rc.0 (git+https://github.com/darth-cy/stark-backend.git?branch=feat%2Fmonty_goldilocks_poseidon2)",
+ "openvm-stark-sdk 1.0.0-rc.0 (git+https://github.com/darth-cy/stark-backend.git?branch=feat%2Fmonty_goldilocks_poseidon2)",
+ "p3-air",
+ "p3-challenger",
+ "p3-commit",
+ "p3-field",
+ "p3-matrix",
+ "p3-monty-31",
+ "p3-symmetric",
+ "p3-util",
  "rand",
  "whir",
 ]
@@ -1495,6 +1495,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "monty-goldilocks"
+version = "0.1.0"
+source = "git+https://github.com/scroll-tech/monty-goldilocks.git#e55816b7255f1010cd19f8e95aec7fffc25adace"
+dependencies = [
+ "p3-field",
+ "p3-mds",
+ "p3-monty-31",
+ "p3-poseidon2",
+]
+
+[[package]]
 name = "nibble_vec"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1656,8 +1667,8 @@ dependencies = [
  "openvm-instructions",
  "openvm-poseidon2-air",
  "openvm-stark-backend 1.0.0-rc.0 (git+https://github.com/openvm-org/stark-backend.git?tag=v1.0.0-rc.0)",
- "p3-baby-bear 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
+ "p3-baby-bear",
+ "p3-symmetric",
  "rand",
  "rayon",
  "rustc-hash 2.1.1",
@@ -1821,10 +1832,10 @@ dependencies = [
  "openvm-native-compiler-derive",
  "openvm-stark-backend 1.0.0-rc.0 (git+https://github.com/openvm-org/stark-backend.git?tag=v1.0.0-rc.0)",
  "openvm-stark-sdk 1.0.0-rc.0 (git+https://github.com/openvm-org/stark-backend.git?tag=v1.0.0-rc.0)",
- "p3-dft 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-fri 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-merkle-tree 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
+ "p3-dft",
+ "p3-fri",
+ "p3-merkle-tree",
+ "p3-symmetric",
  "rand",
  "serde",
  "serde_json",
@@ -1854,10 +1865,10 @@ dependencies = [
  "openvm-circuit-primitives",
  "openvm-stark-backend 1.0.0-rc.0 (git+https://github.com/openvm-org/stark-backend.git?tag=v1.0.0-rc.0)",
  "openvm-stark-sdk 1.0.0-rc.0 (git+https://github.com/openvm-org/stark-backend.git?tag=v1.0.0-rc.0)",
- "p3-monty-31 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-poseidon2 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
+ "p3-monty-31",
+ "p3-poseidon2",
  "p3-poseidon2-air",
- "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
+ "p3-symmetric",
  "rand",
  "tracing",
  "zkhash",
@@ -1926,14 +1937,14 @@ dependencies = [
  "derive-new 0.7.0",
  "itertools 0.13.0",
  "mimalloc",
- "p3-air 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-challenger 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-commit 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-field 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-matrix 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-maybe-rayon 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-uni-stark 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-util 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
+ "p3-air",
+ "p3-challenger",
+ "p3-commit",
+ "p3-field",
+ "p3-matrix",
+ "p3-maybe-rayon",
+ "p3-uni-stark",
+ "p3-util",
  "rayon",
  "rustc-hash 2.1.1",
  "serde",
@@ -1944,21 +1955,21 @@ dependencies = [
 [[package]]
 name = "openvm-stark-backend"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/darth-cy/stark-backend.git?branch=feat%2Fgoldilocks_poseidon2#5c4cc6d1283719eac03209662292ae4def072d98"
+source = "git+https://github.com/darth-cy/stark-backend.git?branch=feat%2Fmonty_goldilocks_poseidon2#bfbe869d235ba3681fc808e647f3d82b79ec12e1"
 dependencies = [
  "async-trait",
  "cfg-if",
  "derivative",
  "derive-new 0.7.0",
  "itertools 0.13.0",
- "p3-air 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-challenger 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-commit 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-field 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-matrix 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-maybe-rayon 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-uni-stark 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-util 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
+ "p3-air",
+ "p3-challenger",
+ "p3-commit",
+ "p3-field",
+ "p3-matrix",
+ "p3-maybe-rayon",
+ "p3-uni-stark",
+ "p3-util",
  "rayon",
  "rustc-hash 2.1.1",
  "serde",
@@ -1979,17 +1990,17 @@ dependencies = [
  "metrics-tracing-context",
  "metrics-util",
  "openvm-stark-backend 1.0.0-rc.0 (git+https://github.com/openvm-org/stark-backend.git?tag=v1.0.0-rc.0)",
- "p3-baby-bear 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-blake3 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-bn254-fr 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-dft 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-fri 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-goldilocks 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-keccak 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-merkle-tree 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-poseidon 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-poseidon2 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
+ "p3-baby-bear",
+ "p3-blake3",
+ "p3-bn254-fr",
+ "p3-dft",
+ "p3-fri",
+ "p3-goldilocks",
+ "p3-keccak",
+ "p3-merkle-tree",
+ "p3-poseidon",
+ "p3-poseidon2",
+ "p3-symmetric",
  "rand",
  "serde",
  "serde_json",
@@ -2004,7 +2015,7 @@ dependencies = [
 [[package]]
 name = "openvm-stark-sdk"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/darth-cy/stark-backend.git?branch=feat%2Fgoldilocks_poseidon2#5c4cc6d1283719eac03209662292ae4def072d98"
+source = "git+https://github.com/darth-cy/stark-backend.git?branch=feat%2Fmonty_goldilocks_poseidon2#bfbe869d235ba3681fc808e647f3d82b79ec12e1"
 dependencies = [
  "derivative",
  "derive_more 0.99.19",
@@ -2013,18 +2024,19 @@ dependencies = [
  "metrics",
  "metrics-tracing-context",
  "metrics-util",
- "openvm-stark-backend 1.0.0-rc.0 (git+https://github.com/darth-cy/stark-backend.git?branch=feat%2Fgoldilocks_poseidon2)",
- "p3-baby-bear 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-blake3 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-bn254-fr 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-dft 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-fri 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-goldilocks 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-keccak 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-merkle-tree 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-poseidon 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-poseidon2 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-symmetric 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
+ "monty-goldilocks",
+ "openvm-stark-backend 1.0.0-rc.0 (git+https://github.com/darth-cy/stark-backend.git?branch=feat%2Fmonty_goldilocks_poseidon2)",
+ "p3-baby-bear",
+ "p3-blake3",
+ "p3-bn254-fr",
+ "p3-dft",
+ "p3-fri",
+ "p3-goldilocks",
+ "p3-keccak",
+ "p3-merkle-tree",
+ "p3-poseidon",
+ "p3-poseidon2",
+ "p3-symmetric",
  "rand",
  "serde",
  "serde_json",
@@ -2071,33 +2083,10 @@ checksum = "b15813163c1d831bf4a13c3610c05c0d03b39feb07f7e09fa234dac9b15aaf39"
 [[package]]
 name = "p3-air"
 version = "0.1.0"
-source = "git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks#21c2a0ad7a2f2e62e5c49be6ca4d09d66923512b"
-dependencies = [
- "p3-field 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-matrix 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
-]
-
-[[package]]
-name = "p3-air"
-version = "0.1.0"
 source = "git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9#b0591e9b82d58d10f86359875b5d5fa96433b4cf"
 dependencies = [
- "p3-field 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-matrix 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
-]
-
-[[package]]
-name = "p3-baby-bear"
-version = "0.1.0"
-source = "git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks#21c2a0ad7a2f2e62e5c49be6ca4d09d66923512b"
-dependencies = [
- "p3-field 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-mds 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-monty-31 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-poseidon2 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-symmetric 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "rand",
- "serde",
+ "p3-field",
+ "p3-matrix",
 ]
 
 [[package]]
@@ -2105,23 +2094,13 @@ name = "p3-baby-bear"
 version = "0.1.0"
 source = "git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9#b0591e9b82d58d10f86359875b5d5fa96433b4cf"
 dependencies = [
- "p3-field 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-mds 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-monty-31 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-poseidon2 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
+ "p3-field",
+ "p3-mds",
+ "p3-monty-31",
+ "p3-poseidon2",
+ "p3-symmetric",
  "rand",
  "serde",
-]
-
-[[package]]
-name = "p3-blake3"
-version = "0.1.0"
-source = "git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks#21c2a0ad7a2f2e62e5c49be6ca4d09d66923512b"
-dependencies = [
- "blake3",
- "p3-symmetric 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-util 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
 ]
 
 [[package]]
@@ -2130,23 +2109,8 @@ version = "0.1.0"
 source = "git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9#b0591e9b82d58d10f86359875b5d5fa96433b4cf"
 dependencies = [
  "blake3",
- "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-util 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
-]
-
-[[package]]
-name = "p3-bn254-fr"
-version = "0.1.0"
-source = "git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks#21c2a0ad7a2f2e62e5c49be6ca4d09d66923512b"
-dependencies = [
- "ff 0.13.0",
- "halo2curves 0.8.0",
- "num-bigint 0.4.6",
- "p3-field 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-poseidon2 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-symmetric 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "rand",
- "serde",
+ "p3-symmetric",
+ "p3-util",
 ]
 
 [[package]]
@@ -2157,9 +2121,9 @@ dependencies = [
  "ff 0.13.0",
  "halo2curves 0.8.0",
  "num-bigint 0.4.6",
- "p3-field 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-poseidon2 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
+ "p3-field",
+ "p3-poseidon2",
+ "p3-symmetric",
  "rand",
  "serde",
 ]
@@ -2167,39 +2131,13 @@ dependencies = [
 [[package]]
 name = "p3-challenger"
 version = "0.1.0"
-source = "git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks#21c2a0ad7a2f2e62e5c49be6ca4d09d66923512b"
-dependencies = [
- "p3-field 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-maybe-rayon 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-symmetric 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-util 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "tracing",
-]
-
-[[package]]
-name = "p3-challenger"
-version = "0.1.0"
 source = "git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9#b0591e9b82d58d10f86359875b5d5fa96433b4cf"
 dependencies = [
- "p3-field 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-maybe-rayon 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-util 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
+ "p3-field",
+ "p3-maybe-rayon",
+ "p3-symmetric",
+ "p3-util",
  "tracing",
-]
-
-[[package]]
-name = "p3-commit"
-version = "0.1.0"
-source = "git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks#21c2a0ad7a2f2e62e5c49be6ca4d09d66923512b"
-dependencies = [
- "itertools 0.13.0",
- "p3-challenger 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-dft 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-field 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-matrix 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-util 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "serde",
 ]
 
 [[package]]
@@ -2208,25 +2146,12 @@ version = "0.1.0"
 source = "git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9#b0591e9b82d58d10f86359875b5d5fa96433b4cf"
 dependencies = [
  "itertools 0.13.0",
- "p3-challenger 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-dft 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-field 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-matrix 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-util 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
+ "p3-challenger",
+ "p3-dft",
+ "p3-field",
+ "p3-matrix",
+ "p3-util",
  "serde",
-]
-
-[[package]]
-name = "p3-dft"
-version = "0.1.0"
-source = "git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks#21c2a0ad7a2f2e62e5c49be6ca4d09d66923512b"
-dependencies = [
- "itertools 0.13.0",
- "p3-field 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-matrix 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-maybe-rayon 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-util 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "tracing",
 ]
 
 [[package]]
@@ -2235,27 +2160,10 @@ version = "0.1.0"
 source = "git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9#b0591e9b82d58d10f86359875b5d5fa96433b4cf"
 dependencies = [
  "itertools 0.13.0",
- "p3-field 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-matrix 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-maybe-rayon 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-util 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "tracing",
-]
-
-[[package]]
-name = "p3-field"
-version = "0.1.0"
-source = "git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks#21c2a0ad7a2f2e62e5c49be6ca4d09d66923512b"
-dependencies = [
- "itertools 0.13.0",
- "num-bigint 0.4.6",
- "num-integer",
- "num-traits",
- "nums",
- "p3-maybe-rayon 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-util 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "rand",
- "serde",
+ "p3-field",
+ "p3-matrix",
+ "p3-maybe-rayon",
+ "p3-util",
  "tracing",
 ]
 
@@ -2269,27 +2177,8 @@ dependencies = [
  "num-integer",
  "num-traits",
  "nums",
- "p3-maybe-rayon 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-util 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "rand",
- "serde",
- "tracing",
-]
-
-[[package]]
-name = "p3-fri"
-version = "0.1.0"
-source = "git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks#21c2a0ad7a2f2e62e5c49be6ca4d09d66923512b"
-dependencies = [
- "itertools 0.13.0",
- "p3-challenger 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-commit 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-dft 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-field 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-interpolation 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-matrix 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-maybe-rayon 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-util 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
+ "p3-maybe-rayon",
+ "p3-util",
  "rand",
  "serde",
  "tracing",
@@ -2301,31 +2190,17 @@ version = "0.1.0"
 source = "git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9#b0591e9b82d58d10f86359875b5d5fa96433b4cf"
 dependencies = [
  "itertools 0.13.0",
- "p3-challenger 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-commit 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-dft 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-field 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-interpolation 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-matrix 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-maybe-rayon 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-util 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
+ "p3-challenger",
+ "p3-commit",
+ "p3-dft",
+ "p3-field",
+ "p3-interpolation",
+ "p3-matrix",
+ "p3-maybe-rayon",
+ "p3-util",
  "rand",
  "serde",
  "tracing",
-]
-
-[[package]]
-name = "p3-goldilocks"
-version = "0.1.0"
-source = "git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks#21c2a0ad7a2f2e62e5c49be6ca4d09d66923512b"
-dependencies = [
- "p3-field 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-mds 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-monty-31 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-poseidon2 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-symmetric 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "rand",
- "serde",
 ]
 
 [[package]]
@@ -2334,13 +2209,13 @@ version = "0.1.0"
 source = "git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9#b0591e9b82d58d10f86359875b5d5fa96433b4cf"
 dependencies = [
  "num-bigint 0.4.6",
- "p3-dft 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-field 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-mds 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-poseidon 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-poseidon2 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-util 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
+ "p3-dft",
+ "p3-field",
+ "p3-mds",
+ "p3-poseidon",
+ "p3-poseidon2",
+ "p3-symmetric",
+ "p3-util",
  "rand",
  "serde",
 ]
@@ -2348,35 +2223,12 @@ dependencies = [
 [[package]]
 name = "p3-interpolation"
 version = "0.1.0"
-source = "git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks#21c2a0ad7a2f2e62e5c49be6ca4d09d66923512b"
-dependencies = [
- "p3-field 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-matrix 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-maybe-rayon 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-util 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
-]
-
-[[package]]
-name = "p3-interpolation"
-version = "0.1.0"
 source = "git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9#b0591e9b82d58d10f86359875b5d5fa96433b4cf"
 dependencies = [
- "p3-field 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-matrix 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-maybe-rayon 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-util 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
-]
-
-[[package]]
-name = "p3-keccak"
-version = "0.1.0"
-source = "git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks#21c2a0ad7a2f2e62e5c49be6ca4d09d66923512b"
-dependencies = [
- "itertools 0.13.0",
- "p3-field 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-symmetric 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-util 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "tiny-keccak",
+ "p3-field",
+ "p3-matrix",
+ "p3-maybe-rayon",
+ "p3-util",
 ]
 
 [[package]]
@@ -2385,25 +2237,10 @@ version = "0.1.0"
 source = "git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9#b0591e9b82d58d10f86359875b5d5fa96433b4cf"
 dependencies = [
  "itertools 0.13.0",
- "p3-field 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-util 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
+ "p3-field",
+ "p3-symmetric",
+ "p3-util",
  "tiny-keccak",
-]
-
-[[package]]
-name = "p3-matrix"
-version = "0.1.0"
-source = "git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks#21c2a0ad7a2f2e62e5c49be6ca4d09d66923512b"
-dependencies = [
- "itertools 0.13.0",
- "p3-field 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-maybe-rayon 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-util 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "rand",
- "serde",
- "tracing",
- "transpose",
 ]
 
 [[package]]
@@ -2412,21 +2249,13 @@ version = "0.1.0"
 source = "git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9#b0591e9b82d58d10f86359875b5d5fa96433b4cf"
 dependencies = [
  "itertools 0.13.0",
- "p3-field 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-maybe-rayon 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-util 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
+ "p3-field",
+ "p3-maybe-rayon",
+ "p3-util",
  "rand",
  "serde",
  "tracing",
  "transpose",
-]
-
-[[package]]
-name = "p3-maybe-rayon"
-version = "0.1.0"
-source = "git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks#21c2a0ad7a2f2e62e5c49be6ca4d09d66923512b"
-dependencies = [
- "rayon",
 ]
 
 [[package]]
@@ -2440,46 +2269,15 @@ dependencies = [
 [[package]]
 name = "p3-mds"
 version = "0.1.0"
-source = "git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks#21c2a0ad7a2f2e62e5c49be6ca4d09d66923512b"
-dependencies = [
- "itertools 0.13.0",
- "p3-dft 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-field 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-matrix 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-symmetric 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-util 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "rand",
-]
-
-[[package]]
-name = "p3-mds"
-version = "0.1.0"
 source = "git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9#b0591e9b82d58d10f86359875b5d5fa96433b4cf"
 dependencies = [
  "itertools 0.13.0",
- "p3-dft 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-field 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-matrix 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-util 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
+ "p3-dft",
+ "p3-field",
+ "p3-matrix",
+ "p3-symmetric",
+ "p3-util",
  "rand",
-]
-
-[[package]]
-name = "p3-merkle-tree"
-version = "0.1.0"
-source = "git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks#21c2a0ad7a2f2e62e5c49be6ca4d09d66923512b"
-dependencies = [
- "itertools 0.13.0",
- "p3-commit 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-field 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-matrix 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-maybe-rayon 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-symmetric 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-util 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "rand",
- "serde",
- "tracing",
 ]
 
 [[package]]
@@ -2488,36 +2286,15 @@ version = "0.1.0"
 source = "git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9#b0591e9b82d58d10f86359875b5d5fa96433b4cf"
 dependencies = [
  "itertools 0.13.0",
- "p3-commit 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-field 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-matrix 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-maybe-rayon 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-util 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
+ "p3-commit",
+ "p3-field",
+ "p3-matrix",
+ "p3-maybe-rayon",
+ "p3-symmetric",
+ "p3-util",
  "rand",
  "serde",
  "tracing",
-]
-
-[[package]]
-name = "p3-monty-31"
-version = "0.1.0"
-source = "git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks#21c2a0ad7a2f2e62e5c49be6ca4d09d66923512b"
-dependencies = [
- "itertools 0.13.0",
- "num-bigint 0.4.6",
- "p3-dft 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-field 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-matrix 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-maybe-rayon 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-mds 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-poseidon2 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-symmetric 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-util 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "rand",
- "serde",
- "tracing",
- "transpose",
 ]
 
 [[package]]
@@ -2527,14 +2304,14 @@ source = "git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9#b0591e9b82d58d1
 dependencies = [
  "itertools 0.13.0",
  "num-bigint 0.4.6",
- "p3-dft 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-field 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-matrix 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-maybe-rayon 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-mds 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-poseidon2 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-util 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
+ "p3-dft",
+ "p3-field",
+ "p3-matrix",
+ "p3-maybe-rayon",
+ "p3-mds",
+ "p3-poseidon2",
+ "p3-symmetric",
+ "p3-util",
  "rand",
  "serde",
  "tracing",
@@ -2544,34 +2321,11 @@ dependencies = [
 [[package]]
 name = "p3-poseidon"
 version = "0.1.0"
-source = "git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks#21c2a0ad7a2f2e62e5c49be6ca4d09d66923512b"
-dependencies = [
- "p3-field 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-mds 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-symmetric 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "rand",
-]
-
-[[package]]
-name = "p3-poseidon"
-version = "0.1.0"
 source = "git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9#b0591e9b82d58d10f86359875b5d5fa96433b4cf"
 dependencies = [
- "p3-field 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-mds 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "rand",
-]
-
-[[package]]
-name = "p3-poseidon2"
-version = "0.1.0"
-source = "git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks#21c2a0ad7a2f2e62e5c49be6ca4d09d66923512b"
-dependencies = [
- "gcd",
- "p3-field 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-mds 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-symmetric 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
+ "p3-field",
+ "p3-mds",
+ "p3-symmetric",
  "rand",
 ]
 
@@ -2581,9 +2335,9 @@ version = "0.1.0"
 source = "git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9#b0591e9b82d58d10f86359875b5d5fa96433b4cf"
 dependencies = [
  "gcd",
- "p3-field 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-mds 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
+ "p3-field",
+ "p3-mds",
+ "p3-symmetric",
  "rand",
 ]
 
@@ -2592,12 +2346,12 @@ name = "p3-poseidon2-air"
 version = "0.1.0"
 source = "git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9#b0591e9b82d58d10f86359875b5d5fa96433b4cf"
 dependencies = [
- "p3-air 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-field 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-matrix 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-maybe-rayon 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-poseidon2 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-util 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
+ "p3-air",
+ "p3-field",
+ "p3-matrix",
+ "p3-maybe-rayon",
+ "p3-poseidon2",
+ "p3-util",
  "rand",
  "tikv-jemallocator",
  "tracing",
@@ -2606,39 +2360,11 @@ dependencies = [
 [[package]]
 name = "p3-symmetric"
 version = "0.1.0"
-source = "git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks#21c2a0ad7a2f2e62e5c49be6ca4d09d66923512b"
-dependencies = [
- "itertools 0.13.0",
- "p3-field 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "serde",
-]
-
-[[package]]
-name = "p3-symmetric"
-version = "0.1.0"
 source = "git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9#b0591e9b82d58d10f86359875b5d5fa96433b4cf"
 dependencies = [
  "itertools 0.13.0",
- "p3-field 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
+ "p3-field",
  "serde",
-]
-
-[[package]]
-name = "p3-uni-stark"
-version = "0.1.0"
-source = "git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks#21c2a0ad7a2f2e62e5c49be6ca4d09d66923512b"
-dependencies = [
- "itertools 0.13.0",
- "p3-air 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-challenger 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-commit 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-dft 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-field 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-matrix 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-maybe-rayon 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "p3-util 0.1.0 (git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks)",
- "serde",
- "tracing",
 ]
 
 [[package]]
@@ -2647,24 +2373,16 @@ version = "0.1.0"
 source = "git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9#b0591e9b82d58d10f86359875b5d5fa96433b4cf"
 dependencies = [
  "itertools 0.13.0",
- "p3-air 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-challenger 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-commit 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-dft 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-field 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-matrix 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-maybe-rayon 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-util 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
+ "p3-air",
+ "p3-challenger",
+ "p3-commit",
+ "p3-dft",
+ "p3-field",
+ "p3-matrix",
+ "p3-maybe-rayon",
+ "p3-util",
  "serde",
  "tracing",
-]
-
-[[package]]
-name = "p3-util"
-version = "0.1.0"
-source = "git+https://github.com/darth-cy/Plonky3.git?branch=feat%2Fmonty_goldilocks#21c2a0ad7a2f2e62e5c49be6ca4d09d66923512b"
-dependencies = [
- "serde",
 ]
 
 [[package]]
@@ -3467,9 +3185,9 @@ checksum = "1dccffe3ce07af9386bfd29e80c0ab1a8205a2fc34e4bcd40364df902cfa8f3f"
 
 [[package]]
 name = "unicode-ident"
-version = "1.0.16"
+version = "1.0.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a210d160f08b701c8721ba1c726c11662f877ea6b7094007e1ca9a1041945034"
+checksum = "00e2473a93778eb0bad35909dff6a10d28e63f792f16ed15e404fca9d5eeedbe"
 
 [[package]]
 name = "unroll"
