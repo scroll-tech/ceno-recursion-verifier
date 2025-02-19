@@ -1,0 +1,34 @@
+[package]
+name = "ceno-recursion-verifier"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+openvm = { git = "https://github.com/openvm-org/openvm.git", tag = "v1.0.0-rc.1" }
+openvm-circuit = { git = "https://github.com/openvm-org/openvm.git", tag = "v1.0.0-rc.1" }
+openvm-native-circuit = { git = "https://github.com/openvm-org/openvm.git", tag = "v1.0.0-rc.1" }
+openvm-native-compiler = { git = "https://github.com/openvm-org/openvm.git", tag = "v1.0.0-rc.1" }
+openvm-native-compiler-derive = { git = "https://github.com/openvm-org/openvm.git", tag = "v1.0.0-rc.1" }
+openvm-native-recursion = { git = "https://github.com/openvm-org/openvm.git", tag = "v1.0.0-rc.1" }
+rand = { version = "0.8.5", default-features = false }
+itertools = { version = "0.13.0", default-features = false }
+
+# Use GoldilocksPoseidon2Engine
+# openvm-stark-backend = { git = "https://github.com/openvm-org/stark-backend.git", tag = "v1.0.0-rc.0" }
+# openvm-stark-sdk = { git = "https://github.com/openvm-org/stark-backend.git", tag = "v1.0.0-rc.0" }
+openvm-stark-backend = { git = "https://github.com/darth-cy/stark-backend.git", branch = "feat/goldilocks_poseidon2" }
+openvm-stark-sdk = { git = "https://github.com/darth-cy/stark-backend.git", branch = "feat/goldilocks_poseidon2" }
+
+# Plonky3
+p3-air = { git = "https://github.com/darth-cy/Plonky3.git", branch = "feat/monty_goldilocks" }
+p3-field = { git = "https://github.com/darth-cy/Plonky3.git", branch = "feat/monty_goldilocks" }
+p3-commit = { git = "https://github.com/darth-cy/Plonky3.git", branch = "feat/monty_goldilocks" }
+p3-matrix = { git = "https://github.com/darth-cy/Plonky3.git", branch = "feat/monty_goldilocks" }
+p3-util = { git = "https://github.com/darth-cy/Plonky3.git", branch = "feat/monty_goldilocks" }
+p3-challenger = { git = "https://github.com/darth-cy/Plonky3.git", branch = "feat/monty_goldilocks" }
+p3-goldilocks = { git = "https://github.com/darth-cy/Plonky3.git", branch = "feat/monty_goldilocks" }
+p3-monty-31 = { git = "https://github.com/darth-cy/Plonky3.git", branch = "feat/monty_goldilocks" }
+p3-symmetric = { git = "https://github.com/darth-cy/Plonky3.git", branch = "feat/monty_goldilocks" }
+
+# WHIR
+whir = { git = "https://github.com/scroll-tech/whir.git" }
