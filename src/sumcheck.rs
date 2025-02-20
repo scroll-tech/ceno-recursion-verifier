@@ -1,14 +1,10 @@
 use ark_ff::{BigInteger, Field, PrimeField};
-use openvm::io::println;
 use openvm_native_compiler::prelude::*;
 use openvm_native_compiler_derive::iter_zip;
-use openvm_native_recursion::challenger::ChallengerVariable;
 use p3_field::{Field as Plonky3Field, FieldAlgebra, TwoAdicField};
 use whir::{
-    crypto::fields::Field64,
-    poly_utils::{coeffs::CoefficientList, eq_poly3, eq_poly_outside, MultilinearPoint},
-    sumcheck::{proof::SumcheckPolynomial, prover_core::SumcheckCore},
-    utils::base_decomposition,
+    poly_utils::{eq_poly_outside, MultilinearPoint},
+    sumcheck::proof::SumcheckPolynomial,
 };
 
 fn to_plonky3_field<F: PrimeField, G: Plonky3Field>(n: F) -> G {
@@ -179,8 +175,10 @@ fn verify_whir_sumcheck<C: Config, WF>(
 
 pub mod tests {
     use crate::sumcheck::verify_whir_sumcheck;
-    use openvm_circuit::arch::instructions::program::Program;
-    use openvm_circuit::arch::{Streams, SystemConfig, VmExecutor};
+    use openvm_circuit::arch::{
+        Streams, SystemConfig, VmExecutor,
+        instructions::program::Program
+    };
     use openvm_native_circuit::{Native, NativeConfig};
     use openvm_native_compiler::asm::{AsmBuilder, AsmConfig};
     use openvm_native_recursion::challenger::duplex::DuplexChallengerVariable;
@@ -191,7 +189,7 @@ pub mod tests {
     };
     use whir::{
         crypto::fields::Field64,
-        poly_utils::{coeffs::CoefficientList, eq_poly_outside, MultilinearPoint},
+        poly_utils::{coeffs::CoefficientList, MultilinearPoint},
         sumcheck::prover_core::SumcheckCore,
         utils::base_decomposition,
     };
@@ -218,12 +216,12 @@ pub mod tests {
         type WF = Field64; // Whir's field
 
         let engine = default_engine();
-        let pcs = engine.config.pcs();
+        let _pcs = engine.config.pcs();
         let perm = engine.perm;
-        let mut challenger = Challenger::new(perm.clone());
+        let mut _challenger = Challenger::new(perm.clone());
 
         let mut builder = AsmBuilder::<F, EF>::default();
-        let mut challenger = DuplexChallengerVariable::new(&mut builder);
+        let mut _challenger = DuplexChallengerVariable::new(&mut builder);
 
         // Main e2e: Construct sumcheck instance
         // WHIR sumcheck larger e2e test: https://github.com/scroll-tech/whir/blob/main/src/sumcheck/mod.rs
@@ -333,9 +331,8 @@ pub mod tests {
         let program: Program<
             p3_monty_31::MontyField31<openvm_stark_sdk::p3_baby_bear::BabyBearParameters>,
         > = builder.compile_isa();
-        let mut witness_stream = Vec::new();
 
-        (program, witness_stream)
+        (program, Vec::new())
     }
 
     #[test]
