@@ -176,7 +176,7 @@ fn verify_whir_sumcheck<C: Config, WF>(
 pub mod tests {
     use crate::sumcheck::verify_whir_sumcheck;
     use openvm_circuit::arch::{
-        Streams, SystemConfig, VmExecutor,
+        SystemConfig, VmExecutor,
         instructions::program::Program
     };
     use openvm_native_circuit::{Native, NativeConfig};
