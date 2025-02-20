@@ -10,14 +10,10 @@ openvm-native-circuit = { git = "https://github.com/openvm-org/openvm.git", tag 
 openvm-native-compiler = { git = "https://github.com/openvm-org/openvm.git", tag = "v1.0.0-rc.1" }
 openvm-native-compiler-derive = { git = "https://github.com/openvm-org/openvm.git", tag = "v1.0.0-rc.1" }
 openvm-native-recursion = { git = "https://github.com/openvm-org/openvm.git", tag = "v1.0.0-rc.1" }
+openvm-stark-backend = { git = "https://github.com/openvm-org/stark-backend.git", tag = "v1.0.0-rc.0" }
+openvm-stark-sdk = { git = "https://github.com/openvm-org/stark-backend.git", tag = "v1.0.0-rc.0" }
 rand = { version = "0.8.5", default-features = false }
 itertools = { version = "0.13.0", default-features = false }
-
-# Use GoldilocksPoseidon2Engine
-# openvm-stark-backend = { git = "https://github.com/openvm-org/stark-backend.git", tag = "v1.0.0-rc.0" }
-# openvm-stark-sdk = { git = "https://github.com/openvm-org/stark-backend.git", tag = "v1.0.0-rc.0" }
-openvm-stark-backend = { git = "https://github.com/darth-cy/stark-backend.git", branch = "feat/monty_goldilocks_poseidon2" }
-openvm-stark-sdk = { git = "https://github.com/darth-cy/stark-backend.git", branch = "feat/monty_goldilocks_poseidon2" }
 
 # Plonky3
 p3-air = { git = "https://github.com/Plonky3/Plonky3.git", rev = "b0591e9" }
@@ -28,7 +24,8 @@ p3-util = { git = "https://github.com/Plonky3/Plonky3.git", rev = "b0591e9" }
 p3-challenger = { git = "https://github.com/Plonky3/Plonky3.git", rev = "b0591e9" }
 p3-monty-31 = { git = "https://github.com/Plonky3/Plonky3.git", rev = "b0591e9" }
 p3-symmetric = { git = "https://github.com/Plonky3/Plonky3.git", rev = "b0591e9" }
-monty-goldilocks = { git = "https://github.com/scroll-tech/monty-goldilocks.git" }
 
 # WHIR
 whir = { git = "https://github.com/scroll-tech/whir.git" }
+ark-ff = { version = "0.5", features = ["asm", "std"] }
+ark-serialize = "0.5"

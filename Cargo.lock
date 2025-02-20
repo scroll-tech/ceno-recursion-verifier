@@ -546,16 +546,17 @@ dependencies = [
 name = "ceno-recursion-verifier"
 version = "0.1.0"
 dependencies = [
+ "ark-ff 0.5.0",
+ "ark-serialize 0.5.0",
  "itertools 0.13.0",
- "monty-goldilocks",
  "openvm",
  "openvm-circuit",
  "openvm-native-circuit",
  "openvm-native-compiler",
  "openvm-native-compiler-derive",
  "openvm-native-recursion",
- "openvm-stark-backend 1.0.0-rc.0 (git+https://github.com/darth-cy/stark-backend.git?branch=feat%2Fmonty_goldilocks_poseidon2)",
- "openvm-stark-sdk 1.0.0-rc.0 (git+https://github.com/darth-cy/stark-backend.git?branch=feat%2Fmonty_goldilocks_poseidon2)",
+ "openvm-stark-backend",
+ "openvm-stark-sdk",
  "p3-air",
  "p3-challenger",
  "p3-commit",
@@ -1495,17 +1496,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "monty-goldilocks"
-version = "0.1.0"
-source = "git+https://github.com/scroll-tech/monty-goldilocks.git#e55816b7255f1010cd19f8e95aec7fffc25adace"
-dependencies = [
- "p3-field",
- "p3-mds",
- "p3-monty-31",
- "p3-poseidon2",
-]
-
-[[package]]
 name = "nibble_vec"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1666,7 +1656,7 @@ dependencies = [
  "openvm-circuit-primitives-derive",
  "openvm-instructions",
  "openvm-poseidon2-air",
- "openvm-stark-backend 1.0.0-rc.0 (git+https://github.com/openvm-org/stark-backend.git?tag=v1.0.0-rc.0)",
+ "openvm-stark-backend",
  "p3-baby-bear",
  "p3-symmetric",
  "rand",
@@ -1703,7 +1693,7 @@ dependencies = [
  "num-bigint 0.4.6",
  "num-traits",
  "openvm-circuit-primitives-derive",
- "openvm-stark-backend 1.0.0-rc.0 (git+https://github.com/openvm-org/stark-backend.git?tag=v1.0.0-rc.0)",
+ "openvm-stark-backend",
  "rand",
  "serde",
  "tracing",
@@ -1741,7 +1731,7 @@ dependencies = [
  "num-bigint 0.4.6",
  "num-traits",
  "openvm-instructions-derive",
- "openvm-stark-backend 1.0.0-rc.0 (git+https://github.com/openvm-org/stark-backend.git?tag=v1.0.0-rc.0)",
+ "openvm-stark-backend",
  "serde",
  "strum",
  "strum_macros",
@@ -1775,8 +1765,8 @@ dependencies = [
  "openvm-native-compiler",
  "openvm-poseidon2-air",
  "openvm-rv32im-circuit",
- "openvm-stark-backend 1.0.0-rc.0 (git+https://github.com/openvm-org/stark-backend.git?tag=v1.0.0-rc.0)",
- "openvm-stark-sdk 1.0.0-rc.0 (git+https://github.com/openvm-org/stark-backend.git?tag=v1.0.0-rc.0)",
+ "openvm-stark-backend",
+ "openvm-stark-sdk",
  "rand",
  "serde",
  "serde-big-array",
@@ -1799,8 +1789,8 @@ dependencies = [
  "openvm-instructions-derive",
  "openvm-native-compiler-derive",
  "openvm-rv32im-transpiler",
- "openvm-stark-backend 1.0.0-rc.0 (git+https://github.com/openvm-org/stark-backend.git?tag=v1.0.0-rc.0)",
- "openvm-stark-sdk 1.0.0-rc.0 (git+https://github.com/openvm-org/stark-backend.git?tag=v1.0.0-rc.0)",
+ "openvm-stark-backend",
+ "openvm-stark-sdk",
  "serde",
  "snark-verifier-sdk",
  "strum",
@@ -1830,8 +1820,8 @@ dependencies = [
  "openvm-native-circuit",
  "openvm-native-compiler",
  "openvm-native-compiler-derive",
- "openvm-stark-backend 1.0.0-rc.0 (git+https://github.com/openvm-org/stark-backend.git?tag=v1.0.0-rc.0)",
- "openvm-stark-sdk 1.0.0-rc.0 (git+https://github.com/openvm-org/stark-backend.git?tag=v1.0.0-rc.0)",
+ "openvm-stark-backend",
+ "openvm-stark-sdk",
  "p3-dft",
  "p3-fri",
  "p3-merkle-tree",
@@ -1863,8 +1853,8 @@ dependencies = [
  "itertools 0.13.0",
  "lazy_static",
  "openvm-circuit-primitives",
- "openvm-stark-backend 1.0.0-rc.0 (git+https://github.com/openvm-org/stark-backend.git?tag=v1.0.0-rc.0)",
- "openvm-stark-sdk 1.0.0-rc.0 (git+https://github.com/openvm-org/stark-backend.git?tag=v1.0.0-rc.0)",
+ "openvm-stark-backend",
+ "openvm-stark-sdk",
  "p3-monty-31",
  "p3-poseidon2",
  "p3-poseidon2-air",
@@ -1893,7 +1883,7 @@ dependencies = [
  "openvm-circuit-primitives-derive",
  "openvm-instructions",
  "openvm-rv32im-transpiler",
- "openvm-stark-backend 1.0.0-rc.0 (git+https://github.com/openvm-org/stark-backend.git?tag=v1.0.0-rc.0)",
+ "openvm-stark-backend",
  "rand",
  "serde",
  "serde-big-array",
@@ -1918,7 +1908,7 @@ dependencies = [
  "openvm-instructions",
  "openvm-instructions-derive",
  "openvm-rv32im-guest",
- "openvm-stark-backend 1.0.0-rc.0 (git+https://github.com/openvm-org/stark-backend.git?tag=v1.0.0-rc.0)",
+ "openvm-stark-backend",
  "openvm-transpiler",
  "rrs-lib",
  "serde",
@@ -1953,31 +1943,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "openvm-stark-backend"
-version = "1.0.0-rc.0"
-source = "git+https://github.com/darth-cy/stark-backend.git?branch=feat%2Fmonty_goldilocks_poseidon2#bfbe869d235ba3681fc808e647f3d82b79ec12e1"
-dependencies = [
- "async-trait",
- "cfg-if",
- "derivative",
- "derive-new 0.7.0",
- "itertools 0.13.0",
- "p3-air",
- "p3-challenger",
- "p3-commit",
- "p3-field",
- "p3-matrix",
- "p3-maybe-rayon",
- "p3-uni-stark",
- "p3-util",
- "rayon",
- "rustc-hash 2.1.1",
- "serde",
- "thiserror",
- "tracing",
-]
-
-[[package]]
 name = "openvm-stark-sdk"
 version = "1.0.0-rc.0"
 source = "git+https://github.com/openvm-org/stark-backend.git?tag=v1.0.0-rc.0#18cf1c084ebeb3ca1163e55b87893f1d1fd7fc1f"
@@ -1989,43 +1954,7 @@ dependencies = [
  "metrics",
  "metrics-tracing-context",
  "metrics-util",
- "openvm-stark-backend 1.0.0-rc.0 (git+https://github.com/openvm-org/stark-backend.git?tag=v1.0.0-rc.0)",
- "p3-baby-bear",
- "p3-blake3",
- "p3-bn254-fr",
- "p3-dft",
- "p3-fri",
- "p3-goldilocks",
- "p3-keccak",
- "p3-merkle-tree",
- "p3-poseidon",
- "p3-poseidon2",
- "p3-symmetric",
- "rand",
- "serde",
- "serde_json",
- "static_assertions",
- "toml",
- "tracing",
- "tracing-forest",
- "tracing-subscriber 0.3.19",
- "zkhash",
-]
-
-[[package]]
-name = "openvm-stark-sdk"
-version = "1.0.0-rc.0"
-source = "git+https://github.com/darth-cy/stark-backend.git?branch=feat%2Fmonty_goldilocks_poseidon2#bfbe869d235ba3681fc808e647f3d82b79ec12e1"
-dependencies = [
- "derivative",
- "derive_more 0.99.19",
- "ff 0.13.0",
- "itertools 0.13.0",
- "metrics",
- "metrics-tracing-context",
- "metrics-util",
- "monty-goldilocks",
- "openvm-stark-backend 1.0.0-rc.0 (git+https://github.com/darth-cy/stark-backend.git?branch=feat%2Fmonty_goldilocks_poseidon2)",
+ "openvm-stark-backend",
  "p3-baby-bear",
  "p3-blake3",
  "p3-bn254-fr",
@@ -2058,7 +1987,7 @@ dependencies = [
  "eyre",
  "openvm-instructions",
  "openvm-platform",
- "openvm-stark-backend 1.0.0-rc.0 (git+https://github.com/openvm-org/stark-backend.git?tag=v1.0.0-rc.0)",
+ "openvm-stark-backend",
  "rrs-lib",
  "strum",
  "thiserror",
