@@ -5,6 +5,7 @@ use p3_field::{Field as Plonky3Field, FieldAlgebra, TwoAdicField};
 use whir::{
     poly_utils::{eq_poly_outside, MultilinearPoint},
     sumcheck::proof::SumcheckPolynomial,
+    utils::base_decomposition,
 };
 
 fn to_plonky3_field<F: PrimeField, G: Plonky3Field>(n: F) -> G {
@@ -31,6 +32,17 @@ fn dot_product<F: Field>(a: &[F], b: &[F]) -> F {
         sum += a[i] * b[i];
     }
     sum
+}
+
+pub fn construct_binary_evaluation_idxs(folding_factor: usize) -> Vec<usize> {
+    (0..(1 << folding_factor))
+        .into_iter()
+        .filter(|&p| {
+            base_decomposition(p, 3, folding_factor)
+                .into_iter()
+                .all(|v| matches!(v, 0 | 1))
+        })
+        .collect::<Vec<usize>>()
 }
 
 fn verify_whir_sumcheck<C: Config, WF>(
@@ -174,11 +186,9 @@ fn verify_whir_sumcheck<C: Config, WF>(
 }
 
 pub mod tests {
+    use crate::sumcheck::construct_binary_evaluation_idxs;
     use crate::sumcheck::verify_whir_sumcheck;
-    use openvm_circuit::arch::{
-        SystemConfig, VmExecutor,
-        instructions::program::Program
-    };
+    use openvm_circuit::arch::{instructions::program::Program, SystemConfig, VmExecutor};
     use openvm_native_circuit::{Native, NativeConfig};
     use openvm_native_compiler::asm::{AsmBuilder, AsmConfig};
     use openvm_native_recursion::challenger::duplex::DuplexChallengerVariable;
@@ -191,19 +201,7 @@ pub mod tests {
         crypto::fields::Field64,
         poly_utils::{coeffs::CoefficientList, MultilinearPoint},
         sumcheck::prover_core::SumcheckCore,
-        utils::base_decomposition,
     };
-
-    fn construct_binary_evaluation_idxs(folding_factor: usize) -> Vec<usize> {
-        (0..(1 << folding_factor))
-            .into_iter()
-            .filter(|&p| {
-                base_decomposition(p, 3, folding_factor)
-                    .into_iter()
-                    .all(|v| matches!(v, 0 | 1))
-            })
-            .collect::<Vec<usize>>()
-    }
 
     #[allow(dead_code)]
     pub fn build_test_whir_sumcheck() -> (Program<BabyBear>, Vec<Vec<BabyBear>>) {

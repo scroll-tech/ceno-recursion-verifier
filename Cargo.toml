@@ -26,6 +26,10 @@ p3-monty-31 = { git = "https://github.com/Plonky3/Plonky3.git", rev = "b0591e9" 
 p3-symmetric = { git = "https://github.com/Plonky3/Plonky3.git", rev = "b0591e9" }
 
 # WHIR
-whir = { git = "https://github.com/scroll-tech/whir.git" }
+whir = { git = "https://github.com/scroll-tech/whir.git", branch = "feat/openvm-binding" }
+ark-std = { version = "0.5", features = ["std"] }
 ark-ff = { version = "0.5", features = ["asm", "std"] }
+ark-poly = "0.5"
 ark-serialize = "0.5"
+nimue = { git = "https://github.com/arkworks-rs/nimue", features = ["ark"] }
+nimue-pow = { git = "https://github.com/arkworks-rs/nimue" }

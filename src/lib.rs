@@ -1,1 +1,2 @@
-mod sumcheck;
+pub mod sumcheck;
+pub mod whir;
