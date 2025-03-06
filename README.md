@@ -1,7 +1,7 @@
 ### Ceno Recursion Verifier
-Adapt [WHIR sumcheck toy example](https://github.com/scroll-tech/whir/blob/main/src/sumcheck/mod.rs) using OpenVM's DSL. Example: 
+Adapt [WHIR verifier program](https://github.com/scroll-tech/whir/blob/main/src/whir/verifier.rs) using OpenVM's DSL. 
 
-To run the main entry test `test_whir_sumcheck`:
+To run the main entry test `test_whir_verifier`:
 ```
-cargo test --package ceno-recursion-verifier --lib -- sumcheck::tests::test_whir_sumcheck --exact --show-output
+cargo test --package ceno-recursion-verifier --lib -- whir::tests::test_whir_verifier --exact --show-output
 ```

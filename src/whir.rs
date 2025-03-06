@@ -1150,7 +1150,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_whir_sumcheck() {
+    fn test_whir_verifier() {
         let (program, witness) = build_test_whir_sumcheck();
 
         let system_config = SystemConfig::default()
