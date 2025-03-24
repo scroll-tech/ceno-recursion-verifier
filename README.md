@@ -15,7 +15,7 @@ cargo test --package ceno-recursion-verifier --lib -- whir::tests::test_whir_ver
 ---
 
 ### Ceno TowerProof Verifier
-Adapt [Ceno TowerProof verifier program]() using OpenVM's DSL.
+Adapt [Ceno TowerProof verifier program](https://github.com/scroll-tech/ceno/blob/master/ceno_zkvm/src/scheme/verifier.rs) using OpenVM's DSL.
 To run the main entry test `test_tower_proof_verifier`:
 ```
 cargo test --package ceno-recursion-verifier --lib -- tower_verifier::program::tests::test_tower_proof_verifier --exact --show-output
