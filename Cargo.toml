@@ -24,6 +24,7 @@ p3-util = { git = "https://github.com/Plonky3/Plonky3.git", rev = "b0591e9" }
 p3-challenger = { git = "https://github.com/Plonky3/Plonky3.git", rev = "b0591e9" }
 p3-monty-31 = { git = "https://github.com/Plonky3/Plonky3.git", rev = "b0591e9" }
 p3-symmetric = { git = "https://github.com/Plonky3/Plonky3.git", rev = "b0591e9" }
+p3-goldilocks = { git = "https://github.com/scroll-tech/plonky3", rev = "b0591e9" }
 
 # WHIR
 whir = { git = "https://github.com/scroll-tech/whir.git", branch = "feat/openvm-binding" }

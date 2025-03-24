@@ -950,7 +950,19 @@ fn verify_whir<C: Config>(
         prev = &prev_sumcheck;
     }
 
-    // _
+    // _debug
+    //     // Check the foldings computed from the proof match the evaluations of the polynomial
+    //     let final_folds = &computed_folds[computed_folds.len() - 1];
+    //     let final_evaluations = parsed
+    //         .final_coefficients
+    //         .evaluate_at_univariate(&parsed.final_randomness_points);
+    //     if !final_folds
+    //         .iter()
+    //         .zip(final_evaluations)
+    //         .all(|(&fold, eval)| fold == eval)
+    //     {
+    //         return Err(ProofError::InvalidProof);
+    //     }
 
     // Check the final sumchecks
     let prev_eval = evaluate_at_point(builder, &prev.poly_eval, prev.folding_randomness);
@@ -990,7 +1002,19 @@ fn verify_whir<C: Config>(
         prev = &prev_sumcheck;
     }
 
-    // _
+    // _debug:
+    // Check the final sumcheck evaluation
+    // let prev_sumcheck_poly_eval = evaluate_at_point(builder, &prev.poly_eval, prev.folding_randomness);
+    // let evaluation_of_v_poly = self.compute_v_poly(&parsed_commitment, statement, &parsed);
+
+    // if prev_sumcheck_poly_eval
+    //     != evaluation_of_v_poly
+    //         * parsed
+    //             .final_coefficients
+    //             .evaluate(&parsed.final_sumcheck_randomness)
+    // {
+    //     return Err(ProofError::InvalidProof);
+    // }
 }
 
 pub mod tests {
