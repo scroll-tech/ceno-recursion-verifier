@@ -43,9 +43,7 @@ pub struct TowerVerifierInputVariable<C: Config> {
 
     pub proofs: Array<C, Array<C, IOPProverMessageVariable<C>>>,
     pub prod_specs_eval: Array<C, Array<C, Array<C, Ext<C::F, C::EF>>>>,
-    pub prod_specs_points: Array<C, Array<C, PointVariable<C>>>,
     pub logup_specs_eval: Array<C, Array<C, Array<C, Ext<C::F, C::EF>>>>,
-    pub logup_specs_points: Array<C, Array<C, PointVariable<C>>>,
 }
 
 pub struct Point {
@@ -68,6 +66,7 @@ impl Hintable<InnerConfig> for Point {
 }
 impl VecAutoHintable for Point {}
 
+#[derive(Debug)]
 pub struct IOPProverMessage {
     pub evaluations: Vec<E>,
 }
@@ -102,9 +101,7 @@ pub struct TowerVerifierInput {
 
     pub proofs: Vec<Vec<IOPProverMessage>>,
     pub prod_specs_eval: Vec<Vec<Vec<E>>>,
-    pub prod_specs_points: Vec<Vec<Point>>,
     pub logup_specs_eval: Vec<Vec<Vec<E>>>,
-    pub logup_specs_points: Vec<Vec<Point>>,
 }
 
 impl Hintable<InnerConfig> for TowerVerifierInput {
@@ -122,9 +119,7 @@ impl Hintable<InnerConfig> for TowerVerifierInput {
 
         let proofs = builder.dyn_array(num_proofs.clone());
         let prod_specs_eval = builder.dyn_array(num_prod_specs.clone());
-        let prod_specs_points = builder.dyn_array(num_prod_specs.clone());
         let logup_specs_eval = builder.dyn_array(num_logup_specs.clone());
-        let logup_specs_points = builder.dyn_array(num_logup_specs.clone());
 
         iter_zip!(builder, proofs).for_each(|idx_vec, builder| {
             let ptr = idx_vec[0];
@@ -138,22 +133,10 @@ impl Hintable<InnerConfig> for TowerVerifierInput {
             builder.iter_ptr_set(&prod_specs_eval, ptr, evals);
         });
 
-        iter_zip!(builder, prod_specs_points).for_each(|idx_vec, builder| {
-            let ptr = idx_vec[0];
-            let pts = Vec::<Point>::read(builder);
-            builder.iter_ptr_set(&prod_specs_points, ptr, pts);
-        });
-
         iter_zip!(builder, logup_specs_eval).for_each(|idx_vec, builder| {
             let ptr = idx_vec[0];
             let evals = Vec::<Vec<E>>::read(builder);
             builder.iter_ptr_set(&logup_specs_eval, ptr, evals);
-        });
-
-        iter_zip!(builder, logup_specs_points).for_each(|idx_vec, builder| {
-            let ptr = idx_vec[0];
-            let pts = Vec::<Point>::read(builder);
-            builder.iter_ptr_set(&logup_specs_points, ptr, pts);
         });
 
         TowerVerifierInputVariable {
@@ -167,9 +150,7 @@ impl Hintable<InnerConfig> for TowerVerifierInput {
             max_num_variables,
             proofs,
             prod_specs_eval,
-            prod_specs_points,
             logup_specs_eval,
-            logup_specs_points,
         }
     }
 
@@ -196,14 +177,8 @@ impl Hintable<InnerConfig> for TowerVerifierInput {
         for evals in &self.prod_specs_eval {
             stream.extend(evals.write());
         }
-        for pt in &self.prod_specs_points {
-            stream.extend(pt.write());
-        }
         for evals in &self.logup_specs_eval {
             stream.extend(evals.write());
-        }
-        for pt in &self.logup_specs_points {
-            stream.extend(pt.write());
         }
 
         stream

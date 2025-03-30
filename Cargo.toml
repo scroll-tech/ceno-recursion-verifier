@@ -34,3 +34,10 @@ ark-poly = "0.5"
 ark-serialize = "0.5"
 nimue = { git = "https://github.com/arkworks-rs/nimue", features = ["ark"] }
 nimue-pow = { git = "https://github.com/arkworks-rs/nimue" }
+
+# Ceno
+ceno_zkvm = { git = "https://github.com/darth-cy/ceno.git", branch = "feat/export_ff_ext" }
+mpcs = { git = "https://github.com/darth-cy/ceno.git", branch = "feat/export_ff_ext" }
+ff_ext = { git = "https://github.com/darth-cy/ceno.git", branch = "feat/export_ff_ext" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"

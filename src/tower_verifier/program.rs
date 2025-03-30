@@ -1,3 +1,4 @@
+use crate::tower_verifier::transcript::transcript_observe_label;
 use crate::{sumcheck::construct_binary_evaluation_idxs, tower_verifier};
 use ark_ff::{AdditiveGroup, BigInteger, Field, PrimeField};
 use ark_poly::domain::EvaluationDomain;
@@ -7,6 +8,7 @@ use nimue::{
     ByteChallenges, ByteReader,
 };
 use nimue_pow::{blake3::Blake3PoW, PoWChallenge};
+use openvm::io::println;
 use openvm_native_compiler::asm::AsmConfig;
 use openvm_native_compiler::prelude::*;
 use openvm_native_compiler_derive::iter_zip;
@@ -36,9 +38,12 @@ use whir::{
     },
 };
 
-use super::binding::{
-    IOPProverMessage, IOPProverMessageVariable, Point, PointVariable, TowerVerifierInput,
-    TowerVerifierInputVariable,
+use super::{
+    binding::{
+        IOPProverMessage, IOPProverMessageVariable, Point, PointVariable, TowerVerifierInput,
+        TowerVerifierInputVariable,
+    },
+    transcript,
 };
 type PowStrategy = Blake3PoW;
 type InnerConfig = AsmConfig<InnerVal, InnerChallenge>;
@@ -348,7 +353,6 @@ fn verify_tower_proof<C: Config>(
     tower_verifier_input: TowerVerifierInputVariable<C>,
 ) {
     let num_fanin: usize = 2;
-
     builder.assert_usize_eq(tower_verifier_input.num_fanin, RVar::from(num_fanin));
     let num_prod_spec = tower_verifier_input.prod_out_evals.len();
     let num_logup_spec = tower_verifier_input.logup_out_evals.len();
@@ -410,7 +414,6 @@ fn verify_tower_proof<C: Config>(
         let ptr = ptr_vec[0];
         let evals = builder.iter_ptr_get(&tower_verifier_input.prod_out_evals, ptr);
         let e = evaluate_at_point(builder, &evals, &initial_rt);
-
         let p_ptr = ptr_vec[1];
         builder.iter_ptr_set(&prod_spec_point_n_eval, p_ptr, e);
     });
@@ -656,29 +659,329 @@ fn verify_tower_proof<C: Config>(
 }
 
 pub mod tests {
-    use crate::tower_verifier::binding::{IOPProverMessage, Point, TowerVerifierInput, E, F};
+    use crate::tower_verifier::binding::{IOPProverMessage, Point, TowerVerifierInput, F};
+    use crate::tower_verifier::transcript::transcript_observe_label;
+    use ceno_zkvm::scheme::{verifier, ZKVMProof};
+    use mpcs::{Basefold, BasefoldRSParams};
+    use openvm::io::println;
     use openvm_circuit::arch::{instructions::program::Program, SystemConfig, VmExecutor};
     use openvm_native_circuit::{Native, NativeConfig};
     use openvm_native_compiler::asm::{AsmBuilder, AsmConfig};
-    use openvm_native_recursion::{challenger::duplex::DuplexChallengerVariable, hints::Hintable};
+    use openvm_native_compiler::prelude::*;
+    use openvm_native_recursion::challenger::ChallengerVariable;
+    use openvm_native_recursion::challenger::FeltChallenger;
+    use openvm_native_recursion::{
+        challenger::{duplex::DuplexChallengerVariable, CanObserveVariable, CanSampleVariable},
+        fri::witness,
+        hints::Hintable,
+        types::InnerConfig,
+    };
     use openvm_stark_backend::config::{StarkGenericConfig, Val};
     use openvm_stark_sdk::{
         config::baby_bear_poseidon2::{default_engine, BabyBearPoseidon2Config},
         p3_baby_bear::BabyBear,
     };
-    use p3_field::{FieldAlgebra, FieldExtensionAlgebra};
+    use p3_field::{extension::BinomialExtensionField, FieldAlgebra, FieldExtensionAlgebra};
+    use p3_util::array_serialization::deserialize;
+    use serde::{Deserialize, Serialize};
+    use serde_json::Value;
+    use std::io::Read;
+    use std::{default, fs::File};
 
     use super::verify_tower_proof;
     type SC = BabyBearPoseidon2Config;
     type EF = <SC as StarkGenericConfig>::Challenge;
     type Challenger = <SC as StarkGenericConfig>::Challenger;
 
+    use ff_ext::BabyBearExt4;
+
+    // _debug
+    // type E = BabyBearExt4;
+    use crate::tower_verifier::binding::E;
+
+    type B = BabyBear;
+    type Pcs = Basefold<E, BasefoldRSParams>;
+
+    fn read_json() -> Value {
+        let mut file = File::open("zkvm_proof.json").unwrap();
+        let mut contents = String::new();
+        file.read_to_string(&mut contents);
+        serde_json::from_str(&contents).unwrap()
+    }
+
+    fn print_structure(value: &Value, indent: usize) {
+        let recursive = false;
+        // Generate indentation for pretty printing
+        let indent_str = "  ".repeat(indent);
+
+        match value {
+            // If it's an object, recursively print each key-value pair's type
+            Value::Object(obj) => {
+                println!("{}Object ({} fields):", indent_str, obj.len());
+                for (key, val) in obj {
+                    println!("{}  {}: ", indent_str, key);
+                    print_structure(val, indent + 1);
+                }
+            }
+
+            // If it's an array, recursively print the type of each item
+            Value::Array(arr) => {
+                println!("{}Array ({} elements):", indent_str, arr.len());
+                for (i, item) in arr.iter().enumerate() {
+                    println!("{}  [{}]:", indent_str, i);
+                    if recursive {
+                        print_structure(item, indent + 1);
+                    }
+                }
+            }
+
+            // If it's a string, print its type
+            Value::String(_) => {
+                println!("{}String", indent_str);
+            }
+
+            // If it's a number (integer or float), print its type
+            Value::Number(_) => {
+                println!("{}Number", indent_str);
+            }
+
+            // If it's a boolean, print its type
+            Value::Bool(_) => {
+                println!("{}Boolean", indent_str);
+            }
+
+            // If it's null, print its type
+            Value::Null => {
+                println!("{}Null", indent_str);
+            }
+        }
+    }
+
+    #[derive(Default, Debug)]
+    pub struct ZKVMProofJSONParsed {
+        raw_pi: Vec<Vec<F>>,
+
+        pub prod_out_evals: Vec<Vec<E>>,
+        pub logup_out_evals: Vec<Vec<E>>,
+        pub num_variables: Vec<usize>,
+        pub num_fanin: usize,
+
+        // TowerProof
+        pub num_proofs: usize,
+        pub num_prod_specs: usize,
+        pub num_logup_specs: usize,
+        pub max_num_variables: usize,
+
+        proofs: Vec<Vec<IOPProverMessage>>,
+        prod_specs_eval: Vec<Vec<Vec<E>>>,
+        logup_specs_eval: Vec<Vec<Vec<E>>>,
+    }
+
+    // _debug
+
+    // #[derive(Clone, Serialize)]
+    // pub struct ZKVMProof<E: ExtensionField, PCS: PolynomialCommitmentScheme<E>> {
+    //     pub raw_pi: Vec<Vec<E::BaseField>>,
+    //     pub pi_evals: Vec<E>,
+    //     opcode_proofs: BTreeMap<String, (usize, ZKVMOpcodeProof<E, PCS>)>,
+    //     table_proofs: BTreeMap<String, (usize, ZKVMTableProof<E, PCS>)>,
+    // }
+
+    // BaseFold stuff
+
+    // fn write_commitment(
+    //     comm: &Self::Commitment,
+    //     transcript: &mut impl Transcript<E>,
+    // ) -> Result<(), Error> {
+    //     write_digest_to_transcript(&comm.root(), transcript);
+    //     Ok(())
+    // }
+
+    // pub fn write_digest_to_transcript<E: ExtensionField>(
+    //     digest: &Digest<E::BaseField>,
+    //     transcript: &mut impl Transcript<E>,
+    // ) {
+    //     digest
+    //         .0
+    //         .iter()
+    //         .for_each(|x| transcript.append_field_element(x));
+    // }
+
+    // pub struct Digest<F: PrimeField>(pub [F; DIGEST_WIDTH]);
+
+    // #[cfg(feature = "babybear")]
+    // pub(crate) const DIGEST_WIDTH: usize = 8;
+
+    fn parse_json() -> ZKVMProofJSONParsed {
+        let mut res = ZKVMProofJSONParsed::default();
+
+        let filename = "zkvm_proof.json";
+        let section = "opcode_proofs";
+        let opcode_idx: usize = 0;
+        let opcode_str = "ADD";
+
+        let mut file = File::open(filename).unwrap();
+        let mut contents = String::new();
+        file.read_to_string(&mut contents);
+        let data: Value = serde_json::from_str(&contents).unwrap();
+
+        // Check if the root is an object (it is in this case)
+        if let Some(obj) = data.as_object() {
+            let mut raw_pi_vec: Vec<Vec<F>> = vec![];
+
+            if let Some(raw_pi) = obj.get("raw_pi").and_then(Value::as_array) {
+                for pi in raw_pi {
+                    let mut sub_pi_vec: Vec<F> = vec![];
+                    let fs = Value::as_array(pi).expect("Correct structure");
+                    for f in fs {
+                        let f_v: F =
+                            serde_json::from_value(f.clone()).expect("correct deserlization");
+                        sub_pi_vec.push(f_v);
+                    }
+                    raw_pi_vec.push(sub_pi_vec);
+                }
+                res.raw_pi = raw_pi_vec;
+            }
+
+            // deal with opcode proof
+            let opcode_proofs =
+                Value::as_object(obj.get(section).expect("section")).expect("section");
+            let opcode_proof =
+                Value::as_array(opcode_proofs.get(opcode_str).expect("opcode_section"))
+                    .expect("opcode_section");
+
+            // prod_out_evals
+            let mut prod_out_evals: Vec<Vec<E>> = vec![];
+
+            let mut record_r_out_evals: Vec<E> = vec![];
+            let record_r_out_evals_v =
+                Value::as_array(opcode_proof[1].get("record_r_out_evals").expect("section"))
+                    .expect("section");
+            for e in record_r_out_evals_v {
+                let e_v: E = serde_json::from_value(e.clone()).expect("conversion");
+                record_r_out_evals.push(e_v);
+            }
+            prod_out_evals.push(record_r_out_evals);
+
+            let mut record_w_out_evals: Vec<E> = vec![];
+            let record_w_out_evals_v =
+                Value::as_array(opcode_proof[1].get("record_w_out_evals").expect("section"))
+                    .expect("section");
+            for e in record_w_out_evals_v {
+                let e_v: E = serde_json::from_value(e.clone()).expect("conversion");
+                record_w_out_evals.push(e_v);
+            }
+            prod_out_evals.push(record_w_out_evals);
+            res.prod_out_evals = prod_out_evals;
+
+            // logup_out_evals
+            let mut logup_out_evals: Vec<Vec<E>> = vec![];
+            let mut inner: Vec<E> = vec![];
+
+            for label in [
+                "lk_p1_out_eval",
+                "lk_p2_out_eval",
+                "lk_q1_out_eval",
+                "lk_q2_out_eval",
+            ] {
+                let e_v: E =
+                    serde_json::from_value(opcode_proof[1].get(label).expect("section").clone())
+                        .expect("conversion");
+                inner.push(e_v);
+            }
+            logup_out_evals.push(inner);
+            res.logup_out_evals = logup_out_evals;
+
+            // parse out tower proof fields
+            let tower_proof =
+                Value::as_object(opcode_proof[1].get("tower_proof").expect("tower_proof"))
+                    .expect("tower_proof");
+
+            let mut proofs: Vec<Vec<IOPProverMessage>> = vec![];
+            let proofs_section =
+                Value::as_array(tower_proof.get("proofs").expect("proofs")).expect("proof");
+            for proof in proofs_section {
+                let mut proof_messages: Vec<IOPProverMessage> = vec![];
+                let messages = Value::as_array(proof).expect("messages");
+                for m in messages {
+                    let mut evaluations_vec: Vec<E> = vec![];
+                    let evaluations = Value::as_array(
+                        Value::as_object(m)
+                            .expect("IOPProverMessage")
+                            .get("evaluations")
+                            .expect("evaluations"),
+                    )
+                    .expect("evaluations");
+                    for v in evaluations {
+                        let e_v: E = serde_json::from_value(v.clone()).expect("e");
+                        evaluations_vec.push(e_v);
+                    }
+                    proof_messages.push(IOPProverMessage {
+                        evaluations: evaluations_vec,
+                    });
+                    // println!("=> m: {:?}", m);
+                    // println!("=> m parsed evaluations: {:?}", evaluations_vec);
+                }
+                proofs.push(proof_messages);
+            }
+            res.num_proofs = proofs.len();
+            res.proofs = proofs;
+
+            let mut prod_specs_eval: Vec<Vec<Vec<E>>> = vec![];
+            let prod_specs_eval_section =
+                Value::as_array(tower_proof.get("prod_specs_eval").expect("eval")).expect("evals");
+            for inner in prod_specs_eval_section {
+                let mut inner_v: Vec<Vec<E>> = vec![];
+                let v = Value::as_array(inner).expect("inner vec");
+                for inner_inner in v {
+                    let mut inner_evals_v: Vec<E> = vec![];
+                    let inner_evals = Value::as_array(inner_inner).expect("inner evals vec");
+                    for e in inner_evals {
+                        let e_v: E = serde_json::from_value(e.clone()).expect("e");
+                        inner_evals_v.push(e_v);
+                    }
+                    inner_v.push(inner_evals_v);
+                }
+                prod_specs_eval.push(inner_v);
+            }
+            res.num_prod_specs = prod_specs_eval.len();
+            res.prod_specs_eval = prod_specs_eval;
+
+            let mut logup_specs_eval: Vec<Vec<Vec<E>>> = vec![];
+            let logup_specs_eval_section =
+                Value::as_array(tower_proof.get("logup_specs_eval").expect("eval")).expect("evals");
+            for inner in logup_specs_eval_section {
+                let mut inner_v: Vec<Vec<E>> = vec![];
+                let v = Value::as_array(inner).expect("inner vec");
+                for inner_inner in v {
+                    let mut inner_evals_v: Vec<E> = vec![];
+                    let inner_evals = Value::as_array(inner_inner).expect("inner evals vec");
+                    for e in inner_evals {
+                        let e_v: E = serde_json::from_value(e.clone()).expect("e");
+                        inner_evals_v.push(e_v);
+                    }
+                    inner_v.push(inner_evals_v);
+                }
+                logup_specs_eval.push(inner_v);
+            }
+            res.num_logup_specs = logup_specs_eval.len();
+            res.logup_specs_eval = logup_specs_eval;
+
+            // _debug
+            res.num_variables = vec![17, 17, 19];
+            res.num_fanin = 2;
+            res.max_num_variables = 19;
+        }
+
+        res
+    }
+
     #[allow(dead_code)]
     pub fn build_tower_verifier_input() -> TowerVerifierInput {
         TowerVerifierInput {
             prod_out_evals: vec![vec![
                 E::from_canonical_u64(0x01),
-                E::from_canonical_u64(0x02),
+                E::from_canonical_u64(0x22),
             ]],
             logup_out_evals: vec![],
             num_variables: vec![2usize],
@@ -702,11 +1005,7 @@ pub mod tests {
                 E::from_canonical_u64(0x07),
                 E::from_canonical_u64(0x08),
             ]]],
-            prod_specs_points: vec![vec![Point {
-                fs: vec![F::from_canonical_u64(0x09), F::from_canonical_u64(0x10)],
-            }]],
             logup_specs_eval: vec![],
-            logup_specs_points: vec![],
         }
     }
 
@@ -723,6 +1022,84 @@ pub mod tests {
         // Obtain witness inputs
         let tower_verifier_input = TowerVerifierInput::read(&mut builder);
 
+        // Initialize transcript
+        transcript_observe_label(&mut builder, &mut challenger, b"riscv");
+
+        // Setup pre-program transcript operations
+        // Consult pre-opcode verification transcript operations here: _debug
+        let parsed_zkvm_proof_fields = parse_json();
+
+        for v in parsed_zkvm_proof_fields.raw_pi.clone() {
+            for f in v {
+                let f_v = builder.constant(f);
+                challenger.observe(&mut builder, f_v);
+            }
+        }
+
+        // _debug
+        // println!("=> Parsed zkvm proof: {:?}", parsed_zkvm_proof_fields);
+        // let proof = &parsed_zkvm_proof_fields.proofs[17];
+        // for m in proof {
+        //     println!("=> message: {:?}", m);
+        // }
+
+        // _debug
+        // transcript_observe_label(&mut builder, &mut challenger, b"test");
+        // let t = challenger.sample_ext(&mut builder);
+        // println!("=> test challenge:");
+        // builder.print_e(t);
+
+        //         // write fixed commitment to transcript
+        //         for (_, vk) in self.vk.circuit_vks.iter() {
+        //             if let Some(fixed_commit) = vk.fixed_commit.as_ref() {
+        //                 PCS::write_commitment(fixed_commit, &mut transcript)
+        //                     .map_err(ZKVMError::PCSError)?;
+        //             }
+        //         }
+
+        //         for (name, (_, proof)) in vm_proof.opcode_proofs.iter() {
+        //             tracing::debug!("read {}'s commit", name);
+        //             PCS::write_commitment(&proof.wits_commit, &mut transcript)
+        //                 .map_err(ZKVMError::PCSError)?;
+        //         }
+        //         for (name, (_, proof)) in vm_proof.table_proofs.iter() {
+        //             tracing::debug!("read {}'s commit", name);
+        //             PCS::write_commitment(&proof.wits_commit, &mut transcript)
+        //                 .map_err(ZKVMError::PCSError)?;
+        //         }
+
+        //         // alpha, beta
+        //         let challenges = [
+        //             transcript.read_challenge().elements,
+        //             transcript.read_challenge().elements,
+        //         ];
+        //         tracing::debug!("challenges in verifier: {:?}", challenges);
+
+        //         let dummy_table_item = challenges[0];
+        //         let mut dummy_table_item_multiplicity = 0;
+        //         let point_eval = PointAndEval::default();
+        //         let mut transcripts = transcript.fork(self.vk.circuit_vks.len());
+
+        //         for (name, (i, opcode_proof)) in vm_proof.opcode_proofs {
+        //             let transcript = &mut transcripts[i];
+
+        //             let circuit_vk = self
+        //                 .vk
+        //                 .circuit_vks
+        //                 .get(&name)
+        //                 .ok_or(ZKVMError::VKNotFound(name.clone()))?;
+        //             let _rand_point = self.verify_opcode_proof(
+        //                 &name,
+        //                 &self.vk.vp,
+        //                 circuit_vk,
+        //                 &opcode_proof,
+        //                 pi_evals,
+        //                 transcript,
+        //                 NUM_FANIN,
+        //                 &point_eval,
+        //                 &challenges,
+        //             )?;
+
         verify_tower_proof(&mut builder, &mut challenger, tower_verifier_input);
         builder.halt();
 
@@ -730,8 +1107,27 @@ pub mod tests {
         let mut witness_stream: Vec<
             Vec<p3_monty_31::MontyField31<openvm_stark_sdk::p3_baby_bear::BabyBearParameters>>,
         > = Vec::new();
-        witness_stream.extend(build_tower_verifier_input().write());
 
+        let verifier_input = TowerVerifierInput {
+            prod_out_evals: parsed_zkvm_proof_fields.prod_out_evals,
+            logup_out_evals: parsed_zkvm_proof_fields.logup_out_evals,
+            num_variables: parsed_zkvm_proof_fields.num_variables,
+            num_fanin: parsed_zkvm_proof_fields.num_fanin,
+    
+            // TowerProof
+            num_proofs: parsed_zkvm_proof_fields.num_proofs,
+            num_prod_specs: parsed_zkvm_proof_fields.num_prod_specs,
+            num_logup_specs: parsed_zkvm_proof_fields.num_logup_specs,
+            max_num_variables: parsed_zkvm_proof_fields.max_num_variables,
+    
+            proofs: parsed_zkvm_proof_fields.proofs,
+            prod_specs_eval: parsed_zkvm_proof_fields.prod_specs_eval,
+            logup_specs_eval: parsed_zkvm_proof_fields.logup_specs_eval,
+        };
+
+        witness_stream.extend(verifier_input.write());
+
+        // _debug
         let program: Program<
             p3_monty_31::MontyField31<openvm_stark_sdk::p3_baby_bear::BabyBearParameters>,
         > = builder.compile_isa();
@@ -743,6 +1139,7 @@ pub mod tests {
     fn test_tower_proof_verifier() {
         let (program, witness) = build_test_tower_verifier();
 
+        // _debug
         let system_config = SystemConfig::default()
             .with_public_values(4)
             .with_max_segment_len((1 << 25) - 100);
