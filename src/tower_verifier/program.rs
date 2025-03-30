@@ -37,7 +37,6 @@ use whir::{
         WhirProof,
     },
 };
-
 use super::{
     binding::{
         IOPProverMessage, IOPProverMessageVariable, Point, PointVariable, TowerVerifierInput,
@@ -45,6 +44,7 @@ use super::{
     },
     transcript,
 };
+use mpcs::BasefoldCommitment;
 type PowStrategy = Blake3PoW;
 type InnerConfig = AsmConfig<InnerVal, InnerChallenge>;
 const NUM_FANIN: usize = 2;
@@ -662,7 +662,7 @@ pub mod tests {
     use crate::tower_verifier::binding::{IOPProverMessage, Point, TowerVerifierInput, F};
     use crate::tower_verifier::transcript::transcript_observe_label;
     use ceno_zkvm::scheme::{verifier, ZKVMProof};
-    use mpcs::{Basefold, BasefoldRSParams};
+    use mpcs::{Basefold, BasefoldCommitment, BasefoldRSParams};
     use openvm::io::println;
     use openvm_circuit::arch::{instructions::program::Program, SystemConfig, VmExecutor};
     use openvm_native_circuit::{Native, NativeConfig};
@@ -761,6 +761,10 @@ pub mod tests {
     pub struct ZKVMProofJSONParsed {
         raw_pi: Vec<Vec<F>>,
 
+        circuit_vks_fixed_commits: Vec<BasefoldCommitment<BabyBearExt4>>,
+        opcode_proof_commits: Vec<BasefoldCommitment<BabyBearExt4>>,
+        table_proof_commits: Vec<BasefoldCommitment<BabyBearExt4>>,
+
         pub prod_out_evals: Vec<Vec<E>>,
         pub logup_out_evals: Vec<Vec<E>>,
         pub num_variables: Vec<usize>,
@@ -843,12 +847,19 @@ pub mod tests {
                 res.raw_pi = raw_pi_vec;
             }
 
+            
             // deal with opcode proof
             let opcode_proofs =
                 Value::as_object(obj.get(section).expect("section")).expect("section");
             let opcode_proof =
                 Value::as_array(opcode_proofs.get(opcode_str).expect("opcode_section"))
                     .expect("opcode_section");
+
+            print_structure(obj.get(section).expect("section"), 4);
+
+            let table_proofs =
+                Value::as_object(obj.get("table_proofs").expect("section")).expect("section");
+            print_structure(obj.get("table_proofs").expect("section"), 4);
 
             // prod_out_evals
             let mut prod_out_evals: Vec<Vec<E>> = vec![];
@@ -1036,6 +1047,32 @@ pub mod tests {
             }
         }
 
+
+        // let mut fixed_commits: Vec<PCS::Commitment> = vec![];
+        // // write fixed commitment to transcript
+        // for (_, vk) in self.vk.circuit_vks.iter() {
+        //     if let Some(fixed_commit) = vk.fixed_commit.as_ref() {
+        //         fixed_commits.push(fixed_commit.clone());
+        //         PCS::write_commitment(fixed_commit, &mut transcript)
+        //             .map_err(ZKVMError::PCSError)?;
+        //     }
+        // }
+        // if let Err(e) = save_to_json(&fixed_commits, "circuit_vks_fixed_commits.json") {
+        //     eprintln!("Error saving to JSON: {}", e);
+        // }
+
+        // for (name, (_, proof)) in vm_proof.opcode_proofs.iter() {
+        //     tracing::debug!("read {}'s commit", name);
+        //     PCS::write_commitment(&proof.wits_commit, &mut transcript)
+        //         .map_err(ZKVMError::PCSError)?;
+        // }
+        // for (name, (_, proof)) in vm_proof.table_proofs.iter() {
+        //     tracing::debug!("read {}'s commit", name);
+        //     PCS::write_commitment(&proof.wits_commit, &mut transcript)
+        //         .map_err(ZKVMError::PCSError)?;
+        // }
+
+
         // _debug
         // println!("=> Parsed zkvm proof: {:?}", parsed_zkvm_proof_fields);
         // let proof = &parsed_zkvm_proof_fields.proofs[17];
@@ -1049,24 +1086,13 @@ pub mod tests {
         // println!("=> test challenge:");
         // builder.print_e(t);
 
-        //         // write fixed commitment to transcript
-        //         for (_, vk) in self.vk.circuit_vks.iter() {
-        //             if let Some(fixed_commit) = vk.fixed_commit.as_ref() {
-        //                 PCS::write_commitment(fixed_commit, &mut transcript)
-        //                     .map_err(ZKVMError::PCSError)?;
-        //             }
-        //         }
 
-        //         for (name, (_, proof)) in vm_proof.opcode_proofs.iter() {
-        //             tracing::debug!("read {}'s commit", name);
-        //             PCS::write_commitment(&proof.wits_commit, &mut transcript)
-        //                 .map_err(ZKVMError::PCSError)?;
-        //         }
-        //         for (name, (_, proof)) in vm_proof.table_proofs.iter() {
-        //             tracing::debug!("read {}'s commit", name);
-        //             PCS::write_commitment(&proof.wits_commit, &mut transcript)
-        //                 .map_err(ZKVMError::PCSError)?;
-        //         }
+
+
+
+
+
+
 
         //         // alpha, beta
         //         let challenges = [
