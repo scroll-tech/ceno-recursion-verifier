@@ -1,13 +1,16 @@
+use super::{
+    binding::{
+        IOPProverMessage, IOPProverMessageVariable, Point, PointVariable, TowerVerifierInput,
+        TowerVerifierInputVariable,
+    },
+    transcript,
+};
 use crate::tower_verifier::transcript::transcript_observe_label;
 use crate::{sumcheck::construct_binary_evaluation_idxs, tower_verifier};
 use ark_ff::{AdditiveGroup, BigInteger, Field, PrimeField};
 use ark_poly::domain::EvaluationDomain;
 use ark_std::collections::BTreeSet;
-use nimue::{
-    plugins::ark::{FieldChallenges, FieldReader},
-    ByteChallenges, ByteReader,
-};
-use nimue_pow::{blake3::Blake3PoW, PoWChallenge};
+use mpcs::BasefoldCommitment;
 use openvm::io::println;
 use openvm_native_compiler::asm::AsmConfig;
 use openvm_native_compiler::prelude::*;
@@ -17,6 +20,7 @@ use openvm_native_recursion::{
     hints::{Hintable, InnerChallenge, InnerVal, VecAutoHintable},
 };
 use openvm_stark_sdk::{p3_baby_bear::BabyBear, p3_blake3::Blake3};
+use p3_field::PrimeField32;
 use p3_field::{
     ExtensionField, Field as Plonky3Field, FieldAlgebra, FieldExtensionAlgebra, PackedValue,
     TwoAdicField,
@@ -37,25 +41,9 @@ use whir::{
         WhirProof,
     },
 };
-use super::{
-    binding::{
-        IOPProverMessage, IOPProverMessageVariable, Point, PointVariable, TowerVerifierInput,
-        TowerVerifierInputVariable,
-    },
-    transcript,
-};
-use mpcs::BasefoldCommitment;
-type PowStrategy = Blake3PoW;
 type InnerConfig = AsmConfig<InnerVal, InnerChallenge>;
 const NUM_FANIN: usize = 2;
 const MAX_DEGREE: usize = 3;
-
-/// A point and the evaluation of this point.
-#[derive(Clone)]
-pub struct PointAndEvalVariable<C: Config> {
-    pub point: Option<PointVariable<C>>, // None: initial_rt
-    pub eval: Ext<C::F, C::EF>,
-}
 
 pub fn evaluate_at_point<C: Config>(
     builder: &mut Builder<C>,
@@ -83,8 +71,7 @@ fn dot_product<C: Config>(
         let ptr_b = idx_vec[1];
         let v_a = builder.iter_ptr_get(&a, ptr_a);
         let v_b = builder.iter_ptr_get(&b, ptr_b);
-        let new_acc = builder.eval(acc + v_a * v_b);
-        acc = new_acc;
+        builder.assign(&acc, acc + v_a * v_b);
     });
 
     acc
@@ -119,7 +106,7 @@ pub(crate) fn interpolate_uni_poly<C: Config>(
 ) -> Ext<C::F, C::EF> {
     let len = p_i.len();
     let evals: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(len.clone());
-    let prod = eval_at.clone();
+    let prod: Ext<C::F, C::EF> = builder.eval(eval_at);
 
     builder.set(&evals, 0, eval_at);
 
@@ -135,8 +122,6 @@ pub(crate) fn interpolate_uni_poly<C: Config>(
         builder.assign(&e, e + one);
     });
 
-    let res = builder.constant(C::EF::ZERO);
-
     let denom_up: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
     let i: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
     builder.assign(&i, i + one);
@@ -146,29 +131,34 @@ pub(crate) fn interpolate_uni_poly<C: Config>(
     });
     let denom_down: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
 
-    let idx_vec: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(len.clone());
-    let idx: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
-    builder.range(1, len.clone()).for_each(|i_vec, builder| {
-        builder.set(&idx_vec, i_vec[0], idx);
-        builder.assign(&idx, idx + one);
+    let idx_vec_len: RVar<C::N> = builder.eval_expr(len.clone() - RVar::from(1));
+    let idx_vec: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(idx_vec_len);
+    let idx_val: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
+    builder.range(0, idx_vec.len()).for_each(|i_vec, builder| {
+        builder.set(&idx_vec, i_vec[0], idx_val);
+        builder.assign(&idx_val, idx_val + one);
     });
-
-    let len_limit = idx.clone();
     let idx_rev = reverse(builder, &idx_vec);
-    let len_pos: Var<<C as Config>::N> = builder.eval(len.clone() - RVar::from(1));
+    let res = builder.constant(C::EF::ZERO);
+
+    let len_f = idx_val.clone();
     let neg_one: Ext<C::F, C::EF> = builder.constant(C::EF::NEG_ONE);
-    iter_zip!(builder, idx_rev).for_each(|ptr_vec, builder| {
-        let i = len_pos;
-        let p = builder.get(&p_i, i);
-        let eval = builder.get(&evals, i);
+    let evals_rev = reverse(builder, &evals);
+    let p_i_rev = reverse(builder, &p_i);
+
+    let mut idx_pos: RVar<C::N> = builder.eval_expr(len.clone() - RVar::from(1));
+    iter_zip!(builder, idx_rev, evals_rev, p_i_rev).for_each(|ptr_vec, builder| {
+        let idx = builder.iter_ptr_get(&idx_rev, ptr_vec[0]);
+        let eval = builder.iter_ptr_get(&evals_rev, ptr_vec[1]);
         let up_eval_inv: Ext<C::F, C::EF> = builder.eval(denom_up * eval);
         builder.assign(&up_eval_inv, up_eval_inv.inverse());
-        builder.assign(&res, res + p * prod * denom_down * up_eval_inv);
+        let p = builder.iter_ptr_get(&p_i_rev, ptr_vec[2]);
 
-        let len_ind = builder.iter_ptr_get(&idx_rev, ptr_vec[0]);
-        builder.assign(&denom_up, denom_up * (len_limit - len_ind) * neg_one);
-        builder.assign(&denom_down, len_ind);
-        builder.assign(&len_ind, len_ind - one);
+        builder.assign(&res, res + p * prod * denom_down * up_eval_inv);
+        builder.assign(&denom_up, denom_up * (len_f - idx) * neg_one);
+        builder.assign(&denom_down, denom_down * idx);
+
+        idx_pos = builder.eval_expr(idx_pos - RVar::from(1));
     });
 
     let p_i_0 = builder.get(&p_i, 0);
@@ -185,35 +175,38 @@ fn iop_verifier_state_verify<C: Config>(
     challenger: &mut impl ChallengerVariable<C>,
     out_claim: &Ext<C::F, C::EF>,
     prover_messages: &Array<C, IOPProverMessageVariable<C>>,
-    max_num_variables: RVar<C::N>,
+    max_num_variables: Felt<C::F>,
+    max_num_variables_var: RVar<C::N>,
+    max_degree: Felt<C::F>,
 ) -> (
     Array<C, Ext<<C as Config>::F, <C as Config>::EF>>,
     Ext<<C as Config>::F, <C as Config>::EF>,
 ) {
-    // TODO: append message on aux_info
-    // transcript.append_message(&aux_info.max_num_variables.to_le_bytes());
-    // transcript.append_message(&aux_info.max_degree.to_le_bytes());
+    challenger.observe(builder, max_num_variables);
+    challenger.observe(builder, max_degree);
 
     let one: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
     let round: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
     let polynomials_received: Array<C, Array<C, Ext<C::F, C::EF>>> =
-        builder.dyn_array(max_num_variables);
-    let challenges: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(max_num_variables);
+        builder.dyn_array(max_num_variables_var);
+    let challenges: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(max_num_variables_var);
 
     builder
-        .range(0, max_num_variables)
+        .range(0, max_num_variables_var)
         .for_each(|i_vec, builder| {
             let i = i_vec[0];
             let prover_msg = builder.get(&prover_messages, i);
+
             iter_zip!(builder, prover_msg.evaluations).for_each(|ptr_vec, builder| {
                 let e = builder.iter_ptr_get(&prover_msg.evaluations, ptr_vec[0]);
                 let e_felts = builder.ext2felt(e);
                 challenger.observe_slice(builder, e_felts);
             });
 
+            transcript_observe_label(builder, challenger, b"Internal round");
             let challenge = challenger.sample_ext(builder);
-            let challenger_felts = builder.ext2felt(challenge);
-            challenger.observe_slice(builder, challenger_felts);
+            // let challenger_felts = builder.ext2felt(challenge);
+            // challenger.observe_slice(builder, challenger_felts);
 
             builder.set(&challenges, i, challenge);
             builder.set(&polynomials_received, i, prover_msg.evaluations);
@@ -225,7 +218,7 @@ fn iop_verifier_state_verify<C: Config>(
     let expected_vec: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(expected_len.clone());
     builder.set(&expected_vec, 0, out_claim.clone());
 
-    let truncated_expected_vec = expected_vec.slice(builder, 0, max_num_variables);
+    let truncated_expected_vec = expected_vec.slice(builder, 1, expected_len);
     iter_zip!(
         builder,
         polynomials_received,
@@ -241,25 +234,23 @@ fn iop_verifier_state_verify<C: Config>(
 
         let expected_ptr = idx_vec[2];
         let expected = interpolate_uni_poly(builder, evaluations, c);
-        builder.iter_ptr_set(&expected_vec, expected_ptr, expected);
+
+        builder.iter_ptr_set(&truncated_expected_vec, expected_ptr, expected);
     });
 
     // l-append asserted_sum to the first position of the expected vector
-    iter_zip!(builder, polynomials_received, truncated_expected_vec).for_each(
-        |idx_vec, builder| {
-            let evaluations = builder.iter_ptr_get(&polynomials_received, idx_vec[0]);
-            let expected = builder.iter_ptr_get(&expected_vec, idx_vec[1]);
+    iter_zip!(builder, polynomials_received, expected_vec).for_each(|idx_vec, builder| {
+        let evaluations = builder.iter_ptr_get(&polynomials_received, idx_vec[0]);
+        let expected = builder.iter_ptr_get(&expected_vec, idx_vec[1]);
 
-            let e1 = builder.get(&evaluations, 0);
-            let e2 = builder.get(&evaluations, 1);
-            let target: Ext<<C as Config>::F, <C as Config>::EF> = builder.eval(e1 + e2);
+        let e1 = builder.get(&evaluations, 0);
+        let e2 = builder.get(&evaluations, 1);
+        let target: Ext<<C as Config>::F, <C as Config>::EF> = builder.eval(e1 + e2);
 
-            // TODO: Enable scalar check
-            // builder.assert_ext_eq(expected, target);
-        },
-    );
+        builder.assert_ext_eq(expected, target);
+    });
 
-    let expected = builder.get(&expected_vec, max_num_variables);
+    let expected = builder.get(&expected_vec, max_num_variables_var);
 
     (challenges, expected)
 }
@@ -270,7 +261,7 @@ fn eq_eval<C: Config>(
     x: &Array<C, Ext<C::F, C::EF>>,
     y: &Array<C, Ext<C::F, C::EF>>,
 ) -> Ext<C::F, C::EF> {
-    let mut acc: Ext<C::F, C::EF> = builder.eval(C::F::ZERO);
+    let acc: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
 
     iter_zip!(builder, x, y).for_each(|idx_vec, builder| {
         let ptr_x = idx_vec[0];
@@ -279,8 +270,8 @@ fn eq_eval<C: Config>(
         let v_y = builder.iter_ptr_get(&y, ptr_y);
         let xi_yi: Ext<C::F, C::EF> = builder.eval(v_x * v_y);
         let one: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
-        let new_acc = builder.eval(acc * (xi_yi + xi_yi - v_x - v_y + one));
-        acc = new_acc;
+        let new_acc: Ext<C::F, C::EF> = builder.eval(acc * (xi_yi + xi_yi - v_x - v_y + one));
+        builder.assign(&acc, new_acc);
     });
 
     acc
@@ -334,17 +325,37 @@ fn gen_alpha_pows<C: Config>(
     alpha_len: RVar<<C as Config>::N>,
 ) -> Array<C, Ext<C::F, C::EF>> {
     let alpha = challenger.sample_ext(builder);
-    let alpha_felts = builder.ext2felt(alpha);
-    challenger.observe_slice(builder, alpha_felts);
+
+    // let alpha_felts = builder.ext2felt(alpha);
+    // challenger.observe_slice(builder, alpha_felts);
+
     let alpha_pows: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(alpha_len);
-    let mut prev = C::EF::ONE.cons();
-    iter_zip!(builder, alpha_pows).for_each(|ptr_vec, builder| {
+    let prev: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
+    iter_zip!(builder, alpha_pows).for_each(|ptr_vec: Vec<RVar<<C as Config>::N>>, builder| {
         let ptr = ptr_vec[0];
         builder.iter_ptr_set(&alpha_pows, ptr, prev.clone());
-        prev *= alpha;
+        builder.assign(&prev, prev * alpha);
     });
-
     alpha_pows
+}
+
+fn is_valid_round<C: Config>(
+    builder: &mut Builder<C>,
+    round_var: RVar<C::N>,
+    round_limit: Var<<C as Config>::N>,
+    max_round: RVar<C::N>,
+) -> Ext<C::F, C::EF> {
+    let res: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
+
+    let diff: RVar<C::N> = builder.eval_expr(round_var - round_limit);
+    builder.range(0, max_round).for_each(|idx_vec, builder|{
+        builder.if_eq(diff, idx_vec[0]).then(|builder| {
+            let zero: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
+            builder.assign(&res, zero);
+        });
+    });
+    
+    res
 }
 
 fn verify_tower_proof<C: Config>(
@@ -381,27 +392,26 @@ fn verify_tower_proof<C: Config>(
         builder.assert_usize_eq(evals.len(), RVar::from(4));
     });
 
-    let log2_num_fanin = 1usize;
-
     let alpha_len =
         builder.eval_expr(num_prod_spec.clone() + num_logup_spec.clone() + num_logup_spec.clone());
+
+    transcript_observe_label(builder, challenger, b"combine subset evals");
     let alpha_pows = gen_alpha_pows(builder, challenger, alpha_len);
 
     // initial_claim = \sum_j alpha^j * out_j[rt]
     // out_j[rt] := (record_{j}[rt])
     // out_j[rt] := (logup_p{j}[rt])
     // out_j[rt] := (logup_q{j}[rt])
+    let log2_num_fanin = 1usize;
     let initial_rt: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(RVar::from(log2_num_fanin));
-    iter_zip!(builder, initial_rt).for_each(|ptr_vec, builder| {
-        let pt = builder.iter_ptr_get(&initial_rt, ptr_vec[0]);
-        let pt_felts = builder.ext2felt(pt);
-        challenger.observe_slice(builder, pt_felts);
-    });
-    iter_zip!(builder, initial_rt).for_each(|ptr_vec, builder| {
-        let ptr = ptr_vec[0];
-        let new_challenge = challenger.sample_ext(builder);
-        builder.iter_ptr_set(&initial_rt, ptr, new_challenge);
-    });
+    transcript_observe_label(builder, challenger, b"product_sum");
+    builder
+        .range(0, initial_rt.len())
+        .for_each(|idx_vec, builder| {
+            let idx = idx_vec[0];
+            let c = challenger.sample_ext(builder);
+            builder.set(&initial_rt, idx, c);
+        });
 
     let prod_spec_point_n_eval: Array<C, Ext<C::F, C::EF>> =
         builder.dyn_array(num_prod_spec.clone());
@@ -471,43 +481,55 @@ fn verify_tower_proof<C: Config>(
     let mut curr_pt = initial_rt.clone();
     let mut curr_eval = initial_claim.clone();
     let op_range = builder.eval_expr(tower_verifier_input.max_num_variables - RVar::from(1));
+    let round: Felt<C::F> = builder.constant(C::F::ZERO);
+    let one: Ext<<C as Config>::F, <C as Config>::EF> = builder.constant(C::EF::ONE);
+
     builder.range(0, op_range).for_each(|i_vec, builder| {
-        let round = i_vec[0];
+        let round_var = i_vec[0];
         let out_rt = &curr_pt;
         let out_claim = &curr_eval;
 
-        let prover_messages = builder.get(&tower_verifier_input.proofs, round);
-        let max_num_variables = builder.eval_expr(round + RVar::from(1));
+        let prover_messages = builder.get(&tower_verifier_input.proofs, round_var);
+
+        let max_num_variables: Felt<C::F> = builder.constant(C::F::ONE);
+        builder.assign(&max_num_variables, max_num_variables + round);
+        let max_num_variables_var = builder.eval_expr(round_var + RVar::from(1));
+
+        let max_degree = builder.constant(C::F::from_canonical_usize(3));
         let (sub_rt, sub_e) = iop_verifier_state_verify(
             builder,
             challenger,
             out_claim,
             &prover_messages,
             max_num_variables,
+            max_num_variables_var,
+            max_degree,
         );
 
-        let mut expected_evaluation: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
-
+        let expected_evaluation: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
         builder
             .range(0, num_prod_spec.clone())
             .for_each(|i_vec, builder| {
                 let spec_index = i_vec[0];
-
+                let eq_e = eq_eval(builder, &out_rt, &sub_rt);
                 let alpha = builder.get(&alpha_pows, spec_index.clone());
                 let max_round = builder.get(&tower_verifier_input.num_variables, spec_index);
                 let round_limit: Var<<C as Config>::N> = builder.eval(max_round - RVar::from(1));
 
-                builder.if_ne(round, round_limit).then(|builder| {
-                    let eq_e = eq_eval(builder, &out_rt, &sub_rt);
+                let prod: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
+                
+                builder.if_ne(round_var, round_limit).then(|builder| {
+                    let valid_round_coeff: Ext<C::F, C::EF> = is_valid_round(builder, round_var, round_limit, op_range);
                     let prod_slice = builder.get(&tower_verifier_input.prod_specs_eval, spec_index);
-                    let prod_round_slice = builder.get(&prod_slice, round);
-                    let prod = product(builder, &prod_round_slice);
-
-                    builder.assign(
-                        &expected_evaluation,
-                        expected_evaluation + eq_e * alpha * prod,
-                    );
+                    let prod_round_slice = builder.get(&prod_slice, round_var);
+                    let pdt = product(builder, &prod_round_slice);
+                    builder.assign(&prod, pdt * valid_round_coeff);
                 });
+
+                builder.assign(
+                    &expected_evaluation,
+                    expected_evaluation + eq_e * alpha * prod,
+                );
             });
 
         let num_variables_len = tower_verifier_input.num_variables.len();
@@ -518,6 +540,7 @@ fn verify_tower_proof<C: Config>(
             num_prod_spec.clone(),
             num_variables_len.clone(),
         );
+
         builder
             .range(0, num_logup_spec.clone())
             .for_each(|i_vec, builder| {
@@ -526,17 +549,20 @@ fn verify_tower_proof<C: Config>(
                 let alpha_numerator_idx = builder.eval_expr(spec_index * RVar::from(2));
                 let alpha_denominator_idx =
                     builder.eval_expr(spec_index * RVar::from(2) + RVar::from(1));
-                let alpha_numerator = builder.get(&logup_alpha_pows_slice, alpha_numerator_idx);
+                let alpha_numerator: Ext<<C as Config>::F, <C as Config>::EF> = builder.get(&logup_alpha_pows_slice, alpha_numerator_idx);
                 let alpha_denominator = builder.get(&logup_alpha_pows_slice, alpha_denominator_idx);
 
                 let max_round = builder.get(&logup_num_variables_slice, spec_index);
                 let round_limit: Var<<C as Config>::N> = builder.eval(max_round - RVar::from(1));
 
-                builder.if_ne(round, round_limit).then(|builder| {
-                    let eq_e = eq_eval(builder, &out_rt, &sub_rt);
+                let eq_e = eq_eval(builder, &out_rt, &sub_rt);
+                let prod: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
+                
+                builder.if_ne(round_var, round_limit).then(|builder| {
+                    let valid_round_coeff: Ext<C::F, C::EF> = is_valid_round(builder, round_var, round_limit, op_range);
                     let prod_slice =
                         builder.get(&tower_verifier_input.logup_specs_eval, spec_index);
-                    let prod_round_slice = builder.get(&prod_slice, round);
+                    let prod_round_slice = builder.get(&prod_slice, round_var);
 
                     let p1 = builder.get(&prod_round_slice, 0);
                     let p2 = builder.get(&prod_round_slice, 1);
@@ -544,21 +570,20 @@ fn verify_tower_proof<C: Config>(
                     let q2 = builder.get(&prod_round_slice, 3);
 
                     builder.assign(
-                        &expected_evaluation,
-                        expected_evaluation
-                            + eq_e
-                                * (alpha_numerator * (p1 * q2 + p2 * q1)
-                                    + alpha_denominator * (q1 * q2)),
+                        &prod,
+                        (alpha_numerator * (p1 * q2 + p2 * q1) + alpha_denominator * (q1 * q2)) * valid_round_coeff,
                     );
                 });
+
+                builder.assign(&expected_evaluation, expected_evaluation + eq_e * prod);
             });
 
-        // TODO: Scalar check
-        // builder.assert_ext_eq(expected_evaluation, sub_e);
+        builder.assert_ext_eq(expected_evaluation, sub_e);
 
         // derive single eval
         // rt' = r_merge || rt
         // r_merge.len() == ceil_log2(num_product_fanin)
+        transcript_observe_label(builder, challenger, b"merge");
         let r_merge = challenger.sample_ext(builder);
         let coeffs: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(num_fanin);
         let one: Ext<<C as Config>::F, <C as Config>::EF> = builder.constant(C::EF::ONE);
@@ -569,15 +594,14 @@ fn verify_tower_proof<C: Config>(
 
         let r_merge_arr = builder.dyn_array(RVar::from(1));
         builder.set(&r_merge_arr, 0, r_merge);
-
         let rt_prime = join(builder, &sub_rt, &r_merge_arr);
 
         // generate next round challenge
         let next_alpha_len = builder
             .eval_expr(num_prod_spec.clone() + num_logup_spec.clone() + num_logup_spec.clone());
+        transcript_observe_label(builder, challenger, b"combine subset evals");
         let next_alpha_pows = gen_alpha_pows(builder, challenger, next_alpha_len);
-        let next_round = builder.eval_expr(round + RVar::from(1));
-
+        let next_round = builder.eval_expr(round_var + RVar::from(1));
         let next_prod_spec_evals: Ext<<C as Config>::F, <C as Config>::EF> =
             builder.constant(C::EF::ZERO);
         builder
@@ -589,12 +613,12 @@ fn verify_tower_proof<C: Config>(
                     builder.get(&tower_verifier_input.num_variables, spec_index.clone());
                 let round_limit: Var<<C as Config>::N> = builder.eval(max_round - RVar::from(1));
 
-                builder.if_ne(round, round_limit).then(|builder| {
+                builder.if_ne(round_var, round_limit).then(|builder| {
                     let prod_slice = builder.get(&tower_verifier_input.prod_specs_eval, spec_index);
-                    let prod_round_slice = builder.get(&prod_slice, round);
+                    let prod_round_slice = builder.get(&prod_slice, round_var);
+                    let evals = dot_product(builder, &prod_round_slice, &coeffs);
 
-                    builder.if_ne(next_round, round_limit).then(|builder| {
-                        let evals = dot_product(builder, &prod_round_slice, &coeffs);
+                    builder.if_ne(next_round, round_limit).then(|builder| {    
                         builder.assign(&next_prod_spec_evals, next_prod_spec_evals + evals * alpha);
                     });
                 });
@@ -609,14 +633,15 @@ fn verify_tower_proof<C: Config>(
             num_prod_spec.clone(),
             num_variables_len.clone(),
         );
+
         builder
-            .range(0, num_prod_spec.clone())
+            .range(0, num_logup_spec.clone())
             .for_each(|i_vec, builder| {
                 let spec_index = i_vec[0];
                 let max_round = builder.get(&logup_num_variables_slice, spec_index);
                 let round_limit: Var<<C as Config>::N> = builder.eval(max_round - RVar::from(1));
 
-                builder.if_ne(round, round_limit).then(|builder| {
+                builder.if_ne(round_var, round_limit).then(|builder| {
                     let alpha_numerator_idx = builder.eval_expr(spec_index * RVar::from(2));
                     let alpha_denominator_idx =
                         builder.eval_expr(spec_index * RVar::from(2) + RVar::from(1));
@@ -624,9 +649,10 @@ fn verify_tower_proof<C: Config>(
                         builder.get(&logup_next_alpha_pows_slice, alpha_numerator_idx);
                     let alpha_denominator =
                         builder.get(&logup_next_alpha_pows_slice, alpha_denominator_idx);
+
                     let prod_slice =
                         builder.get(&tower_verifier_input.logup_specs_eval, spec_index);
-                    let prod_round_slice = builder.get(&prod_slice, round);
+                    let prod_round_slice = builder.get(&prod_slice, round_var);
                     let p1 = builder.get(&prod_round_slice, 0);
                     let p2 = builder.get(&prod_round_slice, 1);
                     let q1 = builder.get(&prod_round_slice, 2);
@@ -652,9 +678,15 @@ fn verify_tower_proof<C: Config>(
                 });
             });
 
-        let next_eval = builder.eval(next_prod_spec_evals + next_logup_spec_evals);
-        curr_pt = rt_prime;
-        curr_eval = next_eval;
+        iter_zip!(builder, alpha_pows, next_alpha_pows).for_each(|ptr_vec, builder| {
+            let new_alpha = builder.iter_ptr_get(&next_alpha_pows, ptr_vec[1]);
+            builder.iter_ptr_set(&alpha_pows, ptr_vec[0], new_alpha);
+        });
+
+        // let next_eval: Ext<C::F, C::EF> = builder.eval_ex[r(next_prod_spec_evals + next_logup_spec_evals);
+        builder.assign(&curr_pt, rt_prime);
+        builder.assign(&curr_eval, next_prod_spec_evals + next_logup_spec_evals);
+        builder.assign(&round, round + C::F::ONE);
     });
 }
 
@@ -681,7 +713,10 @@ pub mod tests {
         config::baby_bear_poseidon2::{default_engine, BabyBearPoseidon2Config},
         p3_baby_bear::BabyBear,
     };
-    use p3_field::{extension::BinomialExtensionField, FieldAlgebra, FieldExtensionAlgebra};
+    use p3_field::{
+        extension::BinomialExtensionField, FieldAlgebra, FieldExtensionAlgebra, PrimeField32,
+        PrimeField64,
+    };
     use p3_util::array_serialization::deserialize;
     use serde::{Deserialize, Serialize};
     use serde_json::Value;
@@ -694,9 +729,6 @@ pub mod tests {
     type Challenger = <SC as StarkGenericConfig>::Challenger;
 
     use ff_ext::BabyBearExt4;
-
-    // _debug
-    // type E = BabyBearExt4;
     use crate::tower_verifier::binding::E;
 
     type B = BabyBear;
@@ -781,41 +813,6 @@ pub mod tests {
         logup_specs_eval: Vec<Vec<Vec<E>>>,
     }
 
-    // _debug
-
-    // #[derive(Clone, Serialize)]
-    // pub struct ZKVMProof<E: ExtensionField, PCS: PolynomialCommitmentScheme<E>> {
-    //     pub raw_pi: Vec<Vec<E::BaseField>>,
-    //     pub pi_evals: Vec<E>,
-    //     opcode_proofs: BTreeMap<String, (usize, ZKVMOpcodeProof<E, PCS>)>,
-    //     table_proofs: BTreeMap<String, (usize, ZKVMTableProof<E, PCS>)>,
-    // }
-
-    // BaseFold stuff
-
-    // fn write_commitment(
-    //     comm: &Self::Commitment,
-    //     transcript: &mut impl Transcript<E>,
-    // ) -> Result<(), Error> {
-    //     write_digest_to_transcript(&comm.root(), transcript);
-    //     Ok(())
-    // }
-
-    // pub fn write_digest_to_transcript<E: ExtensionField>(
-    //     digest: &Digest<E::BaseField>,
-    //     transcript: &mut impl Transcript<E>,
-    // ) {
-    //     digest
-    //         .0
-    //         .iter()
-    //         .for_each(|x| transcript.append_field_element(x));
-    // }
-
-    // pub struct Digest<F: PrimeField>(pub [F; DIGEST_WIDTH]);
-
-    // #[cfg(feature = "babybear")]
-    // pub(crate) const DIGEST_WIDTH: usize = 8;
-
     fn parse_json() -> ZKVMProofJSONParsed {
         let mut res = ZKVMProofJSONParsed::default();
 
@@ -847,19 +844,59 @@ pub mod tests {
                 res.raw_pi = raw_pi_vec;
             }
 
-            
-            // deal with opcode proof
+            // deal with opcode + table proof
             let opcode_proofs =
                 Value::as_object(obj.get(section).expect("section")).expect("section");
+            let table_proofs =
+                Value::as_object(obj.get("table_proofs").expect("section")).expect("section");
+
+            // Gather opcode proof and table proof commitments
+            let opcode_keys = vec![
+                "ADD", "ADDI", "ANDI", "BEQ", "BLTU", "BNE", "JALR", "LW", "ORI", "SB", "SRAI",
+                "SRLI", "SUB", "SW",
+            ];
+            let table_keys = vec![
+                "OPS_And",
+                "OPS_Ltu",
+                "OPS_Or",
+                "OPS_Pow",
+                "OPS_Xor",
+                "PROGRAM",
+                "RAM_Memory_PubIOTable",
+                "RAM_Memory_StaticMemTable",
+                "RAM_Register_RegTable",
+                "RANGE_U14",
+                "RANGE_U16",
+                "RANGE_U5",
+                "RANGE_U8",
+            ];
+
+            let mut opcode_commits: Vec<BasefoldCommitment<BabyBearExt4>> = vec![];
+            for key in opcode_keys {
+                let op_proof = Value::as_array(opcode_proofs.get(key).expect("opcode"))
+                    .expect("opcode_section");
+                let commit = op_proof[1].get("wits_commit").expect("commitment");
+                let basefold_cmt: BasefoldCommitment<BabyBearExt4> =
+                    serde_json::from_value(commit.clone()).expect("deserialization");
+                opcode_commits.push(basefold_cmt);
+            }
+            res.opcode_proof_commits = opcode_commits;
+
+            let mut table_commits: Vec<BasefoldCommitment<BabyBearExt4>> = vec![];
+            for key in table_keys {
+                let tb_proof =
+                    Value::as_array(table_proofs.get(key).expect("table")).expect("table_section");
+                let commit = tb_proof[1].get("wits_commit").expect("commitment");
+                let basefold_cmt: BasefoldCommitment<BabyBearExt4> =
+                    serde_json::from_value(commit.clone()).expect("deserialization");
+                table_commits.push(basefold_cmt);
+            }
+            res.table_proof_commits = table_commits;
+
+            // Parse out ADD proof for testing
             let opcode_proof =
                 Value::as_array(opcode_proofs.get(opcode_str).expect("opcode_section"))
                     .expect("opcode_section");
-
-            print_structure(obj.get(section).expect("section"), 4);
-
-            let table_proofs =
-                Value::as_object(obj.get("table_proofs").expect("section")).expect("section");
-            print_structure(obj.get("table_proofs").expect("section"), 4);
 
             // prod_out_evals
             let mut prod_out_evals: Vec<Vec<E>> = vec![];
@@ -978,11 +1015,24 @@ pub mod tests {
             res.num_logup_specs = logup_specs_eval.len();
             res.logup_specs_eval = logup_specs_eval;
 
-            // _debug
             res.num_variables = vec![17, 17, 19];
             res.num_fanin = 2;
             res.max_num_variables = 19;
         }
+
+        // parse out fixed commits
+        let mut vk_file = File::open("circuit_vks_fixed_commits.json").unwrap();
+        let mut vk_contents = String::new();
+        vk_file.read_to_string(&mut vk_contents);
+        let data: Value = serde_json::from_str(&vk_contents).unwrap();
+
+        let mut circuit_vks_fixed_commits: Vec<BasefoldCommitment<BabyBearExt4>> = vec![];
+        for c in Value::as_array(&data).expect("conversion") {
+            let cmt: BasefoldCommitment<BabyBearExt4> =
+                serde_json::from_value(c.clone()).expect("conversion");
+            circuit_vks_fixed_commits.push(cmt);
+        }
+        res.circuit_vks_fixed_commits = circuit_vks_fixed_commits;
 
         res
     }
@@ -1037,7 +1087,6 @@ pub mod tests {
         transcript_observe_label(&mut builder, &mut challenger, b"riscv");
 
         // Setup pre-program transcript operations
-        // Consult pre-opcode verification transcript operations here: _debug
         let parsed_zkvm_proof_fields = parse_json();
 
         for v in parsed_zkvm_proof_fields.raw_pi.clone() {
@@ -1047,84 +1096,45 @@ pub mod tests {
             }
         }
 
+        for cmt in parsed_zkvm_proof_fields.circuit_vks_fixed_commits.clone() {
+            cmt.root().0.iter().for_each(|x| {
+                let f: F = serde_json::from_str(&serde_json::to_string(x).expect("serialization"))
+                    .expect("serialization bridge");
+                let f_v: Felt<F> = builder.constant(f);
+                challenger.observe(&mut builder, f_v);
+            });
+        }
 
-        // let mut fixed_commits: Vec<PCS::Commitment> = vec![];
-        // // write fixed commitment to transcript
-        // for (_, vk) in self.vk.circuit_vks.iter() {
-        //     if let Some(fixed_commit) = vk.fixed_commit.as_ref() {
-        //         fixed_commits.push(fixed_commit.clone());
-        //         PCS::write_commitment(fixed_commit, &mut transcript)
-        //             .map_err(ZKVMError::PCSError)?;
-        //     }
-        // }
-        // if let Err(e) = save_to_json(&fixed_commits, "circuit_vks_fixed_commits.json") {
-        //     eprintln!("Error saving to JSON: {}", e);
-        // }
+        for cmt in parsed_zkvm_proof_fields.opcode_proof_commits.clone() {
+            cmt.root().0.iter().for_each(|x| {
+                let f: F = serde_json::from_str(&serde_json::to_string(x).expect("serialization"))
+                    .expect("serialization bridge");
+                let f_v: Felt<F> = builder.constant(f);
+                challenger.observe(&mut builder, f_v);
+            });
+        }
 
-        // for (name, (_, proof)) in vm_proof.opcode_proofs.iter() {
-        //     tracing::debug!("read {}'s commit", name);
-        //     PCS::write_commitment(&proof.wits_commit, &mut transcript)
-        //         .map_err(ZKVMError::PCSError)?;
-        // }
-        // for (name, (_, proof)) in vm_proof.table_proofs.iter() {
-        //     tracing::debug!("read {}'s commit", name);
-        //     PCS::write_commitment(&proof.wits_commit, &mut transcript)
-        //         .map_err(ZKVMError::PCSError)?;
-        // }
+        for cmt in parsed_zkvm_proof_fields.table_proof_commits.clone() {
+            cmt.root().0.iter().for_each(|x| {
+                let f: F = serde_json::from_str(&serde_json::to_string(x).expect("serialization"))
+                    .expect("serialization bridge");
+                let f_v: Felt<F> = builder.constant(f);
+                challenger.observe(&mut builder, f_v);
+            });
+        }
 
+        // Sampling before verification
+        let _alpha = challenger.sample_ext(&mut builder);
+        let _beta = challenger.sample_ext(&mut builder);
 
-        // _debug
-        // println!("=> Parsed zkvm proof: {:?}", parsed_zkvm_proof_fields);
-        // let proof = &parsed_zkvm_proof_fields.proofs[17];
-        // for m in proof {
-        //     println!("=> message: {:?}", m);
-        // }
-
-        // _debug
-        // transcript_observe_label(&mut builder, &mut challenger, b"test");
-        // let t = challenger.sample_ext(&mut builder);
-        // println!("=> test challenge:");
-        // builder.print_e(t);
-
-
-
-
-
-
-
-
-
-        //         // alpha, beta
-        //         let challenges = [
-        //             transcript.read_challenge().elements,
-        //             transcript.read_challenge().elements,
-        //         ];
-        //         tracing::debug!("challenges in verifier: {:?}", challenges);
-
-        //         let dummy_table_item = challenges[0];
-        //         let mut dummy_table_item_multiplicity = 0;
-        //         let point_eval = PointAndEval::default();
-        //         let mut transcripts = transcript.fork(self.vk.circuit_vks.len());
-
-        //         for (name, (i, opcode_proof)) in vm_proof.opcode_proofs {
-        //             let transcript = &mut transcripts[i];
-
-        //             let circuit_vk = self
-        //                 .vk
-        //                 .circuit_vks
-        //                 .get(&name)
-        //                 .ok_or(ZKVMError::VKNotFound(name.clone()))?;
-        //             let _rand_point = self.verify_opcode_proof(
-        //                 &name,
-        //                 &self.vk.vp,
-        //                 circuit_vk,
-        //                 &opcode_proof,
-        //                 pi_evals,
-        //                 transcript,
-        //                 NUM_FANIN,
-        //                 &point_eval,
-        //                 &challenges,
-        //             )?;
+        // Fork the transcript depending on sub-circuit
+        // ```
+        //     => forking transcript length: 62
+        //     => using transcript fork: 0
+        // ```
+        let transcript_forking_segment: usize = 0;
+        let f_v: Felt<F> = builder.constant(F::from_canonical_usize(transcript_forking_segment));
+        challenger.observe(&mut builder, f_v);
 
         verify_tower_proof(&mut builder, &mut challenger, tower_verifier_input);
         builder.halt();
@@ -1139,13 +1149,13 @@ pub mod tests {
             logup_out_evals: parsed_zkvm_proof_fields.logup_out_evals,
             num_variables: parsed_zkvm_proof_fields.num_variables,
             num_fanin: parsed_zkvm_proof_fields.num_fanin,
-    
+
             // TowerProof
             num_proofs: parsed_zkvm_proof_fields.num_proofs,
             num_prod_specs: parsed_zkvm_proof_fields.num_prod_specs,
             num_logup_specs: parsed_zkvm_proof_fields.num_logup_specs,
             max_num_variables: parsed_zkvm_proof_fields.max_num_variables,
-    
+
             proofs: parsed_zkvm_proof_fields.proofs,
             prod_specs_eval: parsed_zkvm_proof_fields.prod_specs_eval,
             logup_specs_eval: parsed_zkvm_proof_fields.logup_specs_eval,
@@ -1153,7 +1163,6 @@ pub mod tests {
 
         witness_stream.extend(verifier_input.write());
 
-        // _debug
         let program: Program<
             p3_monty_31::MontyField31<openvm_stark_sdk::p3_baby_bear::BabyBearParameters>,
         > = builder.compile_isa();
@@ -1165,7 +1174,6 @@ pub mod tests {
     fn test_tower_proof_verifier() {
         let (program, witness) = build_test_tower_verifier();
 
-        // _debug
         let system_config = SystemConfig::default()
             .with_public_values(4)
             .with_max_segment_len((1 << 25) - 100);
@@ -1173,5 +1181,11 @@ pub mod tests {
 
         let executor = VmExecutor::<BabyBear, NativeConfig>::new(config);
         executor.execute(program, witness).unwrap();
+
+        // _debug
+        // let results = executor.execute_segments(program, witness).unwrap();
+        // for seg in results {
+        //     println!("=> cycle count: {:?}", seg.metrics.cycle_count);
+        // }
     }
 }

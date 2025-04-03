@@ -49,7 +49,7 @@ dependencies = [
  "const-random",
  "once_cell",
  "version_check",
- "zerocopy",
+ "zerocopy 0.7.35",
 ]
 
 [[package]]
@@ -170,7 +170,7 @@ checksum = "e7e89fe77d1f0f4fe5b96dfc940923d88d17b6a773808124f21e764dfb063c6a"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.99",
+ "syn 2.0.100",
 ]
 
 [[package]]
@@ -253,7 +253,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "62945a2f7e6de02a31fe400aa489f0e0f5b2502e69f95f853adb82a96c7a6b60"
 dependencies = [
  "quote",
- "syn 2.0.99",
+ "syn 2.0.100",
 ]
 
 [[package]]
@@ -279,7 +279,7 @@ dependencies = [
  "num-traits",
  "proc-macro2",
  "quote",
- "syn 2.0.99",
+ "syn 2.0.100",
 ]
 
 [[package]]
@@ -343,7 +343,7 @@ checksum = "213888f660fddcca0d257e88e54ac05bca01885f258ccdf695bafd77031bb69d"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.99",
+ "syn 2.0.100",
 ]
 
 [[package]]
@@ -415,13 +415,13 @@ checksum = "7c02d123df017efcdfbd739ef81735b36c5ba83ec3c59c80a9d7ecc718f92e50"
 
 [[package]]
 name = "async-trait"
-version = "0.1.87"
+version = "0.1.88"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d556ec1359574147ec0c4fc5eb525f3f23263a592b1a9c07e0a75b427de55c97"
+checksum = "e539d3fca749fcee5236ab05e93a52867dd549cc157c8cb7f99595f3cedffdb5"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.99",
+ "syn 2.0.100",
 ]
 
 [[package]]
@@ -469,9 +469,9 @@ dependencies = [
 
 [[package]]
 name = "bitcode"
-version = "0.6.5"
+version = "0.6.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "18c1406a27371b2f76232a2259df6ab607b91b5a0a7476a7729ff590df5a969a"
+checksum = "cf300f4aa6e66f3bdff11f1236a88c622fe47ea814524792240b4d554d9858ee"
 dependencies = [
  "bytemuck",
  "serde",
@@ -533,9 +533,9 @@ dependencies = [
 
 [[package]]
 name = "blake3"
-version = "1.6.1"
+version = "1.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "675f87afced0413c9bb02843499dbbd3882a237645883f71a2b59644a6d2f753"
+checksum = "34a796731680be7931955498a16a10b2270c7762963d5d570fdbfe02dcbf314f"
 dependencies = [
  "arrayref",
  "arrayvec",
@@ -592,7 +592,7 @@ checksum = "efb7846e0cb180355c2dec69e721edafa36919850f1a9f52ffba4ebc0393cb71"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.99",
+ "syn 2.0.100",
 ]
 
 [[package]]
@@ -621,9 +621,9 @@ checksum = "37b2a672a2cb129a2e41c10b1224bb368f9f37a2b16b612598138befd7b37eb5"
 
 [[package]]
 name = "cc"
-version = "1.2.16"
+version = "1.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "be714c154be609ec7f5dad223a33bf1482fff90472de28f7362806e6d4832b8c"
+checksum = "1fcb57c740ae1daf453ae85f16e37396f672b039e00d9d866e07ddb24e328e3a"
 dependencies = [
  "shlex",
 ]
@@ -643,11 +643,11 @@ dependencies = [
  "nimue",
  "nimue-pow",
  "openvm",
- "openvm-circuit",
- "openvm-native-circuit",
- "openvm-native-compiler",
- "openvm-native-compiler-derive",
- "openvm-native-recursion",
+ "openvm-circuit 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
+ "openvm-native-circuit 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
+ "openvm-native-compiler 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
+ "openvm-native-compiler-derive 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
+ "openvm-native-recursion 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
  "openvm-stark-backend",
  "openvm-stark-sdk",
  "p3-air",
@@ -668,7 +668,7 @@ dependencies = [
 [[package]]
 name = "ceno_emul"
 version = "0.1.0"
-source = "git+https://github.com/darth-cy/ceno.git?branch=feat%2Fexport_ff_ext#08a55047410831cdf2d1689464eda1d93b795662"
+source = "git+https://github.com/darth-cy/ceno.git?branch=feat%2Fexport_ff_ext#fc98ed39b908aa9479525d93a7474e88483a796b"
 dependencies = [
  "anyhow",
  "ceno_rt",
@@ -689,7 +689,7 @@ dependencies = [
 [[package]]
 name = "ceno_rt"
 version = "0.1.0"
-source = "git+https://github.com/darth-cy/ceno.git?branch=feat%2Fexport_ff_ext#08a55047410831cdf2d1689464eda1d93b795662"
+source = "git+https://github.com/darth-cy/ceno.git?branch=feat%2Fexport_ff_ext#fc98ed39b908aa9479525d93a7474e88483a796b"
 dependencies = [
  "getrandom 0.2.15",
  "rkyv",
@@ -698,7 +698,7 @@ dependencies = [
 [[package]]
 name = "ceno_zkvm"
 version = "0.1.0"
-source = "git+https://github.com/darth-cy/ceno.git?branch=feat%2Fexport_ff_ext#08a55047410831cdf2d1689464eda1d93b795662"
+source = "git+https://github.com/darth-cy/ceno.git?branch=feat%2Fexport_ff_ext#fc98ed39b908aa9479525d93a7474e88483a796b"
 dependencies = [
  "ark-std 0.5.0",
  "base64",
@@ -780,9 +780,9 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "4.5.31"
+version = "4.5.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "027bb0d98429ae334a8698531da7077bdf906419543a35a55c2cb1b66437d767"
+checksum = "e958897981290da2a852763fe9cdb89cd36977a5d729023127095fa94d95e2ff"
 dependencies = [
  "clap_builder",
  "clap_derive",
@@ -790,9 +790,9 @@ dependencies = [
 
 [[package]]
 name = "clap_builder"
-version = "4.5.31"
+version = "4.5.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5589e0cba072e0f3d23791efac0fd8627b49c829c196a492e88168e6a669d863"
+checksum = "83b0f35019843db2160b5bb19ae09b4e6411ac33fc6a712003c33e03090e2489"
 dependencies = [
  "anstream",
  "anstyle",
@@ -802,14 +802,14 @@ dependencies = [
 
 [[package]]
 name = "clap_derive"
-version = "4.5.28"
+version = "4.5.32"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bf4ced95c6f4a675af3da73304b9ac4ed991640c36374e4b46795c49e17cf1ed"
+checksum = "09176aae279615badda0765c0c0b3f6ed53f4709118af73cf4655d85d1530cd7"
 dependencies = [
  "heck",
  "proc-macro2",
  "quote",
- "syn 2.0.99",
+ "syn 2.0.100",
 ]
 
 [[package]]
@@ -1032,7 +1032,7 @@ checksum = "d150dea618e920167e5973d70ae6ece4385b7164e0d799fe7c122dd0a5d912ad"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.99",
+ "syn 2.0.100",
 ]
 
 [[package]]
@@ -1043,7 +1043,7 @@ checksum = "2cdc8d50f426189eef89dac62fabfa0abb27d5cc008f25bf4156a0203325becc"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.99",
+ "syn 2.0.100",
 ]
 
 [[package]]
@@ -1056,7 +1056,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "rustc_version",
- "syn 2.0.99",
+ "syn 2.0.100",
 ]
 
 [[package]]
@@ -1076,7 +1076,7 @@ checksum = "cb7330aeadfbe296029522e6c40f315320aba36fc43a5b3632f3795348f3bd22"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.99",
+ "syn 2.0.100",
  "unicode-xid",
 ]
 
@@ -1127,14 +1127,14 @@ dependencies = [
  "enum-ordinalize",
  "proc-macro2",
  "quote",
- "syn 2.0.99",
+ "syn 2.0.100",
 ]
 
 [[package]]
 name = "either"
-version = "1.14.0"
+version = "1.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b7914353092ddf589ad78f25c5c1c21b7f80b0ff8621e7c814c3485b5306da9d"
+checksum = "48c757948c5ede0e46177b7add2e67155f70e33c07fea8284df6576da70b3719"
 
 [[package]]
 name = "elf"
@@ -1171,7 +1171,7 @@ checksum = "0d28318a75d4aead5c4db25382e8ef717932d0346600cacae6357eb5941bc5ff"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.99",
+ "syn 2.0.100",
 ]
 
 [[package]]
@@ -1183,7 +1183,7 @@ dependencies = [
  "once_cell",
  "proc-macro2",
  "quote",
- "syn 2.0.99",
+ "syn 2.0.100",
 ]
 
 [[package]]
@@ -1231,9 +1231,9 @@ dependencies = [
 
 [[package]]
 name = "ff"
-version = "0.13.0"
+version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ded41244b729663b1e574f1b4fb731469f69f79c17667b5d776b16cda0479449"
+checksum = "c0b50bfb653653f9ca9095b427bed08ab8d75a137839d9ad64eb11810d5b6393"
 dependencies = [
  "bitvec",
  "byteorder",
@@ -1244,12 +1244,11 @@ dependencies = [
 
 [[package]]
 name = "ff_derive"
-version = "0.13.0"
+version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e9f54704be45ed286151c5e11531316eaef5b8f5af7d597b806fdb8af108d84a"
+checksum = "f10d12652036b0e99197587c6ba87a8fc3031986499973c030d8b44fcc151b60"
 dependencies = [
  "addchain",
- "cfg-if",
  "num-bigint 0.3.3",
  "num-integer",
  "num-traits",
@@ -1261,7 +1260,7 @@ dependencies = [
 [[package]]
 name = "ff_ext"
 version = "0.1.0"
-source = "git+https://github.com/darth-cy/ceno.git?branch=feat%2Fexport_ff_ext#08a55047410831cdf2d1689464eda1d93b795662"
+source = "git+https://github.com/darth-cy/ceno.git?branch=feat%2Fexport_ff_ext#fc98ed39b908aa9479525d93a7474e88483a796b"
 dependencies = [
  "p3",
  "rand_core",
@@ -1355,7 +1354,7 @@ dependencies = [
  "proc-macro-error2",
  "proc-macro2",
  "quote",
- "syn 2.0.99",
+ "syn 2.0.100",
 ]
 
 [[package]]
@@ -1375,7 +1374,7 @@ name = "goldilocks"
 version = "0.1.0"
 source = "git+https://github.com/scroll-tech/ceno-Goldilocks#29a15d186ce4375dab346a3cc9eca6e43540cb8d"
 dependencies = [
- "ff 0.13.0",
+ "ff 0.13.1",
  "halo2curves 0.1.0",
  "itertools 0.12.1",
  "rand_core",
@@ -1401,7 +1400,7 @@ version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f0f9ef7462f7c099f518d754361858f86d8a07af53ba9af0fe635bbccb151a63"
 dependencies = [
- "ff 0.13.0",
+ "ff 0.13.1",
  "rand_core",
  "subtle",
 ]
@@ -1427,13 +1426,13 @@ dependencies = [
 
 [[package]]
 name = "halo2-axiom"
-version = "0.4.5"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9f81aee7974478f9e3ea0cfd349d2a59a3482f7844386486a98e4af9ed8bada6"
+checksum = "62f0ca78d12ac5c893f286d7cdfe3869290305ab8cac376e2592cdc8396da102"
 dependencies = [
  "blake2b_simd",
  "crossbeam",
- "ff 0.13.0",
+ "ff 0.13.1",
  "group 0.13.0",
  "halo2curves-axiom",
  "itertools 0.11.0",
@@ -1449,8 +1448,8 @@ dependencies = [
 
 [[package]]
 name = "halo2-base"
-version = "0.4.1"
-source = "git+https://github.com/axiom-crypto/halo2-lib.git?tag=v0.4.1-git#2fe813b3ccd4f224da195d61829effb20599dcbd"
+version = "0.5.0"
+source = "git+https://github.com/axiom-crypto/halo2-lib.git?tag=v0.5.0-git#2d4b70b8558439a908dea708f4721394b1ae3ef6"
 dependencies = [
  "getset",
  "halo2-axiom",
@@ -1469,8 +1468,8 @@ dependencies = [
 
 [[package]]
 name = "halo2-ecc"
-version = "0.4.1"
-source = "git+https://github.com/axiom-crypto/halo2-lib.git?tag=v0.4.1-git#2fe813b3ccd4f224da195d61829effb20599dcbd"
+version = "0.5.0"
+source = "git+https://github.com/axiom-crypto/halo2-lib.git?tag=v0.5.0-git#2d4b70b8558439a908dea708f4721394b1ae3ef6"
 dependencies = [
  "halo2-base",
  "itertools 0.11.0",
@@ -1507,7 +1506,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e6b1142bd1059aacde1b477e0c80c142910f1ceae67fc619311d6a17428007ab"
 dependencies = [
  "blake2b_simd",
- "ff 0.13.0",
+ "ff 0.13.1",
  "group 0.13.0",
  "lazy_static",
  "num-bigint 0.4.6",
@@ -1528,7 +1527,7 @@ checksum = "b756596082144af6e57105a20403b7b80fe9dccd085700b74fae3af523b74dba"
 dependencies = [
  "blake2",
  "digest",
- "ff 0.13.0",
+ "ff 0.13.1",
  "group 0.13.0",
  "halo2derive",
  "hex",
@@ -1557,7 +1556,7 @@ checksum = "dd8309e4638b4f1bcf6613d72265a84074d26034c35edc5d605b5688e580b8b8"
 dependencies = [
  "blake2b_simd",
  "digest",
- "ff 0.13.0",
+ "ff 0.13.1",
  "group 0.13.0",
  "hex",
  "lazy_static",
@@ -1662,9 +1661,9 @@ checksum = "ce23b50ad8242c51a442f3ff322d56b02f08852c77e4c0b4d3fd684abc89c683"
 
 [[package]]
 name = "indexmap"
-version = "2.7.1"
+version = "2.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8c9c992b02b5b4c94ea26e32fe5bccb7aa7d9f390ab5c1221ff895bc7ea8b652"
+checksum = "3954d50fe15b02142bf25d3b8bdadb634ec3948f103d04ffe3031bc8fe9d7058"
 dependencies = [
  "equivalent",
  "hashbrown 0.15.2",
@@ -1801,9 +1800,9 @@ dependencies = [
 
 [[package]]
 name = "libc"
-version = "0.2.170"
+version = "0.2.171"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "875b3680cb2f8f71bdcf9a30f38d48282f5d3c95cbf9b3fa57269bb5d5c06828"
+checksum = "c19937216e9d3aa9956d9bb8dfc0b0c8beb6058fc4f7a4dc4d850edf86a237d6"
 
 [[package]]
 name = "libm"
@@ -1813,9 +1812,9 @@ checksum = "8355be11b20d696c8f18f6cc018c4e372165b1fa8126cef092399c9951984ffa"
 
 [[package]]
 name = "libmimalloc-sys"
-version = "0.1.39"
+version = "0.1.40"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "23aa6811d3bd4deb8a84dde645f943476d13b248d818edcf8ce0b2f37f036b44"
+checksum = "07d0e07885d6a754b9c7993f2625187ad694ee985d60f23355ff0e7077261502"
 dependencies = [
  "cc",
  "libc",
@@ -1845,9 +1844,9 @@ checksum = "9374ef4228402d4b7e403e5838cb880d9ee663314b0a900d5a6aabf0c213552e"
 
 [[package]]
 name = "log"
-version = "0.4.26"
+version = "0.4.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "30bde2b3dc3671ae49d8e2e9f044c7c005836e7a023ee57cffa25ab82764bb9e"
+checksum = "13dc2df351e3202783a1fe0d44375f7295ffb4049267b0f3018346dc122a1d94"
 
 [[package]]
 name = "matchers"
@@ -1903,6 +1902,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "metrics-derive"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f3dbdd96ed57d565ec744cba02862d707acf373c5772d152abae6ec5c4e24f6c"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "regex",
+ "syn 2.0.100",
+]
+
+[[package]]
 name = "metrics-tracing-context"
 version = "0.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1940,9 +1951,9 @@ dependencies = [
 
 [[package]]
 name = "mimalloc"
-version = "0.1.43"
+version = "0.1.44"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "68914350ae34959d83f732418d51e2427a794055d0b9529f48259ac07af65633"
+checksum = "99585191385958383e13f6b822e6b6d8d9cf928e7d286ceb092da92b43c87bc1"
 dependencies = [
  "libmimalloc-sys",
 ]
@@ -1959,7 +1970,7 @@ dependencies = [
 [[package]]
 name = "mpcs"
 version = "0.1.0"
-source = "git+https://github.com/darth-cy/ceno.git?branch=feat%2Fexport_ff_ext#08a55047410831cdf2d1689464eda1d93b795662"
+source = "git+https://github.com/darth-cy/ceno.git?branch=feat%2Fexport_ff_ext#fc98ed39b908aa9479525d93a7474e88483a796b"
 dependencies = [
  "aes",
  "ark-ff 0.5.0",
@@ -1990,7 +2001,7 @@ dependencies = [
 [[package]]
 name = "multilinear_extensions"
 version = "0.1.0"
-source = "git+https://github.com/darth-cy/ceno.git?branch=feat%2Fexport_ff_ext#08a55047410831cdf2d1689464eda1d93b795662"
+source = "git+https://github.com/darth-cy/ceno.git?branch=feat%2Fexport_ff_ext#fc98ed39b908aa9479525d93a7474e88483a796b"
 dependencies = [
  "ark-std 0.5.0",
  "ff_ext",
@@ -2018,7 +2029,7 @@ checksum = "734799cf91479720b2f970c61a22850940dd91e27d4f02b1c6fc792778df2459"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.99",
+ "syn 2.0.100",
 ]
 
 [[package]]
@@ -2033,7 +2044,7 @@ dependencies = [
 [[package]]
 name = "nimue"
 version = "0.2.0"
-source = "git+https://github.com/arkworks-rs/nimue#2bdaec76bcd030da20167655160d0a6f2db9f40f"
+source = "git+https://github.com/arkworks-rs/nimue?rev=3a83250#3a83250d9e30046be464753901430710232561fc"
 dependencies = [
  "ark-ec",
  "ark-ff 0.5.0",
@@ -2049,7 +2060,7 @@ dependencies = [
 [[package]]
 name = "nimue-pow"
 version = "0.1.0"
-source = "git+https://github.com/arkworks-rs/nimue#2bdaec76bcd030da20167655160d0a6f2db9f40f"
+source = "git+https://github.com/arkworks-rs/nimue?rev=3a83250#3a83250d9e30046be464753901430710232561fc"
 dependencies = [
  "blake3",
  "bytemuck",
@@ -2123,7 +2134,7 @@ checksum = "ed3955f1a9c7c0c15e092f9c887db08b1fc683305fdf6eb6684f22555355e202"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.99",
+ "syn 2.0.100",
 ]
 
 [[package]]
@@ -2220,9 +2231,9 @@ dependencies = [
 
 [[package]]
 name = "once_cell"
-version = "1.20.3"
+version = "1.21.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "945462a4b81e43c4e3ba96bd7b49d834c6f61198356aa858733bc4acf3cbe62e"
+checksum = "42f5e15c9953c5e4ccceeb2e7382a716482c34515315f7b03532b8b4e8393d2d"
 
 [[package]]
 name = "oorandom"
@@ -2233,14 +2244,14 @@ checksum = "d6790f58c7ff633d8771f42965289203411a5e5c68388703c06e14f24770b41e"
 [[package]]
 name = "openvm"
 version = "1.0.0-rc.1"
-source = "git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1#30576cc6ce838f213bf05b2e4ad035d95498c8b3"
+source = "git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier#f33df10206b1d5f029347c97a358b487ff977bdd"
 dependencies = [
  "bytemuck",
  "hex-literal",
  "num-bigint 0.4.6",
  "num-traits",
- "openvm-platform",
- "openvm-rv32im-guest",
+ "openvm-platform 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
+ "openvm-rv32im-guest 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
  "serde",
 ]
 
@@ -2261,11 +2272,49 @@ dependencies = [
  "getset",
  "itertools 0.13.0",
  "once_cell",
- "openvm-circuit-derive",
- "openvm-circuit-primitives",
- "openvm-circuit-primitives-derive",
- "openvm-instructions",
- "openvm-poseidon2-air",
+ "openvm-circuit-derive 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
+ "openvm-circuit-primitives 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
+ "openvm-circuit-primitives-derive 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
+ "openvm-instructions 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
+ "openvm-poseidon2-air 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
+ "openvm-stark-backend",
+ "p3-baby-bear 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
+ "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
+ "rand",
+ "rayon",
+ "rustc-hash 2.1.1",
+ "serde",
+ "serde-big-array",
+ "static_assertions",
+ "thiserror",
+ "toml",
+ "tracing",
+]
+
+[[package]]
+name = "openvm-circuit"
+version = "1.0.0-rc.1"
+source = "git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier#f33df10206b1d5f029347c97a358b487ff977bdd"
+dependencies = [
+ "async-trait",
+ "backtrace",
+ "bitcode",
+ "cfg-if",
+ "derivative",
+ "derive-new 0.6.0",
+ "derive_more 1.0.0",
+ "enum_dispatch",
+ "eyre",
+ "getset",
+ "itertools 0.13.0",
+ "metrics",
+ "metrics-derive",
+ "once_cell",
+ "openvm-circuit-derive 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
+ "openvm-circuit-primitives 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
+ "openvm-circuit-primitives-derive 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
+ "openvm-instructions 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
+ "openvm-poseidon2-air 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
  "openvm-stark-backend",
  "p3-baby-bear 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
  "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
@@ -2288,7 +2337,18 @@ dependencies = [
  "itertools 0.13.0",
  "proc-macro2",
  "quote",
- "syn 2.0.99",
+ "syn 2.0.100",
+]
+
+[[package]]
+name = "openvm-circuit-derive"
+version = "1.0.0-rc.1"
+source = "git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier#f33df10206b1d5f029347c97a358b487ff977bdd"
+dependencies = [
+ "itertools 0.13.0",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.100",
 ]
 
 [[package]]
@@ -2302,7 +2362,25 @@ dependencies = [
  "lazy_static",
  "num-bigint 0.4.6",
  "num-traits",
- "openvm-circuit-primitives-derive",
+ "openvm-circuit-primitives-derive 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
+ "openvm-stark-backend",
+ "rand",
+ "serde",
+ "tracing",
+]
+
+[[package]]
+name = "openvm-circuit-primitives"
+version = "1.0.0-rc.1"
+source = "git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier#f33df10206b1d5f029347c97a358b487ff977bdd"
+dependencies = [
+ "bitcode",
+ "derive-new 0.6.0",
+ "itertools 0.13.0",
+ "lazy_static",
+ "num-bigint 0.4.6",
+ "num-traits",
+ "openvm-circuit-primitives-derive 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
  "openvm-stark-backend",
  "rand",
  "serde",
@@ -2317,7 +2395,18 @@ dependencies = [
  "itertools 0.13.0",
  "proc-macro2",
  "quote",
- "syn 2.0.99",
+ "syn 2.0.100",
+]
+
+[[package]]
+name = "openvm-circuit-primitives-derive"
+version = "1.0.0-rc.1"
+source = "git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier#f33df10206b1d5f029347c97a358b487ff977bdd"
+dependencies = [
+ "itertools 0.13.0",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.100",
 ]
 
 [[package]]
@@ -2327,7 +2416,17 @@ source = "git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1#30576cc6c
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.99",
+ "syn 2.0.100",
+]
+
+[[package]]
+name = "openvm-custom-insn"
+version = "0.1.0"
+source = "git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier#f33df10206b1d5f029347c97a358b487ff977bdd"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.100",
 ]
 
 [[package]]
@@ -2340,7 +2439,24 @@ dependencies = [
  "itertools 0.13.0",
  "num-bigint 0.4.6",
  "num-traits",
- "openvm-instructions-derive",
+ "openvm-instructions-derive 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
+ "openvm-stark-backend",
+ "serde",
+ "strum",
+ "strum_macros",
+]
+
+[[package]]
+name = "openvm-instructions"
+version = "1.0.0-rc.1"
+source = "git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier#f33df10206b1d5f029347c97a358b487ff977bdd"
+dependencies = [
+ "backtrace",
+ "derive-new 0.6.0",
+ "itertools 0.13.0",
+ "num-bigint 0.4.6",
+ "num-traits",
+ "openvm-instructions-derive 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
  "openvm-stark-backend",
  "serde",
  "strum",
@@ -2354,7 +2470,17 @@ source = "git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1#30576cc6c
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.99",
+ "syn 2.0.100",
+]
+
+[[package]]
+name = "openvm-instructions-derive"
+version = "1.0.0-rc.1"
+source = "git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier#f33df10206b1d5f029347c97a358b487ff977bdd"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.100",
 ]
 
 [[package]]
@@ -2367,14 +2493,42 @@ dependencies = [
  "derive_more 1.0.0",
  "eyre",
  "itertools 0.13.0",
- "openvm-circuit",
- "openvm-circuit-derive",
- "openvm-circuit-primitives",
- "openvm-circuit-primitives-derive",
- "openvm-instructions",
- "openvm-native-compiler",
- "openvm-poseidon2-air",
- "openvm-rv32im-circuit",
+ "openvm-circuit 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
+ "openvm-circuit-derive 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
+ "openvm-circuit-primitives 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
+ "openvm-circuit-primitives-derive 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
+ "openvm-instructions 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
+ "openvm-native-compiler 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
+ "openvm-poseidon2-air 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
+ "openvm-rv32im-circuit 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
+ "openvm-stark-backend",
+ "openvm-stark-sdk",
+ "rand",
+ "serde",
+ "serde-big-array",
+ "static_assertions",
+ "strum",
+ "tracing",
+]
+
+[[package]]
+name = "openvm-native-circuit"
+version = "1.0.0-rc.1"
+source = "git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier#f33df10206b1d5f029347c97a358b487ff977bdd"
+dependencies = [
+ "bitcode",
+ "derive-new 0.6.0",
+ "derive_more 1.0.0",
+ "eyre",
+ "itertools 0.13.0",
+ "openvm-circuit 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
+ "openvm-circuit-derive 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
+ "openvm-circuit-primitives 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
+ "openvm-circuit-primitives-derive 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
+ "openvm-instructions 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
+ "openvm-native-compiler 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
+ "openvm-poseidon2-air 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
+ "openvm-rv32im-circuit 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
  "openvm-stark-backend",
  "openvm-stark-sdk",
  "rand",
@@ -2394,11 +2548,34 @@ dependencies = [
  "itertools 0.13.0",
  "num-bigint 0.4.6",
  "num-integer",
- "openvm-circuit",
- "openvm-instructions",
- "openvm-instructions-derive",
- "openvm-native-compiler-derive",
- "openvm-rv32im-transpiler",
+ "openvm-circuit 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
+ "openvm-instructions 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
+ "openvm-instructions-derive 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
+ "openvm-native-compiler-derive 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
+ "openvm-rv32im-transpiler 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
+ "openvm-stark-backend",
+ "openvm-stark-sdk",
+ "serde",
+ "snark-verifier-sdk",
+ "strum",
+ "strum_macros",
+ "zkhash",
+]
+
+[[package]]
+name = "openvm-native-compiler"
+version = "1.0.0-rc.1"
+source = "git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier#f33df10206b1d5f029347c97a358b487ff977bdd"
+dependencies = [
+ "backtrace",
+ "itertools 0.13.0",
+ "num-bigint 0.4.6",
+ "num-integer",
+ "openvm-circuit 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
+ "openvm-instructions 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
+ "openvm-instructions-derive 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
+ "openvm-native-compiler-derive 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
+ "openvm-rv32im-transpiler 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
  "openvm-stark-backend",
  "openvm-stark-sdk",
  "serde",
@@ -2415,7 +2592,17 @@ source = "git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1#30576cc6c
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.99",
+ "syn 2.0.100",
+]
+
+[[package]]
+name = "openvm-native-compiler-derive"
+version = "1.0.0-rc.1"
+source = "git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier#f33df10206b1d5f029347c97a358b487ff977bdd"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.100",
 ]
 
 [[package]]
@@ -2426,10 +2613,34 @@ dependencies = [
  "cfg-if",
  "itertools 0.13.0",
  "lazy_static",
- "openvm-circuit",
- "openvm-native-circuit",
- "openvm-native-compiler",
- "openvm-native-compiler-derive",
+ "openvm-circuit 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
+ "openvm-native-circuit 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
+ "openvm-native-compiler 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
+ "openvm-native-compiler-derive 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
+ "openvm-stark-backend",
+ "openvm-stark-sdk",
+ "p3-dft 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
+ "p3-fri",
+ "p3-merkle-tree",
+ "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
+ "rand",
+ "serde",
+ "serde_json",
+ "tracing",
+]
+
+[[package]]
+name = "openvm-native-recursion"
+version = "1.0.0-rc.1"
+source = "git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier#f33df10206b1d5f029347c97a358b487ff977bdd"
+dependencies = [
+ "cfg-if",
+ "itertools 0.13.0",
+ "lazy_static",
+ "openvm-circuit 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
+ "openvm-native-circuit 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
+ "openvm-native-compiler 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
+ "openvm-native-compiler-derive 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
  "openvm-stark-backend",
  "openvm-stark-sdk",
  "p3-dft 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
@@ -2447,9 +2658,19 @@ name = "openvm-platform"
 version = "1.0.0-rc.1"
 source = "git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1#30576cc6ce838f213bf05b2e4ad035d95498c8b3"
 dependencies = [
+ "openvm-custom-insn 0.1.0 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
+ "stability",
+ "strum_macros",
+]
+
+[[package]]
+name = "openvm-platform"
+version = "1.0.0-rc.1"
+source = "git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier#f33df10206b1d5f029347c97a358b487ff977bdd"
+dependencies = [
  "getrandom 0.2.15",
  "libm",
- "openvm-custom-insn",
+ "openvm-custom-insn 0.1.0 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
  "stability",
  "strum_macros",
 ]
@@ -2462,7 +2683,27 @@ dependencies = [
  "derivative",
  "itertools 0.13.0",
  "lazy_static",
- "openvm-circuit-primitives",
+ "openvm-circuit-primitives 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
+ "openvm-stark-backend",
+ "openvm-stark-sdk",
+ "p3-monty-31 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
+ "p3-poseidon2 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
+ "p3-poseidon2-air",
+ "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
+ "rand",
+ "tracing",
+ "zkhash",
+]
+
+[[package]]
+name = "openvm-poseidon2-air"
+version = "1.0.0-rc.1"
+source = "git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier#f33df10206b1d5f029347c97a358b487ff977bdd"
+dependencies = [
+ "derivative",
+ "itertools 0.13.0",
+ "lazy_static",
+ "openvm-circuit-primitives 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
  "openvm-stark-backend",
  "openvm-stark-sdk",
  "p3-monty-31 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
@@ -2487,12 +2728,39 @@ dependencies = [
  "num-bigint 0.4.6",
  "num-integer",
  "once_cell",
- "openvm-circuit",
- "openvm-circuit-derive",
- "openvm-circuit-primitives",
- "openvm-circuit-primitives-derive",
- "openvm-instructions",
- "openvm-rv32im-transpiler",
+ "openvm-circuit 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
+ "openvm-circuit-derive 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
+ "openvm-circuit-primitives 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
+ "openvm-circuit-primitives-derive 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
+ "openvm-instructions 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
+ "openvm-rv32im-transpiler 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
+ "openvm-stark-backend",
+ "rand",
+ "serde",
+ "serde-big-array",
+ "strum",
+ "tracing",
+]
+
+[[package]]
+name = "openvm-rv32im-circuit"
+version = "1.0.0-rc.1"
+source = "git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier#f33df10206b1d5f029347c97a358b487ff977bdd"
+dependencies = [
+ "bitcode",
+ "derive-new 0.6.0",
+ "derive_more 1.0.0",
+ "eyre",
+ "itertools 0.13.0",
+ "num-bigint 0.4.6",
+ "num-integer",
+ "once_cell",
+ "openvm-circuit 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
+ "openvm-circuit-derive 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
+ "openvm-circuit-primitives 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
+ "openvm-circuit-primitives-derive 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
+ "openvm-instructions 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
+ "openvm-rv32im-transpiler 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
  "openvm-stark-backend",
  "rand",
  "serde",
@@ -2506,7 +2774,16 @@ name = "openvm-rv32im-guest"
 version = "1.0.0-rc.1"
 source = "git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1#30576cc6ce838f213bf05b2e4ad035d95498c8b3"
 dependencies = [
- "openvm-platform",
+ "openvm-platform 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
+ "strum_macros",
+]
+
+[[package]]
+name = "openvm-rv32im-guest"
+version = "1.0.0-rc.1"
+source = "git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier#f33df10206b1d5f029347c97a358b487ff977bdd"
+dependencies = [
+ "openvm-platform 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
  "strum_macros",
 ]
 
@@ -2515,11 +2792,27 @@ name = "openvm-rv32im-transpiler"
 version = "1.0.0-rc.1"
 source = "git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1#30576cc6ce838f213bf05b2e4ad035d95498c8b3"
 dependencies = [
- "openvm-instructions",
- "openvm-instructions-derive",
- "openvm-rv32im-guest",
+ "openvm-instructions 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
+ "openvm-instructions-derive 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
+ "openvm-rv32im-guest 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
  "openvm-stark-backend",
- "openvm-transpiler",
+ "openvm-transpiler 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
+ "rrs-lib",
+ "serde",
+ "strum",
+ "tracing",
+]
+
+[[package]]
+name = "openvm-rv32im-transpiler"
+version = "1.0.0-rc.1"
+source = "git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier#f33df10206b1d5f029347c97a358b487ff977bdd"
+dependencies = [
+ "openvm-instructions 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
+ "openvm-instructions-derive 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
+ "openvm-rv32im-guest 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
+ "openvm-stark-backend",
+ "openvm-transpiler 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
  "rrs-lib",
  "serde",
  "strum",
@@ -2536,6 +2829,7 @@ dependencies = [
  "derivative",
  "derive-new 0.7.0",
  "itertools 0.13.0",
+ "metrics",
  "mimalloc",
  "p3-air",
  "p3-challenger 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
@@ -2559,7 +2853,7 @@ source = "git+https://github.com/openvm-org/stark-backend.git?tag=v1.0.0-rc.0#18
 dependencies = [
  "derivative",
  "derive_more 0.99.19",
- "ff 0.13.0",
+ "ff 0.13.1",
  "itertools 0.13.0",
  "metrics",
  "metrics-tracing-context",
@@ -2595,8 +2889,25 @@ dependencies = [
  "derive_more 1.0.0",
  "elf",
  "eyre",
- "openvm-instructions",
- "openvm-platform",
+ "openvm-instructions 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
+ "openvm-platform 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
+ "openvm-stark-backend",
+ "rrs-lib",
+ "strum",
+ "thiserror",
+ "tracing",
+]
+
+[[package]]
+name = "openvm-transpiler"
+version = "1.0.0-rc.1"
+source = "git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier#f33df10206b1d5f029347c97a358b487ff977bdd"
+dependencies = [
+ "derive_more 1.0.0",
+ "elf",
+ "eyre",
+ "openvm-instructions 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
+ "openvm-platform 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
  "openvm-stark-backend",
  "rrs-lib",
  "strum",
@@ -2622,7 +2933,7 @@ checksum = "b15813163c1d831bf4a13c3610c05c0d03b39feb07f7e09fa234dac9b15aaf39"
 [[package]]
 name = "p3"
 version = "0.1.0"
-source = "git+https://github.com/darth-cy/ceno.git?branch=feat%2Fexport_ff_ext#08a55047410831cdf2d1689464eda1d93b795662"
+source = "git+https://github.com/darth-cy/ceno.git?branch=feat%2Fexport_ff_ext#fc98ed39b908aa9479525d93a7474e88483a796b"
 dependencies = [
  "p3-baby-bear 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=8d2be81)",
  "p3-challenger 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=8d2be81)",
@@ -2687,7 +2998,7 @@ name = "p3-bn254-fr"
 version = "0.1.0"
 source = "git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9#b0591e9b82d58d10f86359875b5d5fa96433b4cf"
 dependencies = [
- "ff 0.13.0",
+ "ff 0.13.1",
  "halo2curves 0.8.0",
  "num-bigint 0.4.6",
  "p3-field 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
@@ -3292,7 +3603,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d3e57598f73cc7e1b2ac63c79c517b31a0877cd7c402cdcaa311b5208de7a095"
 dependencies = [
  "blake2b_simd",
- "ff 0.13.0",
+ "ff 0.13.1",
  "group 0.13.0",
  "lazy_static",
  "rand",
@@ -3405,7 +3716,7 @@ checksum = "350e9b48cbc6b0e028b0473b114454c6316e57336ee184ceab6e53f72c178b3e"
 [[package]]
 name = "poseidon"
 version = "0.1.0"
-source = "git+https://github.com/darth-cy/ceno.git?branch=feat%2Fexport_ff_ext#08a55047410831cdf2d1689464eda1d93b795662"
+source = "git+https://github.com/darth-cy/ceno.git?branch=feat%2Fexport_ff_ext#fc98ed39b908aa9479525d93a7474e88483a796b"
 dependencies = [
  "criterion",
  "ff_ext",
@@ -3416,12 +3727,12 @@ dependencies = [
 
 [[package]]
 name = "poseidon-primitives"
-version = "0.1.1"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2bd95570f7ea849b4187298b5bb229643e44e1d47ddf3979d0db8a1c28be26a8"
+checksum = "6e4aaeda7a092e21165cc5f0cbc738e72a46f31c03c3cbd87b71ceae9d2d93bc"
 dependencies = [
  "bitvec",
- "ff 0.13.0",
+ "ff 0.13.1",
  "lazy_static",
  "log",
  "rand",
@@ -3431,11 +3742,11 @@ dependencies = [
 
 [[package]]
 name = "ppv-lite86"
-version = "0.2.20"
+version = "0.2.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "77957b295656769bb8ad2b6a6b09d897d94f05c41b069aede1fcdaa675eaea04"
+checksum = "85eae3c4ed2f50dcfe72643da4befc30deadb458a9b590d720cde2f2b1e97da9"
 dependencies = [
- "zerocopy",
+ "zerocopy 0.8.24",
 ]
 
 [[package]]
@@ -3491,7 +3802,7 @@ dependencies = [
  "proc-macro-error-attr2",
  "proc-macro2",
  "quote",
- "syn 2.0.99",
+ "syn 2.0.100",
 ]
 
 [[package]]
@@ -3520,7 +3831,7 @@ checksum = "ca414edb151b4c8d125c12566ab0d74dc9cdba36fb80eb7b848c15f495fd32d1"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.99",
+ "syn 2.0.100",
 ]
 
 [[package]]
@@ -3540,9 +3851,9 @@ dependencies = [
 
 [[package]]
 name = "quote"
-version = "1.0.39"
+version = "1.0.40"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c1f1914ce909e1658d9907913b4b91947430c7d9be598b15a1912935b8c04801"
+checksum = "1885c039570dc00dcb4ff087a89e185fd56bae234ddc7f056a945bf36467248d"
 dependencies = [
  "proc-macro2",
 ]
@@ -3738,7 +4049,7 @@ checksum = "246b40ac189af6c675d124b802e8ef6d5246c53e17367ce9501f8f66a81abb7a"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.99",
+ "syn 2.0.100",
 ]
 
 [[package]]
@@ -3869,9 +4180,9 @@ checksum = "56e6fa9c48d24d85fb3de5ad847117517440f6beceb7798af16b4a87d616b8d0"
 
 [[package]]
 name = "serde"
-version = "1.0.218"
+version = "1.0.219"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e8dfc9d19bdbf6d17e22319da49161d5d0108e4188e8b680aef6299eed22df60"
+checksum = "5f0e2c6ed6606019b4e29e69dbaba95b11854410e5347d525002456dbbb786b6"
 dependencies = [
  "serde_derive",
 ]
@@ -3896,13 +4207,13 @@ dependencies = [
 
 [[package]]
 name = "serde_derive"
-version = "1.0.218"
+version = "1.0.219"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f09503e191f4e797cb8aac08e9a4a4695c5edf6a2e70e376d961ddd5c969f82b"
+checksum = "5b0276cf7f2c73365f7157c8123c21cd9a50fbbd844757af28ca1f5925fc2a00"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.99",
+ "syn 2.0.100",
 ]
 
 [[package]]
@@ -3982,8 +4293,8 @@ checksum = "7fcf8323ef1faaee30a44a340193b1ac6814fd9b7b4e88e9d4519a3e4abe1cfd"
 
 [[package]]
 name = "snark-verifier"
-version = "0.1.8"
-source = "git+https://github.com/axiom-crypto/snark-verifier?branch=zkvm-v0.1#ab65fda41b56571aa33dd27f68ef1ea461e3fadc"
+version = "0.2.0"
+source = "git+https://github.com/axiom-crypto/snark-verifier?branch=zkvm-v0.1#9e1c165ff8816b9351791c2f939548beb12c183f"
 dependencies = [
  "halo2-base",
  "halo2-ecc",
@@ -4000,8 +4311,8 @@ dependencies = [
 
 [[package]]
 name = "snark-verifier-sdk"
-version = "0.1.8"
-source = "git+https://github.com/axiom-crypto/snark-verifier?branch=zkvm-v0.1#ab65fda41b56571aa33dd27f68ef1ea461e3fadc"
+version = "0.2.0"
+source = "git+https://github.com/axiom-crypto/snark-verifier?branch=zkvm-v0.1#9e1c165ff8816b9351791c2f939548beb12c183f"
 dependencies = [
  "ark-std 0.3.0",
  "bincode",
@@ -4033,7 +4344,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d904e7009df136af5297832a3ace3370cd14ff1546a232f4f185036c2736fcac"
 dependencies = [
  "quote",
- "syn 2.0.99",
+ "syn 2.0.100",
 ]
 
 [[package]]
@@ -4073,7 +4384,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "rustversion",
- "syn 2.0.99",
+ "syn 2.0.100",
 ]
 
 [[package]]
@@ -4098,7 +4409,7 @@ checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 [[package]]
 name = "sumcheck"
 version = "0.1.0"
-source = "git+https://github.com/darth-cy/ceno.git?branch=feat%2Fexport_ff_ext#08a55047410831cdf2d1689464eda1d93b795662"
+source = "git+https://github.com/darth-cy/ceno.git?branch=feat%2Fexport_ff_ext#fc98ed39b908aa9479525d93a7474e88483a796b"
 dependencies = [
  "ark-std 0.5.0",
  "crossbeam-channel",
@@ -4116,14 +4427,14 @@ dependencies = [
 [[package]]
 name = "sumcheck_macro"
 version = "0.1.0"
-source = "git+https://github.com/darth-cy/ceno.git?branch=feat%2Fexport_ff_ext#08a55047410831cdf2d1689464eda1d93b795662"
+source = "git+https://github.com/darth-cy/ceno.git?branch=feat%2Fexport_ff_ext#fc98ed39b908aa9479525d93a7474e88483a796b"
 dependencies = [
  "itertools 0.13.0",
  "p3",
  "proc-macro2",
  "quote",
  "rand",
- "syn 2.0.99",
+ "syn 2.0.100",
 ]
 
 [[package]]
@@ -4139,9 +4450,9 @@ dependencies = [
 
 [[package]]
 name = "syn"
-version = "2.0.99"
+version = "2.0.100"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e02e925281e18ffd9d640e234264753c43edc62d64b2d4cf898f1bc5e75f3fc2"
+checksum = "b09a44accad81e1ba1cd74a32461ba89dee89095ba17b32f5d03683b1b1fc2a0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4196,7 +4507,7 @@ dependencies = [
  "cfg-if",
  "proc-macro2",
  "quote",
- "syn 2.0.99",
+ "syn 2.0.100",
 ]
 
 [[package]]
@@ -4207,7 +4518,7 @@ checksum = "5c89e72a01ed4c579669add59014b9a524d609c0c88c6a585ce37485879f6ffb"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.99",
+ "syn 2.0.100",
  "test-case-core",
 ]
 
@@ -4228,7 +4539,7 @@ checksum = "4fee6c4efc90059e10f81e6d42c60a18f76588c3d74cb83a0b242a2b6c7504c1"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.99",
+ "syn 2.0.100",
 ]
 
 [[package]]
@@ -4337,7 +4648,7 @@ dependencies = [
  "serde",
  "serde_spanned",
  "toml_datetime",
- "winnow 0.7.3",
+ "winnow 0.7.4",
 ]
 
 [[package]]
@@ -4359,7 +4670,7 @@ checksum = "395ae124c09f9e6918a2310af6038fba074bcf474ac352496d5910dd59a2226d"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.99",
+ "syn 2.0.100",
 ]
 
 [[package]]
@@ -4426,7 +4737,7 @@ dependencies = [
 [[package]]
 name = "transcript"
 version = "0.1.0"
-source = "git+https://github.com/darth-cy/ceno.git?branch=feat%2Fexport_ff_ext#08a55047410831cdf2d1689464eda1d93b795662"
+source = "git+https://github.com/darth-cy/ceno.git?branch=feat%2Fexport_ff_ext#fc98ed39b908aa9479525d93a7474e88483a796b"
 dependencies = [
  "crossbeam-channel",
  "ff_ext",
@@ -4563,7 +4874,7 @@ dependencies = [
  "log",
  "proc-macro2",
  "quote",
- "syn 2.0.99",
+ "syn 2.0.100",
  "wasm-bindgen-shared",
 ]
 
@@ -4585,7 +4896,7 @@ checksum = "8ae87ea40c9f689fc23f209965b6fb8a99ad69aeeb0231408be24920604395de"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.99",
+ "syn 2.0.100",
  "wasm-bindgen-backend",
  "wasm-bindgen-shared",
 ]
@@ -4622,7 +4933,7 @@ dependencies = [
 [[package]]
 name = "whir"
 version = "0.1.0"
-source = "git+https://github.com/darth-cy/ceno.git?branch=feat%2Fexport_ff_ext#08a55047410831cdf2d1689464eda1d93b795662"
+source = "git+https://github.com/darth-cy/ceno.git?branch=feat%2Fexport_ff_ext#fc98ed39b908aa9479525d93a7474e88483a796b"
 dependencies = [
  "ark-crypto-primitives",
  "ark-ff 0.5.0",
@@ -4654,7 +4965,7 @@ dependencies = [
 [[package]]
 name = "whir"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/whir.git?branch=feat%2Fopenvm-binding#86fc4f37f873fa6809df10315c7bffec4abc2200"
+source = "git+https://github.com/scroll-tech/whir.git?branch=feat%2Fopenvm-binding#395943db86a27b499b4322cd7416d73bd4dc968e"
 dependencies = [
  "ark-crypto-primitives",
  "ark-ff 0.5.0",
@@ -4671,9 +4982,9 @@ dependencies = [
  "lazy_static",
  "nimue",
  "nimue-pow",
- "openvm-native-compiler",
- "openvm-native-compiler-derive",
- "openvm-native-recursion",
+ "openvm-native-compiler 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
+ "openvm-native-compiler-derive 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
+ "openvm-native-recursion 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
  "openvm-stark-backend",
  "rand",
  "rand_chacha",
@@ -4799,9 +5110,9 @@ dependencies = [
 
 [[package]]
 name = "winnow"
-version = "0.7.3"
+version = "0.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0e7f4ea97f6f78012141bcdb6a216b2609f0979ada50b20ca5b52dde2eac2bb1"
+checksum = "0e97b544156e9bebe1a0ffbc03484fc1ffe3100cbce3ffb17eac35f7cdd7ab36"
 dependencies = [
  "memchr",
 ]
@@ -4818,7 +5129,7 @@ dependencies = [
 [[package]]
 name = "witness"
 version = "0.1.0"
-source = "git+https://github.com/darth-cy/ceno.git?branch=feat%2Fexport_ff_ext#08a55047410831cdf2d1689464eda1d93b795662"
+source = "git+https://github.com/darth-cy/ceno.git?branch=feat%2Fexport_ff_ext#fc98ed39b908aa9479525d93a7474e88483a796b"
 dependencies = [
  "ff_ext",
  "multilinear_extensions",
@@ -4845,8 +5156,16 @@ version = "0.7.35"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1b9b4fd18abc82b8136838da5d50bae7bdea537c574d8dc1a34ed098d6c166f0"
 dependencies = [
- "byteorder",
- "zerocopy-derive",
+ "zerocopy-derive 0.7.35",
+]
+
+[[package]]
+name = "zerocopy"
+version = "0.8.24"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2586fea28e186957ef732a5f8b3be2da217d65c5969d4b1e17f973ebbe876879"
+dependencies = [
+ "zerocopy-derive 0.8.24",
 ]
 
 [[package]]
@@ -4857,7 +5176,18 @@ checksum = "fa4f8080344d4671fb4e831a13ad1e68092748387dfc4f55e356242fae12ce3e"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.99",
+ "syn 2.0.100",
+]
+
+[[package]]
+name = "zerocopy-derive"
+version = "0.8.24"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a996a8f63c5c4448cd959ac1bab0aaa3306ccfd060472f85943ee0750f0169be"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.100",
 ]
 
 [[package]]
@@ -4877,7 +5207,7 @@ checksum = "ce36e65b0d2999d2aafac989fb249189a141aee1f53c612c1f37d72631959f69"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.99",
+ "syn 2.0.100",
 ]
 
 [[package]]
