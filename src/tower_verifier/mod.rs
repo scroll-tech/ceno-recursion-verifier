@@ -1,3 +1,2 @@
-mod binding;
-mod program;
-mod transcript;
+pub(crate) mod binding;
+pub(crate) mod program;

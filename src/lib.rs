@@ -1,2 +1,5 @@
-pub mod sumcheck;
-pub mod tower_verifier;
+pub mod zkvm_verifier;
+pub mod json;
+mod tower_verifier;
+mod tests;
+mod transcript;

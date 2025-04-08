@@ -3,10 +3,9 @@ use super::{
         IOPProverMessage, IOPProverMessageVariable, Point, PointVariable, TowerVerifierInput,
         TowerVerifierInputVariable,
     },
-    transcript,
 };
-use crate::tower_verifier::transcript::transcript_observe_label;
-use crate::{sumcheck::construct_binary_evaluation_idxs, tower_verifier};
+use crate::transcript::transcript_observe_label;
+use crate::{tower_verifier};
 use ark_ff::{AdditiveGroup, BigInteger, Field, PrimeField};
 use ark_poly::domain::EvaluationDomain;
 use ark_std::collections::BTreeSet;
@@ -692,7 +691,7 @@ fn verify_tower_proof<C: Config>(
 
 pub mod tests {
     use crate::tower_verifier::binding::{IOPProverMessage, Point, TowerVerifierInput, F};
-    use crate::tower_verifier::transcript::transcript_observe_label;
+    use crate::transcript::transcript_observe_label;
     use ceno_zkvm::scheme::{verifier, ZKVMProof};
     use mpcs::{Basefold, BasefoldCommitment, BasefoldRSParams};
     use openvm::io::println;
