@@ -21,28 +21,83 @@ pub struct ZKVMProofInputVariable<C: Config> {
 
 #[derive(Default, Debug)]
 pub(crate) struct ZKVMProofInput {
-    pub phantom: usize,
+    pub raw_pi: Vec<Vec<F>>,
+    // Evaluation of raw_pi.
+    pub pi_evals: Vec<E>,
+    pub opcode_proofs: Vec<ZKVMOpcodeProofInput>,
+    pub table_proofs: Vec<ZKVMTableProofInput>,
 
-    // raw_pi: Vec<Vec<F>>,
+    // VKs for opcode and table circuits
+    pub circuit_vks_fixed_commits: Vec<BasefoldCommitment<BabyBearExt4>>,
+}
 
-    // circuit_vks_fixed_commits: Vec<BasefoldCommitment<BabyBearExt4>>,
-    // opcode_proof_commits: Vec<BasefoldCommitment<BabyBearExt4>>,
-    // table_proof_commits: Vec<BasefoldCommitment<BabyBearExt4>>,
+#[derive(Default, Debug)]
+pub struct TowerProofInput {
+    pub num_proofs: usize,
+    pub proofs: Vec<Vec<IOPProverMessage>>,
+    // specs -> layers -> evals
+    pub num_prod_specs: usize,
+    pub prod_specs_eval: Vec<Vec<Vec<E>>>,
+    // specs -> layers -> evals
+    pub num_logup_specs: usize,
+    pub logup_specs_eval: Vec<Vec<Vec<E>>>,
+}
 
-    // pub prod_out_evals: Vec<Vec<E>>,
-    // pub logup_out_evals: Vec<Vec<E>>,
-    // pub num_variables: Vec<usize>,
-    // pub num_fanin: usize,
+#[derive(Default, Debug)]
+pub struct ZKVMOpcodeProofInput {
+    pub idx: usize,
+    pub num_instances: usize,
 
-    // // TowerProof
-    // pub num_proofs: usize,
-    // pub num_prod_specs: usize,
-    // pub num_logup_specs: usize,
-    // pub max_num_variables: usize,
+    // product constraints
+    pub record_r_out_evals: Vec<E>,
+    pub record_w_out_evals: Vec<E>,
+    
+    // logup sum at layer 1
+    pub lk_p1_out_eval: E,
+    pub lk_p2_out_eval: E,
+    pub lk_q1_out_eval: E,
+    pub lk_q2_out_eval: E,
 
-    // proofs: Vec<Vec<IOPProverMessage>>,
-    // prod_specs_eval: Vec<Vec<Vec<E>>>,
-    // logup_specs_eval: Vec<Vec<Vec<E>>>,
+    pub tower_proof: TowerProofInput,
+
+    // main constraint and select sumcheck proof
+    pub main_sel_sumcheck_proofs: Vec<IOPProverMessage>,
+    pub r_records_in_evals: Vec<E>,
+    pub w_records_in_evals: Vec<E>,
+    pub lk_records_in_evals: Vec<E>,
+
+    pub wits_commit: BasefoldCommitment<BabyBearExt4>,
+    // TODO: PCS
+    // pub wits_opening_proof: PCS::Proof,
+    pub wits_in_evals: Vec<E>,
+}
+
+#[derive(Default, Debug)]
+pub struct ZKVMTableProofInput {
+    pub idx: usize,
+
+    // tower evaluation at layer 1
+    pub r_out_evals: Vec<E>, // Vec<[E; 2]>
+    pub w_out_evals: Vec<E>, // Vec<[E; 2]>
+    pub lk_out_evals: Vec<E>, // Vec<[E; 4]>
+
+    pub has_same_r_sumcheck_proofs: usize,
+    pub same_r_sumcheck_proofs: Vec<IOPProverMessage>, // Could be empty
+    pub rw_in_evals: Vec<E>,
+    pub lk_in_evals: Vec<E>,
+
+    pub tower_proof: TowerProofInput,
+
+    // num_vars hint for rw dynamic address to work
+    pub rw_hints_num_vars: Vec<usize>,
+
+    pub fixed_in_evals: Vec<E>,
+    // TODO: PCS
+    // pub fixed_opening_proof: Option<PCS::Proof>,
+    pub wits_commit: BasefoldCommitment<BabyBearExt4>,
+    pub wits_in_evals: Vec<E>,
+    // TODO: PCS
+    // pub wits_opening_proof: PCS::Proof,
 }
 
 impl Hintable<InnerConfig> for ZKVMProofInput {
@@ -90,7 +145,7 @@ impl Hintable<InnerConfig> for ZKVMProofInput {
         // stream.extend(self.prod_out_evals.write());
         // stream.extend(self.logup_out_evals.write());
         // stream.extend(self.num_variables.write());
-        stream.extend(<usize as Hintable<InnerConfig>>::write(&self.phantom));
+        stream.extend(<usize as Hintable<InnerConfig>>::write(&0usize));
         // stream.extend(<usize as Hintable<InnerConfig>>::write(&self.num_proofs));
         // stream.extend(<usize as Hintable<InnerConfig>>::write(
         //     &self.num_prod_specs,
@@ -115,3 +170,8 @@ impl Hintable<InnerConfig> for ZKVMProofInput {
         stream
     }
 }
+
+
+
+
+

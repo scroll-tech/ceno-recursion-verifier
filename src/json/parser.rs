@@ -29,7 +29,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::io::Read;
 use std::{default, fs::File};
-use crate::zkvm_verifier::binding::ZKVMProofInput;
+use crate::zkvm_verifier::binding::{TowerProofInput, ZKVMOpcodeProofInput, ZKVMProofInput, ZKVMTableProofInput};
+use super::constants::{OPCODE_KEYS, TABLE_KEYS};
 
 type SC = BabyBearPoseidon2Config;
 type EF = <SC as StarkGenericConfig>::Challenge;
@@ -59,7 +60,9 @@ fn print_structure(value: &Value, indent: usize) {
             println!("{}Object ({} fields):", indent_str, obj.len());
             for (key, val) in obj {
                 println!("{}  {}: ", indent_str, key);
-                print_structure(val, indent + 1);
+                if recursive {
+                    print_structure(val, indent + 1);
+                }
             }
         }
 
@@ -123,223 +126,366 @@ pub(crate) struct ZKVMProofJSONParsed {
 pub fn parse_zkvm_proof_json() -> ZKVMProofInput {
     let mut res = ZKVMProofInput::default();
 
-    // let filename = "zkvm_proof.json";
-    // let section = "opcode_proofs";
-    // let opcode_idx: usize = 0;
-    // let opcode_str = "ADD";
+    let zkvm_proof_filename = "./src/json/data/zkvm_proof.json";
+    let vks_filename = "./src/json/data/circuit_vks_fixed_commits.json";
 
-    // let mut file = File::open(filename).unwrap();
-    // let mut contents = String::new();
-    // file.read_to_string(&mut contents);
-    // let data: Value = serde_json::from_str(&contents).unwrap();
+    let mut zkvm_proof_file = File::open(zkvm_proof_filename).unwrap();
+    let mut zkvm_proof_content = String::new();
+    let _ = zkvm_proof_file.read_to_string(&mut zkvm_proof_content);
+    let zkvm_proof_data: Value = serde_json::from_str(&zkvm_proof_content).unwrap();
 
-    // // Check if the root is an object (it is in this case)
-    // if let Some(obj) = data.as_object() {
-    //     let mut raw_pi_vec: Vec<Vec<F>> = vec![];
+    // Top level ZKVMProof object mapping
+    let zkvm_proof_obj = zkvm_proof_data.as_object().unwrap();
 
-    //     if let Some(raw_pi) = obj.get("raw_pi").and_then(Value::as_array) {
-    //         for pi in raw_pi {
-    //             let mut sub_pi_vec: Vec<F> = vec![];
-    //             let fs = Value::as_array(pi).expect("Correct structure");
-    //             for f in fs {
-    //                 let f_v: F =
-    //                     serde_json::from_value(f.clone()).expect("correct deserlization");
-    //                 sub_pi_vec.push(f_v);
-    //             }
-    //             raw_pi_vec.push(sub_pi_vec);
-    //         }
-    //         res.raw_pi = raw_pi_vec;
-    //     }
+    let opcode_proofs = Value::as_object(zkvm_proof_obj.get("opcode_proofs").unwrap()).unwrap();
+    let table_proofs = Value::as_object(zkvm_proof_obj.get("table_proofs").unwrap()).unwrap();
 
-    //     // deal with opcode + table proof
-    //     let opcode_proofs =
-    //         Value::as_object(obj.get(section).expect("section")).expect("section");
-    //     let table_proofs =
-    //         Value::as_object(obj.get("table_proofs").expect("section")).expect("section");
+    // Parse out raw_pi vector
+    let mut raw_pi_vec: Vec<Vec<F>> = vec![];
+    let raw_pi = Value::as_array(zkvm_proof_obj.get("raw_pi").unwrap()).unwrap();
+    for pi in raw_pi {
+        let mut sub_pi_vec: Vec<F> = vec![];
+        let fs = Value::as_array(pi).expect("Correct 4Ext");
+        for f in fs {
+            let f_v: F =
+                serde_json::from_value(f.clone()).expect("deserialization");
+                sub_pi_vec.push(f_v);
+        }
+        raw_pi_vec.push(sub_pi_vec);
+    }
+    res.raw_pi = raw_pi_vec;
 
-    //     // Gather opcode proof and table proof commitments
-    //     let opcode_keys = vec![
-    //         "ADD", "ADDI", "ANDI", "BEQ", "BLTU", "BNE", "JALR", "LW", "ORI", "SB", "SRAI",
-    //         "SRLI", "SUB", "SW",
-    //     ];
-    //     let table_keys = vec![
-    //         "OPS_And",
-    //         "OPS_Ltu",
-    //         "OPS_Or",
-    //         "OPS_Pow",
-    //         "OPS_Xor",
-    //         "PROGRAM",
-    //         "RAM_Memory_PubIOTable",
-    //         "RAM_Memory_StaticMemTable",
-    //         "RAM_Register_RegTable",
-    //         "RANGE_U14",
-    //         "RANGE_U16",
-    //         "RANGE_U5",
-    //         "RANGE_U8",
-    //     ];
+    // PI evaluations
+    let mut pi_evals_vec: Vec<E> = vec![];
+    for v in Value::as_array(zkvm_proof_obj.get("pi_evals").unwrap()).unwrap() {
+        let v_e: E = serde_json::from_value(v.clone()).unwrap();
+        pi_evals_vec.push(v_e);
+    }
+    res.pi_evals = pi_evals_vec;
 
-    //     let mut opcode_commits: Vec<BasefoldCommitment<BabyBearExt4>> = vec![];
-    //     for key in opcode_keys {
-    //         let op_proof = Value::as_array(opcode_proofs.get(key).expect("opcode"))
-    //             .expect("opcode_section");
-    //         let commit = op_proof[1].get("wits_commit").expect("commitment");
-    //         let basefold_cmt: BasefoldCommitment<BabyBearExt4> =
-    //             serde_json::from_value(commit.clone()).expect("deserialization");
-    //         opcode_commits.push(basefold_cmt);
-    //     }
-    //     res.opcode_proof_commits = opcode_commits;
+    let mut opcode_proofs_vec: Vec<ZKVMOpcodeProofInput> = vec![];
+    // Parse out each opcode proof
+    for key in OPCODE_KEYS {
+        let idx_op_proof = Value::as_array(opcode_proofs.get(key).unwrap()).unwrap();
+        let idx: usize = serde_json::from_value(idx_op_proof[0].clone()).unwrap();
+        
+        let op_proof = &idx_op_proof[1];
+        let num_instances: usize = serde_json::from_value(op_proof.get("num_instances").unwrap().clone()).unwrap();
 
-    //     let mut table_commits: Vec<BasefoldCommitment<BabyBearExt4>> = vec![];
-    //     for key in table_keys {
-    //         let tb_proof =
-    //             Value::as_array(table_proofs.get(key).expect("table")).expect("table_section");
-    //         let commit = tb_proof[1].get("wits_commit").expect("commitment");
-    //         let basefold_cmt: BasefoldCommitment<BabyBearExt4> =
-    //             serde_json::from_value(commit.clone()).expect("deserialization");
-    //         table_commits.push(basefold_cmt);
-    //     }
-    //     res.table_proof_commits = table_commits;
+        // product constraints
+        let mut record_r_out_evals: Vec<E> = vec![];
+        let mut record_w_out_evals: Vec<E> = vec![];
+        for v in Value::as_array(op_proof.get("record_r_out_evals").unwrap()).unwrap() {
+            let v_e: E = serde_json::from_value(v.clone()).unwrap();
+            record_r_out_evals.push(v_e);
+        }
+        for v in Value::as_array(op_proof.get("record_w_out_evals").unwrap()).unwrap() {
+            let v_e: E = serde_json::from_value(v.clone()).unwrap();
+            record_w_out_evals.push(v_e);
+        }
 
-    //     // Parse out ADD proof for testing
-    //     let opcode_proof =
-    //         Value::as_array(opcode_proofs.get(opcode_str).expect("opcode_section"))
-    //             .expect("opcode_section");
+        // logup sum at layer 1
+        let lk_p1_out_eval: E = serde_json::from_value(op_proof.get("lk_p1_out_eval").unwrap().clone()).unwrap();
+        let lk_p2_out_eval: E = serde_json::from_value(op_proof.get("lk_p2_out_eval").unwrap().clone()).unwrap();
+        let lk_q1_out_eval: E = serde_json::from_value(op_proof.get("lk_q1_out_eval").unwrap().clone()).unwrap();
+        let lk_q2_out_eval: E = serde_json::from_value(op_proof.get("lk_q2_out_eval").unwrap().clone()).unwrap();
 
-    //     // prod_out_evals
-    //     let mut prod_out_evals: Vec<Vec<E>> = vec![];
+        // Tower proof
+        let mut tower_proof = TowerProofInput::default();
+        let tower_proof_obj = Value::as_object(op_proof.get("tower_proof").unwrap()).unwrap();
 
-    //     let mut record_r_out_evals: Vec<E> = vec![];
-    //     let record_r_out_evals_v =
-    //         Value::as_array(opcode_proof[1].get("record_r_out_evals").expect("section"))
-    //             .expect("section");
-    //     for e in record_r_out_evals_v {
-    //         let e_v: E = serde_json::from_value(e.clone()).expect("conversion");
-    //         record_r_out_evals.push(e_v);
-    //     }
-    //     prod_out_evals.push(record_r_out_evals);
+        let mut proofs: Vec<Vec<IOPProverMessage>> = vec![];
+        for proof in Value::as_array(tower_proof_obj.get("proofs").unwrap()).unwrap() {
+            let mut proof_messages: Vec<IOPProverMessage> = vec![];
+            let messages = Value::as_array(proof).unwrap();
+            
+            for m in messages {
+                let mut evaluations_vec: Vec<E> = vec![];
+                let evaluations = Value::as_array(
+                    Value::as_object(m).unwrap().get("evaluations").unwrap()
+                ).unwrap();
+                for v in evaluations {
+                    let e_v: E = serde_json::from_value(v.clone()).unwrap();
+                    evaluations_vec.push(e_v);
+                }
+                proof_messages.push(IOPProverMessage { evaluations: evaluations_vec });
+            }
+            proofs.push(proof_messages);
+        }
+        tower_proof.num_proofs = proofs.len();
+        tower_proof.proofs = proofs;
+        
+        let mut prod_specs_eval: Vec<Vec<Vec<E>>> = vec![];
+        for inner_val in Value::as_array(tower_proof_obj.get("prod_specs_eval").unwrap()).unwrap() {
+            let mut inner_v: Vec<Vec<E>> = vec![];
 
-    //     let mut record_w_out_evals: Vec<E> = vec![];
-    //     let record_w_out_evals_v =
-    //         Value::as_array(opcode_proof[1].get("record_w_out_evals").expect("section"))
-    //             .expect("section");
-    //     for e in record_w_out_evals_v {
-    //         let e_v: E = serde_json::from_value(e.clone()).expect("conversion");
-    //         record_w_out_evals.push(e_v);
-    //     }
-    //     prod_out_evals.push(record_w_out_evals);
-    //     res.prod_out_evals = prod_out_evals;
+            for inner_evals_val in Value::as_array(inner_val).unwrap() {
+                let mut inner_evals_v: Vec<E> = vec![];
 
-    //     // logup_out_evals
-    //     let mut logup_out_evals: Vec<Vec<E>> = vec![];
-    //     let mut inner: Vec<E> = vec![];
+                for e in Value::as_array(inner_evals_val).unwrap() {
+                    let e_v: E = serde_json::from_value(e.clone()).unwrap();
+                    inner_evals_v.push(e_v);
+                }
+                inner_v.push(inner_evals_v);
+            }
+            prod_specs_eval.push(inner_v);
+        }
+        tower_proof.num_prod_specs = prod_specs_eval.len();
+        tower_proof.prod_specs_eval = prod_specs_eval;
 
-    //     for label in [
-    //         "lk_p1_out_eval",
-    //         "lk_p2_out_eval",
-    //         "lk_q1_out_eval",
-    //         "lk_q2_out_eval",
-    //     ] {
-    //         let e_v: E =
-    //             serde_json::from_value(opcode_proof[1].get(label).expect("section").clone())
-    //                 .expect("conversion");
-    //         inner.push(e_v);
-    //     }
-    //     logup_out_evals.push(inner);
-    //     res.logup_out_evals = logup_out_evals;
+        let mut logup_specs_eval: Vec<Vec<Vec<E>>> = vec![];
+        for inner_val in Value::as_array(tower_proof_obj.get("logup_specs_eval").unwrap()).unwrap() {
+            let mut inner_v: Vec<Vec<E>> = vec![];
 
-    //     // parse out tower proof fields
-    //     let tower_proof =
-    //         Value::as_object(opcode_proof[1].get("tower_proof").expect("tower_proof"))
-    //             .expect("tower_proof");
+            for inner_evals_val in Value::as_array(inner_val).unwrap() {
+                let mut inner_evals_v: Vec<E> = vec![];
 
-    //     let mut proofs: Vec<Vec<IOPProverMessage>> = vec![];
-    //     let proofs_section =
-    //         Value::as_array(tower_proof.get("proofs").expect("proofs")).expect("proof");
-    //     for proof in proofs_section {
-    //         let mut proof_messages: Vec<IOPProverMessage> = vec![];
-    //         let messages = Value::as_array(proof).expect("messages");
-    //         for m in messages {
-    //             let mut evaluations_vec: Vec<E> = vec![];
-    //             let evaluations = Value::as_array(
-    //                 Value::as_object(m)
-    //                     .expect("IOPProverMessage")
-    //                     .get("evaluations")
-    //                     .expect("evaluations"),
-    //             )
-    //             .expect("evaluations");
-    //             for v in evaluations {
-    //                 let e_v: E = serde_json::from_value(v.clone()).expect("e");
-    //                 evaluations_vec.push(e_v);
-    //             }
-    //             proof_messages.push(IOPProverMessage {
-    //                 evaluations: evaluations_vec,
-    //             });
-    //             // println!("=> m: {:?}", m);
-    //             // println!("=> m parsed evaluations: {:?}", evaluations_vec);
-    //         }
-    //         proofs.push(proof_messages);
-    //     }
-    //     res.num_proofs = proofs.len();
-    //     res.proofs = proofs;
+                for e in Value::as_array(inner_evals_val).unwrap() {
+                    let e_v: E = serde_json::from_value(e.clone()).unwrap();
+                    inner_evals_v.push(e_v);
+                }
+                inner_v.push(inner_evals_v);
+            }
+            logup_specs_eval.push(inner_v);
+        }
+        tower_proof.num_logup_specs = logup_specs_eval.len();
+        tower_proof.logup_specs_eval = logup_specs_eval;
 
-    //     let mut prod_specs_eval: Vec<Vec<Vec<E>>> = vec![];
-    //     let prod_specs_eval_section =
-    //         Value::as_array(tower_proof.get("prod_specs_eval").expect("eval")).expect("evals");
-    //     for inner in prod_specs_eval_section {
-    //         let mut inner_v: Vec<Vec<E>> = vec![];
-    //         let v = Value::as_array(inner).expect("inner vec");
-    //         for inner_inner in v {
-    //             let mut inner_evals_v: Vec<E> = vec![];
-    //             let inner_evals = Value::as_array(inner_inner).expect("inner evals vec");
-    //             for e in inner_evals {
-    //                 let e_v: E = serde_json::from_value(e.clone()).expect("e");
-    //                 inner_evals_v.push(e_v);
-    //             }
-    //             inner_v.push(inner_evals_v);
-    //         }
-    //         prod_specs_eval.push(inner_v);
-    //     }
-    //     res.num_prod_specs = prod_specs_eval.len();
-    //     res.prod_specs_eval = prod_specs_eval;
+        // main constraint and select sumcheck proof
+        let mut main_sel_sumcheck_proofs: Vec<IOPProverMessage> = vec![];
+        for m in Value::as_array(op_proof.get("main_sel_sumcheck_proofs").unwrap()).unwrap() {
+            let mut evaluations_vec: Vec<E> = vec![];
+            let evaluations = Value::as_array(
+                Value::as_object(m).unwrap().get("evaluations").unwrap()
+            ).unwrap();
+            for v in evaluations {
+                let e_v: E = serde_json::from_value(v.clone()).unwrap();
+                evaluations_vec.push(e_v);
+            }
+            main_sel_sumcheck_proofs.push(IOPProverMessage { evaluations: evaluations_vec });
+        }
+        let mut r_records_in_evals: Vec<E> = vec![];
+        for v in Value::as_array(op_proof.get("r_records_in_evals").unwrap()).unwrap() {
+            let v_e: E = serde_json::from_value(v.clone()).unwrap();
+            r_records_in_evals.push(v_e);
+        }
+        let mut w_records_in_evals: Vec<E> = vec![];
+        for v in Value::as_array(op_proof.get("w_records_in_evals").unwrap()).unwrap() {
+            let v_e: E = serde_json::from_value(v.clone()).unwrap();
+            w_records_in_evals.push(v_e);
+        }
+        let mut lk_records_in_evals: Vec<E> = vec![];
+        for v in Value::as_array(op_proof.get("lk_records_in_evals").unwrap()).unwrap() {
+            let v_e: E = serde_json::from_value(v.clone()).unwrap();
+            lk_records_in_evals.push(v_e);
+        }
 
-    //     let mut logup_specs_eval: Vec<Vec<Vec<E>>> = vec![];
-    //     let logup_specs_eval_section =
-    //         Value::as_array(tower_proof.get("logup_specs_eval").expect("eval")).expect("evals");
-    //     for inner in logup_specs_eval_section {
-    //         let mut inner_v: Vec<Vec<E>> = vec![];
-    //         let v = Value::as_array(inner).expect("inner vec");
-    //         for inner_inner in v {
-    //             let mut inner_evals_v: Vec<E> = vec![];
-    //             let inner_evals = Value::as_array(inner_inner).expect("inner evals vec");
-    //             for e in inner_evals {
-    //                 let e_v: E = serde_json::from_value(e.clone()).expect("e");
-    //                 inner_evals_v.push(e_v);
-    //             }
-    //             inner_v.push(inner_evals_v);
-    //         }
-    //         logup_specs_eval.push(inner_v);
-    //     }
-    //     res.num_logup_specs = logup_specs_eval.len();
-    //     res.logup_specs_eval = logup_specs_eval;
+        // PCS
+        let wits_commit: BasefoldCommitment<BabyBearExt4> = serde_json::from_value(op_proof.get("wits_commit").unwrap().clone()).unwrap();
+        let mut wits_in_evals: Vec<E> = vec![];
+        for v in Value::as_array(op_proof.get("wits_in_evals").unwrap()).unwrap() {
+            let v_e: E = serde_json::from_value(v.clone()).unwrap();
+            wits_in_evals.push(v_e);
+        }
 
+        opcode_proofs_vec.push(ZKVMOpcodeProofInput {
+            idx,
+            num_instances,
+            record_r_out_evals,
+            record_w_out_evals,
+            lk_p1_out_eval,
+            lk_p2_out_eval,
+            lk_q1_out_eval,
+            lk_q2_out_eval,
+            tower_proof,
+            main_sel_sumcheck_proofs,
+            r_records_in_evals,
+            w_records_in_evals,
+            lk_records_in_evals,
+            wits_commit,
+            wits_in_evals,
+        });
+    }
+    res.opcode_proofs = opcode_proofs_vec;
+
+    let mut table_proofs_vec: Vec<ZKVMTableProofInput> = vec![];
+    // Parse out each table proof
+    for key in TABLE_KEYS {
+        let idx_table_proof = Value::as_array(table_proofs.get(key).unwrap()).unwrap();
+        let idx: usize = serde_json::from_value(idx_table_proof[0].clone()).unwrap();
+
+        let table_proof = &idx_table_proof[1];
+
+        // tower evaluation at layer 1
+        let mut r_out_evals: Vec<E> = vec![];   // Vec<[E; 2]>
+        let mut w_out_evals: Vec<E> = vec![];   // Vec<[E; 2]>
+        let mut lk_out_evals: Vec<E> = vec![];  // Vec<[E; 4]>
+        for v in Value::as_array(table_proof.get("r_out_evals").unwrap()).unwrap() {
+            let v_e2: [E; 2] = serde_json::from_value(v.clone()).unwrap();
+            r_out_evals.push(v_e2[0]);
+            r_out_evals.push(v_e2[1]);
+        }
+        for v in Value::as_array(table_proof.get("w_out_evals").unwrap()).unwrap() {
+            let v_e2: [E; 2] = serde_json::from_value(v.clone()).unwrap();
+            w_out_evals.push(v_e2[0]);
+            w_out_evals.push(v_e2[1]);
+        }
+        for v in Value::as_array(table_proof.get("lk_out_evals").unwrap()).unwrap() {
+            let v_e4: [E; 4] = serde_json::from_value(v.clone()).unwrap();
+            lk_out_evals.push(v_e4[0]);
+            lk_out_evals.push(v_e4[1]);
+            lk_out_evals.push(v_e4[2]);
+            lk_out_evals.push(v_e4[3]);
+        }
+
+        // _debug
+        let mut has_same_r_sumcheck_proofs: usize = 0;
+        let mut same_r_sumcheck_proofs: Vec<IOPProverMessage> = vec![];
+        // if same_r_sumcheck_proofs_op.is_some() {
+        //     for m in Value::as_array(table_proof.get("same_r_sumcheck_proofs").unwrap()).unwrap() {
+        //         let mut evaluations_vec: Vec<E> = vec![];
+        //         let evaluations = Value::as_array(
+        //             Value::as_object(m).unwrap().get("evaluations").unwrap()
+        //         ).unwrap();
+        //         for v in evaluations {
+        //             let e_v: E = serde_json::from_value(v.clone()).unwrap();
+        //             evaluations_vec.push(e_v);
+        //         }
+        //         same_r_sumcheck_proofs.push(IOPProverMessage { evaluations: evaluations_vec });
+        //     }
+        // } else {
+        //     has_same_r_sumcheck_proofs = 0;
+        // }
+        
+        let mut rw_in_evals: Vec<E> = vec![];
+        for v in Value::as_array(table_proof.get("rw_in_evals").unwrap()).unwrap() {
+            let v_e: E = serde_json::from_value(v.clone()).unwrap();
+            rw_in_evals.push(v_e);
+        }
+        let mut lk_in_evals: Vec<E> = vec![];
+        for v in Value::as_array(table_proof.get("lk_in_evals").unwrap()).unwrap() {
+            let v_e: E = serde_json::from_value(v.clone()).unwrap();
+            lk_in_evals.push(v_e);
+        }
+
+        // Tower proof
+        let mut tower_proof = TowerProofInput::default();
+        let tower_proof_obj = Value::as_object(table_proof.get("tower_proof").unwrap()).unwrap();
+
+        let mut proofs: Vec<Vec<IOPProverMessage>> = vec![];
+        for proof in Value::as_array(tower_proof_obj.get("proofs").unwrap()).unwrap() {
+            let mut proof_messages: Vec<IOPProverMessage> = vec![];
+            let messages = Value::as_array(proof).unwrap();
+            
+            for m in messages {
+                let mut evaluations_vec: Vec<E> = vec![];
+                let evaluations = Value::as_array(
+                    Value::as_object(m).unwrap().get("evaluations").unwrap()
+                ).unwrap();
+                for v in evaluations {
+                    let e_v: E = serde_json::from_value(v.clone()).unwrap();
+                    evaluations_vec.push(e_v);
+                }
+                proof_messages.push(IOPProverMessage { evaluations: evaluations_vec });
+            }
+            proofs.push(proof_messages);
+        }
+        tower_proof.num_proofs = proofs.len();
+        tower_proof.proofs = proofs;
+        
+        let mut prod_specs_eval: Vec<Vec<Vec<E>>> = vec![];
+        for inner_val in Value::as_array(tower_proof_obj.get("prod_specs_eval").unwrap()).unwrap() {
+            let mut inner_v: Vec<Vec<E>> = vec![];
+
+            for inner_evals_val in Value::as_array(inner_val).unwrap() {
+                let mut inner_evals_v: Vec<E> = vec![];
+
+                for e in Value::as_array(inner_evals_val).unwrap() {
+                    let e_v: E = serde_json::from_value(e.clone()).unwrap();
+                    inner_evals_v.push(e_v);
+                }
+                inner_v.push(inner_evals_v);
+            }
+            prod_specs_eval.push(inner_v);
+        }
+        tower_proof.num_prod_specs = prod_specs_eval.len();
+        tower_proof.prod_specs_eval = prod_specs_eval;
+
+        let mut logup_specs_eval: Vec<Vec<Vec<E>>> = vec![];
+        for inner_val in Value::as_array(tower_proof_obj.get("logup_specs_eval").unwrap()).unwrap() {
+            let mut inner_v: Vec<Vec<E>> = vec![];
+
+            for inner_evals_val in Value::as_array(inner_val).unwrap() {
+                let mut inner_evals_v: Vec<E> = vec![];
+
+                for e in Value::as_array(inner_evals_val).unwrap() {
+                    let e_v: E = serde_json::from_value(e.clone()).unwrap();
+                    inner_evals_v.push(e_v);
+                }
+                inner_v.push(inner_evals_v);
+            }
+            logup_specs_eval.push(inner_v);
+        }
+        tower_proof.num_logup_specs = logup_specs_eval.len();
+        tower_proof.logup_specs_eval = logup_specs_eval;
+
+        let mut rw_hints_num_vars: Vec<usize> = vec![];
+        for v in Value::as_array(table_proof.get("rw_hints_num_vars").unwrap()).unwrap() {
+            let v_e: usize = serde_json::from_value(v.clone()).unwrap();
+            rw_hints_num_vars.push(v_e);
+        }
+        let mut fixed_in_evals: Vec<E> = vec![];
+        for v in Value::as_array(table_proof.get("fixed_in_evals").unwrap()).unwrap() {
+            let v_e: E = serde_json::from_value(v.clone()).unwrap();
+            fixed_in_evals.push(v_e);
+        }
+
+        // PCS
+        let wits_commit: BasefoldCommitment<BabyBearExt4> = serde_json::from_value(table_proof.get("wits_commit").unwrap().clone()).unwrap();
+        let mut wits_in_evals: Vec<E> = vec![];
+        for v in Value::as_array(table_proof.get("wits_in_evals").unwrap()).unwrap() {
+            let v_e: E = serde_json::from_value(v.clone()).unwrap();
+            wits_in_evals.push(v_e);
+        }
+
+        table_proofs_vec.push(ZKVMTableProofInput {
+            idx,
+            r_out_evals,
+            w_out_evals,
+            lk_out_evals,
+            has_same_r_sumcheck_proofs,
+            same_r_sumcheck_proofs,
+            rw_in_evals,
+            lk_in_evals,
+            tower_proof,
+            rw_hints_num_vars,
+            fixed_in_evals,
+            wits_commit,
+            wits_in_evals,
+        });
+    }
+    res.table_proofs = table_proofs_vec;
+
+    // parse out fixed commits
+    let mut vk_file = File::open(vks_filename).unwrap();
+    let mut vk_contents = String::new();
+    let _ = vk_file.read_to_string(&mut vk_contents);
+    let data: Value = serde_json::from_str(&vk_contents).unwrap();
+
+    let mut circuit_vks_fixed_commits: Vec<BasefoldCommitment<BabyBearExt4>> = vec![];
+    for c in Value::as_array(&data).expect("conversion") {
+        let cmt: BasefoldCommitment<BabyBearExt4> =
+            serde_json::from_value(c.clone()).expect("conversion");
+        circuit_vks_fixed_commits.push(cmt);
+    }
+    res.circuit_vks_fixed_commits = circuit_vks_fixed_commits;
+
+    // _debug
     //     res.num_variables = vec![17, 17, 19];
     //     res.num_fanin = 2;
     //     res.max_num_variables = 19;
     // }
 
-    // // parse out fixed commits
-    // let mut vk_file = File::open("circuit_vks_fixed_commits.json").unwrap();
-    // let mut vk_contents = String::new();
-    // vk_file.read_to_string(&mut vk_contents);
-    // let data: Value = serde_json::from_str(&vk_contents).unwrap();
-
-    // let mut circuit_vks_fixed_commits: Vec<BasefoldCommitment<BabyBearExt4>> = vec![];
-    // for c in Value::as_array(&data).expect("conversion") {
-    //     let cmt: BasefoldCommitment<BabyBearExt4> =
-    //         serde_json::from_value(c.clone()).expect("conversion");
-    //     circuit_vks_fixed_commits.push(cmt);
-    // }
-    // res.circuit_vks_fixed_commits = circuit_vks_fixed_commits;
-
     res
 }
+
