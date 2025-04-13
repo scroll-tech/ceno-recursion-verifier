@@ -44,7 +44,7 @@ fn build_zkvm_proof_verifier_test() -> (Program<BabyBear>, Vec<Vec<BabyBear>>) {
 
     let zkvm_proof_input = parse_zkvm_proof_json();
 
-    // witness_stream.extend(zkvm_proof_input.write());
+    witness_stream.extend(zkvm_proof_input.write());
 
     // Compile program
     let program: Program<

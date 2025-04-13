@@ -1,17 +1,11 @@
    Compiling ceno-recursion-verifier v0.1.0 (/Users/raygao/Desktop/ceno-recursion-verifier)
-warning: unused imports: `Array` and `Felt`
- --> src/zkvm_verifier/binding.rs:3:10
-  |
-3 |     ir::{Array, Builder, Config, Felt},
-  |          ^^^^^                   ^^^^
-  |
-  = note: `#[warn(unused_imports)]` on by default
-
 warning: unused imports: `BasefoldRSParams` and `Basefold`
  --> src/zkvm_verifier/binding.rs:7:12
   |
 7 | use mpcs::{Basefold, BasefoldCommitment, BasefoldRSParams};
   |            ^^^^^^^^                      ^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
 
 warning: unused imports: `Point` and `TowerVerifierInput`
  --> src/json/parser.rs:2:56
@@ -450,20 +444,6 @@ warning: unused variable: `engine`
 31 |     let engine = default_engine();
    |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_engine`
 
-warning: unused variable: `zkvm_proof_input`
-  --> src/tests/mod.rs:45:9
-   |
-45 |     let zkvm_proof_input = parse_zkvm_proof_json();
-   |         ^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_zkvm_proof_input`
-
-warning: variable does not need to be mutable
-  --> src/tests/mod.rs:41:9
-   |
-41 |     let mut witness_stream: Vec<
-   |         ----^^^^^^^^^^^^^^
-   |         |
-   |         help: remove this `mut`
-
 warning: unused variable: `program`
   --> src/tests/mod.rs:59:10
    |
@@ -483,9 +463,9 @@ warning: type `ZKVMProofInput` is more private than the item `parse_zkvm_proof_j
     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ function `parse_zkvm_proof_json` is reachable at visibility `pub`
     |
 note: but type `ZKVMProofInput` is only usable at visibility `pub(crate)`
-   --> src/zkvm_verifier/binding.rs:23:1
+   --> src/zkvm_verifier/binding.rs:82:1
     |
-23  | pub(crate) struct ZKVMProofInput {
+82  | pub(crate) struct ZKVMProofInput {
     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     = note: `#[warn(private_interfaces)]` on by default
 
@@ -659,8 +639,8 @@ help: use `let _ = ...` to ignore the resulting value
 1025 |         let _ = vk_file.read_to_string(&mut vk_contents);
      |         +++++++
 
-warning: `ceno-recursion-verifier` (lib test) generated 94 warnings (run `cargo fix --lib -p ceno-recursion-verifier --tests` to apply 52 suggestions)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.23s
+warning: `ceno-recursion-verifier` (lib test) generated 91 warnings (run `cargo fix --lib -p ceno-recursion-verifier --tests` to apply 50 suggestions)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.08s
      Running unittests src/lib.rs (target/debug/deps/ceno_recursion_verifier-cc11c77317ff5ddd)
 
 running 1 test
