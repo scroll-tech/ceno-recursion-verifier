@@ -20,7 +20,13 @@ use p3_field::extension::BinomialExtensionField;
 
 #[derive(DslVariable, Clone)]
 pub struct PointVariable<C: Config> {
-    fs: Array<C, Felt<C::F>>,
+    pub fs: Array<C, Ext<C::F, C::EF>>,
+}
+
+#[derive(DslVariable, Clone)]
+pub struct PointAndEvalVariable<C: Config> {
+    pub point: PointVariable<C>,
+    pub eval: Ext<C::F, C::EF>,
 }
 
 #[derive(DslVariable, Clone)]
@@ -32,7 +38,7 @@ pub struct IOPProverMessageVariable<C: Config> {
 pub struct TowerVerifierInputVariable<C: Config> {
     pub prod_out_evals: Array<C, Array<C, Ext<C::F, C::EF>>>,
     pub logup_out_evals: Array<C, Array<C, Ext<C::F, C::EF>>>,
-    pub num_variables: Array<C, Var<C::N>>,
+    pub num_variables: Array<C, Usize<C::N>>,
     pub num_fanin: Usize<C::N>,
 
     // TowerProofVariable
@@ -54,7 +60,7 @@ impl Hintable<InnerConfig> for Point {
 
     fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
         PointVariable {
-            fs: builder.hint_felts(),
+            fs: builder.hint_exts(),
         }
     }
 
@@ -110,7 +116,14 @@ impl Hintable<InnerConfig> for TowerVerifierInput {
     fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
         let prod_out_evals = Vec::<Vec<E>>::read(builder);
         let logup_out_evals = Vec::<Vec<E>>::read(builder);
-        let num_variables = Vec::<usize>::read(builder);
+        let num_variables_var = Vec::<usize>::read(builder);
+        let num_variables = builder.dyn_array(num_variables_var.len());
+        iter_zip!(builder, num_variables_var, num_variables).for_each(|ptr_vec, builder| {
+            let v = builder.iter_ptr_get(&num_variables_var, ptr_vec[0]);
+            let v_usize: Usize<<InnerConfig as Config>::N> = Usize::from(v);
+            builder.iter_ptr_set(&num_variables, ptr_vec[1], v_usize);
+        });
+
         let num_fanin = Usize::Var(usize::read(builder));
         let num_proofs = Usize::Var(usize::read(builder));
         let num_prod_specs = Usize::Var(usize::read(builder));

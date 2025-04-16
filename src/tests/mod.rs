@@ -1,20 +1,17 @@
+use crate::json::parser::parse_zkvm_proof_json;
 use crate::tower_verifier::binding::F;
+use crate::zkvm_verifier::binding::ZKVMProofInput;
 use crate::zkvm_verifier::verifier::verify_zkvm_proof;
 use mpcs::{Basefold, BasefoldRSParams};
 use openvm_circuit::arch::{instructions::program::Program, SystemConfig, VmExecutor};
 use openvm_native_circuit::{Native, NativeConfig};
 use openvm_native_compiler::asm::AsmBuilder;
-use openvm_native_recursion::{
-    challenger::duplex::DuplexChallengerVariable,
-    hints::Hintable,
-};
+use openvm_native_recursion::{challenger::duplex::DuplexChallengerVariable, hints::Hintable};
 use openvm_stark_backend::config::StarkGenericConfig;
 use openvm_stark_sdk::{
     config::baby_bear_poseidon2::{default_engine, BabyBearPoseidon2Config},
     p3_baby_bear::BabyBear,
 };
-use crate::zkvm_verifier::binding::ZKVMProofInput;
-use crate::json::parser::parse_zkvm_proof_json;
 
 type SC = BabyBearPoseidon2Config;
 type EF = <SC as StarkGenericConfig>::Challenge;
@@ -43,7 +40,6 @@ fn build_zkvm_proof_verifier_test() -> (Program<BabyBear>, Vec<Vec<BabyBear>>) {
     > = Vec::new();
 
     let zkvm_proof_input = parse_zkvm_proof_json();
-
     witness_stream.extend(zkvm_proof_input.write());
 
     // Compile program

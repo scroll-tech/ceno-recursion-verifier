@@ -1,6 +1,6 @@
 pub const OPCODE_KEYS: [&str; 14] = [
-    "ADD", "ADDI", "ANDI", "BEQ", "BLTU", "BNE", "JALR", "LW", "ORI", "SB", "SRAI",
-    "SRLI", "SUB", "SW",
+    "ADD", "ADDI", "ANDI", "BEQ", "BLTU", "BNE", "JALR", "LW", "ORI", "SB", "SRAI", "SRLI", "SUB",
+    "SW",
 ];
 
 pub const TABLE_KEYS: [&str; 13] = [

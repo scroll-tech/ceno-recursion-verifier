@@ -1,103 +1,115 @@
    Compiling ceno-recursion-verifier v0.1.0 (/Users/raygao/Desktop/ceno-recursion-verifier)
-warning: unused imports: `BasefoldRSParams` and `Basefold`
- --> src/zkvm_verifier/binding.rs:7:12
-  |
-7 | use mpcs::{Basefold, BasefoldCommitment, BasefoldRSParams};
-  |            ^^^^^^^^                      ^^^^^^^^^^^^^^^^
-  |
-  = note: `#[warn(unused_imports)]` on by default
-
 warning: unused imports: `Point` and `TowerVerifierInput`
  --> src/json/parser.rs:2:56
   |
 2 | use crate::tower_verifier::binding::{IOPProverMessage, Point, TowerVerifierInput, F};
   |                                                        ^^^^^  ^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
 
 warning: unused imports: `ZKVMProof` and `verifier`
- --> src/json/parser.rs:3:25
+ --> src/json/parser.rs:6:25
   |
-3 | use ceno_zkvm::scheme::{verifier, ZKVMProof};
+6 | use ceno_zkvm::scheme::{verifier, ZKVMProof};
   |                         ^^^^^^^^  ^^^^^^^^^
 
 warning: unused import: `openvm::io::println`
- --> src/json/parser.rs:5:5
+ --> src/json/parser.rs:8:5
   |
-5 | use openvm::io::println;
+8 | use openvm::io::println;
   |     ^^^^^^^^^^^^^^^^^^^
 
 warning: unused imports: `SystemConfig`, `VmExecutor`, and `instructions::program::Program`
- --> src/json/parser.rs:6:28
+ --> src/json/parser.rs:9:28
   |
-6 | use openvm_circuit::arch::{instructions::program::Program, SystemConfig, VmExecutor};
+9 | use openvm_circuit::arch::{instructions::program::Program, SystemConfig, VmExecutor};
   |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^  ^^^^^^^^^^
 
 warning: unused imports: `NativeConfig` and `Native`
- --> src/json/parser.rs:7:29
+  --> src/json/parser.rs:10:29
+   |
+10 | use openvm_native_circuit::{Native, NativeConfig};
+   |                             ^^^^^^  ^^^^^^^^^^^^
+
+warning: unused imports: `AsmBuilder` and `AsmConfig`
+  --> src/json/parser.rs:11:35
+   |
+11 | use openvm_native_compiler::asm::{AsmBuilder, AsmConfig};
+   |                                   ^^^^^^^^^^  ^^^^^^^^^
+
+warning: unused import: `openvm_native_recursion::challenger::FeltChallenger`
+  --> src/json/parser.rs:14:5
+   |
+14 | use openvm_native_recursion::challenger::FeltChallenger;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `CanObserveVariable`, `CanSampleVariable`, `duplex::DuplexChallengerVariable`, `fri::witness`, `hints::Hintable`, and `types::InnerConfig`
+  --> src/json/parser.rs:16:18
+   |
+16 |     challenger::{duplex::DuplexChallengerVariable, CanObserveVariable, CanSampleVariable},
+   |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^
+17 |     fri::witness,
+   |     ^^^^^^^^^^^^
+18 |     hints::Hintable,
+   |     ^^^^^^^^^^^^^^^
+19 |     types::InnerConfig,
+   |     ^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `Val`
+  --> src/json/parser.rs:21:56
+   |
+21 | use openvm_stark_backend::config::{StarkGenericConfig, Val};
+   |                                                        ^^^
+
+warning: unused import: `default_engine`
+  --> src/json/parser.rs:23:35
+   |
+23 |     config::baby_bear_poseidon2::{default_engine, BabyBearPoseidon2Config},
+   |                                   ^^^^^^^^^^^^^^
+
+warning: unused imports: `FieldAlgebra`, `FieldExtensionAlgebra`, `PrimeField32`, `PrimeField64`, and `extension::BinomialExtensionField`
+  --> src/json/parser.rs:27:5
+   |
+27 |     extension::BinomialExtensionField, FieldAlgebra, FieldExtensionAlgebra, PrimeField32,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^
+28 |     PrimeField64,
+   |     ^^^^^^^^^^^^
+
+warning: unused import: `p3_util::array_serialization::deserialize`
+  --> src/json/parser.rs:30:5
+   |
+30 | use p3_util::array_serialization::deserialize;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `Deserialize` and `Serialize`
+  --> src/json/parser.rs:31:13
+   |
+31 | use serde::{Deserialize, Serialize};
+   |             ^^^^^^^^^^^  ^^^^^^^^^
+
+warning: unused import: `default`
+  --> src/json/parser.rs:34:11
+   |
+34 | use std::{default, fs::File};
+   |           ^^^^^^^
+
+warning: unused imports: `SystemConfig` and `VmExecutor`
+ --> src/tests/mod.rs:6:60
+  |
+6 | use openvm_circuit::arch::{instructions::program::Program, SystemConfig, VmExecutor};
+  |                                                            ^^^^^^^^^^^^  ^^^^^^^^^^
+
+warning: unused imports: `NativeConfig` and `Native`
+ --> src/tests/mod.rs:7:29
   |
 7 | use openvm_native_circuit::{Native, NativeConfig};
   |                             ^^^^^^  ^^^^^^^^^^^^
 
-warning: unused imports: `AsmBuilder` and `AsmConfig`
- --> src/json/parser.rs:8:35
+warning: unused import: `Felt`
+ --> src/tower_verifier/binding.rs:3:34
   |
-8 | use openvm_native_compiler::asm::{AsmBuilder, AsmConfig};
-  |                                   ^^^^^^^^^^  ^^^^^^^^^
-
-warning: unused import: `openvm_native_recursion::challenger::FeltChallenger`
-  --> src/json/parser.rs:11:5
-   |
-11 | use openvm_native_recursion::challenger::FeltChallenger;
-   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-warning: unused imports: `CanObserveVariable`, `CanSampleVariable`, `duplex::DuplexChallengerVariable`, `fri::witness`, `hints::Hintable`, and `types::InnerConfig`
-  --> src/json/parser.rs:13:18
-   |
-13 |     challenger::{duplex::DuplexChallengerVariable, CanObserveVariable, CanSampleVariable},
-   |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^
-14 |     fri::witness,
-   |     ^^^^^^^^^^^^
-15 |     hints::Hintable,
-   |     ^^^^^^^^^^^^^^^
-16 |     types::InnerConfig,
-   |     ^^^^^^^^^^^^^^^^^^
-
-warning: unused import: `Val`
-  --> src/json/parser.rs:18:56
-   |
-18 | use openvm_stark_backend::config::{StarkGenericConfig, Val};
-   |                                                        ^^^
-
-warning: unused import: `default_engine`
-  --> src/json/parser.rs:20:35
-   |
-20 |     config::baby_bear_poseidon2::{default_engine, BabyBearPoseidon2Config},
-   |                                   ^^^^^^^^^^^^^^
-
-warning: unused imports: `FieldAlgebra`, `FieldExtensionAlgebra`, `PrimeField32`, `PrimeField64`, and `extension::BinomialExtensionField`
-  --> src/json/parser.rs:24:5
-   |
-24 |     extension::BinomialExtensionField, FieldAlgebra, FieldExtensionAlgebra, PrimeField32,
-   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^
-25 |     PrimeField64,
-   |     ^^^^^^^^^^^^
-
-warning: unused import: `p3_util::array_serialization::deserialize`
-  --> src/json/parser.rs:27:5
-   |
-27 | use p3_util::array_serialization::deserialize;
-   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-warning: unused imports: `Deserialize` and `Serialize`
-  --> src/json/parser.rs:28:13
-   |
-28 | use serde::{Deserialize, Serialize};
-   |             ^^^^^^^^^^^  ^^^^^^^^^
-
-warning: unused import: `default`
-  --> src/json/parser.rs:31:11
-   |
-31 | use std::{default, fs::File};
-   |           ^^^^^^^
+3 |     ir::{Array, Builder, Config, Felt},
+  |                                  ^^^^
 
 warning: unused imports: `InnerChallenge` and `InnerVal`
  --> src/tower_verifier/binding.rs:9:23
@@ -113,170 +125,172 @@ warning: unused imports: `Poseidon2BabyBear` and `config::baby_bear_poseidon2::B
 17 |     p3_baby_bear::{BabyBear, Poseidon2BabyBear},
    |                              ^^^^^^^^^^^^^^^^^
 
-warning: unused imports: `IOPProverMessage`, `PointVariable`, `Point`, and `TowerVerifierInput`
- --> src/tower_verifier/program.rs:3:9
+warning: unused imports: `IOPProverMessage`, `Point`, and `TowerVerifierInput`
+ --> src/tower_verifier/program.rs:2:5
   |
-3 |         IOPProverMessage, IOPProverMessageVariable, Point, PointVariable, TowerVerifierInput,
-  |         ^^^^^^^^^^^^^^^^                            ^^^^^  ^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^
+2 |     IOPProverMessage, IOPProverMessageVariable, Point, PointAndEvalVariable, PointVariable,
+  |     ^^^^^^^^^^^^^^^^                            ^^^^^
+3 |     TowerVerifierInput, TowerVerifierInputVariable,
+  |     ^^^^^^^^^^^^^^^^^^
 
-warning: unused import: `tower_verifier`
- --> src/tower_verifier/program.rs:8:13
+warning: unused import: `crate::tower_verifier`
+ --> src/tower_verifier/program.rs:9:5
   |
-8 | use crate::{tower_verifier};
-  |             ^^^^^^^^^^^^^^
+9 | use crate::tower_verifier;
+  |     ^^^^^^^^^^^^^^^^^^^^^
 
 warning: unused imports: `BigInteger` and `PrimeField`
- --> src/tower_verifier/program.rs:9:29
-  |
-9 | use ark_ff::{AdditiveGroup, BigInteger, Field, PrimeField};
-  |                             ^^^^^^^^^^         ^^^^^^^^^^
+  --> src/tower_verifier/program.rs:11:29
+   |
+11 | use ark_ff::{AdditiveGroup, BigInteger, Field, PrimeField};
+   |                             ^^^^^^^^^^         ^^^^^^^^^^
 
 warning: unused import: `ark_std::collections::BTreeSet`
-  --> src/tower_verifier/program.rs:11:5
+  --> src/tower_verifier/program.rs:13:5
    |
-11 | use ark_std::collections::BTreeSet;
+13 | use ark_std::collections::BTreeSet;
    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-warning: unused import: `mpcs::BasefoldCommitment`
-  --> src/tower_verifier/program.rs:12:5
+warning: unused import: `ceno_zkvm::structs::PointAndEval`
+  --> src/tower_verifier/program.rs:14:5
    |
-12 | use mpcs::BasefoldCommitment;
+14 | use ceno_zkvm::structs::PointAndEval;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `mpcs::BasefoldCommitment`
+  --> src/tower_verifier/program.rs:15:5
+   |
+15 | use mpcs::BasefoldCommitment;
    |     ^^^^^^^^^^^^^^^^^^^^^^^^
 
 warning: unused import: `openvm::io::println`
-  --> src/tower_verifier/program.rs:13:5
+  --> src/tower_verifier/program.rs:16:5
    |
-13 | use openvm::io::println;
+16 | use openvm::io::println;
    |     ^^^^^^^^^^^^^^^^^^^
 
-warning: unused imports: `Hintable` and `VecAutoHintable`
-  --> src/tower_verifier/program.rs:19:13
+warning: unused import: `ir::MemVariable`
+  --> src/tower_verifier/program.rs:18:46
    |
-19 |     hints::{Hintable, InnerChallenge, InnerVal, VecAutoHintable},
+18 | use openvm_native_compiler::{asm::AsmConfig, ir::MemVariable};
+   |                                              ^^^^^^^^^^^^^^^
+
+warning: unused imports: `Hintable` and `VecAutoHintable`
+  --> src/tower_verifier/program.rs:22:13
+   |
+22 |     hints::{Hintable, InnerChallenge, InnerVal, VecAutoHintable},
    |             ^^^^^^^^                            ^^^^^^^^^^^^^^^
 
 warning: unused imports: `p3_baby_bear::BabyBear` and `p3_blake3::Blake3`
-  --> src/tower_verifier/program.rs:21:24
+  --> src/tower_verifier/program.rs:24:24
    |
-21 | use openvm_stark_sdk::{p3_baby_bear::BabyBear, p3_blake3::Blake3};
+24 | use openvm_stark_sdk::{p3_baby_bear::BabyBear, p3_blake3::Blake3};
    |                        ^^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^
 
 warning: unused import: `p3_field::PrimeField32`
-  --> src/tower_verifier/program.rs:22:5
+  --> src/tower_verifier/program.rs:25:5
    |
-22 | use p3_field::PrimeField32;
+25 | use p3_field::PrimeField32;
    |     ^^^^^^^^^^^^^^^^^^^^^^
 
 warning: unused imports: `ExtensionField`, `FieldExtensionAlgebra`, `PackedValue`, and `TwoAdicField`
-  --> src/tower_verifier/program.rs:24:5
+  --> src/tower_verifier/program.rs:27:5
    |
-24 |     ExtensionField, Field as Plonky3Field, FieldAlgebra, FieldExtensionAlgebra, PackedValue,
+27 |     ExtensionField, Field as Plonky3Field, FieldAlgebra, FieldExtensionAlgebra, PackedValue,
    |     ^^^^^^^^^^^^^^                                       ^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^
-25 |     TwoAdicField,
+28 |     TwoAdicField,
    |     ^^^^^^^^^^^^
 
 warning: unused imports: `Blake3Digest`, `BlakeDigestVariable`, `MultilinearPoint`, `StatementVariable`, `WhirProofRoundVariable`, `WhirProofVariable`, `WhirProof`, `eq_poly_outside`, `fields::Field64`, `fs_utils::DigestReader`, `parameters::WhirConfig`, `self as merkle_tree`, and `sumcheck::proof::SumcheckPolynomial`
-  --> src/tower_verifier/program.rs:29:9
+  --> src/tower_verifier/program.rs:32:9
    |
-29 |         fields::Field64,
+32 |         fields::Field64,
    |         ^^^^^^^^^^^^^^^
-30 |         merkle_tree::blake3::{self as merkle_tree, Blake3Digest},
+33 |         merkle_tree::blake3::{self as merkle_tree, Blake3Digest},
    |                               ^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^
-31 |     },
-32 |     poly_utils::{eq_poly_outside, MultilinearPoint},
+34 |     },
+35 |     poly_utils::{eq_poly_outside, MultilinearPoint},
    |                  ^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^
-33 |     sumcheck::proof::SumcheckPolynomial,
+36 |     sumcheck::proof::SumcheckPolynomial,
    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-34 |     whir::{
-35 |         fs_utils::DigestReader,
+37 |     whir::{
+38 |         fs_utils::DigestReader,
    |         ^^^^^^^^^^^^^^^^^^^^^^
-36 |         parameters::WhirConfig,
+39 |         parameters::WhirConfig,
    |         ^^^^^^^^^^^^^^^^^^^^^^
-37 |         vm_binding::{
-38 |             BlakeDigestVariable, StatementVariable, WhirProofRoundVariable, WhirProofVariable,
+40 |         vm_binding::{
+41 |             BlakeDigestVariable, StatementVariable, WhirProofRoundVariable, WhirProofVariable,
    |             ^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^
-39 |         },
-40 |         WhirProof,
+42 |         },
+43 |         WhirProof,
    |         ^^^^^^^^^
 
 warning: unused import: `Point`
-   --> src/tower_verifier/program.rs:693:60
+   --> src/tower_verifier/program.rs:630:60
     |
-693 |     use crate::tower_verifier::binding::{IOPProverMessage, Point, TowerVerifierInput, F};
+630 |     use crate::tower_verifier::binding::{IOPProverMessage, Point, TowerVerifierInput, F};
     |                                                            ^^^^^
 
 warning: unused imports: `ZKVMProof` and `verifier`
-   --> src/tower_verifier/program.rs:695:29
+   --> src/tower_verifier/program.rs:632:29
     |
-695 |     use ceno_zkvm::scheme::{verifier, ZKVMProof};
+632 |     use ceno_zkvm::scheme::{verifier, ZKVMProof};
     |                             ^^^^^^^^  ^^^^^^^^^
 
 warning: unused import: `openvm::io::println`
-   --> src/tower_verifier/program.rs:697:9
+   --> src/tower_verifier/program.rs:634:9
     |
-697 |     use openvm::io::println;
+634 |     use openvm::io::println;
     |         ^^^^^^^^^^^^^^^^^^^
 
 warning: unused import: `AsmConfig`
-   --> src/tower_verifier/program.rs:700:51
+   --> src/tower_verifier/program.rs:637:51
     |
-700 |     use openvm_native_compiler::asm::{AsmBuilder, AsmConfig};
+637 |     use openvm_native_compiler::asm::{AsmBuilder, AsmConfig};
     |                                                   ^^^^^^^^^
 
 warning: unused imports: `CanSampleVariable`, `fri::witness`, and `types::InnerConfig`
-   --> src/tower_verifier/program.rs:705:76
+   --> src/tower_verifier/program.rs:642:76
     |
-705 |         challenger::{duplex::DuplexChallengerVariable, CanObserveVariable, CanSampleVariable},
+642 |         challenger::{duplex::DuplexChallengerVariable, CanObserveVariable, CanSampleVariable},
     |                                                                            ^^^^^^^^^^^^^^^^^
-706 |         fri::witness,
+643 |         fri::witness,
     |         ^^^^^^^^^^^^
-707 |         hints::Hintable,
-708 |         types::InnerConfig,
+644 |         hints::Hintable,
+645 |         types::InnerConfig,
     |         ^^^^^^^^^^^^^^^^^^
 
 warning: unused import: `Val`
-   --> src/tower_verifier/program.rs:710:60
+   --> src/tower_verifier/program.rs:647:60
     |
-710 |     use openvm_stark_backend::config::{StarkGenericConfig, Val};
+647 |     use openvm_stark_backend::config::{StarkGenericConfig, Val};
     |                                                            ^^^
 
 warning: unused imports: `FieldExtensionAlgebra`, `PrimeField32`, `PrimeField64`, and `extension::BinomialExtensionField`
-   --> src/tower_verifier/program.rs:716:9
+   --> src/tower_verifier/program.rs:653:9
     |
-716 |         extension::BinomialExtensionField, FieldAlgebra, FieldExtensionAlgebra, PrimeField32,
+653 |         extension::BinomialExtensionField, FieldAlgebra, FieldExtensionAlgebra, PrimeField32,
     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^                ^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^
-717 |         PrimeField64,
+654 |         PrimeField64,
     |         ^^^^^^^^^^^^
 
 warning: unused import: `p3_util::array_serialization::deserialize`
-   --> src/tower_verifier/program.rs:719:9
+   --> src/tower_verifier/program.rs:656:9
     |
-719 |     use p3_util::array_serialization::deserialize;
+656 |     use p3_util::array_serialization::deserialize;
     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 warning: unused imports: `Deserialize` and `Serialize`
-   --> src/tower_verifier/program.rs:720:17
+   --> src/tower_verifier/program.rs:657:17
     |
-720 |     use serde::{Deserialize, Serialize};
+657 |     use serde::{Deserialize, Serialize};
     |                 ^^^^^^^^^^^  ^^^^^^^^^
 
 warning: unused import: `default`
-   --> src/tower_verifier/program.rs:723:15
+   --> src/tower_verifier/program.rs:660:15
     |
-723 |     use std::{default, fs::File};
+660 |     use std::{default, fs::File};
     |               ^^^^^^^
-
-warning: unused imports: `SystemConfig` and `VmExecutor`
- --> src/tests/mod.rs:4:60
-  |
-4 | use openvm_circuit::arch::{instructions::program::Program, SystemConfig, VmExecutor};
-  |                                                            ^^^^^^^^^^^^  ^^^^^^^^^^
-
-warning: unused imports: `NativeConfig` and `Native`
- --> src/tests/mod.rs:5:29
-  |
-5 | use openvm_native_circuit::{Native, NativeConfig};
-  |                             ^^^^^^  ^^^^^^^^^^^^
 
 warning: unused import: `openvm_native_compiler::asm::AsmConfig`
  --> src/transcript/mod.rs:2:5
@@ -302,17 +316,62 @@ warning: unused imports: `Field as Plonky3Field`, `FieldExtensionAlgebra`, `Pack
 10 |     Field as Plonky3Field, FieldAlgebra, FieldExtensionAlgebra, PackedValue, TwoAdicField,
    |     ^^^^^^^^^^^^^^^^^^^^^                ^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^  ^^^^^^^^^^^^
 
-warning: unused import: `openvm_native_recursion::challenger::ChallengerVariable`
-  --> src/json/parser.rs:10:5
+warning: unused imports: `BasefoldRSParams` and `Basefold`
+ --> src/zkvm_verifier/binding.rs:3:12
+  |
+3 | use mpcs::{Basefold, BasefoldCommitment, BasefoldRSParams};
+  |            ^^^^^^^^                      ^^^^^^^^^^^^^^^^
+
+warning: unused import: `FieldExtensionAlgebra`
+  --> src/zkvm_verifier/binding.rs:12:65
    |
-10 | use openvm_native_recursion::challenger::ChallengerVariable;
+12 | use p3_field::{extension::BinomialExtensionField, FieldAlgebra, FieldExtensionAlgebra};
+   |                                                                 ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `PointAndEvalVariable`, `Point`, and `json::parser::parse_zkvm_proof_json`
+  --> src/zkvm_verifier/verifier.rs:10:5
+   |
+10 |     json::parser::parse_zkvm_proof_json,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+11 |     tower_verifier::{
+12 |         binding::{Point, PointAndEvalVariable, PointVariable, TowerVerifierInputVariable},
+   |                   ^^^^^  ^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `error` and `structs::PointAndEval`
+  --> src/zkvm_verifier/verifier.rs:16:17
+   |
+16 | use ceno_zkvm::{error, structs::PointAndEval};
+   |                 ^^^^^  ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `ir::MemVariable`
+  --> src/zkvm_verifier/verifier.rs:18:46
+   |
+18 | use openvm_native_compiler::{asm::AsmConfig, ir::MemVariable};
+   |                                              ^^^^^^^^^^^^^^^
+
+warning: unused imports: `FieldExtensionAlgebra` and `dot_product`
+  --> src/zkvm_verifier/verifier.rs:26:16
+   |
+26 | use p3_field::{dot_product, FieldAlgebra, FieldExtensionAlgebra};
+   |                ^^^^^^^^^^^                ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `openvm_native_recursion::challenger::ChallengerVariable`
+  --> src/json/parser.rs:13:5
+   |
+13 | use openvm_native_recursion::challenger::ChallengerVariable;
    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 warning: unused import: `openvm_native_compiler::prelude`
- --> src/json/parser.rs:9:5
-  |
-9 | use openvm_native_compiler::prelude::*;
-  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  --> src/json/parser.rs:12:5
+   |
+12 | use openvm_native_compiler::prelude::*;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `ChallengerVariable`
+  --> src/zkvm_verifier/verifier.rs:22:63
+   |
+22 |         duplex::DuplexChallengerVariable, CanObserveVariable, ChallengerVariable, FeltChallenger,
+   |                                                               ^^^^^^^^^^^^^^^^^^
 
 warning: unused import: `challenger::ChallengerVariable`
  --> src/tower_verifier/binding.rs:8:5
@@ -320,327 +379,459 @@ warning: unused import: `challenger::ChallengerVariable`
 8 |     challenger::ChallengerVariable,
   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+warning: unused import: `Field`
+  --> src/tower_verifier/program.rs:11:41
+   |
+11 | use ark_ff::{AdditiveGroup, BigInteger, Field, PrimeField};
+   |                                         ^^^^^
+
 warning: unused import: `AdditiveGroup`
- --> src/tower_verifier/program.rs:9:14
-  |
-9 | use ark_ff::{AdditiveGroup, BigInteger, Field, PrimeField};
-  |              ^^^^^^^^^^^^^
+  --> src/tower_verifier/program.rs:11:14
+   |
+11 | use ark_ff::{AdditiveGroup, BigInteger, Field, PrimeField};
+   |              ^^^^^^^^^^^^^
 
 warning: unused import: `ark_poly::domain::EvaluationDomain`
-  --> src/tower_verifier/program.rs:10:5
+  --> src/tower_verifier/program.rs:12:5
    |
-10 | use ark_poly::domain::EvaluationDomain;
+12 | use ark_poly::domain::EvaluationDomain;
    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 warning: unused import: `Field`
- --> src/tower_verifier/program.rs:9:41
-  |
-9 | use ark_ff::{AdditiveGroup, BigInteger, Field, PrimeField};
-  |                                         ^^^^^
-
-warning: unused import: `Field`
-  --> src/tower_verifier/program.rs:24:21
+  --> src/tower_verifier/program.rs:27:21
    |
-24 |     ExtensionField, Field as Plonky3Field, FieldAlgebra, FieldExtensionAlgebra, PackedValue,
+27 |     ExtensionField, Field as Plonky3Field, FieldAlgebra, FieldExtensionAlgebra, PackedValue,
    |                     ^^^^^
 
 warning: unused import: `openvm_native_recursion::challenger::ChallengerVariable`
-   --> src/tower_verifier/program.rs:702:9
+   --> src/tower_verifier/program.rs:639:9
     |
-702 |     use openvm_native_recursion::challenger::ChallengerVariable;
+639 |     use openvm_native_recursion::challenger::ChallengerVariable;
     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-warning: unused variable: `builder`
- --> src/zkvm_verifier/verifier.rs:6:5
-  |
-6 |     builder: &mut Builder<C>,
-  |     ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_builder`
-  |
-  = note: `#[warn(unused_variables)]` on by default
-
 warning: unused variable: `challenger`
- --> src/zkvm_verifier/verifier.rs:7:5
-  |
-7 |     challenger: &mut impl ChallengerVariable<C>,
-  |     ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_challenger`
+   --> src/arithmetics/mod.rs:215:5
+    |
+215 |     challenger: &mut impl ChallengerVariable<C>,
+    |     ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_challenger`
+    |
+    = note: `#[warn(unused_variables)]` on by default
 
-warning: unused variable: `zkvm_proof_input`
- --> src/zkvm_verifier/verifier.rs:8:5
-  |
-8 |     zkvm_proof_input: ZKVMProofInputVariable<C>,
-  |     ^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_zkvm_proof_input`
+warning: unused variable: `max_idx`
+   --> src/arithmetics/mod.rs:216:5
+    |
+216 |     max_idx: Usize<C::N>,
+    |     ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_max_idx`
 
 warning: variable does not need to be mutable
-   --> src/json/parser.rs:342:13
+   --> src/arithmetics/mod.rs:313:9
     |
-342 |         let mut has_same_r_sumcheck_proofs: usize = 0;
-    |             ----^^^^^^^^^^^^^^^^^^^^^^^^^^
-    |             |
-    |             help: remove this `mut`
+313 |     let mut evals_len: Felt<C::F> = builder.constant(C::F::ONE);
+    |         ----^^^^^^^^^
+    |         |
+    |         help: remove this `mut`
     |
     = note: `#[warn(unused_mut)]` on by default
 
 warning: variable does not need to be mutable
-   --> src/json/parser.rs:343:13
+   --> src/json/parser.rs:352:13
     |
-343 |         let mut same_r_sumcheck_proofs: Vec<IOPProverMessage> = vec![];
-    |             ----^^^^^^^^^^^^^^^^^^^^^^
+352 |         let mut has_same_r_sumcheck_proofs: usize = 0;
+    |             ----^^^^^^^^^^^^^^^^^^^^^^^^^^
     |             |
     |             help: remove this `mut`
 
 warning: variable does not need to be mutable
-  --> src/tower_verifier/program.rs:66:9
+   --> src/json/parser.rs:353:13
+    |
+353 |         let mut same_r_sumcheck_proofs: Vec<IOPProverMessage> = vec![];
+    |             ----^^^^^^^^^^^^^^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: unused variable: `engine`
+  --> src/tests/mod.rs:28:9
    |
-66 |     let mut acc: Ext<C::F, C::EF> = builder.eval(C::F::ZERO);
-   |         ----^^^
-   |         |
-   |         help: remove this `mut`
+28 |     let engine = default_engine();
+   |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_engine`
+
+warning: unused variable: `program`
+  --> src/tests/mod.rs:55:10
+   |
+55 |     let (program, witness) = build_zkvm_proof_verifier_test();
+   |          ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_program`
+
+warning: unused variable: `witness`
+  --> src/tests/mod.rs:55:19
+   |
+55 |     let (program, witness) = build_zkvm_proof_verifier_test();
+   |                   ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_witness`
 
 warning: unused variable: `one`
-   --> src/tower_verifier/program.rs:484:9
+   --> src/tower_verifier/program.rs:397:9
     |
-484 |     let one: Ext<<C as Config>::F, <C as Config>::EF> = builder.constant(C::EF::ONE);
+397 |     let one: Ext<<C as Config>::F, <C as Config>::EF> = builder.constant(C::EF::ONE);
     |         ^^^ help: if this is intentional, prefix it with an underscore: `_one`
 
 warning: variable does not need to be mutable
-   --> src/tower_verifier/program.rs:480:9
+   --> src/tower_verifier/program.rs:393:9
     |
-480 |     let mut curr_pt = initial_rt.clone();
+393 |     let mut curr_pt = initial_rt.clone();
     |         ----^^^^^^^
     |         |
     |         help: remove this `mut`
 
 warning: variable does not need to be mutable
-   --> src/tower_verifier/program.rs:481:9
+   --> src/tower_verifier/program.rs:394:9
     |
-481 |     let mut curr_eval = initial_claim.clone();
+394 |     let mut curr_eval = initial_claim.clone();
     |         ----^^^^^^^^^
     |         |
     |         help: remove this `mut`
 
 warning: unused variable: `opcode_idx`
-   --> src/tower_verifier/program.rs:820:13
+   --> src/tower_verifier/program.rs:757:13
     |
-820 |         let opcode_idx: usize = 0;
+757 |         let opcode_idx: usize = 0;
     |             ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_opcode_idx`
 
 warning: unused variable: `challenger`
-    --> src/tower_verifier/program.rs:1077:17
+    --> src/tower_verifier/program.rs:1014:17
      |
-1077 |         let mut challenger = Challenger::new(perm.clone());
+1014 |         let mut challenger = Challenger::new(perm.clone());
      |                 ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_challenger`
 
 warning: variable does not need to be mutable
-    --> src/tower_verifier/program.rs:1077:13
+    --> src/tower_verifier/program.rs:1014:13
      |
-1077 |         let mut challenger = Challenger::new(perm.clone());
+1014 |         let mut challenger = Challenger::new(perm.clone());
      |             ----^^^^^^^^^^
      |             |
      |             help: remove this `mut`
 
-warning: unused variable: `engine`
-  --> src/tests/mod.rs:31:9
+warning: unused variable: `one`
+  --> src/zkvm_verifier/verifier.rs:39:9
    |
-31 |     let engine = default_engine();
-   |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_engine`
+39 |     let one: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
+   |         ^^^ help: if this is intentional, prefix it with an underscore: `_one`
 
-warning: unused variable: `program`
-  --> src/tests/mod.rs:59:10
+warning: unused variable: `zero`
+  --> src/zkvm_verifier/verifier.rs:40:9
    |
-59 |     let (program, witness) = build_zkvm_proof_verifier_test();
-   |          ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_program`
+40 |     let zero: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
+   |         ^^^^ help: if this is intentional, prefix it with an underscore: `_zero`
 
-warning: unused variable: `witness`
-  --> src/tests/mod.rs:59:19
+warning: unused variable: `digest_width`
+  --> src/zkvm_verifier/verifier.rs:64:9
    |
-59 |     let (program, witness) = build_zkvm_proof_verifier_test();
-   |                   ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_witness`
+64 |     let digest_width: RVar<C::N> = RVar::from(DIGEST_WIDTH);
+   |         ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_digest_width`
+
+warning: unused variable: `dummy_table_item_multiplicity`
+   --> src/zkvm_verifier/verifier.rs:106:9
+    |
+106 |     let dummy_table_item_multiplicity: RVar<C::N> = RVar::from(0);
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_dummy_table_item_multiplicity`
+
+warning: unused variable: `eval`
+  --> src/zkvm_verifier/verifier.rs:56:17
+   |
+56 |             let eval = builder.iter_ptr_get(&zkvm_proof_input.pi_evals, ptr_vec[1]);
+   |                 ^^^^ help: if this is intentional, prefix it with an underscore: `_eval`
+
+warning: unused variable: `raw0`
+  --> src/zkvm_verifier/verifier.rs:57:17
+   |
+57 |             let raw0 = builder.get(&raw, 0);
+   |                 ^^^^ help: if this is intentional, prefix it with an underscore: `_raw0`
+
+warning: unused variable: `zero`
+   --> src/zkvm_verifier/verifier.rs:227:9
+    |
+227 |     let zero: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
+    |         ^^^^ help: if this is intentional, prefix it with an underscore: `_zero`
+
+warning: unused variable: `logup_p_eval`
+   --> src/zkvm_verifier/verifier.rs:310:9
+    |
+310 |     let logup_p_eval = builder.get(&logup_p_evals, 0).eval;
+    |         ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_logup_p_eval`
+
+warning: unused variable: `circuit_vk`
+   --> src/zkvm_verifier/verifier.rs:220:5
+    |
+220 |     circuit_vk: Array<C, Felt<C::F>>,
+    |     ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_circuit_vk`
+
+warning: unused variable: `pi_evals`
+   --> src/zkvm_verifier/verifier.rs:222:5
+    |
+222 |     pi_evals: &Array<C, Ext<C::F, C::EF>>,
+    |     ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_pi_evals`
+
+warning: unused variable: `beta`
+   --> src/zkvm_verifier/verifier.rs:224:5
+    |
+224 |     beta: Ext<C::F, C::EF>,
+    |     ^^^^ help: if this is intentional, prefix it with an underscore: `_beta`
+
+warning: unused variable: `builder`
+   --> src/zkvm_verifier/verifier.rs:515:5
+    |
+515 |     builder: &mut Builder<C>,
+    |     ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_builder`
+
+warning: unused variable: `challenger`
+   --> src/zkvm_verifier/verifier.rs:516:5
+    |
+516 |     challenger: &mut DuplexChallengerVariable<C>,
+    |     ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_challenger`
+
+warning: unused variable: `circuit_vk`
+   --> src/zkvm_verifier/verifier.rs:517:5
+    |
+517 |     circuit_vk: Array<C, Felt<C::F>>,
+    |     ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_circuit_vk`
+
+warning: unused variable: `opcode_proof`
+   --> src/zkvm_verifier/verifier.rs:518:5
+    |
+518 |     opcode_proof: &ZKVMTableProofInputVariable<C>,
+    |     ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_opcode_proof`
+
+warning: unused variable: `raw_pi`
+   --> src/zkvm_verifier/verifier.rs:519:5
+    |
+519 |     raw_pi: &Array<C, Array<C, Felt<C::F>>>,
+    |     ^^^^^^ help: if this is intentional, prefix it with an underscore: `_raw_pi`
+
+warning: unused variable: `pi_evals`
+   --> src/zkvm_verifier/verifier.rs:520:5
+    |
+520 |     pi_evals: &Array<C, Ext<C::F, C::EF>>,
+    |     ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_pi_evals`
 
 warning: type `ZKVMProofInput` is more private than the item `parse_zkvm_proof_json`
-   --> src/json/parser.rs:126:1
+   --> src/json/parser.rs:127:1
     |
-126 | pub fn parse_zkvm_proof_json() -> ZKVMProofInput {
+127 | pub fn parse_zkvm_proof_json() -> ZKVMProofInput {
     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ function `parse_zkvm_proof_json` is reachable at visibility `pub`
     |
 note: but type `ZKVMProofInput` is only usable at visibility `pub(crate)`
-   --> src/zkvm_verifier/binding.rs:82:1
+   --> src/zkvm_verifier/binding.rs:84:1
     |
-82  | pub(crate) struct ZKVMProofInput {
+84  | pub(crate) struct ZKVMProofInput {
     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     = note: `#[warn(private_interfaces)]` on by default
 
-warning: type alias `SC` is never used
-  --> src/json/parser.rs:35:6
+warning: type alias `InnerConfig` is never used
+  --> src/arithmetics/mod.rs:10:6
    |
-35 | type SC = BabyBearPoseidon2Config;
-   |      ^^
+10 | type InnerConfig = AsmConfig<InnerVal, InnerChallenge>;
+   |      ^^^^^^^^^^^
    |
    = note: `#[warn(dead_code)]` on by default
 
-warning: type alias `EF` is never used
+warning: constant `NUM_FANIN` is never used
+  --> src/arithmetics/mod.rs:11:7
+   |
+11 | const NUM_FANIN: usize = 2;
+   |       ^^^^^^^^^
+
+warning: constant `MAX_DEGREE` is never used
+  --> src/arithmetics/mod.rs:12:7
+   |
+12 | const MAX_DEGREE: usize = 3;
+   |       ^^^^^^^^^^
+
+warning: function `reverse_idx_arr` is never used
+  --> src/arithmetics/mod.rs:94:8
+   |
+94 | pub fn reverse_idx_arr<C: Config>(
+   |        ^^^^^^^^^^^^^^^
+
+warning: type alias `SC` is never used
   --> src/json/parser.rs:36:6
    |
-36 | type EF = <SC as StarkGenericConfig>::Challenge;
+36 | type SC = BabyBearPoseidon2Config;
+   |      ^^
+
+warning: type alias `EF` is never used
+  --> src/json/parser.rs:37:6
+   |
+37 | type EF = <SC as StarkGenericConfig>::Challenge;
    |      ^^
 
 warning: type alias `Challenger` is never used
-  --> src/json/parser.rs:37:6
+  --> src/json/parser.rs:38:6
    |
-37 | type Challenger = <SC as StarkGenericConfig>::Challenger;
+38 | type Challenger = <SC as StarkGenericConfig>::Challenger;
    |      ^^^^^^^^^^
 
 warning: type alias `B` is never used
-  --> src/json/parser.rs:42:6
+  --> src/json/parser.rs:43:6
    |
-42 | type B = BabyBear;
+43 | type B = BabyBear;
    |      ^
 
 warning: type alias `Pcs` is never used
-  --> src/json/parser.rs:43:6
+  --> src/json/parser.rs:44:6
    |
-43 | type Pcs = Basefold<E, BasefoldRSParams>;
+44 | type Pcs = Basefold<E, BasefoldRSParams>;
    |      ^^^
 
 warning: function `read_json` is never used
-  --> src/json/parser.rs:45:4
+  --> src/json/parser.rs:46:4
    |
-45 | fn read_json() -> Value {
+46 | fn read_json() -> Value {
    |    ^^^^^^^^^
 
 warning: function `print_structure` is never used
-  --> src/json/parser.rs:52:4
+  --> src/json/parser.rs:53:4
    |
-52 | fn print_structure(value: &Value, indent: usize) {
+53 | fn print_structure(value: &Value, indent: usize) {
    |    ^^^^^^^^^^^^^^^
 
 warning: struct `ZKVMProofJSONParsed` is never constructed
-   --> src/json/parser.rs:103:19
+   --> src/json/parser.rs:104:19
     |
-103 | pub(crate) struct ZKVMProofJSONParsed {
+104 | pub(crate) struct ZKVMProofJSONParsed {
     |                   ^^^^^^^^^^^^^^^^^^^
     |
     = note: `ZKVMProofJSONParsed` has a derived impl for the trait `Default`, but this is intentionally ignored during dead code analysis
 
-warning: field `max_num_variables` is never read
-   --> src/tower_verifier/binding.rs:100:9
-    |
-90  | pub struct TowerVerifierInput {
-    |            ------------------ field in this struct
-...
-100 |     pub max_num_variables: usize,
-    |         ^^^^^^^^^^^^^^^^^
-
-warning: type alias `InnerConfig` is never used
-  --> src/tower_verifier/program.rs:43:6
-   |
-43 | type InnerConfig = AsmConfig<InnerVal, InnerChallenge>;
-   |      ^^^^^^^^^^^
-
-warning: constant `NUM_FANIN` is never used
-  --> src/tower_verifier/program.rs:44:7
-   |
-44 | const NUM_FANIN: usize = 2;
-   |       ^^^^^^^^^
-
-warning: constant `MAX_DEGREE` is never used
-  --> src/tower_verifier/program.rs:45:7
-   |
-45 | const MAX_DEGREE: usize = 3;
-   |       ^^^^^^^^^^
-
-warning: type alias `B` is never used
-   --> src/tower_verifier/program.rs:733:10
-    |
-733 |     type B = BabyBear;
-    |          ^
-
-warning: type alias `Pcs` is never used
-   --> src/tower_verifier/program.rs:734:10
-    |
-734 |     type Pcs = Basefold<E, BasefoldRSParams>;
-    |          ^^^
-
-warning: function `read_json` is never used
-   --> src/tower_verifier/program.rs:736:8
-    |
-736 |     fn read_json() -> Value {
-    |        ^^^^^^^^^
-
-warning: function `print_structure` is never used
-   --> src/tower_verifier/program.rs:743:8
-    |
-743 |     fn print_structure(value: &Value, indent: usize) {
-    |        ^^^^^^^^^^^^^^^
-
 warning: type alias `Challenger` is never used
-  --> src/tests/mod.rs:21:6
+  --> src/tests/mod.rs:18:6
    |
-21 | type Challenger = <SC as StarkGenericConfig>::Challenger;
+18 | type Challenger = <SC as StarkGenericConfig>::Challenger;
    |      ^^^^^^^^^^
 
 warning: type alias `B` is never used
-  --> src/tests/mod.rs:25:6
+  --> src/tests/mod.rs:22:6
    |
-25 | type B = BabyBear;
+22 | type B = BabyBear;
    |      ^
 
 warning: type alias `Pcs` is never used
-  --> src/tests/mod.rs:26:6
+  --> src/tests/mod.rs:23:6
    |
-26 | type Pcs = Basefold<E, BasefoldRSParams>;
+23 | type Pcs = Basefold<E, BasefoldRSParams>;
    |      ^^^
 
-warning: unused `Result` that must be used
-  --> src/json/parser.rs:48:5
+warning: field `max_num_variables` is never read
+   --> src/tower_verifier/binding.rs:106:9
+    |
+96  | pub struct TowerVerifierInput {
+    |            ------------------ field in this struct
+...
+106 |     pub max_num_variables: usize,
+    |         ^^^^^^^^^^^^^^^^^
+
+warning: type alias `InnerConfig` is never used
+  --> src/tower_verifier/program.rs:46:6
    |
-48 |     file.read_to_string(&mut contents);
+46 | type InnerConfig = AsmConfig<InnerVal, InnerChallenge>;
+   |      ^^^^^^^^^^^
+
+warning: constant `NUM_FANIN` is never used
+  --> src/tower_verifier/program.rs:47:7
+   |
+47 | const NUM_FANIN: usize = 2;
+   |       ^^^^^^^^^
+
+warning: constant `MAX_DEGREE` is never used
+  --> src/tower_verifier/program.rs:48:7
+   |
+48 | const MAX_DEGREE: usize = 3;
+   |       ^^^^^^^^^^
+
+warning: type alias `B` is never used
+   --> src/tower_verifier/program.rs:670:10
+    |
+670 |     type B = BabyBear;
+    |          ^
+
+warning: type alias `Pcs` is never used
+   --> src/tower_verifier/program.rs:671:10
+    |
+671 |     type Pcs = Basefold<E, BasefoldRSParams>;
+    |          ^^^
+
+warning: function `read_json` is never used
+   --> src/tower_verifier/program.rs:673:8
+    |
+673 |     fn read_json() -> Value {
+    |        ^^^^^^^^^
+
+warning: function `print_structure` is never used
+   --> src/tower_verifier/program.rs:680:8
+    |
+680 |     fn print_structure(value: &Value, indent: usize) {
+    |        ^^^^^^^^^^^^^^^
+
+warning: type alias `InnerConfig` is never used
+  --> src/zkvm_verifier/verifier.rs:28:6
+   |
+28 | type InnerConfig = AsmConfig<InnerVal, InnerChallenge>;
+   |      ^^^^^^^^^^^
+
+warning: constant `MAX_DEGREE` is never used
+  --> src/zkvm_verifier/verifier.rs:30:7
+   |
+30 | const MAX_DEGREE: usize = 3;
+   |       ^^^^^^^^^^
+
+warning: unused `Result` that must be used
+  --> src/json/parser.rs:49:5
+   |
+49 |     file.read_to_string(&mut contents);
    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
    |
    = note: this `Result` may be an `Err` variant, which should be handled
    = note: `#[warn(unused_must_use)]` on by default
 help: use `let _ = ...` to ignore the resulting value
    |
-48 |     let _ = file.read_to_string(&mut contents);
+49 |     let _ = file.read_to_string(&mut contents);
    |     +++++++
 
 warning: unused `Result` that must be used
-   --> src/tower_verifier/program.rs:739:9
+   --> src/tower_verifier/program.rs:676:9
     |
-739 |         file.read_to_string(&mut contents);
+676 |         file.read_to_string(&mut contents);
     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     |
     = note: this `Result` may be an `Err` variant, which should be handled
 help: use `let _ = ...` to ignore the resulting value
     |
-739 |         let _ = file.read_to_string(&mut contents);
+676 |         let _ = file.read_to_string(&mut contents);
     |         +++++++
 
 warning: unused `Result` that must be used
-   --> src/tower_verifier/program.rs:825:9
+   --> src/tower_verifier/program.rs:762:9
     |
-825 |         file.read_to_string(&mut contents);
+762 |         file.read_to_string(&mut contents);
     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     |
     = note: this `Result` may be an `Err` variant, which should be handled
 help: use `let _ = ...` to ignore the resulting value
     |
-825 |         let _ = file.read_to_string(&mut contents);
+762 |         let _ = file.read_to_string(&mut contents);
     |         +++++++
 
 warning: unused `Result` that must be used
-    --> src/tower_verifier/program.rs:1025:9
-     |
-1025 |         vk_file.read_to_string(&mut vk_contents);
-     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-     |
-     = note: this `Result` may be an `Err` variant, which should be handled
+   --> src/tower_verifier/program.rs:962:9
+    |
+962 |         vk_file.read_to_string(&mut vk_contents);
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: this `Result` may be an `Err` variant, which should be handled
 help: use `let _ = ...` to ignore the resulting value
-     |
-1025 |         let _ = vk_file.read_to_string(&mut vk_contents);
-     |         +++++++
+    |
+962 |         let _ = vk_file.read_to_string(&mut vk_contents);
+    |         +++++++
 
-warning: `ceno-recursion-verifier` (lib test) generated 91 warnings (run `cargo fix --lib -p ceno-recursion-verifier --tests` to apply 50 suggestions)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.08s
+warning: `ceno-recursion-verifier` (lib test) generated 122 warnings (run `cargo fix --lib -p ceno-recursion-verifier --tests` to apply 58 suggestions)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.19s
      Running unittests src/lib.rs (target/debug/deps/ceno_recursion_verifier-cc11c77317ff5ddd)
 
 running 1 test
@@ -651,5 +842,5 @@ successes:
 successes:
     tests::test_zkvm_proof_verifier
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 1.23s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 1.92s
 

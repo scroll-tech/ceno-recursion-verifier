@@ -1,15 +1,15 @@
+use crate::tower_verifier::binding::{IOPProverMessage, IOPProverMessageVariable};
+use ff_ext::BabyBearExt4;
+use mpcs::{Basefold, BasefoldCommitment, BasefoldRSParams};
 use openvm_native_compiler::{
     asm::AsmConfig,
     ir::{Array, Builder, Config, Felt},
     prelude::*,
 };
-use crate::tower_verifier::binding::{IOPProverMessage, IOPProverMessageVariable};
-use mpcs::{Basefold, BasefoldCommitment, BasefoldRSParams};
-use openvm_stark_sdk::p3_baby_bear::BabyBear;
-use p3_field::extension::BinomialExtensionField;
 use openvm_native_compiler_derive::iter_zip;
-use ff_ext::BabyBearExt4;
 use openvm_native_recursion::hints::{Hintable, VecAutoHintable};
+use openvm_stark_sdk::p3_baby_bear::BabyBear;
+use p3_field::{extension::BinomialExtensionField, FieldAlgebra, FieldExtensionAlgebra};
 
 pub type F = BabyBear;
 pub type E = BinomialExtensionField<F, 4>;
@@ -37,6 +37,7 @@ pub struct TowerProofInputVariable<C: Config> {
 #[derive(DslVariable, Clone)]
 pub struct ZKVMOpcodeProofInputVariable<C: Config> {
     pub idx: Usize<C::N>,
+    pub idx_felt: Felt<C::F>,
     pub num_instances: Usize<C::N>,
 
     pub record_r_out_evals: Array<C, Ext<C::F, C::EF>>,
@@ -61,16 +62,17 @@ pub struct ZKVMOpcodeProofInputVariable<C: Config> {
 #[derive(DslVariable, Clone)]
 pub struct ZKVMTableProofInputVariable<C: Config> {
     pub idx: Usize<C::N>,
+    pub idx_felt: Felt<C::F>,
 
     pub r_out_evals: Array<C, Ext<C::F, C::EF>>,
     pub w_out_evals: Array<C, Ext<C::F, C::EF>>,
     pub lk_out_evals: Array<C, Ext<C::F, C::EF>>,
 
-    pub has_same_r_sumcheck_proofs: Usize<C::N>,                            // Either 1 or 0
-    pub same_r_sumcheck_proofs: Array<C, IOPProverMessageVariable<C>>,      // Could be empty
+    pub has_same_r_sumcheck_proofs: Usize<C::N>, // Either 1 or 0
+    pub same_r_sumcheck_proofs: Array<C, IOPProverMessageVariable<C>>, // Could be empty
     pub rw_in_evals: Array<C, Ext<C::F, C::EF>>,
     pub lk_in_evals: Array<C, Ext<C::F, C::EF>>,
-    
+
     pub tower_proof: TowerProofInputVariable<C>,
     pub rw_hints_num_vars: Array<C, Var<C::N>>,
     pub fixed_in_evals: Array<C, Ext<C::F, C::EF>>,
@@ -126,7 +128,7 @@ impl Hintable<InnerConfig> for ZKVMProofInput {
             circuit_vks_fixed_commits.push(cmt_vec);
         }
         stream.extend(circuit_vks_fixed_commits.write());
-        
+
         stream
     }
 }
@@ -153,9 +155,9 @@ impl Hintable<InnerConfig> for TowerProofInput {
             let proof = Vec::<IOPProverMessage>::read(builder);
             builder.iter_ptr_set(&proofs, ptr, proof);
         });
-        
+
         let num_prod_specs = Usize::Var(usize::read(builder));
-        let prod_specs_eval = builder.dyn_array(num_prod_specs.clone());    
+        let prod_specs_eval = builder.dyn_array(num_prod_specs.clone());
         iter_zip!(builder, prod_specs_eval).for_each(|idx_vec, builder| {
             let ptr = idx_vec[0];
             let evals = Vec::<Vec<E>>::read(builder);
@@ -186,11 +188,15 @@ impl Hintable<InnerConfig> for TowerProofInput {
         for p in &self.proofs {
             stream.extend(p.write());
         }
-        stream.extend(<usize as Hintable<InnerConfig>>::write(&self.num_prod_specs));
+        stream.extend(<usize as Hintable<InnerConfig>>::write(
+            &self.num_prod_specs,
+        ));
         for evals in &self.prod_specs_eval {
             stream.extend(evals.write());
         }
-        stream.extend(<usize as Hintable<InnerConfig>>::write(&self.num_logup_specs));
+        stream.extend(<usize as Hintable<InnerConfig>>::write(
+            &self.num_logup_specs,
+        ));
         for evals in &self.logup_specs_eval {
             stream.extend(evals.write());
         }
@@ -206,7 +212,7 @@ pub struct ZKVMOpcodeProofInput {
     // product constraints
     pub record_r_out_evals: Vec<E>,
     pub record_w_out_evals: Vec<E>,
-    
+
     // logup sum at layer 1
     pub lk_p1_out_eval: E,
     pub lk_p2_out_eval: E,
@@ -232,6 +238,7 @@ impl Hintable<InnerConfig> for ZKVMOpcodeProofInput {
 
     fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
         let idx = Usize::Var(usize::read(builder));
+        let idx_felt = F::read(builder);
         let num_instances = Usize::Var(usize::read(builder));
         let record_r_out_evals = Vec::<E>::read(builder);
         let record_w_out_evals = Vec::<E>::read(builder);
@@ -249,6 +256,7 @@ impl Hintable<InnerConfig> for ZKVMOpcodeProofInput {
 
         ZKVMOpcodeProofInputVariable {
             idx,
+            idx_felt,
             num_instances,
             record_r_out_evals,
             record_w_out_evals,
@@ -269,6 +277,10 @@ impl Hintable<InnerConfig> for ZKVMOpcodeProofInput {
     fn write(&self) -> Vec<Vec<<InnerConfig as Config>::N>> {
         let mut stream = Vec::new();
         stream.extend(<usize as Hintable<InnerConfig>>::write(&self.idx));
+
+        let idx_u32: F = F::from_canonical_u32(self.idx as u32);
+        stream.extend(idx_u32.write());
+
         stream.extend(<usize as Hintable<InnerConfig>>::write(&self.num_instances));
         stream.extend(self.record_r_out_evals.write());
         stream.extend(self.record_w_out_evals.write());
@@ -299,8 +311,8 @@ pub struct ZKVMTableProofInput {
     pub idx: usize,
 
     // tower evaluation at layer 1
-    pub r_out_evals: Vec<E>, // Vec<[E; 2]>
-    pub w_out_evals: Vec<E>, // Vec<[E; 2]>
+    pub r_out_evals: Vec<E>,  // Vec<[E; 2]>
+    pub w_out_evals: Vec<E>,  // Vec<[E; 2]>
     pub lk_out_evals: Vec<E>, // Vec<[E; 4]>
 
     pub has_same_r_sumcheck_proofs: usize,
@@ -327,6 +339,7 @@ impl Hintable<InnerConfig> for ZKVMTableProofInput {
 
     fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
         let idx = Usize::Var(usize::read(builder));
+        let idx_felt = F::read(builder);
 
         let r_out_evals = Vec::<E>::read(builder);
         let w_out_evals = Vec::<E>::read(builder);
@@ -344,6 +357,7 @@ impl Hintable<InnerConfig> for ZKVMTableProofInput {
 
         ZKVMTableProofInputVariable {
             idx,
+            idx_felt,
             r_out_evals,
             w_out_evals,
             lk_out_evals,
@@ -363,18 +377,23 @@ impl Hintable<InnerConfig> for ZKVMTableProofInput {
         let mut stream = Vec::new();
         stream.extend(<usize as Hintable<InnerConfig>>::write(&self.idx));
 
+        let idx_u32: F = F::from_canonical_u32(self.idx as u32);
+        stream.extend(idx_u32.write());
+
         stream.extend(self.r_out_evals.write());
         stream.extend(self.w_out_evals.write());
         stream.extend(self.lk_out_evals.write());
 
-        stream.extend(<usize as Hintable<InnerConfig>>::write(&self.has_same_r_sumcheck_proofs));
+        stream.extend(<usize as Hintable<InnerConfig>>::write(
+            &self.has_same_r_sumcheck_proofs,
+        ));
         stream.extend(self.same_r_sumcheck_proofs.write());
         stream.extend(self.rw_in_evals.write());
         stream.extend(self.lk_in_evals.write());
         stream.extend(self.tower_proof.write());
         stream.extend(self.rw_hints_num_vars.write());
         stream.extend(self.fixed_in_evals.write());
-        
+
         let mut cmt_vec: Vec<F> = vec![];
         self.wits_commit.root().0.iter().for_each(|x| {
             let f: F = serde_json::from_str(&serde_json::to_string(x).expect("serialization"))
