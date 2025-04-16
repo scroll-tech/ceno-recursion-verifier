@@ -473,8 +473,22 @@ version = "0.6.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf300f4aa6e66f3bdff11f1236a88c622fe47ea814524792240b4d554d9858ee"
 dependencies = [
+ "arrayvec",
+ "bitcode_derive",
  "bytemuck",
+ "glam",
  "serde",
+]
+
+[[package]]
+name = "bitcode_derive"
+version = "0.6.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "42b6b4cb608b8282dc3b53d0f4c9ab404655d562674c682db7e6c0458cc83c23"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.100",
 ]
 
 [[package]]
@@ -643,22 +657,22 @@ dependencies = [
  "nimue",
  "nimue-pow",
  "openvm",
- "openvm-circuit 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
- "openvm-native-circuit 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
- "openvm-native-compiler 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
- "openvm-native-compiler-derive 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
- "openvm-native-recursion 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
- "openvm-stark-backend",
- "openvm-stark-sdk",
- "p3-air",
- "p3-challenger 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-commit",
- "p3-field 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-goldilocks 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=b0591e9)",
- "p3-matrix 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-monty-31 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-util 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
+ "openvm-circuit 1.0.1-rc.0",
+ "openvm-native-circuit 1.0.1-rc.0",
+ "openvm-native-compiler 1.0.1-rc.0",
+ "openvm-native-compiler-derive 1.0.1-rc.0",
+ "openvm-native-recursion 1.0.1-rc.0",
+ "openvm-stark-backend 1.0.0",
+ "openvm-stark-sdk 1.0.0",
+ "p3-air 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-challenger 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-commit 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-field 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-goldilocks 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=1ba4e5c)",
+ "p3-matrix 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-monty-31 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-util 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
  "rand",
  "serde",
  "serde_json",
@@ -1364,6 +1378,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "07e28edb80900c19c28f1072f2e8aeca7fa06b23cd4169cefe1af5aa3260783f"
 
 [[package]]
+name = "glam"
+version = "0.30.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d0e9b6647e9b41d3a5ef02964c6be01311a7f2472fea40595c635c6d046c259e"
+
+[[package]]
 name = "glob"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1648,12 +1668,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hex-literal"
-version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6fe2267d4ed49bc07b63801559be28c718ea06c4738b7a03c94df7386d2cde46"
-
-[[package]]
 name = "indenter"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1899,18 +1913,6 @@ checksum = "884adb57038347dfbaf2d5065887b6cf4312330dc8e94bc30a1a839bd79d3261"
 dependencies = [
  "ahash",
  "portable-atomic",
-]
-
-[[package]]
-name = "metrics-derive"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f3dbdd96ed57d565ec744cba02862d707acf373c5772d152abae6ec5c4e24f6c"
-dependencies = [
- "proc-macro2",
- "quote",
- "regex",
- "syn 2.0.100",
 ]
 
 [[package]]
@@ -2243,15 +2245,14 @@ checksum = "d6790f58c7ff633d8771f42965289203411a5e5c68388703c06e14f24770b41e"
 
 [[package]]
 name = "openvm"
-version = "1.0.0-rc.1"
-source = "git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier#f33df10206b1d5f029347c97a358b487ff977bdd"
+version = "1.0.1-rc.0"
+source = "git+https://github.com/darth-cy/openvm?branch=build%2Fceno_recursion#0f94c8a3dfa7536c1231465d1bdee5fc607a5993"
 dependencies = [
  "bytemuck",
- "hex-literal",
  "num-bigint 0.4.6",
- "num-traits",
- "openvm-platform 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
- "openvm-rv32im-guest 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
+ "openvm-custom-insn 0.1.0 (git+https://github.com/darth-cy/openvm?branch=build%2Fceno_recursion)",
+ "openvm-platform 1.0.1-rc.0",
+ "openvm-rv32im-guest 1.0.1-rc.0",
  "serde",
 ]
 
@@ -2272,12 +2273,12 @@ dependencies = [
  "getset",
  "itertools 0.13.0",
  "once_cell",
- "openvm-circuit-derive 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
- "openvm-circuit-primitives 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
- "openvm-circuit-primitives-derive 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
- "openvm-instructions 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
- "openvm-poseidon2-air 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
- "openvm-stark-backend",
+ "openvm-circuit-derive 1.0.0-rc.1",
+ "openvm-circuit-primitives 1.0.0-rc.1",
+ "openvm-circuit-primitives-derive 1.0.0-rc.1",
+ "openvm-instructions 1.0.0-rc.1",
+ "openvm-poseidon2-air 1.0.0-rc.1",
+ "openvm-stark-backend 1.0.0-rc.0",
  "p3-baby-bear 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
  "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
  "rand",
@@ -2293,12 +2294,10 @@ dependencies = [
 
 [[package]]
 name = "openvm-circuit"
-version = "1.0.0-rc.1"
-source = "git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier#f33df10206b1d5f029347c97a358b487ff977bdd"
+version = "1.0.1-rc.0"
+source = "git+https://github.com/darth-cy/openvm?branch=build%2Fceno_recursion#0f94c8a3dfa7536c1231465d1bdee5fc607a5993"
 dependencies = [
- "async-trait",
  "backtrace",
- "bitcode",
  "cfg-if",
  "derivative",
  "derive-new 0.6.0",
@@ -2306,26 +2305,20 @@ dependencies = [
  "enum_dispatch",
  "eyre",
  "getset",
- "itertools 0.13.0",
- "metrics",
- "metrics-derive",
- "once_cell",
- "openvm-circuit-derive 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
- "openvm-circuit-primitives 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
- "openvm-circuit-primitives-derive 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
- "openvm-instructions 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
- "openvm-poseidon2-air 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
- "openvm-stark-backend",
- "p3-baby-bear 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
+ "itertools 0.14.0",
+ "openvm-circuit-derive 1.0.1-rc.0",
+ "openvm-circuit-primitives 1.0.1-rc.0",
+ "openvm-circuit-primitives-derive 1.0.1-rc.0",
+ "openvm-instructions 1.0.1-rc.0",
+ "openvm-poseidon2-air 1.0.1-rc.0",
+ "openvm-stark-backend 1.0.0",
+ "p3-baby-bear 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
  "rand",
- "rayon",
  "rustc-hash 2.1.1",
  "serde",
  "serde-big-array",
  "static_assertions",
  "thiserror",
- "toml",
  "tracing",
 ]
 
@@ -2342,11 +2335,10 @@ dependencies = [
 
 [[package]]
 name = "openvm-circuit-derive"
-version = "1.0.0-rc.1"
-source = "git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier#f33df10206b1d5f029347c97a358b487ff977bdd"
+version = "1.0.1-rc.0"
+source = "git+https://github.com/darth-cy/openvm?branch=build%2Fceno_recursion#0f94c8a3dfa7536c1231465d1bdee5fc607a5993"
 dependencies = [
- "itertools 0.13.0",
- "proc-macro2",
+ "itertools 0.14.0",
  "quote",
  "syn 2.0.100",
 ]
@@ -2362,8 +2354,8 @@ dependencies = [
  "lazy_static",
  "num-bigint 0.4.6",
  "num-traits",
- "openvm-circuit-primitives-derive 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
- "openvm-stark-backend",
+ "openvm-circuit-primitives-derive 1.0.0-rc.1",
+ "openvm-stark-backend 1.0.0-rc.0",
  "rand",
  "serde",
  "tracing",
@@ -2371,19 +2363,16 @@ dependencies = [
 
 [[package]]
 name = "openvm-circuit-primitives"
-version = "1.0.0-rc.1"
-source = "git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier#f33df10206b1d5f029347c97a358b487ff977bdd"
+version = "1.0.1-rc.0"
+source = "git+https://github.com/darth-cy/openvm?branch=build%2Fceno_recursion#0f94c8a3dfa7536c1231465d1bdee5fc607a5993"
 dependencies = [
- "bitcode",
  "derive-new 0.6.0",
- "itertools 0.13.0",
- "lazy_static",
+ "itertools 0.14.0",
  "num-bigint 0.4.6",
  "num-traits",
- "openvm-circuit-primitives-derive 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
- "openvm-stark-backend",
+ "openvm-circuit-primitives-derive 1.0.1-rc.0",
+ "openvm-stark-backend 1.0.0",
  "rand",
- "serde",
  "tracing",
 ]
 
@@ -2400,11 +2389,10 @@ dependencies = [
 
 [[package]]
 name = "openvm-circuit-primitives-derive"
-version = "1.0.0-rc.1"
-source = "git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier#f33df10206b1d5f029347c97a358b487ff977bdd"
+version = "1.0.1-rc.0"
+source = "git+https://github.com/darth-cy/openvm?branch=build%2Fceno_recursion#0f94c8a3dfa7536c1231465d1bdee5fc607a5993"
 dependencies = [
- "itertools 0.13.0",
- "proc-macro2",
+ "itertools 0.14.0",
  "quote",
  "syn 2.0.100",
 ]
@@ -2422,7 +2410,7 @@ dependencies = [
 [[package]]
 name = "openvm-custom-insn"
 version = "0.1.0"
-source = "git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier#f33df10206b1d5f029347c97a358b487ff977bdd"
+source = "git+https://github.com/darth-cy/openvm?branch=build%2Fceno_recursion#0f94c8a3dfa7536c1231465d1bdee5fc607a5993"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2439,8 +2427,8 @@ dependencies = [
  "itertools 0.13.0",
  "num-bigint 0.4.6",
  "num-traits",
- "openvm-instructions-derive 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
- "openvm-stark-backend",
+ "openvm-instructions-derive 1.0.0-rc.1",
+ "openvm-stark-backend 1.0.0-rc.0",
  "serde",
  "strum",
  "strum_macros",
@@ -2448,16 +2436,16 @@ dependencies = [
 
 [[package]]
 name = "openvm-instructions"
-version = "1.0.0-rc.1"
-source = "git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier#f33df10206b1d5f029347c97a358b487ff977bdd"
+version = "1.0.1-rc.0"
+source = "git+https://github.com/darth-cy/openvm?branch=build%2Fceno_recursion#0f94c8a3dfa7536c1231465d1bdee5fc607a5993"
 dependencies = [
  "backtrace",
  "derive-new 0.6.0",
- "itertools 0.13.0",
+ "itertools 0.14.0",
  "num-bigint 0.4.6",
  "num-traits",
- "openvm-instructions-derive 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
- "openvm-stark-backend",
+ "openvm-instructions-derive 1.0.1-rc.0",
+ "openvm-stark-backend 1.0.0",
  "serde",
  "strum",
  "strum_macros",
@@ -2475,10 +2463,9 @@ dependencies = [
 
 [[package]]
 name = "openvm-instructions-derive"
-version = "1.0.0-rc.1"
-source = "git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier#f33df10206b1d5f029347c97a358b487ff977bdd"
+version = "1.0.1-rc.0"
+source = "git+https://github.com/darth-cy/openvm?branch=build%2Fceno_recursion#0f94c8a3dfa7536c1231465d1bdee5fc607a5993"
 dependencies = [
- "proc-macro2",
  "quote",
  "syn 2.0.100",
 ]
@@ -2493,16 +2480,16 @@ dependencies = [
  "derive_more 1.0.0",
  "eyre",
  "itertools 0.13.0",
- "openvm-circuit 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
- "openvm-circuit-derive 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
- "openvm-circuit-primitives 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
- "openvm-circuit-primitives-derive 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
- "openvm-instructions 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
- "openvm-native-compiler 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
- "openvm-poseidon2-air 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
- "openvm-rv32im-circuit 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
- "openvm-stark-backend",
- "openvm-stark-sdk",
+ "openvm-circuit 1.0.0-rc.1",
+ "openvm-circuit-derive 1.0.0-rc.1",
+ "openvm-circuit-primitives 1.0.0-rc.1",
+ "openvm-circuit-primitives-derive 1.0.0-rc.1",
+ "openvm-instructions 1.0.0-rc.1",
+ "openvm-native-compiler 1.0.0-rc.1",
+ "openvm-poseidon2-air 1.0.0-rc.1",
+ "openvm-rv32im-circuit 1.0.0-rc.1",
+ "openvm-stark-backend 1.0.0-rc.0",
+ "openvm-stark-sdk 1.0.0-rc.0",
  "rand",
  "serde",
  "serde-big-array",
@@ -2513,24 +2500,23 @@ dependencies = [
 
 [[package]]
 name = "openvm-native-circuit"
-version = "1.0.0-rc.1"
-source = "git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier#f33df10206b1d5f029347c97a358b487ff977bdd"
+version = "1.0.1-rc.0"
+source = "git+https://github.com/darth-cy/openvm?branch=build%2Fceno_recursion#0f94c8a3dfa7536c1231465d1bdee5fc607a5993"
 dependencies = [
- "bitcode",
  "derive-new 0.6.0",
  "derive_more 1.0.0",
  "eyre",
- "itertools 0.13.0",
- "openvm-circuit 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
- "openvm-circuit-derive 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
- "openvm-circuit-primitives 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
- "openvm-circuit-primitives-derive 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
- "openvm-instructions 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
- "openvm-native-compiler 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
- "openvm-poseidon2-air 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
- "openvm-rv32im-circuit 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
- "openvm-stark-backend",
- "openvm-stark-sdk",
+ "itertools 0.14.0",
+ "openvm-circuit 1.0.1-rc.0",
+ "openvm-circuit-derive 1.0.1-rc.0",
+ "openvm-circuit-primitives 1.0.1-rc.0",
+ "openvm-circuit-primitives-derive 1.0.1-rc.0",
+ "openvm-instructions 1.0.1-rc.0",
+ "openvm-native-compiler 1.0.1-rc.0",
+ "openvm-poseidon2-air 1.0.1-rc.0",
+ "openvm-rv32im-circuit 1.0.1-rc.0",
+ "openvm-stark-backend 1.0.0",
+ "openvm-stark-sdk 1.0.0",
  "rand",
  "serde",
  "serde-big-array",
@@ -2548,13 +2534,13 @@ dependencies = [
  "itertools 0.13.0",
  "num-bigint 0.4.6",
  "num-integer",
- "openvm-circuit 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
- "openvm-instructions 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
- "openvm-instructions-derive 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
- "openvm-native-compiler-derive 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
- "openvm-rv32im-transpiler 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
- "openvm-stark-backend",
- "openvm-stark-sdk",
+ "openvm-circuit 1.0.0-rc.1",
+ "openvm-instructions 1.0.0-rc.1",
+ "openvm-instructions-derive 1.0.0-rc.1",
+ "openvm-native-compiler-derive 1.0.0-rc.1",
+ "openvm-rv32im-transpiler 1.0.0-rc.1",
+ "openvm-stark-backend 1.0.0-rc.0",
+ "openvm-stark-sdk 1.0.0-rc.0",
  "serde",
  "snark-verifier-sdk",
  "strum",
@@ -2564,22 +2550,21 @@ dependencies = [
 
 [[package]]
 name = "openvm-native-compiler"
-version = "1.0.0-rc.1"
-source = "git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier#f33df10206b1d5f029347c97a358b487ff977bdd"
+version = "1.0.1-rc.0"
+source = "git+https://github.com/darth-cy/openvm?branch=build%2Fceno_recursion#0f94c8a3dfa7536c1231465d1bdee5fc607a5993"
 dependencies = [
  "backtrace",
- "itertools 0.13.0",
+ "itertools 0.14.0",
  "num-bigint 0.4.6",
  "num-integer",
- "openvm-circuit 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
- "openvm-instructions 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
- "openvm-instructions-derive 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
- "openvm-native-compiler-derive 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
- "openvm-rv32im-transpiler 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
- "openvm-stark-backend",
- "openvm-stark-sdk",
+ "openvm-circuit 1.0.1-rc.0",
+ "openvm-instructions 1.0.1-rc.0",
+ "openvm-instructions-derive 1.0.1-rc.0",
+ "openvm-native-compiler-derive 1.0.1-rc.0",
+ "openvm-rv32im-transpiler 1.0.1-rc.0",
+ "openvm-stark-backend 1.0.0",
+ "openvm-stark-sdk 1.0.0",
  "serde",
- "snark-verifier-sdk",
  "strum",
  "strum_macros",
  "zkhash",
@@ -2597,10 +2582,9 @@ dependencies = [
 
 [[package]]
 name = "openvm-native-compiler-derive"
-version = "1.0.0-rc.1"
-source = "git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier#f33df10206b1d5f029347c97a358b487ff977bdd"
+version = "1.0.1-rc.0"
+source = "git+https://github.com/darth-cy/openvm?branch=build%2Fceno_recursion#0f94c8a3dfa7536c1231465d1bdee5fc607a5993"
 dependencies = [
- "proc-macro2",
  "quote",
  "syn 2.0.100",
 ]
@@ -2613,15 +2597,15 @@ dependencies = [
  "cfg-if",
  "itertools 0.13.0",
  "lazy_static",
- "openvm-circuit 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
- "openvm-native-circuit 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
- "openvm-native-compiler 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
- "openvm-native-compiler-derive 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
- "openvm-stark-backend",
- "openvm-stark-sdk",
+ "openvm-circuit 1.0.0-rc.1",
+ "openvm-native-circuit 1.0.0-rc.1",
+ "openvm-native-compiler 1.0.0-rc.1",
+ "openvm-native-compiler-derive 1.0.0-rc.1",
+ "openvm-stark-backend 1.0.0-rc.0",
+ "openvm-stark-sdk 1.0.0-rc.0",
  "p3-dft 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-fri",
- "p3-merkle-tree",
+ "p3-fri 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
+ "p3-merkle-tree 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
  "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
  "rand",
  "serde",
@@ -2631,22 +2615,22 @@ dependencies = [
 
 [[package]]
 name = "openvm-native-recursion"
-version = "1.0.0-rc.1"
-source = "git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier#f33df10206b1d5f029347c97a358b487ff977bdd"
+version = "1.0.1-rc.0"
+source = "git+https://github.com/darth-cy/openvm?branch=build%2Fceno_recursion#0f94c8a3dfa7536c1231465d1bdee5fc607a5993"
 dependencies = [
  "cfg-if",
- "itertools 0.13.0",
+ "itertools 0.14.0",
  "lazy_static",
- "openvm-circuit 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
- "openvm-native-circuit 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
- "openvm-native-compiler 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
- "openvm-native-compiler-derive 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
- "openvm-stark-backend",
- "openvm-stark-sdk",
- "p3-dft 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-fri",
- "p3-merkle-tree",
- "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
+ "openvm-circuit 1.0.1-rc.0",
+ "openvm-native-circuit 1.0.1-rc.0",
+ "openvm-native-compiler 1.0.1-rc.0",
+ "openvm-native-compiler-derive 1.0.1-rc.0",
+ "openvm-stark-backend 1.0.0",
+ "openvm-stark-sdk 1.0.0",
+ "p3-dft 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-fri 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-merkle-tree 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
  "rand",
  "serde",
  "serde_json",
@@ -2665,14 +2649,13 @@ dependencies = [
 
 [[package]]
 name = "openvm-platform"
-version = "1.0.0-rc.1"
-source = "git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier#f33df10206b1d5f029347c97a358b487ff977bdd"
+version = "1.0.1-rc.0"
+source = "git+https://github.com/darth-cy/openvm?branch=build%2Fceno_recursion#0f94c8a3dfa7536c1231465d1bdee5fc607a5993"
 dependencies = [
  "getrandom 0.2.15",
  "libm",
- "openvm-custom-insn 0.1.0 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
- "stability",
- "strum_macros",
+ "openvm-custom-insn 0.1.0 (git+https://github.com/darth-cy/openvm?branch=build%2Fceno_recursion)",
+ "openvm-rv32im-guest 1.0.1-rc.0",
 ]
 
 [[package]]
@@ -2683,12 +2666,12 @@ dependencies = [
  "derivative",
  "itertools 0.13.0",
  "lazy_static",
- "openvm-circuit-primitives 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
- "openvm-stark-backend",
- "openvm-stark-sdk",
+ "openvm-circuit-primitives 1.0.0-rc.1",
+ "openvm-stark-backend 1.0.0-rc.0",
+ "openvm-stark-sdk 1.0.0-rc.0",
  "p3-monty-31 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
  "p3-poseidon2 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-poseidon2-air",
+ "p3-poseidon2-air 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
  "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
  "rand",
  "tracing",
@@ -2697,21 +2680,18 @@ dependencies = [
 
 [[package]]
 name = "openvm-poseidon2-air"
-version = "1.0.0-rc.1"
-source = "git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier#f33df10206b1d5f029347c97a358b487ff977bdd"
+version = "1.0.1-rc.0"
+source = "git+https://github.com/darth-cy/openvm?branch=build%2Fceno_recursion#0f94c8a3dfa7536c1231465d1bdee5fc607a5993"
 dependencies = [
  "derivative",
- "itertools 0.13.0",
  "lazy_static",
- "openvm-circuit-primitives 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
- "openvm-stark-backend",
- "openvm-stark-sdk",
- "p3-monty-31 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-poseidon2 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-poseidon2-air",
- "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
+ "openvm-stark-backend 1.0.0",
+ "openvm-stark-sdk 1.0.0",
+ "p3-monty-31 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-poseidon2 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-poseidon2-air 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
  "rand",
- "tracing",
  "zkhash",
 ]
 
@@ -2728,13 +2708,13 @@ dependencies = [
  "num-bigint 0.4.6",
  "num-integer",
  "once_cell",
- "openvm-circuit 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
- "openvm-circuit-derive 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
- "openvm-circuit-primitives 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
- "openvm-circuit-primitives-derive 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
- "openvm-instructions 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
- "openvm-rv32im-transpiler 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
- "openvm-stark-backend",
+ "openvm-circuit 1.0.0-rc.1",
+ "openvm-circuit-derive 1.0.0-rc.1",
+ "openvm-circuit-primitives 1.0.0-rc.1",
+ "openvm-circuit-primitives-derive 1.0.0-rc.1",
+ "openvm-instructions 1.0.0-rc.1",
+ "openvm-rv32im-transpiler 1.0.0-rc.1",
+ "openvm-stark-backend 1.0.0-rc.0",
  "rand",
  "serde",
  "serde-big-array",
@@ -2744,29 +2724,25 @@ dependencies = [
 
 [[package]]
 name = "openvm-rv32im-circuit"
-version = "1.0.0-rc.1"
-source = "git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier#f33df10206b1d5f029347c97a358b487ff977bdd"
+version = "1.0.1-rc.0"
+source = "git+https://github.com/darth-cy/openvm?branch=build%2Fceno_recursion#0f94c8a3dfa7536c1231465d1bdee5fc607a5993"
 dependencies = [
- "bitcode",
  "derive-new 0.6.0",
  "derive_more 1.0.0",
  "eyre",
- "itertools 0.13.0",
  "num-bigint 0.4.6",
  "num-integer",
- "once_cell",
- "openvm-circuit 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
- "openvm-circuit-derive 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
- "openvm-circuit-primitives 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
- "openvm-circuit-primitives-derive 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
- "openvm-instructions 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
- "openvm-rv32im-transpiler 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
- "openvm-stark-backend",
+ "openvm-circuit 1.0.1-rc.0",
+ "openvm-circuit-derive 1.0.1-rc.0",
+ "openvm-circuit-primitives 1.0.1-rc.0",
+ "openvm-circuit-primitives-derive 1.0.1-rc.0",
+ "openvm-instructions 1.0.1-rc.0",
+ "openvm-rv32im-transpiler 1.0.1-rc.0",
+ "openvm-stark-backend 1.0.0",
  "rand",
  "serde",
  "serde-big-array",
  "strum",
- "tracing",
 ]
 
 [[package]]
@@ -2774,16 +2750,16 @@ name = "openvm-rv32im-guest"
 version = "1.0.0-rc.1"
 source = "git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1#30576cc6ce838f213bf05b2e4ad035d95498c8b3"
 dependencies = [
- "openvm-platform 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
+ "openvm-platform 1.0.0-rc.1",
  "strum_macros",
 ]
 
 [[package]]
 name = "openvm-rv32im-guest"
-version = "1.0.0-rc.1"
-source = "git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier#f33df10206b1d5f029347c97a358b487ff977bdd"
+version = "1.0.1-rc.0"
+source = "git+https://github.com/darth-cy/openvm?branch=build%2Fceno_recursion#0f94c8a3dfa7536c1231465d1bdee5fc607a5993"
 dependencies = [
- "openvm-platform 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
+ "openvm-custom-insn 0.1.0 (git+https://github.com/darth-cy/openvm?branch=build%2Fceno_recursion)",
  "strum_macros",
 ]
 
@@ -2792,11 +2768,11 @@ name = "openvm-rv32im-transpiler"
 version = "1.0.0-rc.1"
 source = "git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1#30576cc6ce838f213bf05b2e4ad035d95498c8b3"
 dependencies = [
- "openvm-instructions 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
- "openvm-instructions-derive 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
- "openvm-rv32im-guest 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
- "openvm-stark-backend",
- "openvm-transpiler 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
+ "openvm-instructions 1.0.0-rc.1",
+ "openvm-instructions-derive 1.0.0-rc.1",
+ "openvm-rv32im-guest 1.0.0-rc.1",
+ "openvm-stark-backend 1.0.0-rc.0",
+ "openvm-transpiler 1.0.0-rc.1",
  "rrs-lib",
  "serde",
  "strum",
@@ -2805,14 +2781,14 @@ dependencies = [
 
 [[package]]
 name = "openvm-rv32im-transpiler"
-version = "1.0.0-rc.1"
-source = "git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier#f33df10206b1d5f029347c97a358b487ff977bdd"
+version = "1.0.1-rc.0"
+source = "git+https://github.com/darth-cy/openvm?branch=build%2Fceno_recursion#0f94c8a3dfa7536c1231465d1bdee5fc607a5993"
 dependencies = [
- "openvm-instructions 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
- "openvm-instructions-derive 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
- "openvm-rv32im-guest 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
- "openvm-stark-backend",
- "openvm-transpiler 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
+ "openvm-instructions 1.0.1-rc.0",
+ "openvm-instructions-derive 1.0.1-rc.0",
+ "openvm-rv32im-guest 1.0.1-rc.0",
+ "openvm-stark-backend 1.0.0",
+ "openvm-transpiler 1.0.1-rc.0",
  "rrs-lib",
  "serde",
  "strum",
@@ -2829,17 +2805,40 @@ dependencies = [
  "derivative",
  "derive-new 0.7.0",
  "itertools 0.13.0",
- "metrics",
  "mimalloc",
- "p3-air",
+ "p3-air 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
  "p3-challenger 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-commit",
+ "p3-commit 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
  "p3-field 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
  "p3-matrix 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
  "p3-maybe-rayon 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-uni-stark",
+ "p3-uni-stark 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
  "p3-util 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
  "rayon",
+ "rustc-hash 2.1.1",
+ "serde",
+ "thiserror",
+ "tracing",
+]
+
+[[package]]
+name = "openvm-stark-backend"
+version = "1.0.0"
+source = "git+https://github.com/openvm-org/stark-backend.git?tag=v1.0.0#884f8e6aabf72bde00dc51f1f1121277bff73b1e"
+dependencies = [
+ "bitcode",
+ "cfg-if",
+ "derivative",
+ "derive-new 0.7.0",
+ "itertools 0.14.0",
+ "p3-air 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-challenger 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-commit 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-field 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-matrix 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-maybe-rayon 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-uni-stark 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-util 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
  "rustc-hash 2.1.1",
  "serde",
  "thiserror",
@@ -2858,18 +2857,53 @@ dependencies = [
  "metrics",
  "metrics-tracing-context",
  "metrics-util",
- "openvm-stark-backend",
+ "openvm-stark-backend 1.0.0-rc.0",
  "p3-baby-bear 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-blake3",
- "p3-bn254-fr",
+ "p3-blake3 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
+ "p3-bn254-fr 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
  "p3-dft 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-fri",
+ "p3-fri 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
  "p3-goldilocks 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-keccak",
- "p3-merkle-tree",
+ "p3-keccak 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
+ "p3-merkle-tree 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
  "p3-poseidon 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
  "p3-poseidon2 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
  "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
+ "rand",
+ "serde",
+ "serde_json",
+ "static_assertions",
+ "toml",
+ "tracing",
+ "tracing-forest",
+ "tracing-subscriber 0.3.19",
+ "zkhash",
+]
+
+[[package]]
+name = "openvm-stark-sdk"
+version = "1.0.0"
+source = "git+https://github.com/openvm-org/stark-backend.git?tag=v1.0.0#884f8e6aabf72bde00dc51f1f1121277bff73b1e"
+dependencies = [
+ "derivative",
+ "derive_more 0.99.19",
+ "ff 0.13.1",
+ "itertools 0.14.0",
+ "metrics",
+ "metrics-tracing-context",
+ "metrics-util",
+ "openvm-stark-backend 1.0.0",
+ "p3-baby-bear 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-blake3 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-bn254-fr 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-dft 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-fri 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-goldilocks 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-keccak 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-merkle-tree 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-poseidon 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-poseidon2 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
  "rand",
  "serde",
  "serde_json",
@@ -2889,9 +2923,9 @@ dependencies = [
  "derive_more 1.0.0",
  "elf",
  "eyre",
- "openvm-instructions 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
- "openvm-platform 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
- "openvm-stark-backend",
+ "openvm-instructions 1.0.0-rc.1",
+ "openvm-platform 1.0.0-rc.1",
+ "openvm-stark-backend 1.0.0-rc.0",
  "rrs-lib",
  "strum",
  "thiserror",
@@ -2900,19 +2934,16 @@ dependencies = [
 
 [[package]]
 name = "openvm-transpiler"
-version = "1.0.0-rc.1"
-source = "git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier#f33df10206b1d5f029347c97a358b487ff977bdd"
+version = "1.0.1-rc.0"
+source = "git+https://github.com/darth-cy/openvm?branch=build%2Fceno_recursion#0f94c8a3dfa7536c1231465d1bdee5fc607a5993"
 dependencies = [
- "derive_more 1.0.0",
  "elf",
  "eyre",
- "openvm-instructions 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
- "openvm-platform 1.0.0-rc.1 (git+https://github.com/darth-cy/openvm?branch=build%2Frecursion-verifier)",
- "openvm-stark-backend",
+ "openvm-instructions 1.0.1-rc.0",
+ "openvm-platform 1.0.1-rc.0",
+ "openvm-stark-backend 1.0.0",
  "rrs-lib",
- "strum",
  "thiserror",
- "tracing",
 ]
 
 [[package]]
@@ -2949,10 +2980,33 @@ dependencies = [
 [[package]]
 name = "p3-air"
 version = "0.1.0"
+source = "git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c#1ba4e5c40417f4f7aae86bcca56b6484b4b2490b"
+dependencies = [
+ "p3-field 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-matrix 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+]
+
+[[package]]
+name = "p3-air"
+version = "0.1.0"
 source = "git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9#b0591e9b82d58d10f86359875b5d5fa96433b4cf"
 dependencies = [
  "p3-field 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
  "p3-matrix 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
+]
+
+[[package]]
+name = "p3-baby-bear"
+version = "0.1.0"
+source = "git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c#1ba4e5c40417f4f7aae86bcca56b6484b4b2490b"
+dependencies = [
+ "p3-field 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-mds 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-monty-31 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-poseidon2 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "rand",
+ "serde",
 ]
 
 [[package]]
@@ -2986,11 +3040,36 @@ dependencies = [
 [[package]]
 name = "p3-blake3"
 version = "0.1.0"
+source = "git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c#1ba4e5c40417f4f7aae86bcca56b6484b4b2490b"
+dependencies = [
+ "blake3",
+ "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-util 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+]
+
+[[package]]
+name = "p3-blake3"
+version = "0.1.0"
 source = "git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9#b0591e9b82d58d10f86359875b5d5fa96433b4cf"
 dependencies = [
  "blake3",
  "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
  "p3-util 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
+]
+
+[[package]]
+name = "p3-bn254-fr"
+version = "0.1.0"
+source = "git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c#1ba4e5c40417f4f7aae86bcca56b6484b4b2490b"
+dependencies = [
+ "ff 0.13.1",
+ "halo2curves 0.8.0",
+ "num-bigint 0.4.6",
+ "p3-field 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-poseidon2 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "rand",
+ "serde",
 ]
 
 [[package]]
@@ -3006,6 +3085,18 @@ dependencies = [
  "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
  "rand",
  "serde",
+]
+
+[[package]]
+name = "p3-challenger"
+version = "0.1.0"
+source = "git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c#1ba4e5c40417f4f7aae86bcca56b6484b4b2490b"
+dependencies = [
+ "p3-field 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-maybe-rayon 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-util 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "tracing",
 ]
 
 [[package]]
@@ -3035,6 +3126,20 @@ dependencies = [
 [[package]]
 name = "p3-commit"
 version = "0.1.0"
+source = "git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c#1ba4e5c40417f4f7aae86bcca56b6484b4b2490b"
+dependencies = [
+ "itertools 0.14.0",
+ "p3-challenger 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-dft 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-field 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-matrix 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-util 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "serde",
+]
+
+[[package]]
+name = "p3-commit"
+version = "0.1.0"
 source = "git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9#b0591e9b82d58d10f86359875b5d5fa96433b4cf"
 dependencies = [
  "itertools 0.13.0",
@@ -3044,6 +3149,32 @@ dependencies = [
  "p3-matrix 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
  "p3-util 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
  "serde",
+]
+
+[[package]]
+name = "p3-dft"
+version = "0.1.0"
+source = "git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c#1ba4e5c40417f4f7aae86bcca56b6484b4b2490b"
+dependencies = [
+ "itertools 0.14.0",
+ "p3-field 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-matrix 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-maybe-rayon 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-util 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "tracing",
+]
+
+[[package]]
+name = "p3-dft"
+version = "0.1.0"
+source = "git+https://github.com/scroll-tech/plonky3?rev=1ba4e5c#1ba4e5c40417f4f7aae86bcca56b6484b4b2490b"
+dependencies = [
+ "itertools 0.14.0",
+ "p3-field 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=1ba4e5c)",
+ "p3-matrix 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=1ba4e5c)",
+ "p3-maybe-rayon 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=1ba4e5c)",
+ "p3-util 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=1ba4e5c)",
+ "tracing",
 ]
 
 [[package]]
@@ -3073,15 +3204,36 @@ dependencies = [
 ]
 
 [[package]]
-name = "p3-dft"
+name = "p3-field"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/plonky3?rev=b0591e9#b0591e9b82d58d10f86359875b5d5fa96433b4cf"
+source = "git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c#1ba4e5c40417f4f7aae86bcca56b6484b4b2490b"
 dependencies = [
- "itertools 0.13.0",
- "p3-field 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=b0591e9)",
- "p3-matrix 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=b0591e9)",
- "p3-maybe-rayon 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=b0591e9)",
- "p3-util 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=b0591e9)",
+ "itertools 0.14.0",
+ "num-bigint 0.4.6",
+ "num-integer",
+ "num-traits",
+ "nums",
+ "p3-maybe-rayon 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-util 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "rand",
+ "serde",
+ "tracing",
+]
+
+[[package]]
+name = "p3-field"
+version = "0.1.0"
+source = "git+https://github.com/scroll-tech/plonky3?rev=1ba4e5c#1ba4e5c40417f4f7aae86bcca56b6484b4b2490b"
+dependencies = [
+ "itertools 0.14.0",
+ "num-bigint 0.4.6",
+ "num-integer",
+ "num-traits",
+ "nums",
+ "p3-maybe-rayon 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=1ba4e5c)",
+ "p3-util 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=1ba4e5c)",
+ "rand",
+ "serde",
  "tracing",
 ]
 
@@ -3122,17 +3274,19 @@ dependencies = [
 ]
 
 [[package]]
-name = "p3-field"
+name = "p3-fri"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/plonky3?rev=b0591e9#b0591e9b82d58d10f86359875b5d5fa96433b4cf"
+source = "git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c#1ba4e5c40417f4f7aae86bcca56b6484b4b2490b"
 dependencies = [
- "itertools 0.13.0",
- "num-bigint 0.4.6",
- "num-integer",
- "num-traits",
- "nums",
- "p3-maybe-rayon 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=b0591e9)",
- "p3-util 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=b0591e9)",
+ "itertools 0.14.0",
+ "p3-challenger 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-commit 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-dft 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-field 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-interpolation 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-matrix 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-maybe-rayon 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-util 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
  "rand",
  "serde",
  "tracing",
@@ -3145,16 +3299,50 @@ source = "git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9#b0591e9b82d58d1
 dependencies = [
  "itertools 0.13.0",
  "p3-challenger 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-commit",
+ "p3-commit 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
  "p3-dft 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
  "p3-field 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-interpolation",
+ "p3-interpolation 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
  "p3-matrix 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
  "p3-maybe-rayon 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
  "p3-util 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
  "rand",
  "serde",
  "tracing",
+]
+
+[[package]]
+name = "p3-goldilocks"
+version = "0.1.0"
+source = "git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c#1ba4e5c40417f4f7aae86bcca56b6484b4b2490b"
+dependencies = [
+ "num-bigint 0.4.6",
+ "p3-dft 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-field 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-mds 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-poseidon 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-poseidon2 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-util 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "rand",
+ "serde",
+]
+
+[[package]]
+name = "p3-goldilocks"
+version = "0.1.0"
+source = "git+https://github.com/scroll-tech/plonky3?rev=1ba4e5c#1ba4e5c40417f4f7aae86bcca56b6484b4b2490b"
+dependencies = [
+ "num-bigint 0.4.6",
+ "p3-dft 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=1ba4e5c)",
+ "p3-field 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=1ba4e5c)",
+ "p3-mds 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=1ba4e5c)",
+ "p3-poseidon 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=1ba4e5c)",
+ "p3-poseidon2 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=1ba4e5c)",
+ "p3-symmetric 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=1ba4e5c)",
+ "p3-util 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=1ba4e5c)",
+ "rand",
+ "serde",
 ]
 
 [[package]]
@@ -3193,20 +3381,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "p3-goldilocks"
+name = "p3-interpolation"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/plonky3?rev=b0591e9#b0591e9b82d58d10f86359875b5d5fa96433b4cf"
+source = "git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c#1ba4e5c40417f4f7aae86bcca56b6484b4b2490b"
 dependencies = [
- "num-bigint 0.4.6",
- "p3-dft 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=b0591e9)",
- "p3-field 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=b0591e9)",
- "p3-mds 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=b0591e9)",
- "p3-poseidon 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=b0591e9)",
- "p3-poseidon2 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=b0591e9)",
- "p3-symmetric 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=b0591e9)",
- "p3-util 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=b0591e9)",
- "rand",
- "serde",
+ "p3-field 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-matrix 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-maybe-rayon 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-util 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
 ]
 
 [[package]]
@@ -3223,6 +3405,18 @@ dependencies = [
 [[package]]
 name = "p3-keccak"
 version = "0.1.0"
+source = "git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c#1ba4e5c40417f4f7aae86bcca56b6484b4b2490b"
+dependencies = [
+ "itertools 0.14.0",
+ "p3-field 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-util 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "tiny-keccak",
+]
+
+[[package]]
+name = "p3-keccak"
+version = "0.1.0"
 source = "git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9#b0591e9b82d58d10f86359875b5d5fa96433b4cf"
 dependencies = [
  "itertools 0.13.0",
@@ -3230,6 +3424,36 @@ dependencies = [
  "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
  "p3-util 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
  "tiny-keccak",
+]
+
+[[package]]
+name = "p3-matrix"
+version = "0.1.0"
+source = "git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c#1ba4e5c40417f4f7aae86bcca56b6484b4b2490b"
+dependencies = [
+ "itertools 0.14.0",
+ "p3-field 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-maybe-rayon 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-util 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "rand",
+ "serde",
+ "tracing",
+ "transpose",
+]
+
+[[package]]
+name = "p3-matrix"
+version = "0.1.0"
+source = "git+https://github.com/scroll-tech/plonky3?rev=1ba4e5c#1ba4e5c40417f4f7aae86bcca56b6484b4b2490b"
+dependencies = [
+ "itertools 0.14.0",
+ "p3-field 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=1ba4e5c)",
+ "p3-maybe-rayon 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=1ba4e5c)",
+ "p3-util 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=1ba4e5c)",
+ "rand",
+ "serde",
+ "tracing",
+ "transpose",
 ]
 
 [[package]]
@@ -3263,19 +3487,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "p3-matrix"
+name = "p3-maybe-rayon"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/plonky3?rev=b0591e9#b0591e9b82d58d10f86359875b5d5fa96433b4cf"
-dependencies = [
- "itertools 0.13.0",
- "p3-field 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=b0591e9)",
- "p3-maybe-rayon 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=b0591e9)",
- "p3-util 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=b0591e9)",
- "rand",
- "serde",
- "tracing",
- "transpose",
-]
+source = "git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c#1ba4e5c40417f4f7aae86bcca56b6484b4b2490b"
+
+[[package]]
+name = "p3-maybe-rayon"
+version = "0.1.0"
+source = "git+https://github.com/scroll-tech/plonky3?rev=1ba4e5c#1ba4e5c40417f4f7aae86bcca56b6484b4b2490b"
 
 [[package]]
 name = "p3-maybe-rayon"
@@ -3294,9 +3513,32 @@ dependencies = [
 ]
 
 [[package]]
-name = "p3-maybe-rayon"
+name = "p3-mds"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/plonky3?rev=b0591e9#b0591e9b82d58d10f86359875b5d5fa96433b4cf"
+source = "git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c#1ba4e5c40417f4f7aae86bcca56b6484b4b2490b"
+dependencies = [
+ "itertools 0.14.0",
+ "p3-dft 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-field 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-matrix 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-util 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "rand",
+]
+
+[[package]]
+name = "p3-mds"
+version = "0.1.0"
+source = "git+https://github.com/scroll-tech/plonky3?rev=1ba4e5c#1ba4e5c40417f4f7aae86bcca56b6484b4b2490b"
+dependencies = [
+ "itertools 0.14.0",
+ "p3-dft 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=1ba4e5c)",
+ "p3-field 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=1ba4e5c)",
+ "p3-matrix 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=1ba4e5c)",
+ "p3-symmetric 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=1ba4e5c)",
+ "p3-util 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=1ba4e5c)",
+ "rand",
+]
 
 [[package]]
 name = "p3-mds"
@@ -3327,17 +3569,20 @@ dependencies = [
 ]
 
 [[package]]
-name = "p3-mds"
+name = "p3-merkle-tree"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/plonky3?rev=b0591e9#b0591e9b82d58d10f86359875b5d5fa96433b4cf"
+source = "git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c#1ba4e5c40417f4f7aae86bcca56b6484b4b2490b"
 dependencies = [
- "itertools 0.13.0",
- "p3-dft 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=b0591e9)",
- "p3-field 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=b0591e9)",
- "p3-matrix 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=b0591e9)",
- "p3-symmetric 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=b0591e9)",
- "p3-util 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=b0591e9)",
+ "itertools 0.14.0",
+ "p3-commit 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-field 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-matrix 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-maybe-rayon 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-util 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
  "rand",
+ "serde",
+ "tracing",
 ]
 
 [[package]]
@@ -3346,7 +3591,7 @@ version = "0.1.0"
 source = "git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9#b0591e9b82d58d10f86359875b5d5fa96433b4cf"
 dependencies = [
  "itertools 0.13.0",
- "p3-commit",
+ "p3-commit 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
  "p3-field 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
  "p3-matrix 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
  "p3-maybe-rayon 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
@@ -3355,6 +3600,27 @@ dependencies = [
  "rand",
  "serde",
  "tracing",
+]
+
+[[package]]
+name = "p3-monty-31"
+version = "0.1.0"
+source = "git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c#1ba4e5c40417f4f7aae86bcca56b6484b4b2490b"
+dependencies = [
+ "itertools 0.14.0",
+ "num-bigint 0.4.6",
+ "p3-dft 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-field 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-matrix 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-maybe-rayon 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-mds 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-poseidon2 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-util 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "rand",
+ "serde",
+ "tracing",
+ "transpose",
 ]
 
 [[package]]
@@ -3403,6 +3669,28 @@ dependencies = [
 [[package]]
 name = "p3-poseidon"
 version = "0.1.0"
+source = "git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c#1ba4e5c40417f4f7aae86bcca56b6484b4b2490b"
+dependencies = [
+ "p3-field 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-mds 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "rand",
+]
+
+[[package]]
+name = "p3-poseidon"
+version = "0.1.0"
+source = "git+https://github.com/scroll-tech/plonky3?rev=1ba4e5c#1ba4e5c40417f4f7aae86bcca56b6484b4b2490b"
+dependencies = [
+ "p3-field 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=1ba4e5c)",
+ "p3-mds 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=1ba4e5c)",
+ "p3-symmetric 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=1ba4e5c)",
+ "rand",
+]
+
+[[package]]
+name = "p3-poseidon"
+version = "0.1.0"
 source = "git+https://github.com/scroll-tech/plonky3?rev=8d2be81#8d2be81c9827c1284ecb2d226b0ca0e08136679d"
 dependencies = [
  "p3-field 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=8d2be81)",
@@ -3423,13 +3711,26 @@ dependencies = [
 ]
 
 [[package]]
-name = "p3-poseidon"
+name = "p3-poseidon2"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/plonky3?rev=b0591e9#b0591e9b82d58d10f86359875b5d5fa96433b4cf"
+source = "git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c#1ba4e5c40417f4f7aae86bcca56b6484b4b2490b"
 dependencies = [
- "p3-field 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=b0591e9)",
- "p3-mds 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=b0591e9)",
- "p3-symmetric 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=b0591e9)",
+ "gcd",
+ "p3-field 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-mds 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "rand",
+]
+
+[[package]]
+name = "p3-poseidon2"
+version = "0.1.0"
+source = "git+https://github.com/scroll-tech/plonky3?rev=1ba4e5c#1ba4e5c40417f4f7aae86bcca56b6484b4b2490b"
+dependencies = [
+ "gcd",
+ "p3-field 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=1ba4e5c)",
+ "p3-mds 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=1ba4e5c)",
+ "p3-symmetric 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=1ba4e5c)",
  "rand",
 ]
 
@@ -3458,15 +3759,19 @@ dependencies = [
 ]
 
 [[package]]
-name = "p3-poseidon2"
+name = "p3-poseidon2-air"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/plonky3?rev=b0591e9#b0591e9b82d58d10f86359875b5d5fa96433b4cf"
+source = "git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c#1ba4e5c40417f4f7aae86bcca56b6484b4b2490b"
 dependencies = [
- "gcd",
- "p3-field 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=b0591e9)",
- "p3-mds 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=b0591e9)",
- "p3-symmetric 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=b0591e9)",
+ "p3-air 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-field 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-matrix 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-maybe-rayon 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-poseidon2 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-util 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
  "rand",
+ "tikv-jemallocator",
+ "tracing",
 ]
 
 [[package]]
@@ -3474,7 +3779,7 @@ name = "p3-poseidon2-air"
 version = "0.1.0"
 source = "git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9#b0591e9b82d58d10f86359875b5d5fa96433b4cf"
 dependencies = [
- "p3-air",
+ "p3-air 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
  "p3-field 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
  "p3-matrix 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
  "p3-maybe-rayon 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
@@ -3483,6 +3788,26 @@ dependencies = [
  "rand",
  "tikv-jemallocator",
  "tracing",
+]
+
+[[package]]
+name = "p3-symmetric"
+version = "0.1.0"
+source = "git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c#1ba4e5c40417f4f7aae86bcca56b6484b4b2490b"
+dependencies = [
+ "itertools 0.14.0",
+ "p3-field 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "serde",
+]
+
+[[package]]
+name = "p3-symmetric"
+version = "0.1.0"
+source = "git+https://github.com/scroll-tech/plonky3?rev=1ba4e5c#1ba4e5c40417f4f7aae86bcca56b6484b4b2490b"
+dependencies = [
+ "itertools 0.14.0",
+ "p3-field 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=1ba4e5c)",
+ "serde",
 ]
 
 [[package]]
@@ -3506,13 +3831,21 @@ dependencies = [
 ]
 
 [[package]]
-name = "p3-symmetric"
+name = "p3-uni-stark"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/plonky3?rev=b0591e9#b0591e9b82d58d10f86359875b5d5fa96433b4cf"
+source = "git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c#1ba4e5c40417f4f7aae86bcca56b6484b4b2490b"
 dependencies = [
- "itertools 0.13.0",
- "p3-field 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=b0591e9)",
+ "itertools 0.14.0",
+ "p3-air 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-challenger 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-commit 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-dft 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-field 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-matrix 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-maybe-rayon 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-util 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
  "serde",
+ "tracing",
 ]
 
 [[package]]
@@ -3521,9 +3854,9 @@ version = "0.1.0"
 source = "git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9#b0591e9b82d58d10f86359875b5d5fa96433b4cf"
 dependencies = [
  "itertools 0.13.0",
- "p3-air",
+ "p3-air 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
  "p3-challenger 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
- "p3-commit",
+ "p3-commit 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
  "p3-dft 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
  "p3-field 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
  "p3-matrix 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
@@ -3531,6 +3864,22 @@ dependencies = [
  "p3-util 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9)",
  "serde",
  "tracing",
+]
+
+[[package]]
+name = "p3-util"
+version = "0.1.0"
+source = "git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c#1ba4e5c40417f4f7aae86bcca56b6484b4b2490b"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "p3-util"
+version = "0.1.0"
+source = "git+https://github.com/scroll-tech/plonky3?rev=1ba4e5c#1ba4e5c40417f4f7aae86bcca56b6484b4b2490b"
+dependencies = [
+ "serde",
 ]
 
 [[package]]
@@ -3545,14 +3894,6 @@ dependencies = [
 name = "p3-util"
 version = "0.1.0"
 source = "git+https://github.com/Plonky3/Plonky3.git?rev=b0591e9#b0591e9b82d58d10f86359875b5d5fa96433b4cf"
-dependencies = [
- "serde",
-]
-
-[[package]]
-name = "p3-util"
-version = "0.1.0"
-source = "git+https://github.com/scroll-tech/plonky3?rev=b0591e9#b0591e9b82d58d10f86359875b5d5fa96433b4cf"
 dependencies = [
  "serde",
 ]
@@ -4982,10 +5323,10 @@ dependencies = [
  "lazy_static",
  "nimue",
  "nimue-pow",
- "openvm-native-compiler 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
- "openvm-native-compiler-derive 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
- "openvm-native-recursion 1.0.0-rc.1 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0-rc.1)",
- "openvm-stark-backend",
+ "openvm-native-compiler 1.0.0-rc.1",
+ "openvm-native-compiler-derive 1.0.0-rc.1",
+ "openvm-native-recursion 1.0.0-rc.1",
+ "openvm-stark-backend 1.0.0-rc.0",
  "rand",
  "rand_chacha",
  "rayon",

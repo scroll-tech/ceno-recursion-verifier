@@ -644,7 +644,7 @@ pub mod tests {
         hints::Hintable,
         types::InnerConfig,
     };
-    use openvm_stark_backend::config::{StarkGenericConfig, Val};
+    use openvm_stark_backend::config::StarkGenericConfig;
     use openvm_stark_sdk::{
         config::baby_bear_poseidon2::{default_engine, BabyBearPoseidon2Config},
         p3_baby_bear::BabyBear,

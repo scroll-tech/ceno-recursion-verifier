@@ -11,29 +11,30 @@ edition = "2021"
 # openvm-native-compiler-derive = { git = "https://github.com/openvm-org/openvm.git", tag = "v1.0.0-rc.1" }
 # openvm-native-recursion = { git = "https://github.com/openvm-org/openvm.git", tag = "v1.0.0-rc.1" }
 
-openvm = { git = "https://github.com/darth-cy/openvm", branch = "build/recursion-verifier" }
-openvm-circuit = { git = "https://github.com/darth-cy/openvm", branch = "build/recursion-verifier", features = ["bench-metrics"] }
-openvm-native-circuit = { git = "https://github.com/darth-cy/openvm", branch = "build/recursion-verifier" }
-openvm-native-compiler = { git = "https://github.com/darth-cy/openvm", branch = "build/recursion-verifier" }
-openvm-native-compiler-derive = { git = "https://github.com/darth-cy/openvm", branch = "build/recursion-verifier" }
-openvm-native-recursion = { git = "https://github.com/darth-cy/openvm", branch = "build/recursion-verifier" }
+openvm = { git = "https://github.com/darth-cy/openvm", branch = "build/ceno_recursion", default-features = false }
+# openvm-circuit = { git = "https://github.com/darth-cy/openvm", branch = "build/ceno_recursion", default-features = false, features = ["bench-metrics"] }
+openvm-circuit = { git = "https://github.com/darth-cy/openvm", branch = "build/ceno_recursion", default-features = false }
+openvm-native-circuit = { git = "https://github.com/darth-cy/openvm", branch = "build/ceno_recursion", default-features = false }
+openvm-native-compiler = { git = "https://github.com/darth-cy/openvm", branch = "build/ceno_recursion", default-features = false }
+openvm-native-compiler-derive = { git = "https://github.com/darth-cy/openvm", branch = "build/ceno_recursion", default-features = false }
+openvm-native-recursion = { git = "https://github.com/darth-cy/openvm", branch = "build/ceno_recursion", default-features = false }
 
-openvm-stark-backend = { git = "https://github.com/openvm-org/stark-backend.git", tag = "v1.0.0-rc.0" }
-openvm-stark-sdk = { git = "https://github.com/openvm-org/stark-backend.git", tag = "v1.0.0-rc.0" }
+openvm-stark-backend = { git = "https://github.com/openvm-org/stark-backend.git", tag = "v1.0.0", default-features = false }
+openvm-stark-sdk = { git = "https://github.com/openvm-org/stark-backend.git", tag = "v1.0.0", default-features = false }
 
 rand = { version = "0.8.5", default-features = false }
 itertools = { version = "0.13.0", default-features = false }
 
 # Plonky3
-p3-air = { git = "https://github.com/Plonky3/Plonky3.git", rev = "b0591e9" }
-p3-field = { git = "https://github.com/Plonky3/Plonky3.git", rev = "b0591e9" }
-p3-commit = { git = "https://github.com/Plonky3/Plonky3.git", rev = "b0591e9" }
-p3-matrix = { git = "https://github.com/Plonky3/Plonky3.git", rev = "b0591e9" }
-p3-util = { git = "https://github.com/Plonky3/Plonky3.git", rev = "b0591e9" }
-p3-challenger = { git = "https://github.com/Plonky3/Plonky3.git", rev = "b0591e9" }
-p3-monty-31 = { git = "https://github.com/Plonky3/Plonky3.git", rev = "b0591e9" }
-p3-symmetric = { git = "https://github.com/Plonky3/Plonky3.git", rev = "b0591e9" }
-p3-goldilocks = { git = "https://github.com/scroll-tech/plonky3", rev = "b0591e9" }
+p3-air = { git = "https://github.com/Plonky3/Plonky3.git", rev = "1ba4e5c" }
+p3-field = { git = "https://github.com/Plonky3/Plonky3.git", rev = "1ba4e5c" }
+p3-commit = { git = "https://github.com/Plonky3/Plonky3.git", rev = "1ba4e5c" }
+p3-matrix = { git = "https://github.com/Plonky3/Plonky3.git", rev = "1ba4e5c" }
+p3-util = { git = "https://github.com/Plonky3/Plonky3.git", rev = "1ba4e5c" }
+p3-challenger = { git = "https://github.com/Plonky3/Plonky3.git", rev = "1ba4e5c" }
+p3-monty-31 = { git = "https://github.com/Plonky3/Plonky3.git", rev = "1ba4e5c" }
+p3-symmetric = { git = "https://github.com/Plonky3/Plonky3.git", rev = "1ba4e5c" }
+p3-goldilocks = { git = "https://github.com/scroll-tech/plonky3", rev = "1ba4e5c" }
 
 # WHIR
 whir = { git = "https://github.com/scroll-tech/whir.git", branch = "feat/openvm-binding" }
