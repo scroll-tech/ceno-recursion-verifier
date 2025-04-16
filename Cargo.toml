@@ -47,6 +47,7 @@ nimue-pow = { git = "https://github.com/arkworks-rs/nimue", rev="3a83250" }
 
 # Ceno
 ceno_zkvm = { git = "https://github.com/darth-cy/ceno.git", branch = "feat/export_ff_ext" }
+ceno_emul = { git = "https://github.com/darth-cy/ceno.git", branch = "feat/export_ff_ext" }
 mpcs = { git = "https://github.com/darth-cy/ceno.git", branch = "feat/export_ff_ext" }
 ff_ext = { git = "https://github.com/darth-cy/ceno.git", branch = "feat/export_ff_ext" }
 serde = { version = "1.0", features = ["derive"] }

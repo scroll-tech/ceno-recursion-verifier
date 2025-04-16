@@ -25,6 +25,16 @@ use openvm_native_recursion::{
 };
 use p3_field::{dot_product, FieldAlgebra, FieldExtensionAlgebra};
 
+use ceno_zkvm::{
+    scheme::{
+        verifier::ZKVMVerifier,
+    },
+};
+use ff_ext::BabyBearExt4;
+use mpcs::{Basefold, BasefoldRSParams};
+
+type E = BabyBearExt4;
+type Pcs = Basefold<E, BasefoldRSParams>;
 type InnerConfig = AsmConfig<InnerVal, InnerChallenge>;
 const NUM_FANIN: usize = 2;
 const MAX_DEGREE: usize = 3;
@@ -35,6 +45,7 @@ pub fn verify_zkvm_proof<C: Config>(
     builder: &mut Builder<C>,
     challenger: &mut DuplexChallengerVariable<C>,
     zkvm_proof_input: ZKVMProofInputVariable<C>,
+    ceno_constraint_system: &ZKVMVerifier<E, Pcs>,
 ) {
     let one: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
     let zero: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
@@ -123,7 +134,9 @@ pub fn verify_zkvm_proof<C: Config>(
             &zkvm_proof_input.pi_evals,
             alpha.clone(),
             beta.clone(),
+            ceno_constraint_system,
         );
+
 
         // _debug
         //         // getting the number of dummy padding item that we used in this opcode circuit
@@ -167,6 +180,7 @@ pub fn verify_zkvm_proof<C: Config>(
             table_proof,
             &zkvm_proof_input.raw_pi,
             &zkvm_proof_input.pi_evals,
+            ceno_constraint_system,
         );
 
         let step = C::N::from_canonical_usize(4);
@@ -230,6 +244,7 @@ pub fn verify_opcode_proof<C: Config>(
     pi_evals: &Array<C, Ext<C::F, C::EF>>,
     alpha: Ext<C::F, C::EF>,
     beta: Ext<C::F, C::EF>,
+    ceno_constraint_system: &ZKVMVerifier<E, Pcs>,
 ) {
     let one: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
     let zero: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
@@ -526,6 +541,7 @@ pub fn verify_table_proof<C: Config>(
     table_proof: &ZKVMTableProofInputVariable<C>,
     raw_pi: &Array<C, Array<C, Felt<C::F>>>,
     pi_evals: &Array<C, Ext<C::F, C::EF>>,
+    ceno_constraint_system: &ZKVMVerifier<E, Pcs>,
 ) {
 
     // TODO
