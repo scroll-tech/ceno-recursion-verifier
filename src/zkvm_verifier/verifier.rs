@@ -548,11 +548,6 @@ pub fn verify_table_proof<C: Config>(
     let is_skip_same_point_sumcheck: Usize<C::N> = Usize::from(1);
     let tower_proof = &table_proof.tower_proof;
 
-    //     // in table proof, we always skip same point sumcheck for now
-    //     // as tower sumcheck batch product argument/logup in same length
-    //     let is_skip_same_point_sumcheck = true;
-
-
 
     //     let expected_rounds = cs
     //         // only iterate r set, as read/write set round should match
