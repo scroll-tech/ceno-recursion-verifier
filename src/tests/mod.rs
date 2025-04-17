@@ -131,11 +131,11 @@ fn build_zkvm_proof_verifier_test() -> (Program<BabyBear>, Vec<Vec<BabyBear>>) {
 fn test_zkvm_proof_verifier() {
     let (program, witness) = build_zkvm_proof_verifier_test();
 
-    // let system_config = SystemConfig::default()
-    //     .with_public_values(4)
-    //     .with_max_segment_len((1 << 25) - 100);
-    // let config = NativeConfig::new(system_config, Native);
+    let system_config = SystemConfig::default()
+        .with_public_values(4)
+        .with_max_segment_len((1 << 25) - 100);
+    let config = NativeConfig::new(system_config, Native);
 
-    // let executor = VmExecutor::<BabyBear, NativeConfig>::new(config);
+    let executor = VmExecutor::<BabyBear, NativeConfig>::new(config);
     // executor.execute(program, witness).unwrap();
 }

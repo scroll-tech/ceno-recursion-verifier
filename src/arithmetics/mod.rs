@@ -1,4 +1,5 @@
 use crate::tower_verifier::binding::PointAndEvalVariable;
+use ark_ff::Field;
 use openvm_native_compiler::asm::AsmConfig;
 use openvm_native_compiler::prelude::*;
 use openvm_native_compiler_derive::iter_zip;
@@ -6,10 +7,18 @@ use openvm_native_recursion::{
     challenger::ChallengerVariable,
     hints::{InnerChallenge, InnerVal},
 };
-use p3_field::FieldAlgebra;
+use p3_field::{FieldAlgebra, FieldExtensionAlgebra};
+use ceno_zkvm::expression::{Expression, Fixed, Instance};
+use ceno_zkvm::structs::{WitnessId, ChallengeId};
+use ff_ext::{BabyBearExt4, SmallField};
+use ff_ext::ExtensionField;
+use openvm_stark_sdk::p3_baby_bear::BabyBear;
+
 type InnerConfig = AsmConfig<InnerVal, InnerChallenge>;
 const NUM_FANIN: usize = 2;
 const MAX_DEGREE: usize = 3;
+type E = BabyBearExt4;
+type F = BabyBear;
 
 pub fn evaluate_at_point<C: Config>(
     builder: &mut Builder<C>,
@@ -369,3 +378,188 @@ pub fn pow_of_2_var<C: Config>(
 pub fn next_pow2_instance_padding(num_instance: usize) -> usize {
     num_instance.next_power_of_two().max(2)
 }
+
+pub fn ext_pow<C: Config>(builder: &mut Builder<C>, base: Ext<C::F, C::EF>, exponent: usize) -> Ext<C::F, C::EF> {
+    let res = builder.constant(C::EF::ONE);
+    let mut exp = exponent.clone();
+
+    while exp > 0 {
+        if exp & 1 == 1 {
+            builder.assign(&res, res * base);
+        }
+        builder.assign(&res, res * res);
+        exp >>= 1;
+    }
+
+    res
+}
+
+pub fn eval_ceno_expr_with_instance<C: Config>(
+    builder: &mut Builder<C>,
+    fixed: &Array<C, Ext<C::F, C::EF>>,
+    witnesses: &Array<C, Ext<C::F, C::EF>>,
+    structural_witnesses: &Array<C, Ext<C::F, C::EF>>,
+    instance: &Array<C, Ext<C::F, C::EF>>,
+    challenges: &Array<C, Ext<C::F, C::EF>>,
+    expr: &Expression<E>
+) -> Ext<C::F, C::EF> {
+    evaluate_ceno_expr::<C, Ext<C::F, C::EF>>(
+        builder,
+        expr,
+        &|builder, f: &Fixed| builder.get(fixed, f.0),
+        &|builder, witness_id: WitnessId| builder.get(witnesses, witness_id as usize),
+        &|builder, witness_id, _, _, _| builder.get(structural_witnesses, witness_id as usize),
+        &|builder, i| builder.get(instance, i.0),
+        &|builder, scalar| {
+            let res: Ext<C::F, C::EF> = builder.constant(C::EF::from_canonical_u32(scalar.to_canonical_u64() as u32));
+            res
+        },
+        &|builder, challenge_id, pow, scalar, offset| {
+            let challenge = builder.get(&challenges, challenge_id as usize);
+            let challenge_exp = ext_pow(builder, challenge, pow);
+
+            let scalar_base_slice = scalar.as_bases().iter().map(|b| C::F::from_canonical_u32(b.to_canonical_u64() as u32)).collect::<Vec<C::F>>();
+            let scalar_ext: Ext<C::F, C::EF> = builder.constant(C::EF::from_base_slice(&scalar_base_slice));
+
+            let offset_base_slice = offset.as_bases().iter().map(|b| C::F::from_canonical_u32(b.to_canonical_u64() as u32)).collect::<Vec<C::F>>();
+            let offset_ext: Ext<C::F, C::EF> = builder.constant(C::EF::from_base_slice(&offset_base_slice));
+
+            builder.eval(challenge_exp * scalar_ext + offset_ext)
+        },
+        &|builder, a, b| builder.eval(a + b),
+        &|builder, a, b| builder.eval(a * b),
+        &|builder, x, a, b| builder.eval(a * x + b),
+    )
+}
+
+pub fn evaluate_ceno_expr<C: Config, T>(
+    builder: &mut Builder<C>,
+    expr: &Expression<E>,
+    fixed_in: &impl Fn(&mut Builder<C>, &Fixed) -> T,
+    wit_in: &impl Fn(&mut Builder<C>, WitnessId) -> T, // witin id
+    structural_wit_in: &impl Fn(&mut Builder<C>, WitnessId, usize, u32, usize) -> T,
+    instance: &impl Fn(&mut Builder<C>, Instance) -> T,
+    constant: &impl Fn(&mut Builder<C>, <E as ExtensionField>::BaseField) -> T,
+    challenge: &impl Fn(&mut Builder<C>, ChallengeId, usize, E, E) -> T,
+    sum: &impl Fn(&mut Builder<C>, T, T) -> T,
+    product: &impl Fn(&mut Builder<C>, T, T) -> T,
+    scaled: &impl Fn(&mut Builder<C>, T, T, T) -> T,
+) -> T {
+    match expr {
+        Expression::Fixed(f) => fixed_in(builder, f),
+        Expression::WitIn(witness_id) => wit_in(builder, *witness_id),
+        Expression::StructuralWitIn(witness_id, max_len, offset, multi_factor) => {
+            structural_wit_in(builder, *witness_id, *max_len, *offset, *multi_factor)
+        }
+        Expression::Instance(i) => instance(builder, *i),
+        Expression::Constant(scalar) => constant(builder, *scalar),
+        Expression::Sum(a, b) => {
+            let a = evaluate_ceno_expr(
+                builder,
+                a,
+                fixed_in,
+                wit_in,
+                structural_wit_in,
+                instance,
+                constant,
+                challenge,
+                sum,
+                product,
+                scaled,
+            );
+            let b = evaluate_ceno_expr(
+                builder,
+                b,
+                fixed_in,
+                wit_in,
+                structural_wit_in,
+                instance,
+                constant,
+                challenge,
+                sum,
+                product,
+                scaled,
+            );
+            sum(builder, a, b)
+        }
+        Expression::Product(a, b) => {
+            let a = evaluate_ceno_expr(
+                builder,
+                a,
+                fixed_in,
+                wit_in,
+                structural_wit_in,
+                instance,
+                constant,
+                challenge,
+                sum,
+                product,
+                scaled,
+            );
+            let b = evaluate_ceno_expr(
+                builder,
+                b,
+                fixed_in,
+                wit_in,
+                structural_wit_in,
+                instance,
+                constant,
+                challenge,
+                sum,
+                product,
+                scaled,
+            );
+            product(builder, a, b)
+        }
+        Expression::ScaledSum(x, a, b) => {
+            let x = evaluate_ceno_expr(
+                builder,
+                x,
+                fixed_in,
+                wit_in,
+                structural_wit_in,
+                instance,
+                constant,
+                challenge,
+                sum,
+                product,
+                scaled,
+            );
+            let a = evaluate_ceno_expr(
+                builder,
+                a,
+                fixed_in,
+                wit_in,
+                structural_wit_in,
+                instance,
+                constant,
+                challenge,
+                sum,
+                product,
+                scaled,
+            );
+            let b = evaluate_ceno_expr(
+                builder,
+                b,
+                fixed_in,
+                wit_in,
+                structural_wit_in,
+                instance,
+                constant,
+                challenge,
+                sum,
+                product,
+                scaled,
+            );
+            scaled(builder, x, a, b)
+        }
+        Expression::Challenge(challenge_id, pow, scalar, offset) => {
+            challenge(builder, *challenge_id, *pow, *scalar, *offset)
+        }
+    }
+}
+
+
+
+
+    

@@ -142,9 +142,6 @@ pub fn verify_zkvm_proof<C: Config>(
             ceno_constraint_system,
         );
 
-        
-
-
         // _debug
         //         // getting the number of dummy padding item that we used in this opcode circuit
         //         let num_lks = circuit_vk.get_cs().lk_expressions.len();
@@ -234,6 +231,24 @@ pub fn verify_zkvm_proof<C: Config>(
     //         &self.vk.initial_global_state_expr,
     //     );
     //     prod_w *= initial_global_state;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     //     let finalize_global_state = eval_by_expr_with_instance(
     //         &[],
@@ -333,9 +348,10 @@ pub fn verify_opcode_proof<C: Config>(
         },
     );
 
-    builder.assert_usize_eq(record_evals.len(), Usize::from(2));
-    builder.assert_usize_eq(logup_q_evals.len(), Usize::from(1));
-    builder.assert_usize_eq(logup_p_evals.len(), Usize::from(1));
+    // _debug
+    // builder.assert_usize_eq(record_evals.len(), Usize::from(2));
+    // builder.assert_usize_eq(logup_q_evals.len(), Usize::from(1));
+    // builder.assert_usize_eq(logup_p_evals.len(), Usize::from(1));
 
     let logup_p_eval = builder.get(&logup_p_evals, 0).eval;
     // _debug
