@@ -129,7 +129,7 @@ pub fn iop_verifier_state_verify<C: Config>(
     out_claim: &Ext<C::F, C::EF>,
     prover_messages: &Array<C, IOPProverMessageVariable<C>>,
     max_num_variables: Felt<C::F>,
-    max_num_variables_var: RVar<C::N>,
+    max_num_variables_var: Var<C::N>,
     max_degree: Felt<C::F>,
 ) -> (
     Array<C, Ext<<C as Config>::F, <C as Config>::EF>>,
@@ -266,8 +266,8 @@ pub fn verify_tower_proof<C: Config>(
         builder.assert_usize_eq(evals.len(), RVar::from(4));
     });
 
-    let alpha_len =
-        builder.eval_expr(num_prod_spec.clone() + num_logup_spec.clone() + num_logup_spec.clone());
+    let alpha_len: Var<C::N> =
+        builder.eval(num_prod_spec.clone() + num_logup_spec.clone() + num_logup_spec.clone());
 
     transcript_observe_label(builder, challenger, b"combine subset evals");
     let alpha_pows = gen_alpha_pows(builder, challenger, alpha_len);
@@ -411,7 +411,7 @@ pub fn verify_tower_proof<C: Config>(
 
         let max_num_variables: Felt<C::F> = builder.constant(C::F::ONE);
         builder.assign(&max_num_variables, max_num_variables + round);
-        let max_num_variables_var = builder.eval_expr(round_var + RVar::from(1));
+        let max_num_variables_var: Var<C::N> = builder.eval(round_var + Var::<C::N>::new(1));
 
         let max_degree = builder.constant(C::F::from_canonical_usize(3));
         let (sub_rt, sub_e) = iop_verifier_state_verify(
@@ -519,8 +519,8 @@ pub fn verify_tower_proof<C: Config>(
         let rt_prime = join(builder, &sub_rt, &r_merge_arr);
 
         // generate next round challenge
-        let next_alpha_len = builder
-            .eval_expr(num_prod_spec.clone() + num_logup_spec.clone() + num_logup_spec.clone());
+        let next_alpha_len: Var<C::N> = builder
+            .eval(num_prod_spec.clone() + num_logup_spec.clone() + num_logup_spec.clone());
         transcript_observe_label(builder, challenger, b"combine subset evals");
         let next_alpha_pows = gen_alpha_pows(builder, challenger, next_alpha_len);
         let next_round = builder.eval_expr(round_var + RVar::from(1));
@@ -673,7 +673,7 @@ pub mod tests {
     fn read_json() -> Value {
         let mut file = File::open("zkvm_proof.json").unwrap();
         let mut contents = String::new();
-        file.read_to_string(&mut contents);
+        let _ = file.read_to_string(&mut contents);
         serde_json::from_str(&contents).unwrap()
     }
 

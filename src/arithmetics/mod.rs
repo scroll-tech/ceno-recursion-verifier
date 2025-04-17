@@ -189,7 +189,7 @@ pub fn join<C: Config>(
 pub fn gen_alpha_pows<C: Config>(
     builder: &mut Builder<C>,
     challenger: &mut impl ChallengerVariable<C>,
-    alpha_len: RVar<<C as Config>::N>,
+    alpha_len: Var<<C as Config>::N>,
 ) -> Array<C, Ext<C::F, C::EF>> {
     let alpha = challenger.sample_ext(builder);
 
@@ -213,7 +213,7 @@ pub fn gen_alpha_pows<C: Config>(
 pub fn eq_eval_less_or_equal_than<C: Config>(
     builder: &mut Builder<C>,
     challenger: &mut impl ChallengerVariable<C>,
-    max_idx: Usize<C::N>,
+    max_idx: Var<C::N>,
     a: &Array<C, Ext<C::F, C::EF>>,
     b: &Array<C, Ext<C::F, C::EF>>,
 ) -> Ext<C::F, C::EF> {
@@ -343,3 +343,29 @@ pub fn build_eq_x_r_vec_sequential<C: Config>(
 //         });
 //     }
 // }
+
+pub fn ceil_log2(x: usize) -> usize {
+    assert!(x > 0, "ceil_log2: x must be positive");
+    // Calculate the number of bits in usize
+    let usize_bits = std::mem::size_of::<usize>() * 8;
+    usize_bits - (x - 1).leading_zeros() as usize
+}
+
+pub fn pow_of_2_var<C: Config>(
+    builder: &mut Builder<C>,
+    log_n: Var<C::N>,
+) -> Var<C::N> {
+    let res = Var::<C::N>::new(1);
+    let two = Var::<C::N>::new(2);
+
+    builder.range(0, log_n).for_each(|_idx_vec, builder| {
+        builder.assign(&res, res * two);
+    });
+
+    res
+}
+
+/// get next power of 2 instance with minimal size 2
+pub fn next_pow2_instance_padding(num_instance: usize) -> usize {
+    num_instance.next_power_of_two().max(2)
+}

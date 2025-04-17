@@ -4,3 +4,4 @@ mod tests;
 mod tower_verifier;
 mod transcript;
 pub mod zkvm_verifier;
+pub mod constants;

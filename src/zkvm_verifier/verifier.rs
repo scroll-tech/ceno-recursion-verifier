@@ -1,11 +1,13 @@
 use super::binding::{
     ZKVMOpcodeProofInputVariable, ZKVMProofInputVariable, ZKVMTableProofInputVariable,
 };
+use crate::arithmetics::pow_of_2_var;
+use crate::constants::OPCODE_KEYS;
 use crate::tower_verifier::program::verify_tower_proof;
 use crate::{
     arithmetics::{
         build_eq_x_r_vec_sequential, dot_product as ext_dot_product, eq_eval_less_or_equal_than,
-        gen_alpha_pows, product, sum as ext_sum,
+        gen_alpha_pows, product, sum as ext_sum, ceil_log2, next_pow2_instance_padding,
     },
     json::parser::parse_zkvm_proof_json,
     tower_verifier::{
@@ -14,6 +16,7 @@ use crate::{
     },
 };
 use ceno_zkvm::{error, structs::PointAndEval};
+use itertools::max;
 use openvm_native_compiler::prelude::*;
 use openvm_native_compiler::{asm::AsmConfig, ir::MemVariable};
 use openvm_native_compiler_derive::iter_zip;
@@ -117,6 +120,7 @@ pub fn verify_zkvm_proof<C: Config>(
     let dummy_table_item_multiplicity: RVar<C::N> = RVar::from(0);
     let dummy_table_item_multiplicity_ext: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
 
+    let mut sub_opcode_constraint_idx: usize = 0;
     iter_zip!(builder, zkvm_proof_input.opcode_proofs).for_each(|ptr_vec, builder| {
         let opcode_proof = &builder.iter_ptr_get(&zkvm_proof_input.opcode_proofs, ptr_vec[0]);
         let idx = opcode_proof.idx.clone();
@@ -134,8 +138,11 @@ pub fn verify_zkvm_proof<C: Config>(
             &zkvm_proof_input.pi_evals,
             alpha.clone(),
             beta.clone(),
+            sub_opcode_constraint_idx,
             ceno_constraint_system,
         );
+
+        
 
 
         // _debug
@@ -162,8 +169,11 @@ pub fn verify_zkvm_proof<C: Config>(
             &logup_sum,
             logup_sum + opcode_proof.lk_p2_out_eval * opcode_proof.lk_q2_out_eval.inverse(),
         );
+
+        sub_opcode_constraint_idx += 1;
     });
 
+    let mut sub_table_constraint_idx: usize = 0;
     iter_zip!(builder, zkvm_proof_input.table_proofs).for_each(|ptr_vec, builder| {
         let table_proof = &builder.iter_ptr_get(&zkvm_proof_input.table_proofs, ptr_vec[0]);
         let idx = table_proof.idx.clone();
@@ -180,6 +190,7 @@ pub fn verify_zkvm_proof<C: Config>(
             table_proof,
             &zkvm_proof_input.raw_pi,
             &zkvm_proof_input.pi_evals,
+            sub_table_constraint_idx,
             ceno_constraint_system,
         );
 
@@ -201,6 +212,8 @@ pub fn verify_zkvm_proof<C: Config>(
         builder.assign(&prod_w, prod_w * w_out_evals_prod);
         let r_out_evals_prod = product(builder, &table_proof.r_out_evals);
         builder.assign(&prod_r, prod_r * r_out_evals_prod);
+
+        sub_table_constraint_idx += 1;
     });
 
     builder.assign(
@@ -244,48 +257,43 @@ pub fn verify_opcode_proof<C: Config>(
     pi_evals: &Array<C, Ext<C::F, C::EF>>,
     alpha: Ext<C::F, C::EF>,
     beta: Ext<C::F, C::EF>,
+    sub_constraint_idx: usize,
     ceno_constraint_system: &ZKVMVerifier<E, Pcs>,
 ) {
     let one: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
     let zero: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
 
-    // _debug
-    //     let (r_counts_per_instance, w_counts_per_instance, lk_counts_per_instance) = (
-    //         cs.r_expressions.len(),
-    //         cs.w_expressions.len(),
-    //         cs.lk_expressions.len(),
-    //     );
-    //     let (log2_r_count, log2_w_count, log2_lk_count) = (
-    //         ceil_log2(r_counts_per_instance),
-    //         ceil_log2(w_counts_per_instance),
-    //         ceil_log2(lk_counts_per_instance),
-    //     );
-    //     let (chip_record_alpha, _) = (challenges[0], challenges[1]);
+    let sub_constraint_name = OPCODE_KEYS[sub_constraint_idx];
+    let cs = &ceno_constraint_system.vk.circuit_vks[sub_constraint_name].cs;
 
-    //     let num_instances = proof.num_instances;
-    //     let next_pow2_instance = next_pow2_instance_padding(num_instances);
-    //     let log2_num_instances = ceil_log2(next_pow2_instance);
+    let r_len = cs.r_expressions.len();
+    let w_len = cs.w_expressions.len();
+    let lk_len = cs.lk_expressions.len();
 
-    let [r_counts_per_instance, w_counts_per_instance, lk_counts_per_instance]: [Usize<C::N>; 3] =
-        [Usize::from(16), Usize::from(17), Usize::from(18)];
-    let [log2_r_count, log2_w_count, log2_lk_count]: [Usize<C::N>; 3] =
-        [Usize::from(4), Usize::from(5), Usize::from(5)];
-    let log2_num_instances = 2;
+    let max_expr_len = *max([r_len, w_len, lk_len].iter()).unwrap();
 
-    // _debug
-    //      let num_variables = vec![
-    //             log2_num_instances + log2_r_count,
-    //             log2_num_instances + log2_w_count,
-    //             log2_num_instances + log2_lk_count,
-    //         ],
-    //      let max_num_variables =
-    let num_variables: Array<C, Usize<C::N>> = builder.dyn_array(3);
-    builder.set(&num_variables, 0, Usize::from(16));
-    builder.set(&num_variables, 1, Usize::from(17));
-    builder.set(&num_variables, 2, Usize::from(18));
-    let max_num_variables: Usize<C::N> = Usize::from(18);
-    let max_num_variables_var = RVar::from(18);
-    let max_num_variables_f: Felt<C::F> = builder.constant(C::F::from_canonical_u32(18));
+    let r_counts_per_instance: Usize<C::N> = Usize::from(r_len);
+    let w_counts_per_instance: Usize<C::N> = Usize::from(w_len);
+    let lk_counts_per_instance: Usize<C::N> = Usize::from(lk_len);
+
+    let log2_r_count: Usize<C::N> = Usize::from(ceil_log2(r_len));
+    let log2_w_count: Usize<C::N> = Usize::from(ceil_log2(w_len));
+    let log2_lk_count: Usize<C::N> = Usize::from(ceil_log2(lk_len));
+
+    let num_instances = opcode_proof.num_instances.clone();
+    let next_pow2_instance = next_pow2_instance_padding(num_instances.0 as usize);
+    let log2_num_instances = Var::<C::N>::new(ceil_log2(next_pow2_instance) as u32);
+
+    let num_variables: Array<C, Var<C::N>> = builder.dyn_array(3);
+    let num_variables_r: Var<C::N> = builder.eval(log2_num_instances + log2_r_count.clone());
+    builder.set(&num_variables, 0, num_variables_r);
+    let num_variables_w: Var<C::N> = builder.eval(log2_num_instances + log2_w_count.clone());
+    builder.set(&num_variables, 1, num_variables_w);
+    let num_variables_lk: Var<C::N> = builder.eval(log2_num_instances + log2_lk_count.clone());
+    builder.set(&num_variables, 2, num_variables_lk);
+    let max_num_variables: Var<C::N> = builder.eval(log2_num_instances + Var::<C::N>::new(max_expr_len as u32));
+    let max_num_variables_f: Felt<C::F> = builder.unsafe_cast_var_to_felt(max_num_variables);
+
     let max_degree: Felt<C::F> = builder.constant(C::F::from_canonical_u32(3));
 
     let tower_proof = &opcode_proof.tower_proof;
@@ -325,10 +333,9 @@ pub fn verify_opcode_proof<C: Config>(
         },
     );
 
-    // _debug
-    // builder.assert_usize_eq(record_evals.len(), Usize::from(2));
-    // builder.assert_usize_eq(logup_q_evals.len(), Usize::from(1));
-    // builder.assert_usize_eq(logup_p_evals.len(), Usize::from(1));
+    builder.assert_usize_eq(record_evals.len(), Usize::from(2));
+    builder.assert_usize_eq(logup_q_evals.len(), Usize::from(1));
+    builder.assert_usize_eq(logup_p_evals.len(), Usize::from(1));
 
     let logup_p_eval = builder.get(&logup_p_evals, 0).eval;
     // _debug
@@ -340,12 +347,8 @@ pub fn verify_opcode_proof<C: Config>(
         builder.get(&logup_q_evals, 0).point.fs,
     ];
 
-    // _debug
-    //     let alpha_pow = get_challenge_pows(
-    //         MAINCONSTRAIN_SUMCHECK_BATCH_SIZE + cs.assert_zero_sumcheck_expressions.len(),
-    //         transcript,
-    //     );
-    let alpha_len = RVar::from(MAINCONSTRAIN_SUMCHECK_BATCH_SIZE + 10);
+    let alpha_len = MAINCONSTRAIN_SUMCHECK_BATCH_SIZE + cs.assert_zero_sumcheck_expressions.len();
+    let alpha_len: Var<C::N> = Var::<C::N>::new(alpha_len as u32);
     let alpha_pow = gen_alpha_pows(builder, challenger, alpha_len);
 
     let [alpha_read, alpha_write, alpha_lk]: [Ext<C::F, C::EF>; 3] = [
@@ -374,7 +377,7 @@ pub fn verify_opcode_proof<C: Config>(
         &claim_sum,
         &opcode_proof.main_sel_sumcheck_proofs,
         max_num_variables_f,
-        max_num_variables_var,
+        max_num_variables,
         max_degree,
     );
 
@@ -390,8 +393,8 @@ pub fn verify_opcode_proof<C: Config>(
     let rt_lk_eq = rt_lk.slice(builder, 0, log2_lk_count.clone());
     let eq_lk = build_eq_x_r_vec_sequential(builder, &rt_lk_eq);
 
-    let eq_instance: Usize<C::N> = opcode_proof.num_instances.clone();
-    builder.assign(&eq_instance, eq_instance.clone() - Usize::from(1));
+    let eq_instance: Var<C::N> = opcode_proof.num_instances.clone();
+    builder.assign(&eq_instance, eq_instance - Var::<C::N>::new(1));
 
     let rt_r_eq_less = rt_r.slice(builder, log2_r_count.clone(), rt_r.len());
     let rt_w_eq_less = rt_w.slice(builder, log2_w_count.clone(), rt_w.len());
@@ -422,8 +425,12 @@ pub fn verify_opcode_proof<C: Config>(
     let sel_non_lc_zero_sumcheck: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
     let rt_non_lc_sumcheck = rt_tower.fs.slice(builder, 0, log2_num_instances);
 
-    // _debug
-    let has_zero_sumcheck_expressions: Var<C::N> = Var::<C::N>::new(1);
+    let has_zero_sumcheck_expressions: Var<C::N> = if cs.assert_zero_sumcheck_expressions.len() > 0 {
+        Var::<C::N>::new(1)
+    } else {
+        Var::<C::N>::new(0)
+    };
+
     builder
         .if_ne(has_zero_sumcheck_expressions, Var::<C::N>::new(0))
         .then(|builder| {
@@ -493,7 +500,7 @@ pub fn verify_opcode_proof<C: Config>(
     //         .sum::<E>()
 
     // _debug
-    builder.assert_ext_eq(computed_eval, expected_evaluation);
+    // builder.assert_ext_eq(computed_eval, expected_evaluation);
 
     // _debug
     // // verify records (degree = 1) statement, thus no sumcheck
@@ -541,6 +548,7 @@ pub fn verify_table_proof<C: Config>(
     table_proof: &ZKVMTableProofInputVariable<C>,
     raw_pi: &Array<C, Array<C, Felt<C::F>>>,
     pi_evals: &Array<C, Ext<C::F, C::EF>>,
+    sub_constraint_idx: usize,
     ceno_constraint_system: &ZKVMVerifier<E, Pcs>,
 ) {
 

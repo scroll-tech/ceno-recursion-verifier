@@ -38,14 +38,14 @@ pub struct IOPProverMessageVariable<C: Config> {
 pub struct TowerVerifierInputVariable<C: Config> {
     pub prod_out_evals: Array<C, Array<C, Ext<C::F, C::EF>>>,
     pub logup_out_evals: Array<C, Array<C, Ext<C::F, C::EF>>>,
-    pub num_variables: Array<C, Usize<C::N>>,
+    pub num_variables: Array<C, Var<C::N>>,
     pub num_fanin: Usize<C::N>,
 
     // TowerProofVariable
     pub num_proofs: Usize<C::N>,
     pub num_prod_specs: Usize<C::N>,
     pub num_logup_specs: Usize<C::N>,
-    pub max_num_variables: Usize<C::N>,
+    pub max_num_variables: Var<C::N>,
 
     pub proofs: Array<C, Array<C, IOPProverMessageVariable<C>>>,
     pub prod_specs_eval: Array<C, Array<C, Array<C, Ext<C::F, C::EF>>>>,
@@ -128,7 +128,7 @@ impl Hintable<InnerConfig> for TowerVerifierInput {
         let num_proofs = Usize::Var(usize::read(builder));
         let num_prod_specs = Usize::Var(usize::read(builder));
         let num_logup_specs = Usize::Var(usize::read(builder));
-        let max_num_variables = Usize::Var(usize::read(builder));
+        let max_num_variables = usize::read(builder);
 
         let proofs = builder.dyn_array(num_proofs.clone());
         let prod_specs_eval = builder.dyn_array(num_prod_specs.clone());

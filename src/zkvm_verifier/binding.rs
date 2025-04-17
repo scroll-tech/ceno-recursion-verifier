@@ -38,7 +38,7 @@ pub struct TowerProofInputVariable<C: Config> {
 pub struct ZKVMOpcodeProofInputVariable<C: Config> {
     pub idx: Usize<C::N>,
     pub idx_felt: Felt<C::F>,
-    pub num_instances: Usize<C::N>,
+    pub num_instances: Var<C::N>,
 
     pub record_r_out_evals: Array<C, Ext<C::F, C::EF>>,
     pub record_w_out_evals: Array<C, Ext<C::F, C::EF>>,
@@ -239,7 +239,7 @@ impl Hintable<InnerConfig> for ZKVMOpcodeProofInput {
     fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
         let idx = Usize::Var(usize::read(builder));
         let idx_felt = F::read(builder);
-        let num_instances = Usize::Var(usize::read(builder));
+        let num_instances = usize::read(builder);
         let record_r_out_evals = Vec::<E>::read(builder);
         let record_w_out_evals = Vec::<E>::read(builder);
         let lk_p1_out_eval = E::read(builder);

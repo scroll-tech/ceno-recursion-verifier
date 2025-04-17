@@ -1,4 +1,4 @@
-use super::constants::{OPCODE_KEYS, TABLE_KEYS};
+use crate::constants::{OPCODE_KEYS, TABLE_KEYS};
 use crate::tower_verifier::binding::{IOPProverMessage, Point, TowerVerifierInput, F};
 use crate::zkvm_verifier::binding::{
     TowerProofInput, ZKVMOpcodeProofInput, ZKVMProofInput, ZKVMTableProofInput,
