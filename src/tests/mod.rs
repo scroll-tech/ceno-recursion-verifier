@@ -2,6 +2,10 @@ use crate::json::parser::parse_zkvm_proof_json;
 use crate::tower_verifier::binding::F;
 use crate::zkvm_verifier::binding::ZKVMProofInput;
 use crate::zkvm_verifier::verifier::verify_zkvm_proof;
+use ceno_emul::{IterAddresses, Program as CenoProgram, Word, WORD_SIZE};
+use ff_ext::BabyBearExt4;
+use itertools::Itertools;
+use mpcs::PolynomialCommitmentScheme;
 use mpcs::{Basefold, BasefoldRSParams};
 use openvm_circuit::arch::{instructions::program::Program, SystemConfig, VmExecutor};
 use openvm_native_circuit::{Native, NativeConfig};
@@ -12,11 +16,7 @@ use openvm_stark_sdk::{
     config::baby_bear_poseidon2::{default_engine, BabyBearPoseidon2Config},
     p3_baby_bear::BabyBear,
 };
-use ff_ext::BabyBearExt4;
-use itertools::Itertools;
 use std::fs;
-use ceno_emul::{IterAddresses, Program as CenoProgram, WORD_SIZE, Word};
-use mpcs::PolynomialCommitmentScheme;
 
 type SC = BabyBearPoseidon2Config;
 type E = BabyBearExt4;
@@ -26,19 +26,22 @@ type B = BabyBear;
 type Pcs = Basefold<E, BasefoldRSParams>;
 
 use ceno_zkvm::{
+    e2e::{
+        construct_configs, generate_fixed_traces, init_mem, run_e2e_with_checkpoint,
+        setup_platform, Checkpoint, ConstraintSystemConfig, InitMemState, Preset,
+    },
     instructions::riscv::{DummyExtraConfig, MemPadder, MmuConfig, Rv32imConfig},
     scheme::{
-        PublicValues, ZKVMProof,
         constants::MAX_NUM_VARIABLES,
         mock_prover::{LkMultiplicityKey, MockProver},
         prover::ZKVMProver,
         verifier::ZKVMVerifier,
+        PublicValues, ZKVMProof,
     },
     state::GlobalState,
     structs::{
         ProgramParams, ZKVMConstraintSystem, ZKVMFixedTraces, ZKVMProvingKey, ZKVMWitnesses,
     },
-    e2e::{Checkpoint, Preset, run_e2e_with_checkpoint, setup_platform, construct_configs, init_mem, ConstraintSystemConfig, InitMemState, generate_fixed_traces},
     tables::{MemFinalRecord, MemInitRecord, ProgramTableCircuit, ProgramTableConfig},
     with_panic_hook,
 };
@@ -52,16 +55,10 @@ fn build_constraint_system() -> ZKVMVerifier<E, Pcs> {
     let heap_size = (131072u32).next_multiple_of(WORD_SIZE as u32);
     let pub_io_size = 16; // TODO: configure.
 
-    let platform = setup_platform(
-        Preset::Sp1,
-        &program,
-        stack_size,
-        heap_size,
-        pub_io_size,
-    );
+    let platform = setup_platform(Preset::Sp1, &program, stack_size, heap_size, pub_io_size);
     let mem_init = init_mem(&program, &platform);
     let pub_io_len = platform.public_io.iter_addresses().len();
-    
+
     let program_params = ProgramParams {
         platform: platform.clone(),
         program_size: program.instructions.len(),
@@ -108,7 +105,12 @@ fn build_zkvm_proof_verifier_test() -> (Program<BabyBear>, Vec<Vec<BabyBear>>) {
 
     // Obtain witness inputs
     let zkvm_proof_input_variables = ZKVMProofInput::read(&mut builder);
-    verify_zkvm_proof(&mut builder, &mut challenger, zkvm_proof_input_variables, &ceno_constraint_system);
+    verify_zkvm_proof(
+        &mut builder,
+        &mut challenger,
+        zkvm_proof_input_variables,
+        &ceno_constraint_system,
+    );
     builder.halt();
 
     // Pass in witness stream

@@ -519,8 +519,8 @@ pub fn verify_tower_proof<C: Config>(
         let rt_prime = join(builder, &sub_rt, &r_merge_arr);
 
         // generate next round challenge
-        let next_alpha_len: Var<C::N> = builder
-            .eval(num_prod_spec.clone() + num_logup_spec.clone() + num_logup_spec.clone());
+        let next_alpha_len: Var<C::N> =
+            builder.eval(num_prod_spec.clone() + num_logup_spec.clone() + num_logup_spec.clone());
         transcript_observe_label(builder, challenger, b"combine subset evals");
         let next_alpha_pows = gen_alpha_pows(builder, challenger, next_alpha_len);
         let next_round = builder.eval_expr(round_var + RVar::from(1));

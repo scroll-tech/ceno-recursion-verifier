@@ -1,5 +1,9 @@
 use crate::tower_verifier::binding::PointAndEvalVariable;
 use ark_ff::Field;
+use ceno_zkvm::expression::{Expression, Fixed, Instance};
+use ceno_zkvm::structs::{ChallengeId, WitnessId};
+use ff_ext::ExtensionField;
+use ff_ext::{BabyBearExt4, SmallField};
 use openvm_native_compiler::asm::AsmConfig;
 use openvm_native_compiler::prelude::*;
 use openvm_native_compiler_derive::iter_zip;
@@ -7,12 +11,8 @@ use openvm_native_recursion::{
     challenger::ChallengerVariable,
     hints::{InnerChallenge, InnerVal},
 };
-use p3_field::{FieldAlgebra, FieldExtensionAlgebra};
-use ceno_zkvm::expression::{Expression, Fixed, Instance};
-use ceno_zkvm::structs::{WitnessId, ChallengeId};
-use ff_ext::{BabyBearExt4, SmallField};
-use ff_ext::ExtensionField;
 use openvm_stark_sdk::p3_baby_bear::BabyBear;
+use p3_field::{FieldAlgebra, FieldExtensionAlgebra};
 
 type InnerConfig = AsmConfig<InnerVal, InnerChallenge>;
 const NUM_FANIN: usize = 2;
@@ -360,10 +360,7 @@ pub fn ceil_log2(x: usize) -> usize {
     usize_bits - (x - 1).leading_zeros() as usize
 }
 
-pub fn pow_of_2_var<C: Config>(
-    builder: &mut Builder<C>,
-    log_n: Var<C::N>,
-) -> Var<C::N> {
+pub fn pow_of_2_var<C: Config>(builder: &mut Builder<C>, log_n: Var<C::N>) -> Var<C::N> {
     let res = Var::<C::N>::new(1);
     let two = Var::<C::N>::new(2);
 
@@ -379,7 +376,11 @@ pub fn next_pow2_instance_padding(num_instance: usize) -> usize {
     num_instance.next_power_of_two().max(2)
 }
 
-pub fn ext_pow<C: Config>(builder: &mut Builder<C>, base: Ext<C::F, C::EF>, exponent: usize) -> Ext<C::F, C::EF> {
+pub fn ext_pow<C: Config>(
+    builder: &mut Builder<C>,
+    base: Ext<C::F, C::EF>,
+    exponent: usize,
+) -> Ext<C::F, C::EF> {
     let res = builder.constant(C::EF::ONE);
     let mut exp = exponent.clone();
 
@@ -401,7 +402,7 @@ pub fn eval_ceno_expr_with_instance<C: Config>(
     structural_witnesses: &Array<C, Ext<C::F, C::EF>>,
     instance: &Array<C, Ext<C::F, C::EF>>,
     challenges: &Array<C, Ext<C::F, C::EF>>,
-    expr: &Expression<E>
+    expr: &Expression<E>,
 ) -> Ext<C::F, C::EF> {
     evaluate_ceno_expr::<C, Ext<C::F, C::EF>>(
         builder,
@@ -411,18 +412,29 @@ pub fn eval_ceno_expr_with_instance<C: Config>(
         &|builder, witness_id, _, _, _| builder.get(structural_witnesses, witness_id as usize),
         &|builder, i| builder.get(instance, i.0),
         &|builder, scalar| {
-            let res: Ext<C::F, C::EF> = builder.constant(C::EF::from_canonical_u32(scalar.to_canonical_u64() as u32));
+            let res: Ext<C::F, C::EF> =
+                builder.constant(C::EF::from_canonical_u32(scalar.to_canonical_u64() as u32));
             res
         },
         &|builder, challenge_id, pow, scalar, offset| {
             let challenge = builder.get(&challenges, challenge_id as usize);
             let challenge_exp = ext_pow(builder, challenge, pow);
 
-            let scalar_base_slice = scalar.as_bases().iter().map(|b| C::F::from_canonical_u32(b.to_canonical_u64() as u32)).collect::<Vec<C::F>>();
-            let scalar_ext: Ext<C::F, C::EF> = builder.constant(C::EF::from_base_slice(&scalar_base_slice));
+            let scalar_base_slice = scalar
+                .as_bases()
+                .iter()
+                .map(|b| C::F::from_canonical_u32(b.to_canonical_u64() as u32))
+                .collect::<Vec<C::F>>();
+            let scalar_ext: Ext<C::F, C::EF> =
+                builder.constant(C::EF::from_base_slice(&scalar_base_slice));
 
-            let offset_base_slice = offset.as_bases().iter().map(|b| C::F::from_canonical_u32(b.to_canonical_u64() as u32)).collect::<Vec<C::F>>();
-            let offset_ext: Ext<C::F, C::EF> = builder.constant(C::EF::from_base_slice(&offset_base_slice));
+            let offset_base_slice = offset
+                .as_bases()
+                .iter()
+                .map(|b| C::F::from_canonical_u32(b.to_canonical_u64() as u32))
+                .collect::<Vec<C::F>>();
+            let offset_ext: Ext<C::F, C::EF> =
+                builder.constant(C::EF::from_base_slice(&offset_base_slice));
 
             builder.eval(challenge_exp * scalar_ext + offset_ext)
         },
@@ -558,8 +570,3 @@ pub fn evaluate_ceno_expr<C: Config, T>(
         }
     }
 }
-
-
-
-
-    
