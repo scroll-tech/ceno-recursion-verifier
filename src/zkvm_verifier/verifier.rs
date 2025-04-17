@@ -1,3 +1,5 @@
+use std::io::empty;
+
 use super::binding::{
     ZKVMOpcodeProofInputVariable, ZKVMProofInputVariable, ZKVMTableProofInputVariable,
 };
@@ -7,7 +9,7 @@ use crate::tower_verifier::program::verify_tower_proof;
 use crate::{
     arithmetics::{
         build_eq_x_r_vec_sequential, dot_product as ext_dot_product, eq_eval_less_or_equal_than,
-        gen_alpha_pows, product, sum as ext_sum, ceil_log2, next_pow2_instance_padding,
+        gen_alpha_pows, product, sum as ext_sum, ceil_log2, next_pow2_instance_padding, eval_ceno_expr_with_instance,
     },
     json::parser::parse_zkvm_proof_json,
     tower_verifier::{
@@ -115,6 +117,9 @@ pub fn verify_zkvm_proof<C: Config>(
 
     let alpha = challenger.sample_ext(builder);
     let beta = challenger.sample_ext(builder);
+    let challenges: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(2);
+    builder.set(&challenges, 0, alpha.clone());
+    builder.set(&challenges, 1, beta.clone());
 
     let dummy_table_item = alpha.clone();
     let dummy_table_item_multiplicity: RVar<C::N> = RVar::from(0);
@@ -122,6 +127,7 @@ pub fn verify_zkvm_proof<C: Config>(
 
     let mut sub_opcode_constraint_idx: usize = 0;
     iter_zip!(builder, zkvm_proof_input.opcode_proofs).for_each(|ptr_vec, builder| {
+        let opcode_name = OPCODE_KEYS[sub_opcode_constraint_idx];
         let opcode_proof = &builder.iter_ptr_get(&zkvm_proof_input.opcode_proofs, ptr_vec[0]);
         let idx = opcode_proof.idx.clone();
         let circuit_vk = builder.get(&zkvm_proof_input.circuit_vks_fixed_commits, idx);
@@ -221,44 +227,29 @@ pub fn verify_zkvm_proof<C: Config>(
     // _debug
     // builder.assert_ext_eq(logup_sum, zero);
 
-    // _debug
-    //     let initial_global_state = eval_by_expr_with_instance(
-    //         &[],
-    //         &[],
-    //         &[],
-    //         pi_evals,
-    //         &challenges,
-    //         &self.vk.initial_global_state_expr,
-    //     );
-    //     prod_w *= initial_global_state;
+    let empty_arr: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(0);
+    let initial_global_state = eval_ceno_expr_with_instance(
+        builder,
+        &empty_arr,
+        &empty_arr,
+        &empty_arr,
+        &zkvm_proof_input.pi_evals,
+        &challenges,
+        &ceno_constraint_system.vk.initial_global_state_expr,
+    );
+    builder.assign(&prod_w, prod_w * initial_global_state);
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    //     let finalize_global_state = eval_by_expr_with_instance(
-    //         &[],
-    //         &[],
-    //         &[],
-    //         pi_evals,
-    //         &challenges,
-    //         &self.vk.finalize_global_state_expr,
-    //     );
-    //     prod_r *= finalize_global_state;
+    let finalize_global_state = eval_ceno_expr_with_instance(
+        builder, 
+        &empty_arr,
+        &empty_arr,
+        &empty_arr,
+        &zkvm_proof_input.pi_evals,
+        &challenges,
+        &ceno_constraint_system.vk.finalize_global_state_expr,
+    );
+    builder.assign(&prod_r, prod_r * finalize_global_state);
 
     // _debug
     // builder.assert_ext_eq(prod_r, prod_w);
