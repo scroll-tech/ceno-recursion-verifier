@@ -340,6 +340,7 @@ pub fn parse_zkvm_proof_json() -> ZKVMProofInput {
             w_out_evals.push(v_e2[0]);
             w_out_evals.push(v_e2[1]);
         }
+        let compressed_rw_out_len: usize = r_out_evals.len() / 2;
         for v in Value::as_array(table_proof.get("lk_out_evals").unwrap()).unwrap() {
             let v_e4: [E; 4] = serde_json::from_value(v.clone()).unwrap();
             lk_out_evals.push(v_e4[0]);
@@ -347,6 +348,7 @@ pub fn parse_zkvm_proof_json() -> ZKVMProofInput {
             lk_out_evals.push(v_e4[2]);
             lk_out_evals.push(v_e4[3]);
         }
+        let compressed_lk_out_len: usize = lk_out_evals.len() / 4;
 
         // _debug
         let mut has_same_r_sumcheck_proofs: usize = 0;
@@ -466,7 +468,9 @@ pub fn parse_zkvm_proof_json() -> ZKVMProofInput {
             idx,
             r_out_evals,
             w_out_evals,
+            compressed_rw_out_len,
             lk_out_evals,
+            compressed_lk_out_len,
             has_same_r_sumcheck_proofs,
             same_r_sumcheck_proofs,
             rw_in_evals,
@@ -493,12 +497,6 @@ pub fn parse_zkvm_proof_json() -> ZKVMProofInput {
         circuit_vks_fixed_commits.push(cmt);
     }
     res.circuit_vks_fixed_commits = circuit_vks_fixed_commits;
-
-    // _debug
-    //     res.num_variables = vec![17, 17, 19];
-    //     res.num_fanin = 2;
-    //     res.max_num_variables = 19;
-    // }
 
     res
 }

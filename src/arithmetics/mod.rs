@@ -34,6 +34,74 @@ pub fn evaluate_at_point<C: Config>(
     builder.eval(r * (right - left) + left)
 }
 
+pub fn evaluate_felt_poly<C: Config>(
+    builder: &mut Builder<C>,
+    evals: &Array<C, Felt<C::F>>,
+    point: &Array<C, Ext<C::F, C::EF>>,
+    num_variables: Var<C::N>,
+) -> Ext<C::F, C::EF> {
+    let res = builder.constant(C::EF::ZERO);
+
+
+
+// Debug
+// /// Reduce the number of variables of `self` by fixing the
+//     /// `partial_point.len()` variables at `partial_point` in place
+//     fn fix_variables_in_place_parallel(&mut self, partial_point: &[E]) {
+//         // TODO: return error.
+//         assert!(
+//             partial_point.len() <= self.num_vars(),
+//             "partial point len {} >= num_vars {}",
+//             partial_point.len(),
+//             self.num_vars()
+//         );
+//         let nv = self.num_vars();
+//         // evaluate single variable of partial point from left to right
+//         for (i, point) in partial_point.iter().enumerate() {
+//             let max_log2_size = nv - i;
+//             // override buf[b1, b2,..bt, 0] = (1-point) * buf[b1, b2,..bt, 0] + point * buf[b1, b2,..bt, 1] in parallel
+//             match &mut self.evaluations {
+//                 FieldType::Base(evaluations) => {
+//                     let evaluations_ext = evaluations
+//                         .par_iter()
+//                         .chunks(2)
+//                         .with_min_len(64)
+//                         .map(|buf| *point * (*buf[1] - *buf[0]) + *buf[0])
+//                         .collect();
+//                     let _ = mem::replace(&mut self.evaluations, FieldType::Ext(evaluations_ext));
+//                 }
+//                 FieldType::Ext(evaluations) => {
+//                     evaluations
+//                         .par_iter_mut()
+//                         .chunks(2)
+//                         .with_min_len(64)
+//                         .for_each(|mut buf| *buf[0] = *buf[0] + (*buf[1] - *buf[0]) * *point);
+
+//                     // sequentially update buf[b1, b2,..bt] = buf[b1, b2,..bt, 0]
+//                     for index in 0..1 << (max_log2_size - 1) {
+//                         evaluations[index] = evaluations[index << 1];
+//                     }
+//                 }
+//                 FieldType::Unreachable => unreachable!(),
+//             };
+//         }
+//         match &mut self.evaluations {
+//             FieldType::Base(_) => unreachable!(),
+//             FieldType::Ext(evaluations) => {
+//                 evaluations.truncate(1 << (nv - partial_point.len()));
+//             }
+//             FieldType::Unreachable => unreachable!(),
+//         }
+
+//         self.num_vars = nv - partial_point.len();
+//     }
+
+
+
+
+    res
+}
+
 pub fn dot_product<C: Config>(
     builder: &mut Builder<C>,
     a: &Array<C, Ext<C::F, C::EF>>,
@@ -82,6 +150,27 @@ pub fn reverse<C: Config>(
 
         let el = builder.get(arr, i);
         builder.set(&res, rev_i, el);
+    });
+
+    res
+}
+
+pub fn concat<C: Config>(
+    builder: &mut Builder<C>,
+    a: &Array<C, Ext<C::F, C::EF>>,
+    b: &Array<C, Ext<C::F, C::EF>>,
+) -> Array<C, Ext<C::F, C::EF>> {
+    let res_len: Usize<C::N> = builder.eval(a.len() + b.len());
+    let res: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(res_len);
+
+    builder.range(0, a.len()).for_each(|idx_vec, builder| {
+        let a_v = builder.get(&a, idx_vec[0]);
+        builder.set(&res, idx_vec[0], a_v);
+    });
+    builder.range(0, b.len()).for_each(|idx_vec, builder| {
+        let b_v = builder.get(&b, idx_vec[0]);
+        let res_idx: Usize<C::N> = builder.eval(a.len() + idx_vec[0]);
+        builder.set(&res, res_idx, b_v);
     });
 
     res
@@ -569,4 +658,27 @@ pub fn evaluate_ceno_expr<C: Config, T>(
             challenge(builder, *challenge_id, *pow, *scalar, *offset)
         }
     }
+}
+
+/// evaluate MLE M(x0, x1, x2, ..., xn) address vector with it evaluation format a*[0, 1, 2, 3, ....2^n-1] + b
+/// on r = [r0, r1, r2, ...rn] succintly
+/// a, b, is constant
+/// the result M(r0, r1,... rn) = r0 + r1 * 2 + r2 * 2^2 + .... rn * 2^n
+pub fn eval_wellform_address_vec<C: Config>(builder: &mut Builder<C>, offset: u64, scaled: u64, r: &Array<C, Ext<C::F, C::EF>>) -> Ext<C::F, C::EF> {
+    let offset: Ext<C::F, C::EF> = builder.constant(C::EF::from_canonical_u32(offset as u32));
+    let scaled: Ext<C::F, C::EF> = builder.constant(C::EF::from_canonical_u32(scaled as u32));
+
+    let r_sum: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
+    let two: Ext<C::F, C::EF> = builder.constant(C::EF::TWO);
+    let state: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
+
+    iter_zip!(builder, r).for_each(|ptr_vec, builder| {
+        let x = builder.iter_ptr_get(r, ptr_vec[0]);
+        builder.assign(&r_sum, r_sum + x * state);
+        builder.assign(&state, state * two);
+    });
+
+    let res: Ext<C::F, C::EF> = builder.eval(offset + scaled * r_sum);
+
+    res
 }

@@ -13,7 +13,7 @@ use p3_field::{
 pub fn transcript_observe_label<C: Config>(
     builder: &mut Builder<C>,
     challenger: &mut impl ChallengerVariable<C>,
-    label: &'static [u8],
+    label: &[u8],
 ) {
     let label_f = <BabyBearExt4 as CenoExtensionField>::BaseField::bytes_to_field_elements(label);
     for n in label_f {
