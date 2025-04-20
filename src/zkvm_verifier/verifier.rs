@@ -122,7 +122,7 @@ pub fn verify_zkvm_proof<C: Config>(
     builder.set(&challenges, 1, beta.clone());
 
     let dummy_table_item = alpha.clone();
-    let dummy_table_item_multiplicity: RVar<C::N> = RVar::from(0);
+    let dummy_table_item_multiplicity: Var<C::N> = Var::<C::N>::new(0);
     let dummy_table_item_multiplicity_ext: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
 
     let mut sub_opcode_constraint_idx: usize = 0;
@@ -147,15 +147,14 @@ pub fn verify_zkvm_proof<C: Config>(
             ceno_constraint_system,
         );
 
-        // _debug
-        //         // getting the number of dummy padding item that we used in this opcode circuit
-        //         let num_lks = circuit_vk.get_cs().lk_expressions.len();
-        //         let num_padded_lks_per_instance = next_pow2_instance_padding(num_lks) - num_lks;
-        //         let num_padded_instance =
-        //             next_pow2_instance_padding(opcode_proof.num_instances) - opcode_proof.num_instances;
-        //         dummy_table_item_multiplicity += num_padded_lks_per_instance
-        //             * opcode_proof.num_instances
-        //             + num_lks.next_power_of_two() * num_padded_instance;
+        let cs = ceno_constraint_system.vk.circuit_vks[opcode_name].get_cs();
+        let num_lks = cs.lk_expressions.len();
+        let num_padded_lks_per_instance = next_pow2_instance_padding(num_lks) - num_lks;
+        let num_padded_instance = next_pow2_instance_padding(opcode_proof.num_instances.0 as usize) - opcode_proof.num_instances.0 as usize;
+        let new_multiplicity = num_padded_lks_per_instance * (opcode_proof.num_instances.0 as usize) + num_lks.next_power_of_two() * num_padded_instance;
+
+        builder.assign(&dummy_table_item_multiplicity, dummy_table_item_multiplicity + Var::<C::N>::new(new_multiplicity as u32));
+        builder.assign(&dummy_table_item_multiplicity_ext, dummy_table_item_multiplicity_ext + Ext::<C::F, C::EF>::new(new_multiplicity as u32));
 
         let record_r_out_evals_prod = product(builder, &opcode_proof.record_r_out_evals);
         builder.assign(&prod_r, prod_r * record_r_out_evals_prod);
@@ -518,37 +517,69 @@ pub fn verify_opcode_proof<C: Config>(
 
     builder.assert_ext_eq(computed_eval, expected_evaluation);
 
+    // verify records (degree = 1) statement, thus no sumcheck
+    let r_records = &opcode_proof.r_records_in_evals.slice(builder, 0, r_counts_per_instance);
+    let w_records = &opcode_proof.w_records_in_evals.slice(builder, 0, w_counts_per_instance);
+    let lk_records = &opcode_proof.lk_records_in_evals.slice(builder, 0, lk_counts_per_instance);
 
+    let _ = &cs.r_expressions.iter().enumerate().for_each(|(idx, expr)| {
+        let expected_eval = builder.get(&r_records, idx);
+        let e = eval_ceno_expr_with_instance(
+            builder,
+            &empty_arr,
+            &opcode_proof.wits_in_evals,
+            &empty_arr,
+            pi_evals,
+            challenges,
+            expr
+        );
+        
+        builder.assert_ext_eq(e, expected_eval);
+    });
 
+    let _ = &cs.w_expressions.iter().enumerate().for_each(|(idx, expr)| {
+        let expected_eval = builder.get(&w_records, idx);
+        let e = eval_ceno_expr_with_instance(
+            builder,
+            &empty_arr,
+            &opcode_proof.wits_in_evals,
+            &empty_arr,
+            pi_evals,
+            challenges,
+            expr
+        );
+        
+        builder.assert_ext_eq(e, expected_eval);
+    });
 
+    let _ = &cs.lk_expressions.iter().enumerate().for_each(|(idx, expr)| {
+        let expected_eval = builder.get(&lk_records, idx);
+        let e = eval_ceno_expr_with_instance(
+            builder,
+            &empty_arr,
+            &opcode_proof.wits_in_evals,
+            &empty_arr,
+            pi_evals,
+            challenges,
+            expr
+        );
+        
+        builder.assert_ext_eq(e, expected_eval);
+    });
 
-    // _debug
-    // // verify records (degree = 1) statement, thus no sumcheck
-    // if izip!(
-    //     chain!(&cs.r_expressions, &cs.w_expressions, &cs.lk_expressions),
-    //     chain!(
-    //         &proof.r_records_in_evals[..r_counts_per_instance],
-    //         &proof.w_records_in_evals[..w_counts_per_instance],
-    //         &proof.lk_records_in_evals[..lk_counts_per_instance]
-    //     )
-    // )
-    // .any(|(expr, expected_evals)| {
-    //     eval_by_expr_with_instance(&[], &proof.wits_in_evals, &[], pi, challenges, expr)
-    //         != *expected_evals
-    // }) {
-    //     return Err(ZKVMError::VerifyError(
-    //         "record evaluate != expected_evals".into(),
-    //     ));
-    // }
+    cs.assert_zero_expressions.iter().enumerate().for_each(|(_idx, expr)| {
+        let e = eval_ceno_expr_with_instance(
+            builder,
+            &empty_arr,
+            &opcode_proof.wits_in_evals,
+            &empty_arr,
+            pi_evals,
+            challenges,
+            expr
+        );
 
-    // _debug
-    // // verify zero expression (degree = 1) statement, thus no sumcheck
-    // if cs.assert_zero_expressions.iter().any(|expr| {
-    //     eval_by_expr_with_instance(&[], &proof.wits_in_evals, &[], pi, challenges, expr)
-    //         != E::ZERO
-    // }) {
-    //     return Err(ZKVMError::VerifyError("zero expression != 0".into()));
-    // }
+        builder.assert_ext_eq(e, zero);
+    });
 
     // TODO:
     // PCS::simple_batch_verify(
@@ -790,32 +821,32 @@ pub fn verify_table_proof<C: Config>(
         builder.assert_ext_eq(eval, expected_eval);
     }
 
-    //     TODO: PCS
-    //     // do optional check of fixed_commitment openings by vk
-    //     if circuit_vk.fixed_commit.is_some() {
-    //         let Some(fixed_opening_proof) = &proof.fixed_opening_proof else {
-    //             return Err(ZKVMError::VerifyError(
-    //                 "fixed openning proof shoudn't be none".into(),
-    //             ));
-    //         };
-    //         PCS::simple_batch_verify(
-    //             vp,
-    //             circuit_vk.fixed_commit.as_ref().unwrap(),
-    //             &input_opening_point,
-    //             &proof.fixed_in_evals,
-    //             fixed_opening_proof,
-    //             transcript,
-    //         )
-    //         .map_err(ZKVMError::PCSError)?;
-    //     }
+    // TODO: PCS
+    // // do optional check of fixed_commitment openings by vk
+    // if circuit_vk.fixed_commit.is_some() {
+    // let Some(fixed_opening_proof) = &proof.fixed_opening_proof else {
+    //     return Err(ZKVMError::VerifyError(
+    //         "fixed openning proof shoudn't be none".into(),
+    //     ));
+    // };
+    // PCS::simple_batch_verify(
+    //     vp,
+    //     circuit_vk.fixed_commit.as_ref().unwrap(),
+    //     &input_opening_point,
+    //     &proof.fixed_in_evals,
+    //     fixed_opening_proof,
+    //     transcript,
+    // )
+    // .map_err(ZKVMError::PCSError)?;
+    // }
 
-    //     TODO: PCS
-    //     PCS::simple_batch_verify(
-    //         vp,
-    //         &proof.wits_commit,
-    //         &input_opening_point,
-    //         &proof.wits_in_evals,
-    //         &proof.wits_opening_proof,
-    //         transcript,
-    //     )
+    // TODO: PCS
+    // PCS::simple_batch_verify(
+    //     vp,
+    //     &proof.wits_commit,
+    //     &input_opening_point,
+    //     &proof.wits_in_evals,
+    //     &proof.wits_opening_proof,
+    //     transcript,
+    // )
 }

@@ -40,66 +40,37 @@ pub fn evaluate_felt_poly<C: Config>(
     point: &Array<C, Ext<C::F, C::EF>>,
     num_variables: Var<C::N>,
 ) -> Ext<C::F, C::EF> {
-    let res = builder.constant(C::EF::ZERO);
+    builder.assert_var_eq(point.len(), num_variables);
 
+    let curr_num_vars: Var<C::N> = num_variables.clone();
+    let evals_ext: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(evals.len());
+    iter_zip!(builder, evals, evals_ext).for_each(|ptr_vec, builder| {
+        let f = builder.iter_ptr_get(&evals, ptr_vec[0]);
+        let e = builder.felts2ext(&[f]);
+        builder.iter_ptr_set(&evals_ext, ptr_vec[1], e);
+    });
 
+    iter_zip!(builder, point).for_each(|ptr_vec, builder| {
+        let pt = builder.iter_ptr_get(&point, ptr_vec[0]);
+        let new_num_vars: Var<C::N> = builder.eval(curr_num_vars - Var::<C::N>::new(1));
+        let new_evals_ext_len = pow_of_2_var(builder, new_num_vars);
+        let new_evals_ext: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(new_evals_ext_len);
 
-// Debug
-// /// Reduce the number of variables of `self` by fixing the
-//     /// `partial_point.len()` variables at `partial_point` in place
-//     fn fix_variables_in_place_parallel(&mut self, partial_point: &[E]) {
-//         // TODO: return error.
-//         assert!(
-//             partial_point.len() <= self.num_vars(),
-//             "partial point len {} >= num_vars {}",
-//             partial_point.len(),
-//             self.num_vars()
-//         );
-//         let nv = self.num_vars();
-//         // evaluate single variable of partial point from left to right
-//         for (i, point) in partial_point.iter().enumerate() {
-//             let max_log2_size = nv - i;
-//             // override buf[b1, b2,..bt, 0] = (1-point) * buf[b1, b2,..bt, 0] + point * buf[b1, b2,..bt, 1] in parallel
-//             match &mut self.evaluations {
-//                 FieldType::Base(evaluations) => {
-//                     let evaluations_ext = evaluations
-//                         .par_iter()
-//                         .chunks(2)
-//                         .with_min_len(64)
-//                         .map(|buf| *point * (*buf[1] - *buf[0]) + *buf[0])
-//                         .collect();
-//                     let _ = mem::replace(&mut self.evaluations, FieldType::Ext(evaluations_ext));
-//                 }
-//                 FieldType::Ext(evaluations) => {
-//                     evaluations
-//                         .par_iter_mut()
-//                         .chunks(2)
-//                         .with_min_len(64)
-//                         .for_each(|mut buf| *buf[0] = *buf[0] + (*buf[1] - *buf[0]) * *point);
+        builder.range(0, new_evals_ext.len()).for_each(|idx_vec, builder| {
+            let left_idx: Usize<C::N> = builder.eval(idx_vec[0] * Usize::from(2));
+            let right_idx: Usize<C::N> = builder.eval(idx_vec[0] * Usize::from(2) + Usize::from(1));
+            let left = builder.get(&evals_ext, left_idx);
+            let right = builder.get(&evals_ext, right_idx);
 
-//                     // sequentially update buf[b1, b2,..bt] = buf[b1, b2,..bt, 0]
-//                     for index in 0..1 << (max_log2_size - 1) {
-//                         evaluations[index] = evaluations[index << 1];
-//                     }
-//                 }
-//                 FieldType::Unreachable => unreachable!(),
-//             };
-//         }
-//         match &mut self.evaluations {
-//             FieldType::Base(_) => unreachable!(),
-//             FieldType::Ext(evaluations) => {
-//                 evaluations.truncate(1 << (nv - partial_point.len()));
-//             }
-//             FieldType::Unreachable => unreachable!(),
-//         }
+            let e: Ext<C::F, C::EF> = builder.eval(pt * (right - left) + left);
+            builder.set(&new_evals_ext, idx_vec[0], e);
+        });
 
-//         self.num_vars = nv - partial_point.len();
-//     }
+        builder.assign(&evals_ext, new_evals_ext);
+        builder.assign(&curr_num_vars, new_num_vars);
+    });
 
-
-
-
-    res
+    builder.get(&evals_ext, 0)
 }
 
 pub fn dot_product<C: Config>(
@@ -408,7 +379,7 @@ pub fn build_eq_x_r_vec_sequential<C: Config>(
     //  1 1 1 1 -> r0       * r1        * r2        * r3
     // we will need 2^num_var evaluations
 
-    let mut evals_len: Felt<C::F> = builder.constant(C::F::ONE);
+    let evals_len: Felt<C::F> = builder.constant(C::F::ONE);
     let evals_len = builder.exp_power_of_2_v::<Felt<C::F>>(evals_len, r.len());
     let evals_len = builder.cast_felt_to_var(evals_len);
 
