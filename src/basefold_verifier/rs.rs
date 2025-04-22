@@ -1,3 +1,5 @@
+// Note: check all XXX comments!
+
 use openvm_native_compiler::{asm::AsmConfig, prelude::*};
 use openvm_native_recursion::hints::Hintable;
 use openvm_stark_sdk::p3_baby_bear::BabyBear;
@@ -41,15 +43,33 @@ pub struct DenseMatrixVariable<C: Config> {
 pub type RowMajorMatrixVariable<C> = DenseMatrixVariable<C>;
 
 impl<C: Config> DenseMatrixVariable<C> {
+    pub fn height(
+        &self,
+        builder: &mut Builder<C>,
+    ) -> Var<C::N> {
+        // Supply height as hint
+        let height = builder.hint_var();
+        builder.if_eq(self.width.clone(), Usize::from(0)).then(|builder| {
+            builder.assert_usize_eq(height, Usize::from(0));
+        });
+        builder.if_ne(self.width.clone(), Usize::from(0)).then(|builder| {
+            // XXX: check that width * height is not a field multiplication
+            builder.assert_usize_eq(self.width.clone() * height, self.values.len());
+        });
+        height
+    }
+
     // XXX: Find better ways to handle this without cloning
     pub fn pad_to_height(
         &self,
         builder: &mut Builder<C>,
-        new_height: Usize<C::N>,
+        new_height: RVar<C::N>,
         fill: Ext<C::F, C::EF>,
-    ) -> DenseMatrixVariable<C> {
-        // assert!(new_height >= self.height());
-        let new_size = builder.eval_expr(self.width.clone() * new_height);
+    ) {
+        // XXX: Not necessary, only for testing purpose
+        let old_height = self.height(builder);
+        builder.assert_less_than_slow_small_rhs(old_height, new_height + RVar::from(1));
+        let new_size = builder.eval_expr(self.width.clone() * new_height.clone());
         let evals: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(new_size);
         builder.range(0, self.values.len()).for_each(|i_vec, builder| {
             let i = i_vec[0];
@@ -60,10 +80,7 @@ impl<C: Config> DenseMatrixVariable<C> {
             let i = i_vec[0];
             builder.set(&evals, i, fill);
         });
-        DenseMatrixVariable::<C> {
-            values: evals,
-            width: self.width.clone(),
-        }
+        builder.assign(&self.values, evals);
     }
 }
 
@@ -76,6 +93,32 @@ pub struct Radix2DitVariable<C: Config> {
     pub twiddles: Array<C, Ext<C::F, C::EF>>,
 }
 
+impl<C: Config> Radix2DitVariable<C> {
+    fn dft_batch(
+        &self, 
+        builder: &mut Builder<C>,
+        mat: RowMajorMatrixVariable<C>
+    ) -> RowMajorMatrixVariable<C> {
+        let h = mat.height(builder);
+        // TODO: Verify correspondence between log_h and h
+        let log_h = builder.hint_var();
+
+        // TODO: support memoization
+        // Compute twiddle factors, or take memoized ones if already available.
+        let twiddles = {
+            let root = F::two_adic_generator(log_h);
+            root.powers().take(1 << log_h).collect()
+        };
+
+        // DIT butterfly
+        reverse_matrix_index_bits(&mut mat);
+        for layer in 0..log_h {
+            dit_layer(&mut mat.as_view_mut(), layer, twiddles);
+        }
+        mat
+    }
+}
+
 #[derive(DslVariable, Clone)]
 pub struct RSCodeVerifierParametersVariable<C: Config> {
     pub dft: Radix2DitVariable<C>,
@@ -83,12 +126,23 @@ pub struct RSCodeVerifierParametersVariable<C: Config> {
     pub full_message_size_log: Usize<C::N>,
 }
 
+fn get_rate_log() -> usize {
+    1
+}
+
 pub(crate) fn encode_small<C: Config>(
     builder: &mut Builder<C>,
     vp: RSCodeVerifierParametersVariable<C>,
     rmm: RowMajorMatrixVariable<C>,
 ) -> RowMajorMatrixVariable<C> {
-    let mut m = rmm;
+    let m = rmm;
+    // Add current setup this is unnecessary
+    let old_height = m.height(builder);
+    let new_height = builder.eval_expr(
+        old_height * Usize::from(1 << get_rate_log())
+    );
+    m.pad_to_height(builder, new_height, Ext::new(0));
+    m
 }
 */
 
@@ -109,7 +163,7 @@ pub mod tests {
     type F = BabyBear;
     type E = BinomialExtensionField<F, 4>;
     type EF = <SC as StarkGenericConfig>::Challenge;
-    use super::DenseMatrix;
+    use super::{DenseMatrix, InnerConfig};
 
     #[allow(dead_code)]
     pub fn build_test_dense_matrix_pad() -> (Program<BabyBear>, Vec<Vec<BabyBear>>) {
@@ -118,7 +172,7 @@ pub mod tests {
 
         // Witness inputs
         let dense_matrix_variable = DenseMatrix::read(&mut builder);
-        let new_height = Usize::from(8);
+        let new_height = RVar::from(8);
         let fill = Ext::new(0);
         dense_matrix_variable.pad_to_height(&mut builder, new_height, fill);
         builder.halt();
@@ -133,6 +187,8 @@ pub mod tests {
             width: 5,
         };
         witness_stream.extend(verifier_input.write());
+        // Hint for height
+        witness_stream.extend(<usize as Hintable<InnerConfig>>::write(&5));
 
         let program: Program<
             p3_monty_31::MontyField31<openvm_stark_sdk::p3_baby_bear::BabyBearParameters>,
