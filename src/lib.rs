@@ -1,4 +1,5 @@
 mod arithmetics;
+mod basefold_verifier;
 pub mod constants;
 pub mod json;
 mod tests;
