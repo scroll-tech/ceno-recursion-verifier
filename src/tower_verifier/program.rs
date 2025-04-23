@@ -3,8 +3,7 @@ use super::binding::{
     TowerVerifierInput, TowerVerifierInputVariable,
 };
 use crate::arithmetics::{
-    dot_product, dot_product_pt_n_eval, eq_eval, evaluate_at_point, gen_alpha_pows, join, product,
-    reverse, is_smaller_than,
+    dot_product, dot_product_pt_n_eval, eq_eval, evaluate_at_point, gen_alpha_pows, is_smaller_than, join, print_ext_arr, product, reverse
 };
 use crate::tower_verifier;
 use crate::transcript::transcript_observe_label;
@@ -123,6 +122,16 @@ pub(crate) fn interpolate_uni_poly<C: Config>(
     res
 }
 
+
+
+
+
+
+
+
+
+
+
 pub fn iop_verifier_state_verify<C: Config>(
     builder: &mut Builder<C>,
     challenger: &mut impl ChallengerVariable<C>,
@@ -206,6 +215,19 @@ pub fn iop_verifier_state_verify<C: Config>(
     (challenges, expected)
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
 pub fn verify_tower_proof<C: Config>(
     builder: &mut Builder<C>,
     challenger: &mut impl ChallengerVariable<C>,
@@ -250,7 +272,7 @@ pub fn verify_tower_proof<C: Config>(
 
     transcript_observe_label(builder, challenger, b"combine subset evals");
     let alpha_pows = gen_alpha_pows(builder, challenger, alpha_len.clone());
-
+    
     // initial_claim = \sum_j alpha^j * out_j[rt]
     // out_j[rt] := (record_{j}[rt])
     // out_j[rt] := (logup_p{j}[rt])

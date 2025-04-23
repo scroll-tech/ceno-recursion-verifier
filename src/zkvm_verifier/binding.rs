@@ -81,6 +81,7 @@ pub struct ZKVMTableProofInputVariable<C: Config> {
 
     pub tower_proof: TowerProofInputVariable<C>,
     pub rw_hints_num_vars: Array<C, Var<C::N>>,
+    pub rw_hints_num_vars_le_bytes: Array<C, Array<C, Felt<C::F>>>,
     pub fixed_in_evals: Array<C, Ext<C::F, C::EF>>,
     pub wits_commit: Array<C, Felt<C::F>>, // LEN = DIGEST_WIDTH, TODO: SPEC
     pub wits_in_evals: Array<C, Ext<C::F, C::EF>>,
@@ -386,6 +387,7 @@ impl Hintable<InnerConfig> for ZKVMTableProofInput {
         let lk_in_evals = Vec::<E>::read(builder);
         let tower_proof = TowerProofInput::read(builder);
         let rw_hints_num_vars = Vec::<usize>::read(builder);
+        let rw_hints_num_vars_le_bytes = Vec::<Vec<F>>::read(builder);
         let fixed_in_evals = Vec::<E>::read(builder);
         let wits_commit = Vec::<F>::read(builder);
         let wits_in_evals = Vec::<E>::read(builder);
@@ -404,6 +406,7 @@ impl Hintable<InnerConfig> for ZKVMTableProofInput {
             lk_in_evals,
             tower_proof,
             rw_hints_num_vars,
+            rw_hints_num_vars_le_bytes,
             fixed_in_evals,
             wits_commit,
             wits_in_evals,
@@ -435,6 +438,14 @@ impl Hintable<InnerConfig> for ZKVMTableProofInput {
         stream.extend(self.lk_in_evals.write());
         stream.extend(self.tower_proof.write());
         stream.extend(self.rw_hints_num_vars.write());
+
+        let mut rw_hints_num_vars_le_bytes: Vec<Vec<F>> = vec![];
+        for u in &self.rw_hints_num_vars {
+            let u_vec = u.to_le_bytes().into_iter().map(|n| { F::from_canonical_u8(n) }).collect::<Vec<F>>();
+            rw_hints_num_vars_le_bytes.push(u_vec);
+        }
+        stream.extend(rw_hints_num_vars_le_bytes.write());
+
         stream.extend(self.fixed_in_evals.write());
 
         let mut cmt_vec: Vec<F> = vec![];

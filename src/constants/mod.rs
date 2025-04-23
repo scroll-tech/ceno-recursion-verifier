@@ -15,6 +15,8 @@ pub const OPCODE_KEYS: [(usize, usize, &str); 14] = [
     (59, 13, "SW"),
 ];
 
+pub const OPCODE_COUNTS: usize = 14;
+
 pub const OPCODE_CS_COUNTS: [[usize; 6]; 14] = [
     [4, 4, 9, 2, 2, 2],
     [3, 3, 9, 2, 2, 2],
