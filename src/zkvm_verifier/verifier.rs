@@ -170,8 +170,7 @@ pub fn verify_zkvm_proof<C: Config>(
     builder.set(&challenges, 1, beta.clone());
 
     let dummy_table_item = alpha.clone();
-    let dummy_table_item_multiplicity: Var<C::N> = Var::<C::N>::new(0);
-    let dummy_table_item_multiplicity_ext: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
+    let dummy_table_item_multiplicity: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
 
     let order_arr: Array<C, Usize<C::N>> = builder.uninit_fixed_array(64);
     for i in 0..64 {
@@ -199,14 +198,18 @@ pub fn verify_zkvm_proof<C: Config>(
             // ceno_constraint_system,
         );
 
+        // _debug
         // // let cs = ceno_constraint_system.vk.circuit_vks[opcode_name].get_cs();
         // // let num_lks = cs.lk_expressions.len();
-        // // let num_padded_lks_per_instance = next_pow2_instance_padding(num_lks) - num_lks;
-        // // let num_padded_instance = next_pow2_instance_padding(opcode_proof.num_instances.0 as usize) - opcode_proof.num_instances.0 as usize;
-        // // let new_multiplicity = num_padded_lks_per_instance * (opcode_proof.num_instances.0 as usize) + num_lks.next_power_of_two() * num_padded_instance;
+        let counts = OPCODE_CS_COUNTS[order_idx];
+        let num_lks = counts[2];
+        let num_instances = counts[6];
 
-        // // builder.assign(&dummy_table_item_multiplicity, dummy_table_item_multiplicity + Var::<C::N>::new(new_multiplicity as u32));
-        // // builder.assign(&dummy_table_item_multiplicity_ext, dummy_table_item_multiplicity_ext + Ext::<C::F, C::EF>::new(new_multiplicity as u32));
+        let num_padded_lks_per_instance = next_pow2_instance_padding(num_lks) - num_lks;
+        let num_padded_instance = next_pow2_instance_padding(num_instances) - num_instances;
+        let new_multiplicity: Ext<C::F, C::EF> = builder.constant(C::EF::from_canonical_usize(num_padded_lks_per_instance * num_instances + num_lks.next_power_of_two() * num_padded_instance));
+
+        builder.assign(&dummy_table_item_multiplicity, dummy_table_item_multiplicity + new_multiplicity);
 
         let record_r_out_evals_prod = product(builder, &opcode_proof.record_r_out_evals);
         builder.assign(&prod_r, prod_r * record_r_out_evals_prod);
@@ -271,7 +274,6 @@ pub fn verify_zkvm_proof<C: Config>(
         let r_out_evals_prod = product(builder, &table_proof.r_out_evals);
         builder.assign(&prod_r, prod_r * r_out_evals_prod);
     });
-
 
     // builder.assign(
     //     &logup_sum,
@@ -663,7 +665,6 @@ pub fn verify_table_proof<C: Config>(
     // ceno_constraint_system: &ZKVMVerifier<E, Pcs>,
 ) {
     // let cs = ceno_constraint_system.vk.circuit_vks[table_name].get_cs();
-    let is_skip_same_point_sumcheck: Usize<C::N> = Usize::from(1);
     let tower_proof = &table_proof.tower_proof;
 
     // let mut max_expected_rounds: usize = 0;
@@ -716,8 +717,6 @@ pub fn verify_table_proof<C: Config>(
         builder.set(&expected_rounds, i, Usize::from(u.clone()));
     });
     let max_expected_rounds = TABLE_CONSTANTS[order_idx - OPCODE_COUNTS].1;
-
-
 
     iter_zip!(builder, table_proof.rw_hints_num_vars_le_bytes).for_each(|ptr_vec, builder| {
         let v = builder.iter_ptr_get(&table_proof.rw_hints_num_vars_le_bytes, ptr_vec[0]);
@@ -799,23 +798,23 @@ pub fn verify_table_proof<C: Config>(
     // as tower sumcheck batch product argument/logup in same length
     // let is_skip_same_point_sumcheck = true;
 
-    // let input_opening_point = rt_tower.clone().fs;
-    // let in_evals_len: Usize<C::N> = builder.eval(prod_point_and_eval.len() + logup_p_point_and_eval.len() + logup_q_point_and_eval.len());
-    // let in_evals: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(in_evals_len);
-    // builder.range(0, prod_point_and_eval.len()).for_each(|idx_vec, builder| {
-    //     let e = builder.get(&prod_point_and_eval, idx_vec[0]).eval;
-    //     builder.set(&in_evals, idx_vec[0], e);
-    // });
-    // builder.range(0, logup_p_point_and_eval.len()).for_each(|idx_vec, builder| {
-    //     let p_e = builder.get(&logup_p_point_and_eval, idx_vec[0]).eval;
-    //     let q_e = builder.get(&logup_q_point_and_eval, idx_vec[0]).eval;
+    let input_opening_point = rt_tower.clone().fs;
+    let in_evals_len: Usize<C::N> = builder.eval(prod_point_and_eval.len() + logup_p_point_and_eval.len() + logup_q_point_and_eval.len());
+    let in_evals: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(in_evals_len);
+    builder.range(0, prod_point_and_eval.len()).for_each(|idx_vec, builder| {
+        let e = builder.get(&prod_point_and_eval, idx_vec[0]).eval;
+        builder.set(&in_evals, idx_vec[0], e);
+    });
+    builder.range(0, logup_p_point_and_eval.len()).for_each(|idx_vec, builder| {
+        let p_e = builder.get(&logup_p_point_and_eval, idx_vec[0]).eval;
+        let q_e = builder.get(&logup_q_point_and_eval, idx_vec[0]).eval;
 
-    //     let p_idx: Usize<C::N> = builder.eval(prod_point_and_eval.len() + idx_vec[0] * Usize::from(2));
-    //     let q_idx: Usize<C::N> = builder.eval(prod_point_and_eval.len() + idx_vec[0] * Usize::from(2) + Usize::from(1));
+        let p_idx: Usize<C::N> = builder.eval(prod_point_and_eval.len() + idx_vec[0] * Usize::from(2));
+        let q_idx: Usize<C::N> = builder.eval(prod_point_and_eval.len() + idx_vec[0] * Usize::from(2) + Usize::from(1));
 
-    //     builder.set(&in_evals, p_idx, p_e);
-    //     builder.set(&in_evals, q_idx, q_e);
-    // });
+        builder.set(&in_evals, p_idx, p_e);
+        builder.set(&in_evals, q_idx, q_e);
+    });
 
     // // evaluate structural witness from verifier
     // let set_table_exprs = cs
