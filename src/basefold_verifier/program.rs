@@ -1,4 +1,4 @@
-use super::binding::*;
+use super::{binding::*, utils::*};
 use openvm_native_compiler::ir::*;
 use p3_field::FieldAlgebra;
 use crate::basefold_verifier::rs::get_rate_log;
@@ -23,13 +23,9 @@ fn get_base_codeword_dimensions<C: Config>(
         let fixed_num_polys = tmp.fixed_num_polys;
         // wit_dim
         let width = builder.eval(witin_num_polys * Usize::from(2));
-        let height_exp = builder.eval_expr(witin_num_vars + get_rate_log::<C>() - Usize::from(1));
-        // XXX: more efficient pow implementation
-        let height: Var<C::N> = builder.constant(C::N::ONE);
+        let height_exp = builder.eval(witin_num_vars + get_rate_log::<C>() - Usize::from(1));
         let two: Var<C::N> = builder.constant(C::N::from_canonical_usize(2));
-        builder.range(0, height_exp).for_each(|_, builder| {
-            builder.assign(&height, height * two);
-        });
+        let height = pow(builder, two, height_exp);
         let next_wit: DimensionsVariable<C> = DimensionsVariable {
             width,
             height,

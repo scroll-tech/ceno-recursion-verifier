@@ -1,6 +1,6 @@
 use openvm_native_compiler::{asm::AsmConfig, ir::*};
 use openvm_native_compiler_derive::DslVariable;
-use openvm_native_recursion::hints::Hintable;
+use openvm_native_recursion::hints::{Hintable, VecAutoHintable};
 use openvm_stark_sdk::p3_baby_bear::BabyBear;
 use p3_field::extension::BinomialExtensionField;
 
@@ -86,3 +86,4 @@ impl Hintable<InnerConfig> for Dimensions {
         stream
     }
 }
+impl VecAutoHintable for Dimensions {}
