@@ -266,10 +266,10 @@ pub fn verify_zkvm_proof<C: Config>(
         //         );
         //     });
 
-        // let w_out_evals_prod = product(builder, &table_proof.w_out_evals);
-        // builder.assign(&prod_w, prod_w * w_out_evals_prod);
-        // let r_out_evals_prod = product(builder, &table_proof.r_out_evals);
-        // builder.assign(&prod_r, prod_r * r_out_evals_prod);
+        let w_out_evals_prod = product(builder, &table_proof.w_out_evals);
+        builder.assign(&prod_w, prod_w * w_out_evals_prod);
+        let r_out_evals_prod = product(builder, &table_proof.r_out_evals);
+        builder.assign(&prod_r, prod_r * r_out_evals_prod);
     });
 
 
@@ -315,8 +315,6 @@ pub fn verify_opcode_proof<C: Config>(
     order_idx: usize,
     // cs: // type constraint system // let cs = &ceno_constraint_system.vk.circuit_vks[sub_constraint_name].cs;
 ) {
-    builder.print_debug(1000000001);
-
     let one: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
     let zero: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
 
@@ -394,17 +392,6 @@ pub fn verify_opcode_proof<C: Config>(
     );
     let rt_non_lc_sumcheck: Array<C, Ext<C::F, C::EF>> = rt_tower.fs.clone().slice(builder, 0, log2_num_instances.clone());
 
-    // _debug
-    // builder.print_debug(33);
-    // let rt_tower_0 = builder.get(&rt_tower.fs, 0);
-    // let record_pt_eval_0 = builder.get(&record_evals, 0).eval;
-    // let logup_p_pt_eval_0 = builder.get(&logup_p_evals, 0).eval;
-    // let logup_q_pt_eval_0 = builder.get(&logup_q_evals, 0).eval;
-    // builder.print_e(rt_tower_0);
-    // builder.print_e(record_pt_eval_0);
-    // builder.print_e(logup_p_pt_eval_0);
-    // builder.print_e(logup_q_pt_eval_0);
-
     builder.assert_usize_eq(record_evals.len(), Usize::from(2));
     builder.assert_usize_eq(logup_q_evals.len(), Usize::from(1));
     builder.assert_usize_eq(logup_p_evals.len(), Usize::from(1));
@@ -477,15 +464,6 @@ pub fn verify_opcode_proof<C: Config>(
     let rt_lk_eq = rt_lk.slice(builder, 0, log2_lk_count.clone());
     let eq_lk = build_eq_x_r_vec_sequential(builder, &rt_lk_eq);
 
-    // _debug
-    // builder.print_debug(44);
-    // let eq_r_0 = builder.get(&eq_r, 0);
-    // let eq_w_0 = builder.get(&eq_w, 0);
-    // let eq_lk_0 = builder.get(&eq_lk, 0);
-    // builder.print_e(eq_r_0);
-    // builder.print_e(eq_w_0);
-    // builder.print_e(eq_lk_0);
-
     let rt_r_eq_less = rt_r.slice(builder, log2_r_count.clone(), rt_r.len());
     let rt_w_eq_less = rt_w.slice(builder, log2_w_count.clone(), rt_w.len());
     let rt_lk_eq_less = rt_lk.slice(builder, log2_lk_count.clone(), rt_lk.len());
@@ -511,12 +489,6 @@ pub fn verify_opcode_proof<C: Config>(
         &input_opening_point.fs,
         &rt_lk_eq_less,
     );
-
-    // _debug
-    // builder.print_debug(44);
-    // builder.print_e(sel_r);
-    // builder.print_e(sel_w);
-    // builder.print_e(sel_lk);
 
     let sel_non_lc_zero_sumcheck: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
 
@@ -690,7 +662,6 @@ pub fn verify_table_proof<C: Config>(
     order_idx: usize,
     // ceno_constraint_system: &ZKVMVerifier<E, Pcs>,
 ) {
-    builder.print_debug(2000000002);
     // let cs = ceno_constraint_system.vk.circuit_vks[table_name].get_cs();
     let is_skip_same_point_sumcheck: Usize<C::N> = Usize::from(1);
     let tower_proof = &table_proof.tower_proof;
@@ -738,6 +709,7 @@ pub fn verify_table_proof<C: Config>(
     //     builder.set(&expected_rounds, 2, Var::<C::N>::new(num_vars as u32));
     // });
 
+    // _debug
     let expected_rounds_usize = TABLE_CONSTANTS[order_idx - OPCODE_COUNTS].0;
     let expected_rounds: Array<C, Usize<C::N>> = builder.dyn_array(expected_rounds_usize.len());
     expected_rounds_usize.into_iter().enumerate().for_each(|(i, u)| {
@@ -745,12 +717,13 @@ pub fn verify_table_proof<C: Config>(
     });
     let max_expected_rounds = TABLE_CONSTANTS[order_idx - OPCODE_COUNTS].1;
 
+
+
     iter_zip!(builder, table_proof.rw_hints_num_vars_le_bytes).for_each(|ptr_vec, builder| {
         let v = builder.iter_ptr_get(&table_proof.rw_hints_num_vars_le_bytes, ptr_vec[0]);
         let f = builder.get(&v, 0);
         challenger.observe(builder, f);
     });
-
 
     let prod_out_evals: Array<C, Array<C, Ext<C::F, C::EF>>> = builder.dyn_array(table_proof.r_out_evals.len());
     builder.range_with_step(0, table_proof.r_out_evals.len().clone(), C::N::from_canonical_usize(2)).for_each(|idx_vec, builder| {
@@ -815,17 +788,6 @@ pub fn verify_table_proof<C: Config>(
             logup_specs_eval: tower_proof.logup_specs_eval.clone(),
         }
     );
-
-    // _debug
-    // builder.print_debug(33);
-    // let rt_tower_0 = builder.get(&rt_tower.fs, 0);
-    // let prod_point_and_eval_0 = builder.get(&prod_point_and_eval, 0).eval;
-    // let logup_p_point_and_eval_0 = builder.get(&logup_p_point_and_eval, 0).eval;
-    // let logup_q_point_and_eval_0 = builder.get(&logup_q_point_and_eval, 0).eval;
-    // builder.print_e(rt_tower_0);
-    // builder.print_e(prod_point_and_eval_0);
-    // builder.print_e(logup_p_point_and_eval_0);
-    // builder.print_e(logup_q_point_and_eval_0);
 
     // _debug
     // builder.assert_usize_eq(logup_q_point_and_eval.len(), Usize::from(cs.lk_table_expressions.len()));
@@ -927,6 +889,13 @@ pub fn verify_table_proof<C: Config>(
     //     builder.assert_ext_eq(eval, expected_eval);
     // }
 
+
+
+
+
+
+
+
     // TODO: PCS
     // // do optional check of fixed_commitment openings by vk
     // if circuit_vk.fixed_commit.is_some() {
@@ -935,6 +904,7 @@ pub fn verify_table_proof<C: Config>(
     //         "fixed openning proof shoudn't be none".into(),
     //     ));
     // };
+
     // PCS::simple_batch_verify(
     //     vp,
     //     circuit_vk.fixed_commit.as_ref().unwrap(),
