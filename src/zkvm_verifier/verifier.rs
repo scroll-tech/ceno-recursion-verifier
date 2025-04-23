@@ -161,7 +161,6 @@ pub fn verify_zkvm_proof<C: Config>(
         })
     });
 
-    // let alpha = challenger.sample_ext(builder);
     let alpha = transcript_group_sample_ext(builder, &mut challenger_group);
     let beta = transcript_group_sample_ext(builder, &mut challenger_group);
 
@@ -250,24 +249,24 @@ pub fn verify_zkvm_proof<C: Config>(
             // ceno_constraint_system,
         );
 
-        // let step = C::N::from_canonical_usize(4);
-        // builder
-        //     .range_with_step(0, table_proof.lk_out_evals.len(), step)
-        //     .for_each(|idx_vec, builder| {
-        //         let one_var: Var<C::N> = Var::<C::N>::new(1);
-        //         let p1 = builder.get(&table_proof.lk_out_evals, idx_vec[0]);
-        //         let p2_idx: Var<C::N> = builder.eval(idx_vec[0] + one_var);
-        //         let p2 = builder.get(&table_proof.lk_out_evals, p2_idx);
-        //         let q1_idx: Var<C::N> = builder.eval(p2_idx + one_var);
-        //         let q1 = builder.get(&table_proof.lk_out_evals, q1_idx);
-        //         let q2_idx: Var<C::N> = builder.eval(q1_idx + one_var);
-        //         let q2 = builder.get(&table_proof.lk_out_evals, q2_idx);
+        let step = C::N::from_canonical_usize(4);
+        builder
+            .range_with_step(0, table_proof.lk_out_evals.len(), step)
+            .for_each(|idx_vec, builder| {
+                let p2_idx: Usize<C::N> = builder.eval(idx_vec[0] + RVar::from(1));
+                let q1_idx: Usize<C::N> = builder.eval(p2_idx.clone() + RVar::from(1));
+                let q2_idx: Usize<C::N> = builder.eval(q1_idx.clone() + RVar::from(1));
 
-        //         builder.assign(
-        //             &logup_sum,
-        //             logup_sum - p1 * q1.inverse() - p2 * q2.inverse(),
-        //         );
-        //     });
+                let p1 = builder.get(&table_proof.lk_out_evals, idx_vec[0]);
+                let p2 = builder.get(&table_proof.lk_out_evals, p2_idx);
+                let q1 = builder.get(&table_proof.lk_out_evals, q1_idx);
+                let q2 = builder.get(&table_proof.lk_out_evals, q2_idx);
+                
+                builder.assign(
+                    &logup_sum,
+                    logup_sum - p1 * q1.inverse() - p2 * q2.inverse(),
+                );
+            });
 
         let w_out_evals_prod = product(builder, &table_proof.w_out_evals);
         builder.assign(&prod_w, prod_w * w_out_evals_prod);
@@ -887,13 +886,6 @@ pub fn verify_table_proof<C: Config>(
     //     let expected_eval = builder.get(pi_evals, idx);
     //     builder.assert_ext_eq(eval, expected_eval);
     // }
-
-
-
-
-
-
-
 
     // TODO: PCS
     // // do optional check of fixed_commitment openings by vk
