@@ -84,6 +84,10 @@ impl<C: Config> DenseMatrixVariable<C> {
     }
 }
 
+pub fn get_rate_log<C: Config>() -> Usize<C::N> {
+    Usize::from(1)
+}
+
 /*
 /// The DIT FFT algorithm.
 #[derive(DslVariable, Clone)]
@@ -124,10 +128,6 @@ pub struct RSCodeVerifierParametersVariable<C: Config> {
     pub dft: Radix2DitVariable<C>,
     pub t_inv_halves: Array<C, Array<C, C::F>>,
     pub full_message_size_log: Usize<C::N>,
-}
-
-fn get_rate_log() -> usize {
-    1
 }
 
 pub(crate) fn encode_small<C: Config>(
