@@ -1,5 +1,6 @@
 use crate::json::parser::parse_zkvm_proof_json;
 use crate::tower_verifier::binding::F;
+use crate::transcript::transcript_observe_label;
 use crate::zkvm_verifier::binding::ZKVMProofInput;
 use crate::zkvm_verifier::verifier::verify_zkvm_proof;
 use ceno_emul::{IterAddresses, Program as CenoProgram, Word, WORD_SIZE};
@@ -96,12 +97,13 @@ fn build_constraint_system() -> ZKVMVerifier<E, Pcs> {
 
 #[allow(dead_code)]
 fn build_zkvm_proof_verifier_test() -> (Program<BabyBear>, Vec<Vec<BabyBear>>) {
-    let ceno_constraint_system = build_constraint_system();
+    // let ceno_constraint_system = build_constraint_system();
 
     // OpenVM DSL
     let engine = default_engine();
     let mut builder = AsmBuilder::<F, EF>::default();
     let mut challenger = DuplexChallengerVariable::new(&mut builder);
+    transcript_observe_label(&mut builder, &mut challenger, b"riscv");
 
     // Obtain witness inputs
     let zkvm_proof_input_variables = ZKVMProofInput::read(&mut builder);
@@ -109,7 +111,7 @@ fn build_zkvm_proof_verifier_test() -> (Program<BabyBear>, Vec<Vec<BabyBear>>) {
         &mut builder,
         &mut challenger,
         zkvm_proof_input_variables,
-        &ceno_constraint_system,
+        // &ceno_constraint_system,
     );
     builder.halt();
 
@@ -139,5 +141,5 @@ fn test_zkvm_proof_verifier() {
     let config = NativeConfig::new(system_config, Native);
 
     let executor = VmExecutor::<BabyBear, NativeConfig>::new(config);
-    // executor.execute(program, witness).unwrap();
+    executor.execute(program, witness).unwrap();
 }

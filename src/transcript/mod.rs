@@ -1,14 +1,7 @@
 use ff_ext::{BabyBearExt4, ExtensionField as CenoExtensionField, SmallField};
-use openvm_native_compiler::asm::AsmConfig;
 use openvm_native_compiler::prelude::*;
-use openvm_native_recursion::{
-    challenger::ChallengerVariable,
-    hints::{Hintable, InnerChallenge, InnerVal, VecAutoHintable},
-};
-use p3_field::ExtensionField;
-use p3_field::{
-    Field as Plonky3Field, FieldAlgebra, FieldExtensionAlgebra, PackedValue, TwoAdicField,
-};
+use openvm_native_recursion::challenger::ChallengerVariable;
+use p3_field::FieldAlgebra;
 
 pub fn transcript_observe_label<C: Config>(
     builder: &mut Builder<C>,

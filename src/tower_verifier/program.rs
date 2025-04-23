@@ -4,7 +4,7 @@ use super::binding::{
 };
 use crate::arithmetics::{
     dot_product, dot_product_pt_n_eval, eq_eval, evaluate_at_point, gen_alpha_pows, join, product,
-    reverse,
+    reverse, is_smaller_than,
 };
 use crate::tower_verifier;
 use crate::transcript::transcript_observe_label;
@@ -54,7 +54,7 @@ const MAX_DEGREE: usize = 3;
 //
 pub(crate) fn interpolate_uni_poly<C: Config>(
     builder: &mut Builder<C>,
-    p_i: Array<C, Ext<C::F, C::EF>>,
+    p_i: &Array<C, Ext<C::F, C::EF>>,
     eval_at: Ext<C::F, C::EF>,
 ) -> Ext<C::F, C::EF> {
     let len = p_i.len();
@@ -129,23 +129,23 @@ pub fn iop_verifier_state_verify<C: Config>(
     out_claim: &Ext<C::F, C::EF>,
     prover_messages: &Array<C, IOPProverMessageVariable<C>>,
     max_num_variables: Felt<C::F>,
-    max_num_variables_var: Var<C::N>,
     max_degree: Felt<C::F>,
 ) -> (
     Array<C, Ext<<C as Config>::F, <C as Config>::EF>>,
     Ext<<C as Config>::F, <C as Config>::EF>,
 ) {
+    let max_num_variables_usize: Usize<C::N> = Usize::from(builder.cast_felt_to_var(max_num_variables.clone()));
     challenger.observe(builder, max_num_variables);
     challenger.observe(builder, max_degree);
 
     let one: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
     let round: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
     let polynomials_received: Array<C, Array<C, Ext<C::F, C::EF>>> =
-        builder.dyn_array(max_num_variables_var);
-    let challenges: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(max_num_variables_var);
+        builder.dyn_array(max_num_variables_usize.clone());
+    let challenges: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(max_num_variables_usize.clone());
 
     builder
-        .range(0, max_num_variables_var)
+        .range(0, max_num_variables_usize.clone())
         .for_each(|i_vec, builder| {
             let i = i_vec[0];
             let prover_msg = builder.get(&prover_messages, i);
@@ -158,8 +158,6 @@ pub fn iop_verifier_state_verify<C: Config>(
 
             transcript_observe_label(builder, challenger, b"Internal round");
             let challenge = challenger.sample_ext(builder);
-            // let challenger_felts = builder.ext2felt(challenge);
-            // challenger.observe_slice(builder, challenger_felts);
 
             builder.set(&challenges, i, challenge);
             builder.set(&polynomials_received, i, prover_msg.evaluations);
@@ -186,7 +184,7 @@ pub fn iop_verifier_state_verify<C: Config>(
         let c = builder.iter_ptr_get(&challenges, c_ptr);
 
         let expected_ptr = idx_vec[2];
-        let expected = interpolate_uni_poly(builder, evaluations, c);
+        let expected = interpolate_uni_poly(builder, &evaluations, c);
 
         builder.iter_ptr_set(&truncated_expected_vec, expected_ptr, expected);
     });
@@ -203,28 +201,9 @@ pub fn iop_verifier_state_verify<C: Config>(
         builder.assert_ext_eq(expected, target);
     });
 
-    let expected = builder.get(&expected_vec, max_num_variables_var);
+    let expected = builder.get(&expected_vec, max_num_variables_usize);
 
     (challenges, expected)
-}
-
-fn is_valid_round<C: Config>(
-    builder: &mut Builder<C>,
-    round_var: RVar<C::N>,
-    round_limit: Var<<C as Config>::N>,
-    max_round: RVar<C::N>,
-) -> Ext<C::F, C::EF> {
-    let res: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
-
-    let diff: RVar<C::N> = builder.eval_expr(round_var - round_limit);
-    builder.range(0, max_round).for_each(|idx_vec, builder| {
-        builder.if_eq(diff, idx_vec[0]).then(|builder| {
-            let zero: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
-            builder.assign(&res, zero);
-        });
-    });
-
-    res
 }
 
 pub fn verify_tower_proof<C: Config>(
@@ -266,11 +245,11 @@ pub fn verify_tower_proof<C: Config>(
         builder.assert_usize_eq(evals.len(), RVar::from(4));
     });
 
-    let alpha_len: Var<C::N> =
+    let alpha_len: Usize<C::N> =
         builder.eval(num_prod_spec.clone() + num_logup_spec.clone() + num_logup_spec.clone());
 
     transcript_observe_label(builder, challenger, b"combine subset evals");
-    let alpha_pows = gen_alpha_pows(builder, challenger, alpha_len);
+    let alpha_pows = gen_alpha_pows(builder, challenger, alpha_len.clone());
 
     // initial_claim = \sum_j alpha^j * out_j[rt]
     // out_j[rt] := (record_{j}[rt])
@@ -286,10 +265,6 @@ pub fn verify_tower_proof<C: Config>(
             let c = challenger.sample_ext(builder);
             builder.set(&initial_rt, idx, c);
         });
-
-    // _debug
-    // let prod_spec_point_n_eval: Array<C, Ext<C::F, C::EF>> =
-    //     builder.dyn_array(num_prod_spec.clone());
 
     let prod_spec_point_n_eval: Array<C, PointAndEvalVariable<C>> =
         builder.dyn_array(num_prod_spec.clone());
@@ -315,11 +290,6 @@ pub fn verify_tower_proof<C: Config>(
         );
     });
 
-    // _debug
-    // let logup_spec_p_point_n_eval: Array<C, Ext<C::F, C::EF>> =
-    //     builder.dyn_array(num_logup_spec.clone());
-    // let logup_spec_q_point_n_eval: Array<C, Ext<C::F, C::EF>> =
-    //     builder.dyn_array(num_logup_spec.clone());
     let logup_spec_p_point_n_eval: Array<C, PointAndEvalVariable<C>> =
         builder.dyn_array(num_logup_spec.clone());
     let logup_spec_q_point_n_eval: Array<C, PointAndEvalVariable<C>> =
@@ -390,9 +360,9 @@ pub fn verify_tower_proof<C: Config>(
     let initial_claim: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
     builder.assign(&initial_claim, prod_sub_sum + logup_sub_sum);
 
-    let mut curr_pt = initial_rt.clone();
-    let mut curr_eval = initial_claim.clone();
-    let op_range = builder.eval_expr(tower_verifier_input.max_num_variables - RVar::from(1));
+    let curr_pt = initial_rt.clone();
+    let curr_eval = initial_claim.clone();
+    let op_range: RVar<C::N> = builder.eval_expr(tower_verifier_input.max_num_variables - Usize::from(1));
     let round: Felt<C::F> = builder.constant(C::F::ZERO);
     let one: Ext<<C as Config>::F, <C as Config>::EF> = builder.constant(C::EF::ONE);
 
@@ -402,8 +372,10 @@ pub fn verify_tower_proof<C: Config>(
         },
         eval: builder.constant(C::EF::ZERO),
     };
-    builder.range(0, op_range).for_each(|i_vec, builder| {
+
+    builder.range(0, op_range.clone()).for_each(|i_vec, builder| {
         let round_var = i_vec[0];
+
         let out_rt = &curr_pt;
         let out_claim = &curr_eval;
 
@@ -411,16 +383,15 @@ pub fn verify_tower_proof<C: Config>(
 
         let max_num_variables: Felt<C::F> = builder.constant(C::F::ONE);
         builder.assign(&max_num_variables, max_num_variables + round);
-        let max_num_variables_var: Var<C::N> = builder.eval(round_var + Var::<C::N>::new(1));
 
         let max_degree = builder.constant(C::F::from_canonical_usize(3));
+
         let (sub_rt, sub_e) = iop_verifier_state_verify(
             builder,
             challenger,
             out_claim,
             &prover_messages,
             max_num_variables,
-            max_num_variables_var,
             max_degree,
         );
 
@@ -432,17 +403,16 @@ pub fn verify_tower_proof<C: Config>(
                 let eq_e = eq_eval(builder, &out_rt, &sub_rt);
                 let alpha = builder.get(&alpha_pows, spec_index.clone());
                 let max_round = builder.get(&tower_verifier_input.num_variables, spec_index);
-                let round_limit: Var<<C as Config>::N> = builder.eval(max_round - RVar::from(1));
+                let round_limit: RVar<C::N> = builder.eval_expr(max_round - RVar::from(1));
 
                 let prod: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
 
-                builder.if_ne(round_var, round_limit).then(|builder| {
-                    let valid_round_coeff: Ext<C::F, C::EF> =
-                        is_valid_round(builder, round_var, round_limit, op_range);
+                let is_smaller = is_smaller_than(builder, round_var, round_limit);
+                builder.if_eq(is_smaller, RVar::from(1)).then(|builder| {
                     let prod_slice = builder.get(&tower_verifier_input.prod_specs_eval, spec_index);
                     let prod_round_slice = builder.get(&prod_slice, round_var);
                     let pdt = product(builder, &prod_round_slice);
-                    builder.assign(&prod, pdt * valid_round_coeff);
+                    builder.assign(&prod, pdt);
                 });
 
                 builder.assign(
@@ -473,14 +443,13 @@ pub fn verify_tower_proof<C: Config>(
                 let alpha_denominator = builder.get(&logup_alpha_pows_slice, alpha_denominator_idx);
 
                 let max_round = builder.get(&logup_num_variables_slice, spec_index);
-                let round_limit: Var<<C as Config>::N> = builder.eval(max_round - RVar::from(1));
+                let round_limit: RVar<C::N> = builder.eval_expr(max_round - RVar::from(1));
 
                 let eq_e = eq_eval(builder, &out_rt, &sub_rt);
                 let prod: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
 
-                builder.if_ne(round_var, round_limit).then(|builder| {
-                    let valid_round_coeff: Ext<C::F, C::EF> =
-                        is_valid_round(builder, round_var, round_limit, op_range);
+                let is_smaller = is_smaller_than(builder, round_var, round_limit);
+                builder.if_eq(is_smaller, RVar::from(1)).then(|builder| {
                     let prod_slice =
                         builder.get(&tower_verifier_input.logup_specs_eval, spec_index);
                     let prod_round_slice = builder.get(&prod_slice, round_var);
@@ -492,8 +461,7 @@ pub fn verify_tower_proof<C: Config>(
 
                     builder.assign(
                         &prod,
-                        (alpha_numerator * (p1 * q2 + p2 * q1) + alpha_denominator * (q1 * q2))
-                            * valid_round_coeff,
+                        alpha_numerator * (p1 * q2 + p2 * q1) + alpha_denominator * (q1 * q2),
                     );
                 });
 
@@ -507,6 +475,7 @@ pub fn verify_tower_proof<C: Config>(
         // r_merge.len() == ceil_log2(num_product_fanin)
         transcript_observe_label(builder, challenger, b"merge");
         let r_merge = challenger.sample_ext(builder);
+
         let coeffs: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(num_fanin);
         let one: Ext<<C as Config>::F, <C as Config>::EF> = builder.constant(C::EF::ONE);
         let c1: Ext<<C as Config>::F, <C as Config>::EF> = builder.eval(one - r_merge.clone());
@@ -519,11 +488,12 @@ pub fn verify_tower_proof<C: Config>(
         let rt_prime = join(builder, &sub_rt, &r_merge_arr);
 
         // generate next round challenge
-        let next_alpha_len: Var<C::N> =
+        let next_alpha_len: Usize<C::N> =
             builder.eval(num_prod_spec.clone() + num_logup_spec.clone() + num_logup_spec.clone());
         transcript_observe_label(builder, challenger, b"combine subset evals");
-        let next_alpha_pows = gen_alpha_pows(builder, challenger, next_alpha_len);
+        let next_alpha_pows = gen_alpha_pows(builder, challenger, next_alpha_len.clone());
         let next_round = builder.eval_expr(round_var + RVar::from(1));
+
         let next_prod_spec_evals: Ext<<C as Config>::F, <C as Config>::EF> =
             builder.constant(C::EF::ZERO);
         builder
@@ -531,21 +501,30 @@ pub fn verify_tower_proof<C: Config>(
             .for_each(|i_vec, builder| {
                 let spec_index = i_vec[0];
                 let alpha = builder.get(&next_alpha_pows, spec_index.clone());
+
                 let max_round =
                     builder.get(&tower_verifier_input.num_variables, spec_index.clone());
-                let round_limit: Var<<C as Config>::N> = builder.eval(max_round - RVar::from(1));
+                let round_limit: RVar<C::N> = builder.eval_expr(max_round - RVar::from(1));
 
-                builder.if_ne(round_var, round_limit).then(|builder| {
+                let is_smaller = is_smaller_than(builder, round_var, round_limit.clone());
+                builder.if_eq(is_smaller, RVar::from(1)).then(|builder| {
                     let prod_slice = builder.get(&tower_verifier_input.prod_specs_eval, spec_index);
                     let prod_round_slice = builder.get(&prod_slice, round_var);
                     let evals = dot_product(builder, &prod_round_slice, &coeffs);
 
-                    builder.if_ne(next_round, round_limit).then(|builder| {
-                        builder.assign(&next_prod_spec_evals, next_prod_spec_evals + evals * alpha);
+                    builder.set(&prod_spec_point_n_eval, spec_index, PointAndEvalVariable {
+                        point: PointVariable { fs: rt_prime.clone() },
+                        eval: evals,
+                    });
+
+                    let is_next_smaller = is_smaller_than(builder, next_round, round_limit);
+                    builder.if_eq(is_next_smaller, RVar::from(1)).then(|builder| {
+                        let new_subsum: Ext<C::F, C::EF> = builder.eval(evals * alpha);
+                        builder.assign(&next_prod_spec_evals, next_prod_spec_evals + new_subsum);
                     });
                 });
             });
-
+            
         let next_logup_spec_evals: Ext<<C as Config>::F, <C as Config>::EF> =
             builder.constant(C::EF::ZERO);
         let logup_next_alpha_pows_slice =
@@ -561,9 +540,10 @@ pub fn verify_tower_proof<C: Config>(
             .for_each(|i_vec, builder| {
                 let spec_index = i_vec[0];
                 let max_round = builder.get(&logup_num_variables_slice, spec_index);
-                let round_limit: Var<<C as Config>::N> = builder.eval(max_round - RVar::from(1));
+                let round_limit: RVar<C::N> = builder.eval_expr(max_round - RVar::from(1));
 
-                builder.if_ne(round_var, round_limit).then(|builder| {
+                let is_smaller = is_smaller_than(builder, round_var, round_limit);
+                builder.if_eq(is_smaller, RVar::from(1)).then(|builder| {
                     let alpha_numerator_idx = builder.eval_expr(spec_index * RVar::from(2));
                     let alpha_denominator_idx =
                         builder.eval_expr(spec_index * RVar::from(2) + RVar::from(1));
@@ -589,7 +569,17 @@ pub fn verify_tower_proof<C: Config>(
                     builder.assign(&p_eval, p1 * c1 + p2 * c2);
                     builder.assign(&q_eval, q1 * c1 + q2 * c2);
 
-                    builder.if_ne(next_round, round_limit).then(|builder| {
+                    builder.set(&logup_spec_p_point_n_eval, spec_index, PointAndEvalVariable {
+                        point: PointVariable { fs: rt_prime.clone() },
+                        eval: p_eval,
+                    });
+                    builder.set(&logup_spec_q_point_n_eval, spec_index, PointAndEvalVariable {
+                        point: PointVariable { fs: rt_prime.clone() },
+                        eval: q_eval,
+                    });
+
+                    let is_next_smaller = is_smaller_than(builder, next_round, round_limit);
+                    builder.if_eq(is_next_smaller, RVar::from(1)).then(|builder| {
                         builder.assign(
                             &next_logup_spec_evals,
                             next_logup_spec_evals
@@ -597,7 +587,7 @@ pub fn verify_tower_proof<C: Config>(
                                 + alpha_denominator * q_eval,
                         );
                     });
-                });
+                })
             });
 
         iter_zip!(builder, alpha_pows, next_alpha_pows).for_each(|ptr_vec, builder| {
@@ -605,7 +595,11 @@ pub fn verify_tower_proof<C: Config>(
             builder.iter_ptr_set(&alpha_pows, ptr_vec[0], new_alpha);
         });
 
-        // let next_eval: Ext<C::F, C::EF> = builder.eval_ex[r(next_prod_spec_evals + next_logup_spec_evals);
+        // _debug
+        // builder.print_debug(101);
+        // builder.print_e(next_prod_spec_evals);
+        // builder.print_e(next_logup_spec_evals);
+
         builder.assign(&curr_pt, rt_prime.clone());
         builder.assign(&curr_eval, next_prod_spec_evals + next_logup_spec_evals);
         builder.assign(&round, round + C::F::ONE);
@@ -988,7 +982,7 @@ pub mod tests {
             num_proofs: 1usize,
             num_prod_specs: 1usize,
             num_logup_specs: 0usize,
-            max_num_variables: 2usize,
+            _max_num_variables: 2usize,
 
             proofs: vec![vec![IOPProverMessage {
                 evaluations: vec![
@@ -1090,7 +1084,7 @@ pub mod tests {
             num_proofs: parsed_zkvm_proof_fields.num_proofs,
             num_prod_specs: parsed_zkvm_proof_fields.num_prod_specs,
             num_logup_specs: parsed_zkvm_proof_fields.num_logup_specs,
-            max_num_variables: parsed_zkvm_proof_fields.max_num_variables,
+            _max_num_variables: parsed_zkvm_proof_fields.max_num_variables,
 
             proofs: parsed_zkvm_proof_fields.proofs,
             prod_specs_eval: parsed_zkvm_proof_fields.prod_specs_eval,

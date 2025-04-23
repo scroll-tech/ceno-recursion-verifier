@@ -1,8 +1,6 @@
-use std::os::unix::raw::pid_t;
-
-use crate::tower_verifier::binding::{IOPProverMessage, IOPProverMessageVariable};
+use crate::{arithmetics::ceil_log2, tower_verifier::binding::{IOPProverMessage, IOPProverMessageVariable}};
 use ff_ext::BabyBearExt4;
-use mpcs::{Basefold, BasefoldCommitment, BasefoldRSParams};
+use mpcs::BasefoldCommitment;
 use openvm_native_compiler::{
     asm::AsmConfig,
     ir::{Array, Builder, Config, Felt},
@@ -11,7 +9,8 @@ use openvm_native_compiler::{
 use openvm_native_compiler_derive::iter_zip;
 use openvm_native_recursion::hints::{Hintable, VecAutoHintable};
 use openvm_stark_sdk::p3_baby_bear::BabyBear;
-use p3_field::{extension::BinomialExtensionField, FieldAlgebra, FieldExtensionAlgebra};
+use p3_field::{extension::BinomialExtensionField, FieldAlgebra};
+use crate::arithmetics::next_pow2_instance_padding;
 
 pub type F = BabyBear;
 pub type E = BinomialExtensionField<F, 4>;
@@ -41,7 +40,9 @@ pub struct TowerProofInputVariable<C: Config> {
 pub struct ZKVMOpcodeProofInputVariable<C: Config> {
     pub idx: Usize<C::N>,
     pub idx_felt: Felt<C::F>,
-    pub num_instances: Var<C::N>,
+    pub num_instances: Usize<C::N>,
+    pub num_instances_minus_one_bit_decomposition: Array<C, Felt<C::F>>,
+    pub log2_num_instances: Usize<C::N>,
 
     pub record_r_out_evals: Array<C, Ext<C::F, C::EF>>,
     pub record_w_out_evals: Array<C, Ext<C::F, C::EF>>,
@@ -253,7 +254,9 @@ impl Hintable<InnerConfig> for ZKVMOpcodeProofInput {
     fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
         let idx = Usize::Var(usize::read(builder));
         let idx_felt = F::read(builder);
-        let num_instances = usize::read(builder);
+        let num_instances = Usize::Var(usize::read(builder));
+        let num_instances_minus_one_bit_decomposition = Vec::<F>::read(builder);
+        let log2_num_instances = Usize::Var(usize::read(builder));
         let record_r_out_evals = Vec::<E>::read(builder);
         let record_w_out_evals = Vec::<E>::read(builder);
         let lk_p1_out_eval = E::read(builder);
@@ -272,6 +275,8 @@ impl Hintable<InnerConfig> for ZKVMOpcodeProofInput {
             idx,
             idx_felt,
             num_instances,
+            num_instances_minus_one_bit_decomposition,
+            log2_num_instances,
             record_r_out_evals,
             record_w_out_evals,
             lk_p1_out_eval,
@@ -296,6 +301,18 @@ impl Hintable<InnerConfig> for ZKVMOpcodeProofInput {
         stream.extend(idx_u32.write());
 
         stream.extend(<usize as Hintable<InnerConfig>>::write(&self.num_instances));
+
+        let eq_instance = self.num_instances - 1;
+        let mut bit_decomp: Vec<F> = vec![];
+        for i in 0..32usize {
+            bit_decomp.push(F::from_canonical_usize((eq_instance >> i) & 1));
+        }
+        stream.extend(bit_decomp.write());
+
+        let next_pow2_instance = next_pow2_instance_padding(self.num_instances);
+        let log2_num_instances = ceil_log2(next_pow2_instance);
+        stream.extend(<usize as Hintable<InnerConfig>>::write(&log2_num_instances));
+
         stream.extend(self.record_r_out_evals.write());
         stream.extend(self.record_w_out_evals.write());
         stream.extend(<E as Hintable<InnerConfig>>::write(&self.lk_p1_out_eval));
