@@ -166,7 +166,7 @@ pub fn parse_zkvm_proof_json() -> ZKVMProofInput {
     let mut opcode_proofs_vec: Vec<ZKVMOpcodeProofInput> = vec![];
     // Parse out each opcode proof
     for key in OPCODE_KEYS {
-        let idx_op_proof = Value::as_array(opcode_proofs.get(key).unwrap()).unwrap();
+        let idx_op_proof = Value::as_array(opcode_proofs.get(key.2).unwrap()).unwrap();
         let idx: usize = serde_json::from_value(idx_op_proof[0].clone()).unwrap();
 
         let op_proof = &idx_op_proof[1];
@@ -321,7 +321,7 @@ pub fn parse_zkvm_proof_json() -> ZKVMProofInput {
     let mut table_proofs_vec: Vec<ZKVMTableProofInput> = vec![];
     // Parse out each table proof
     for key in TABLE_KEYS {
-        let idx_table_proof = Value::as_array(table_proofs.get(key).unwrap()).unwrap();
+        let idx_table_proof = Value::as_array(table_proofs.get(key.2).unwrap()).unwrap();
         let idx: usize = serde_json::from_value(idx_table_proof[0].clone()).unwrap();
 
         let table_proof = &idx_table_proof[1];

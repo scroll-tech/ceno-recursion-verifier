@@ -102,14 +102,11 @@ fn build_zkvm_proof_verifier_test() -> (Program<BabyBear>, Vec<Vec<BabyBear>>) {
     // OpenVM DSL
     let engine = default_engine();
     let mut builder = AsmBuilder::<F, EF>::default();
-    let mut challenger = DuplexChallengerVariable::new(&mut builder);
-    transcript_observe_label(&mut builder, &mut challenger, b"riscv");
 
     // Obtain witness inputs
     let zkvm_proof_input_variables = ZKVMProofInput::read(&mut builder);
     verify_zkvm_proof(
         &mut builder,
-        &mut challenger,
         zkvm_proof_input_variables,
         // &ceno_constraint_system,
     );

@@ -4,7 +4,7 @@ use super::binding::{
     ZKVMOpcodeProofInputVariable, ZKVMProofInputVariable, ZKVMTableProofInputVariable,
 };
 use crate::arithmetics::{evaluate_ceno_expr, pow_of_2};
-use crate::constants::{OPCODE_KEYS, TABLE_KEYS};
+use crate::constants::{OPCODE_CS_COUNTS, OPCODE_KEYS, TABLE_KEYS};
 use crate::tower_verifier::program::verify_tower_proof;
 use crate::transcript::transcript_observe_label;
 use crate::{
@@ -25,12 +25,14 @@ use itertools::max;
 use openvm_native_compiler::prelude::*;
 use openvm_native_compiler::{asm::AsmConfig, ir::MemVariable};
 use openvm_native_compiler_derive::iter_zip;
+use openvm_native_recursion::challenger;
 use openvm_native_recursion::{
     challenger::{
         duplex::DuplexChallengerVariable, CanObserveVariable, ChallengerVariable, FeltChallenger,
     },
     hints::{InnerChallenge, InnerVal},
 };
+use p3_challenger::DuplexChallenger;
 use p3_field::{dot_product, FieldAlgebra, FieldExtensionAlgebra};
 use itertools::interleave;
 
@@ -51,12 +53,51 @@ const DIGEST_WIDTH: usize = 8;
 const MAINCONSTRAIN_SUMCHECK_BATCH_SIZE: usize = 3; // read/write/lookup
 const SEL_DEGREE: usize = 2;
 
+pub fn transcript_group_observe_label<C: Config>(
+    builder: &mut Builder<C>,
+    challenger_group: &mut Vec<DuplexChallengerVariable<C>>,
+    label: &[u8],
+) {
+    for t in challenger_group {
+        transcript_observe_label(builder, t, label);
+    }
+}
+
+pub fn transcript_group_observe_f<C: Config>(
+    builder: &mut Builder<C>,
+    challenger_group: &mut Vec<DuplexChallengerVariable<C>>,
+    f: Felt<C::F>,
+) {
+    for t in challenger_group {
+        t.observe(builder, f);
+    }
+}
+
+pub fn transcript_group_sample_ext<C: Config>(
+    builder: &mut Builder<C>,
+    challenger_group: &mut Vec<DuplexChallengerVariable<C>>,
+) -> Ext<C::F, C::EF> {
+    let e: Ext<C::F, C::EF> = challenger_group[0].sample_ext(builder);
+
+    challenger_group.into_iter().skip(1).for_each(|c| {
+        c.sample_ext(builder);
+    });
+
+    e
+}
+
 pub fn verify_zkvm_proof<C: Config>(
     builder: &mut Builder<C>,
-    challenger: &mut DuplexChallengerVariable<C>,
     zkvm_proof_input: ZKVMProofInputVariable<C>,
     // ceno_constraint_system: &ZKVMVerifier<E, Pcs>,
 ) {
+    // Create multiple copies of challenger for forking
+    let mut challenger_group: Vec<DuplexChallengerVariable<C>> = vec![];
+    for _ in 0..(OPCODE_KEYS.len() + TABLE_KEYS.len()) {
+        challenger_group.push(DuplexChallengerVariable::new(builder));
+    }
+    transcript_group_observe_label(builder, &mut challenger_group, b"riscv");
+
     let one: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
     let zero: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
     let zero_f: Felt<C::F> = builder.constant(C::F::ZERO);
@@ -68,7 +109,7 @@ pub fn verify_zkvm_proof<C: Config>(
         let v = builder.iter_ptr_get(&zkvm_proof_input.raw_pi, ptr_vec[0]);
         iter_zip!(builder, v).for_each(|inner_ptr_vec, builder| {
             let f = builder.iter_ptr_get(&v, inner_ptr_vec[0]);
-            challenger.observe(builder, f);
+            transcript_group_observe_f(builder, &mut challenger_group, f);
         })
     });
 
@@ -92,7 +133,7 @@ pub fn verify_zkvm_proof<C: Config>(
 
         iter_zip!(builder, cmt).for_each(|inner_ptr_vec, builder| {
             let f = builder.iter_ptr_get(&cmt, inner_ptr_vec[0]);
-            challenger.observe(builder, f);
+            transcript_group_observe_f(builder, &mut challenger_group, f);
         })
     });
 
@@ -104,7 +145,7 @@ pub fn verify_zkvm_proof<C: Config>(
 
         iter_zip!(builder, cmt).for_each(|inner_ptr_vec, builder| {
             let f = builder.iter_ptr_get(&cmt, inner_ptr_vec[0]);
-            challenger.observe(builder, f);
+            transcript_group_observe_f(builder, &mut challenger_group, f);
         })
     });
 
@@ -116,12 +157,13 @@ pub fn verify_zkvm_proof<C: Config>(
 
         iter_zip!(builder, cmt).for_each(|inner_ptr_vec, builder| {
             let f = builder.iter_ptr_get(&cmt, inner_ptr_vec[0]);
-            challenger.observe(builder, f);
+            transcript_group_observe_f(builder, &mut challenger_group, f);
         })
     });
 
-    let alpha = challenger.sample_ext(builder);
-    let beta = challenger.sample_ext(builder);
+    // let alpha = challenger.sample_ext(builder);
+    let alpha = transcript_group_sample_ext(builder, &mut challenger_group);
+    let beta = transcript_group_sample_ext(builder, &mut challenger_group);
 
     let challenges: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(2);
     builder.set(&challenges, 0, alpha.clone());
@@ -131,41 +173,40 @@ pub fn verify_zkvm_proof<C: Config>(
     let dummy_table_item_multiplicity: Var<C::N> = Var::<C::N>::new(0);
     let dummy_table_item_multiplicity_ext: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
 
-
     let order_arr: Array<C, Usize<C::N>> = builder.uninit_fixed_array(64);
     for i in 0..64 {
         builder.set(&order_arr, i, Usize::from(i));
     }
 
-
-    OPCODE_KEYS.iter().enumerate().for_each(|(order_idx, opcode_name)| {
+    OPCODE_KEYS.into_iter().enumerate().for_each(|(_, (opcode_idx, order_idx, opcode_name))| {
         let opcode_proof = builder.get(&zkvm_proof_input.opcode_proofs, order_idx);
         let idx = opcode_proof.idx.clone();
         let circuit_vk = builder.get(&zkvm_proof_input.circuit_vks_fixed_commits, idx);
 
-        // Construct a forked challenger
-        let mut forked_challenger = (*challenger).clone();
-        forked_challenger.observe(builder, opcode_proof.idx_felt);
+        let forked_challenger = &mut challenger_group[order_idx];
+        let fork_f: Felt<C::F> = builder.constant(C::F::from_canonical_usize(opcode_idx));
+        forked_challenger.observe(builder, fork_f);
 
         verify_opcode_proof(
             builder,
-            &mut forked_challenger,
+            forked_challenger,
             circuit_vk,
             &opcode_proof,
             &zkvm_proof_input.pi_evals,
             &challenges,
+            // _debug
             order_idx,
             // ceno_constraint_system,
         );
 
-        // let cs = ceno_constraint_system.vk.circuit_vks[opcode_name].get_cs();
-        // let num_lks = cs.lk_expressions.len();
-        // let num_padded_lks_per_instance = next_pow2_instance_padding(num_lks) - num_lks;
-        // let num_padded_instance = next_pow2_instance_padding(opcode_proof.num_instances.0 as usize) - opcode_proof.num_instances.0 as usize;
-        // let new_multiplicity = num_padded_lks_per_instance * (opcode_proof.num_instances.0 as usize) + num_lks.next_power_of_two() * num_padded_instance;
+        // // let cs = ceno_constraint_system.vk.circuit_vks[opcode_name].get_cs();
+        // // let num_lks = cs.lk_expressions.len();
+        // // let num_padded_lks_per_instance = next_pow2_instance_padding(num_lks) - num_lks;
+        // // let num_padded_instance = next_pow2_instance_padding(opcode_proof.num_instances.0 as usize) - opcode_proof.num_instances.0 as usize;
+        // // let new_multiplicity = num_padded_lks_per_instance * (opcode_proof.num_instances.0 as usize) + num_lks.next_power_of_two() * num_padded_instance;
 
-        // builder.assign(&dummy_table_item_multiplicity, dummy_table_item_multiplicity + Var::<C::N>::new(new_multiplicity as u32));
-        // builder.assign(&dummy_table_item_multiplicity_ext, dummy_table_item_multiplicity_ext + Ext::<C::F, C::EF>::new(new_multiplicity as u32));
+        // // builder.assign(&dummy_table_item_multiplicity, dummy_table_item_multiplicity + Var::<C::N>::new(new_multiplicity as u32));
+        // // builder.assign(&dummy_table_item_multiplicity_ext, dummy_table_item_multiplicity_ext + Ext::<C::F, C::EF>::new(new_multiplicity as u32));
 
         let record_r_out_evals_prod = product(builder, &opcode_proof.record_r_out_evals);
         builder.assign(&prod_r, prod_r * record_r_out_evals_prod);
@@ -273,26 +314,14 @@ pub fn verify_opcode_proof<C: Config>(
     opcode_proof: &ZKVMOpcodeProofInputVariable<C>,
     pi_evals: &Array<C, Ext<C::F, C::EF>>,
     challenges: &Array<C, Ext<C::F, C::EF>>,
+    // _debug
     order_idx: usize,
-    // ceno_constraint_system: &ZKVMVerifier<E, Pcs>,
+    // cs: // type constraint system // let cs = &ceno_constraint_system.vk.circuit_vks[sub_constraint_name].cs;
 ) {
     builder.print_debug(1000000001);
-    builder.print_debug(order_idx);
-
-    if order_idx > 0 {
-        // _DEBUG: OPENVM
-        let test = challenger.sample_ext(builder);
-        builder.print_debug(171);
-        builder.print_e(test);
-    }
-    
 
     let one: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
     let zero: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
-
-    // _debug
-    let sub_constraint_name = OPCODE_KEYS[order_idx];
-    // let cs = &ceno_constraint_system.vk.circuit_vks[sub_constraint_name].cs;
 
     // _debug: recover
     // let r_len = cs.r_expressions.len();
@@ -300,9 +329,10 @@ pub fn verify_opcode_proof<C: Config>(
     // let lk_len = cs.lk_expressions.len();
 
     // _debug
-    let r_len = 4usize;
-    let w_len = 4usize;
-    let lk_len = 9usize;
+    let counts = OPCODE_CS_COUNTS[order_idx];
+    let r_len = counts[0];
+    let w_len = counts[1];
+    let lk_len = counts[2];
 
     let max_expr_len = *max([r_len, w_len, lk_len].iter()).unwrap();
 
@@ -369,15 +399,8 @@ pub fn verify_opcode_proof<C: Config>(
 
     // _debug
     // builder.print_debug(33);
-    // let fs= RVar::from(rt_tower.fs.len());
-    // builder.print_v(fs.variable());
-    // builder.print_debug(33);
 
     // _debug
-    // iter_zip!(builder, rt_tower.fs).for_each(|ptr_vec, builder| {
-    //     let e = builder.iter_ptr_get(&rt_tower.fs, ptr_vec[0]);
-    //     builder.print_e(e);
-    // });
     // let rt_tower_0 = builder.get(&rt_tower.fs, 0);
     // let record_pt_eval_0 = builder.get(&record_evals, 0).eval;
     // let logup_p_pt_eval_0 = builder.get(&logup_p_evals, 0).eval;
@@ -402,7 +425,7 @@ pub fn verify_opcode_proof<C: Config>(
 
     // _debug
     // let zero_sumcheck_expr_len: usize = cs.assert_zero_sumcheck_expressions.len();
-    let zero_sumcheck_expr_len: usize = 2;
+    let zero_sumcheck_expr_len: usize = counts[3];
 
     let alpha_len = MAINCONSTRAIN_SUMCHECK_BATCH_SIZE + zero_sumcheck_expr_len;
     let alpha_len: Usize<C::N> = Usize::from(alpha_len);
@@ -435,7 +458,7 @@ pub fn verify_opcode_proof<C: Config>(
 
     // _debug
     // let max_non_lc_degree: usize = cs.max_non_lc_degree;
-    let max_non_lc_degree: usize = 2;
+    let max_non_lc_degree: usize = counts[4];
     let main_sel_subclaim_max_degree: Felt<C::F> = builder.constant(C::F::from_canonical_u32(SEL_DEGREE.max(max_non_lc_degree + 1) as u32));
 
     let main_sel_subclaim = iop_verifier_state_verify(
@@ -461,9 +484,6 @@ pub fn verify_opcode_proof<C: Config>(
 
     // _debug
     // builder.print_debug(44);
-    // print_ext_arr(builder, &eq_r);
-
-
     // let eq_r_0 = builder.get(&eq_r, 0);
     // let eq_w_0 = builder.get(&eq_w, 0);
     // let eq_lk_0 = builder.get(&eq_lk, 0);
@@ -498,7 +518,6 @@ pub fn verify_opcode_proof<C: Config>(
     );
 
     // _debug
-    // CORRECT
     // builder.print_debug(44);
     // builder.print_e(sel_r);
     // builder.print_e(sel_w);
@@ -508,7 +527,7 @@ pub fn verify_opcode_proof<C: Config>(
 
     // _debug
     // let zero_sumcheck_expressions_len = RVar::from(cs.assert_zero_sumcheck_expressions.len());
-    let zero_sumcheck_expressions_len: RVar<C::N> = RVar::from(2);
+    let zero_sumcheck_expressions_len: RVar<C::N> = RVar::from(counts[5]);
     builder
         .if_ne(zero_sumcheck_expressions_len, RVar::from(0))
         .then(|builder| {
@@ -672,10 +691,8 @@ pub fn verify_table_proof<C: Config>(
     raw_pi_num_variables: &Array<C, Var<C::N>>,
     pi_evals: &Array<C, Ext<C::F, C::EF>>,
     challenges: &Array<C, Ext<C::F, C::EF>>,
-    sub_constraint_idx: usize,
     // ceno_constraint_system: &ZKVMVerifier<E, Pcs>,
 ) {
-    let table_name = TABLE_KEYS[sub_constraint_idx];
     // let cs = ceno_constraint_system.vk.circuit_vks[table_name].get_cs();
     let is_skip_same_point_sumcheck: Usize<C::N> = Usize::from(1);
     let tower_proof = &table_proof.tower_proof;
