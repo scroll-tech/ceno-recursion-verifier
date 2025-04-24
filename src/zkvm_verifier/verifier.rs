@@ -261,7 +261,7 @@ pub fn verify_zkvm_proof<C: Config>(
                 let p2 = builder.get(&table_proof.lk_out_evals, p2_idx);
                 let q1 = builder.get(&table_proof.lk_out_evals, q1_idx);
                 let q2 = builder.get(&table_proof.lk_out_evals, q2_idx);
-                
+
                 builder.assign(
                     &logup_sum,
                     logup_sum - p1 * q1.inverse() - p2 * q2.inverse(),
@@ -274,11 +274,11 @@ pub fn verify_zkvm_proof<C: Config>(
         builder.assign(&prod_r, prod_r * r_out_evals_prod);
     });
 
-    // builder.assign(
-    //     &logup_sum,
-    //     logup_sum - dummy_table_item_multiplicity_ext * dummy_table_item.inverse(),
-    // );
-    // builder.assert_ext_eq(logup_sum, zero);
+    builder.assign(
+        &logup_sum,
+        logup_sum - dummy_table_item_multiplicity * dummy_table_item.inverse(),
+    );
+    builder.assert_ext_eq(logup_sum, zero);
 
     // let empty_arr: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(0);
     // let initial_global_state = eval_ceno_expr_with_instance(
