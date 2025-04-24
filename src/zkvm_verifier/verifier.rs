@@ -280,12 +280,6 @@ pub fn verify_zkvm_proof<C: Config>(
     );
     builder.assert_ext_eq(logup_sum, zero);
 
-    // _debug
-    // println!("=> ceno_contraint_system.vk.initial_global_state_expr: {:?}", ceno_constraint_system.vk.initial_global_state_expr);
-    // builder.print_debug(666);
-    // print_ext_arr(builder, &zkvm_proof_input.pi_evals);
-    // print_ext_arr(builder, &challenges);
-
     let empty_arr: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(0);
     let initial_global_state = eval_ceno_expr_with_instance(
         builder,
