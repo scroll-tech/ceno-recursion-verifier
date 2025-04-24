@@ -185,6 +185,8 @@ pub fn verify_zkvm_proof<C: Config>(
         let fork_f: Felt<C::F> = builder.constant(C::F::from_canonical_usize(opcode_idx));
         forked_challenger.observe(builder, fork_f);
 
+        let cs = &ceno_constraint_system.vk.circuit_vks[opcode_name];
+
         verify_opcode_proof(
             builder,
             forked_challenger,
@@ -192,9 +194,10 @@ pub fn verify_zkvm_proof<C: Config>(
             &opcode_proof,
             &zkvm_proof_input.pi_evals,
             &challenges,
-            // _debug
+            opcode_idx,
             order_idx,
-            // ceno_constraint_system,
+            opcode_name,
+            &ceno_constraint_system,
         );
 
         // _debug
@@ -314,9 +317,12 @@ pub fn verify_opcode_proof<C: Config>(
     pi_evals: &Array<C, Ext<C::F, C::EF>>,
     challenges: &Array<C, Ext<C::F, C::EF>>,
     // _debug
+    opcode_idx: usize,
     order_idx: usize,
-    // cs: // type constraint system // let cs = &ceno_constraint_system.vk.circuit_vks[sub_constraint_name].cs;
+    opcode_name: &str,
+    cs: &ZKVMVerifier<E, Pcs>,
 ) {
+    let cs = &cs.vk.circuit_vks[opcode_name].cs;
     let one: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
     let zero: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
 
@@ -547,7 +553,7 @@ pub fn verify_opcode_proof<C: Config>(
 
     // // sel(rt_non_lc_sumcheck, main_sel_eval_point) * \sum_j (alpha{j} * expr(main_sel_eval_point))
     // let sel_sum: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
-    // let empty_arr: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(0);
+    let empty_arr: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(0);
     // let mut expr_idx: usize = 0;
     // builder
     //     .range(0, cs.assert_zero_sumcheck_expressions.len())
@@ -576,69 +582,69 @@ pub fn verify_opcode_proof<C: Config>(
 
     // builder.assert_ext_eq(computed_eval, expected_evaluation);
 
-    // // verify records (degree = 1) statement, thus no sumcheck
-    // let r_records = &opcode_proof.r_records_in_evals.slice(builder, 0, r_counts_per_instance);
-    // let w_records = &opcode_proof.w_records_in_evals.slice(builder, 0, w_counts_per_instance);
-    // let lk_records = &opcode_proof.lk_records_in_evals.slice(builder, 0, lk_counts_per_instance);
+    // verify records (degree = 1) statement, thus no sumcheck
+    let r_records = &opcode_proof.r_records_in_evals.slice(builder, 0, r_counts_per_instance);
+    let w_records = &opcode_proof.w_records_in_evals.slice(builder, 0, w_counts_per_instance);
+    let lk_records = &opcode_proof.lk_records_in_evals.slice(builder, 0, lk_counts_per_instance);
 
-    // let _ = &cs.r_expressions.iter().enumerate().for_each(|(idx, expr)| {
-    //     let expected_eval = builder.get(&r_records, idx);
-    //     let e = eval_ceno_expr_with_instance(
-    //         builder,
-    //         &empty_arr,
-    //         &opcode_proof.wits_in_evals,
-    //         &empty_arr,
-    //         pi_evals,
-    //         challenges,
-    //         expr
-    //     );
+    let _ = &cs.r_expressions.iter().enumerate().for_each(|(idx, expr)| {
+        let expected_eval = builder.get(&r_records, idx);
+        let e = eval_ceno_expr_with_instance(
+            builder,
+            &empty_arr,
+            &opcode_proof.wits_in_evals,
+            &empty_arr,
+            pi_evals,
+            challenges,
+            expr
+        );
         
-    //     builder.assert_ext_eq(e, expected_eval);
-    // });
+        // builder.assert_ext_eq(e, expected_eval);
+    });
 
-    // let _ = &cs.w_expressions.iter().enumerate().for_each(|(idx, expr)| {
-    //     let expected_eval = builder.get(&w_records, idx);
-    //     let e = eval_ceno_expr_with_instance(
-    //         builder,
-    //         &empty_arr,
-    //         &opcode_proof.wits_in_evals,
-    //         &empty_arr,
-    //         pi_evals,
-    //         challenges,
-    //         expr
-    //     );
+    let _ = &cs.w_expressions.iter().enumerate().for_each(|(idx, expr)| {
+        let expected_eval = builder.get(&w_records, idx);
+        let e = eval_ceno_expr_with_instance(
+            builder,
+            &empty_arr,
+            &opcode_proof.wits_in_evals,
+            &empty_arr,
+            pi_evals,
+            challenges,
+            expr
+        );
         
-    //     builder.assert_ext_eq(e, expected_eval);
-    // });
+        // builder.assert_ext_eq(e, expected_eval);
+    });
 
-    // let _ = &cs.lk_expressions.iter().enumerate().for_each(|(idx, expr)| {
-    //     let expected_eval = builder.get(&lk_records, idx);
-    //     let e = eval_ceno_expr_with_instance(
-    //         builder,
-    //         &empty_arr,
-    //         &opcode_proof.wits_in_evals,
-    //         &empty_arr,
-    //         pi_evals,
-    //         challenges,
-    //         expr
-    //     );
+    let _ = &cs.lk_expressions.iter().enumerate().for_each(|(idx, expr)| {
+        let expected_eval = builder.get(&lk_records, idx);
+        let e = eval_ceno_expr_with_instance(
+            builder,
+            &empty_arr,
+            &opcode_proof.wits_in_evals,
+            &empty_arr,
+            pi_evals,
+            challenges,
+            expr
+        );
         
-    //     builder.assert_ext_eq(e, expected_eval);
-    // });
+        // builder.assert_ext_eq(e, expected_eval);
+    });
 
-    // cs.assert_zero_expressions.iter().enumerate().for_each(|(_idx, expr)| {
-    //     let e = eval_ceno_expr_with_instance(
-    //         builder,
-    //         &empty_arr,
-    //         &opcode_proof.wits_in_evals,
-    //         &empty_arr,
-    //         pi_evals,
-    //         challenges,
-    //         expr
-    //     );
+    cs.assert_zero_expressions.iter().enumerate().for_each(|(_idx, expr)| {
+        let e = eval_ceno_expr_with_instance(
+            builder,
+            &empty_arr,
+            &opcode_proof.wits_in_evals,
+            &empty_arr,
+            pi_evals,
+            challenges,
+            expr
+        );
 
-    //     builder.assert_ext_eq(e, zero);
-    // });
+        // builder.assert_ext_eq(e, zero);
+    });
 
     // TODO:
     // PCS::simple_batch_verify(
