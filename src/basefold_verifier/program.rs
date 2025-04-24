@@ -1,6 +1,5 @@
 use super::{binding::*, utils::*};
 use openvm_native_compiler::ir::*;
-use p3_field::FieldAlgebra;
 use crate::basefold_verifier::rs::get_rate_log;
 
 fn get_base_codeword_dimensions<C: Config>(
@@ -24,8 +23,7 @@ fn get_base_codeword_dimensions<C: Config>(
         // wit_dim
         let width = builder.eval(witin_num_polys * Usize::from(2));
         let height_exp = builder.eval(witin_num_vars + get_rate_log::<C>() - Usize::from(1));
-        let two: Var<C::N> = builder.constant(C::N::from_canonical_usize(2));
-        let height = pow(builder, two, height_exp);
+        let height = pow_2(builder, height_exp);
         let next_wit: DimensionsVariable<C> = DimensionsVariable {
             width,
             height,
@@ -36,13 +34,9 @@ fn get_base_codeword_dimensions<C: Config>(
         // XXX: since fixed_num_vars is usize, fixed_num_vars > 0 is equivalent to fixed_num_vars != 0
         builder.if_ne(fixed_num_vars.clone(), Usize::from(0)).then(|builder| {
             let width = builder.eval(fixed_num_polys.clone() * Usize::from(2));
-            let height_exp = builder.eval_expr(fixed_num_vars.clone() + get_rate_log::<C>() - Usize::from(1));
+            let height_exp = builder.eval(fixed_num_vars.clone() + get_rate_log::<C>() - Usize::from(1));
             // XXX: more efficient pow implementation
-            let height: Var<C::N> = builder.constant(C::N::ONE);
-            let two: Var<C::N> = builder.constant(C::N::from_canonical_usize(2));
-            builder.range(0, height_exp).for_each(|_, builder| {
-                builder.assign(&height, height * two);
-            });
+            let height = pow_2(builder, height_exp);
             let next_fixed: DimensionsVariable<C> = DimensionsVariable {
                 width,
                 height,
