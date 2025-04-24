@@ -63,45 +63,6 @@ pub fn evaluate_at_point<C: Config>(
     builder.eval(r * (right - left) + left)
 }
 
-// pub fn evaluate_felt_poly<C: Config>(
-//     builder: &mut Builder<C>,
-//     evals: &Array<C, Felt<C::F>>,
-//     point: &Array<C, Ext<C::F, C::EF>>,
-//     num_variables: Usize<C::N>,
-// ) -> Ext<C::F, C::EF> {
-//     builder.assert_var_eq(point.len(), num_variables.clone());
-
-//     let mut curr_num_vars: RVar<C::N> = RVar::from(num_variables.clone());
-//     let evals_ext: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(evals.len());
-//     iter_zip!(builder, evals, evals_ext).for_each(|ptr_vec, builder| {
-//         let f = builder.iter_ptr_get(&evals, ptr_vec[0]);
-//         let e = builder.felts2ext(&[f]);
-//         builder.iter_ptr_set(&evals_ext, ptr_vec[1], e);
-//     });
-
-//     iter_zip!(builder, point).for_each(|ptr_vec, builder| {
-//         let pt = builder.iter_ptr_get(&point, ptr_vec[0]);
-//         let new_num_vars: RVar<C::N> = builder.eval_expr(curr_num_vars.clone() - RVar::from(1));
-//         let new_evals_ext_len = pow_of_2_rvar(builder, new_num_vars.clone());
-//         let new_evals_ext: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(new_evals_ext_len);
-
-//         builder.range(0, new_evals_ext.len()).for_each(|idx_vec, builder| {
-//             let left_idx: Usize<C::N> = builder.eval(idx_vec[0] * Usize::from(2));
-//             let right_idx: Usize<C::N> = builder.eval(idx_vec[0] * Usize::from(2) + Usize::from(1));
-//             let left = builder.get(&evals_ext, left_idx);
-//             let right = builder.get(&evals_ext, right_idx);
-
-//             let e: Ext<C::F, C::EF> = builder.eval(pt * (right - left) + left);
-//             builder.set(&new_evals_ext, idx_vec[0], e);
-//         });
-
-//         builder.assign(&evals_ext, new_evals_ext);
-//         builder.assign(&curr_num_vars, new_num_vars);
-//     });
-
-//     builder.get(&evals_ext, 0)
-// }
-
 pub fn dot_product<C: Config>(
     builder: &mut Builder<C>,
     a: &Array<C, Ext<C::F, C::EF>>,
@@ -444,15 +405,10 @@ pub fn ext_pow<C: Config>(
     exponent: usize,
 ) -> Ext<C::F, C::EF> {
     let res = builder.constant(C::EF::ONE);
-    let mut exp = exponent.clone();
 
-    while exp > 0 {
-        if exp & 1 == 1 {
-            builder.assign(&res, res * base);
-        }
-        builder.assign(&res, res * res);
-        exp >>= 1;
-    }
+    builder.range(0, Usize::from(exponent)).for_each(|_, builder| {
+        builder.assign(&res, res * base);
+    });
 
     res
 }
@@ -469,10 +425,22 @@ pub fn eval_ceno_expr_with_instance<C: Config>(
     evaluate_ceno_expr::<C, Ext<C::F, C::EF>>(
         builder,
         expr,
-        &|builder, f: &Fixed| builder.get(fixed, f.0),
-        &|builder, witness_id: WitnessId| builder.get(witnesses, witness_id as usize),
-        &|builder, witness_id, _, _, _| builder.get(structural_witnesses, witness_id as usize),
-        &|builder, i| builder.get(instance, i.0),
+        &|builder, f: &Fixed| {
+            let res = builder.get(fixed, f.0);
+            res
+        },
+        &|builder, witness_id: WitnessId| {
+            let res = builder.get(witnesses, witness_id as usize);
+            res
+        },
+        &|builder, witness_id, _, _, _| {
+            let res = builder.get(structural_witnesses, witness_id as usize);
+            res
+        },
+        &|builder, i| {
+            let res = builder.get(instance, i.0);
+            res
+        },
         &|builder, scalar| {
             let res: Ext<C::F, C::EF> =
                 builder.constant(C::EF::from_canonical_u32(scalar.to_canonical_u64() as u32));
@@ -485,7 +453,7 @@ pub fn eval_ceno_expr_with_instance<C: Config>(
             let scalar_base_slice = scalar
                 .as_bases()
                 .iter()
-                .map(|b| C::F::from_canonical_u32(b.to_canonical_u64() as u32))
+                .map(|b| C::F::from_canonical_u64(b.to_canonical_u64()))
                 .collect::<Vec<C::F>>();
             let scalar_ext: Ext<C::F, C::EF> =
                 builder.constant(C::EF::from_base_slice(&scalar_base_slice));
@@ -493,16 +461,30 @@ pub fn eval_ceno_expr_with_instance<C: Config>(
             let offset_base_slice = offset
                 .as_bases()
                 .iter()
-                .map(|b| C::F::from_canonical_u32(b.to_canonical_u64() as u32))
+                .map(|b| C::F::from_canonical_u64(b.to_canonical_u64()))
                 .collect::<Vec<C::F>>();
             let offset_ext: Ext<C::F, C::EF> =
                 builder.constant(C::EF::from_base_slice(&offset_base_slice));
 
-            builder.eval(challenge_exp * scalar_ext + offset_ext)
+            let res = builder.eval(challenge_exp * scalar_ext + offset_ext);
+
+            let challenge_id_f: Felt<C::F> = builder.constant(C::F::from_canonical_u16(challenge_id));
+            let pow_f: Felt<C::F> = builder.constant(C::F::from_canonical_usize(pow));
+
+            res
         },
-        &|builder, a, b| builder.eval(a + b),
-        &|builder, a, b| builder.eval(a * b),
-        &|builder, x, a, b| builder.eval(a * x + b),
+        &|builder, a, b| {
+            let res = builder.eval(a + b);
+            res
+        },
+        &|builder, a, b| {
+            let res = builder.eval(a * b);
+            res
+        },
+        &|builder, x, a, b| {
+            let res = builder.eval(a * x + b);
+            res
+        },
     )
 }
 

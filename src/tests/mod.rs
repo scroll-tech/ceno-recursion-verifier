@@ -97,7 +97,7 @@ fn build_constraint_system() -> ZKVMVerifier<E, Pcs> {
 
 #[allow(dead_code)]
 fn build_zkvm_proof_verifier_test() -> (Program<BabyBear>, Vec<Vec<BabyBear>>) {
-    // let ceno_constraint_system = build_constraint_system();
+    let ceno_constraint_system = build_constraint_system();
 
     // OpenVM DSL
     let engine = default_engine();
@@ -108,7 +108,7 @@ fn build_zkvm_proof_verifier_test() -> (Program<BabyBear>, Vec<Vec<BabyBear>>) {
     verify_zkvm_proof(
         &mut builder,
         zkvm_proof_input_variables,
-        // &ceno_constraint_system,
+        &ceno_constraint_system,
     );
     builder.halt();
 

@@ -89,7 +89,7 @@ pub fn transcript_group_sample_ext<C: Config>(
 pub fn verify_zkvm_proof<C: Config>(
     builder: &mut Builder<C>,
     zkvm_proof_input: ZKVMProofInputVariable<C>,
-    // ceno_constraint_system: &ZKVMVerifier<E, Pcs>,
+    ceno_constraint_system: &ZKVMVerifier<E, Pcs>,
 ) {
     // Create multiple copies of challenger for forking
     let mut challenger_group: Vec<DuplexChallengerVariable<C>> = vec![];
@@ -280,28 +280,35 @@ pub fn verify_zkvm_proof<C: Config>(
     );
     builder.assert_ext_eq(logup_sum, zero);
 
-    // let empty_arr: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(0);
-    // let initial_global_state = eval_ceno_expr_with_instance(
-    //     builder,
-    //     &empty_arr,
-    //     &empty_arr,
-    //     &empty_arr,
-    //     &zkvm_proof_input.pi_evals,
-    //     &challenges,
-    //     &ceno_constraint_system.vk.initial_global_state_expr,
-    // );
-    // builder.assign(&prod_w, prod_w * initial_global_state);
+    // _debug
+    // println!("=> ceno_contraint_system.vk.initial_global_state_expr: {:?}", ceno_constraint_system.vk.initial_global_state_expr);
+    // builder.print_debug(666);
+    // print_ext_arr(builder, &zkvm_proof_input.pi_evals);
+    // print_ext_arr(builder, &challenges);
 
-    // let finalize_global_state = eval_ceno_expr_with_instance(
-    //     builder,
-    //     &empty_arr,
-    //     &empty_arr,
-    //     &empty_arr,
-    //     &zkvm_proof_input.pi_evals,
-    //     &challenges,
-    //     &ceno_constraint_system.vk.finalize_global_state_expr,
-    // );
-    // builder.assign(&prod_r, prod_r * finalize_global_state);
+    let empty_arr: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(0);
+    let initial_global_state = eval_ceno_expr_with_instance(
+        builder,
+        &empty_arr,
+        &empty_arr,
+        &empty_arr,
+        &zkvm_proof_input.pi_evals,
+        &challenges,
+        &ceno_constraint_system.vk.initial_global_state_expr,
+    );
+    builder.assign(&prod_w, prod_w * initial_global_state);
+
+    let finalize_global_state = eval_ceno_expr_with_instance(
+        builder,
+        &empty_arr,
+        &empty_arr,
+        &empty_arr,
+        &zkvm_proof_input.pi_evals,
+        &challenges,
+        &ceno_constraint_system.vk.finalize_global_state_expr,
+    );
+    builder.assign(&prod_r, prod_r * finalize_global_state);
+
     // builder.assert_ext_eq(prod_r, prod_w);
 }
 
