@@ -185,8 +185,6 @@ pub fn verify_zkvm_proof<C: Config>(
         let fork_f: Felt<C::F> = builder.constant(C::F::from_canonical_usize(opcode_idx));
         forked_challenger.observe(builder, fork_f);
 
-        let cs = &ceno_constraint_system.vk.circuit_vks[opcode_name];
-
         verify_opcode_proof(
             builder,
             forked_challenger,
@@ -201,7 +199,7 @@ pub fn verify_zkvm_proof<C: Config>(
         );
 
         // _debug
-        // // let cs = ceno_constraint_system.vk.circuit_vks[opcode_name].get_cs();
+        // // let cs = &ceno_constraint_system.vk.circuit_vks[opcode_name].get_cs();
         // // let num_lks = cs.lk_expressions.len();
         let counts = OPCODE_CS_COUNTS[order_idx];
         let num_lks = counts[2];
@@ -599,7 +597,7 @@ pub fn verify_opcode_proof<C: Config>(
             expr
         );
         
-        // builder.assert_ext_eq(e, expected_eval);
+        builder.assert_ext_eq(e, expected_eval);
     });
 
     let _ = &cs.w_expressions.iter().enumerate().for_each(|(idx, expr)| {
@@ -614,7 +612,7 @@ pub fn verify_opcode_proof<C: Config>(
             expr
         );
         
-        // builder.assert_ext_eq(e, expected_eval);
+        builder.assert_ext_eq(e, expected_eval);
     });
 
     let _ = &cs.lk_expressions.iter().enumerate().for_each(|(idx, expr)| {
@@ -629,7 +627,7 @@ pub fn verify_opcode_proof<C: Config>(
             expr
         );
         
-        // builder.assert_ext_eq(e, expected_eval);
+        builder.assert_ext_eq(e, expected_eval);
     });
 
     cs.assert_zero_expressions.iter().enumerate().for_each(|(_idx, expr)| {
@@ -643,7 +641,7 @@ pub fn verify_opcode_proof<C: Config>(
             expr
         );
 
-        // builder.assert_ext_eq(e, zero);
+        builder.assert_ext_eq(e, zero);
     });
 
     // TODO:
