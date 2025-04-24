@@ -9,9 +9,9 @@ use crate::tower_verifier::program::verify_tower_proof;
 use crate::transcript::transcript_observe_label;
 use crate::{
     arithmetics::{
-        build_eq_x_r_vec_sequential, ceil_log2, dot_product as ext_dot_product,
-        eq_eval_less_or_equal_than, eval_ceno_expr_with_instance, gen_alpha_pows,
-        next_pow2_instance_padding, product, sum as ext_sum, concat, eval_wellform_address_vec, print_ext_arr
+        build_eq_x_r_vec_sequential, ceil_log2, concat, dot_product as ext_dot_product,
+        eq_eval_less_or_equal_than, eval_ceno_expr_with_instance, eval_wellform_address_vec,
+        gen_alpha_pows, next_pow2_instance_padding, print_ext_arr, product, sum as ext_sum,
     },
     json::parser::parse_zkvm_proof_json,
     tower_verifier::{
@@ -21,6 +21,7 @@ use crate::{
 };
 use ceno_zkvm::circuit_builder::{SetTableExpression, SetTableSpec};
 use ceno_zkvm::{error, structs::PointAndEval};
+use itertools::interleave;
 use itertools::max;
 use openvm_native_compiler::prelude::*;
 use openvm_native_compiler::{asm::AsmConfig, ir::MemVariable};
@@ -34,13 +35,9 @@ use openvm_native_recursion::{
 };
 use p3_challenger::DuplexChallenger;
 use p3_field::{dot_product, FieldAlgebra, FieldExtensionAlgebra};
-use itertools::interleave;
 
-use ceno_zkvm::{
-    scheme::verifier::ZKVMVerifier,
-    expression::StructuralWitIn,
-};
 use ceno_zkvm::expression::Instance;
+use ceno_zkvm::{expression::StructuralWitIn, scheme::verifier::ZKVMVerifier};
 use ff_ext::BabyBearExt4;
 use mpcs::{Basefold, BasefoldRSParams};
 
@@ -176,104 +173,117 @@ pub fn verify_zkvm_proof<C: Config>(
         builder.set(&order_arr, i, Usize::from(i));
     }
 
-    OPCODE_KEYS.into_iter().enumerate().for_each(|(_, (opcode_idx, order_idx, opcode_name))| {
-        let opcode_proof = builder.get(&zkvm_proof_input.opcode_proofs, order_idx);
-        let idx = opcode_proof.idx.clone();
-        let circuit_vk = builder.get(&zkvm_proof_input.circuit_vks_fixed_commits, idx);
+    OPCODE_KEYS
+        .into_iter()
+        .enumerate()
+        .for_each(|(_, (opcode_idx, order_idx, opcode_name))| {
+            let opcode_proof = builder.get(&zkvm_proof_input.opcode_proofs, order_idx);
+            let idx = opcode_proof.idx.clone();
+            let circuit_vk = builder.get(&zkvm_proof_input.circuit_vks_fixed_commits, idx);
 
-        let forked_challenger = &mut challenger_group[order_idx];
-        let fork_f: Felt<C::F> = builder.constant(C::F::from_canonical_usize(opcode_idx));
-        forked_challenger.observe(builder, fork_f);
+            let forked_challenger = &mut challenger_group[order_idx];
+            let fork_f: Felt<C::F> = builder.constant(C::F::from_canonical_usize(opcode_idx));
+            forked_challenger.observe(builder, fork_f);
 
-        verify_opcode_proof(
-            builder,
-            forked_challenger,
-            circuit_vk,
-            &opcode_proof,
-            &zkvm_proof_input.pi_evals,
-            &challenges,
-            opcode_idx,
-            order_idx,
-            opcode_name,
-            &ceno_constraint_system,
-        );
+            verify_opcode_proof(
+                builder,
+                forked_challenger,
+                circuit_vk,
+                &opcode_proof,
+                &zkvm_proof_input.pi_evals,
+                &challenges,
+                opcode_idx,
+                order_idx,
+                opcode_name,
+                &ceno_constraint_system,
+            );
 
-        // _debug
-        // // let cs = &ceno_constraint_system.vk.circuit_vks[opcode_name].get_cs();
-        // // let num_lks = cs.lk_expressions.len();
-        let counts = OPCODE_CS_COUNTS[order_idx];
-        let num_lks = counts[2];
-        let num_instances = counts[6];
-
-        let num_padded_lks_per_instance = next_pow2_instance_padding(num_lks) - num_lks;
-        let num_padded_instance = next_pow2_instance_padding(num_instances) - num_instances;
-        let new_multiplicity: Ext<C::F, C::EF> = builder.constant(C::EF::from_canonical_usize(num_padded_lks_per_instance * num_instances + num_lks.next_power_of_two() * num_padded_instance));
-
-        builder.assign(&dummy_table_item_multiplicity, dummy_table_item_multiplicity + new_multiplicity);
-
-        let record_r_out_evals_prod = product(builder, &opcode_proof.record_r_out_evals);
-        builder.assign(&prod_r, prod_r * record_r_out_evals_prod);
-
-        let record_w_out_evals_prod = product(builder, &opcode_proof.record_w_out_evals);
-        builder.assign(&prod_w, prod_w * record_w_out_evals_prod);
-
-        builder.assign(
-            &logup_sum,
-            logup_sum + opcode_proof.lk_p1_out_eval * opcode_proof.lk_q1_out_eval.inverse(),
-        );
-        builder.assign(
-            &logup_sum,
-            logup_sum + opcode_proof.lk_p2_out_eval * opcode_proof.lk_q2_out_eval.inverse(),
-        );
-    });
-
-    TABLE_KEYS.into_iter().enumerate().for_each(|(_, (table_idx, order_idx, table_name))| {
-        let table_proof = builder.get(&zkvm_proof_input.table_proofs, order_idx - OPCODE_COUNTS);
-        let idx = table_proof.idx.clone();
-        let circuit_vk = builder.get(&zkvm_proof_input.circuit_vks_fixed_commits, idx);
-
-        let forked_challenger = &mut challenger_group[order_idx];
-        let fork_f: Felt<C::F> = builder.constant(C::F::from_canonical_usize(table_idx));
-        forked_challenger.observe(builder, fork_f);
-
-        verify_table_proof(
-            builder,
-            forked_challenger,
-            circuit_vk,
-            &table_proof,
-            &zkvm_proof_input.raw_pi,
-            &zkvm_proof_input.raw_pi_num_variables,
-            &zkvm_proof_input.pi_evals,
-            &challenges,
             // _debug
-            order_idx,
-            // ceno_constraint_system,
-        );
+            // // let cs = &ceno_constraint_system.vk.circuit_vks[opcode_name].get_cs();
+            // // let num_lks = cs.lk_expressions.len();
+            let counts = OPCODE_CS_COUNTS[order_idx];
+            let num_lks = counts[2];
+            let num_instances = counts[6];
 
-        let step = C::N::from_canonical_usize(4);
-        builder
-            .range_with_step(0, table_proof.lk_out_evals.len(), step)
-            .for_each(|idx_vec, builder| {
-                let p2_idx: Usize<C::N> = builder.eval(idx_vec[0] + RVar::from(1));
-                let q1_idx: Usize<C::N> = builder.eval(p2_idx.clone() + RVar::from(1));
-                let q2_idx: Usize<C::N> = builder.eval(q1_idx.clone() + RVar::from(1));
+            let num_padded_lks_per_instance = next_pow2_instance_padding(num_lks) - num_lks;
+            let num_padded_instance = next_pow2_instance_padding(num_instances) - num_instances;
+            let new_multiplicity: Ext<C::F, C::EF> = builder.constant(C::EF::from_canonical_usize(
+                num_padded_lks_per_instance * num_instances
+                    + num_lks.next_power_of_two() * num_padded_instance,
+            ));
 
-                let p1 = builder.get(&table_proof.lk_out_evals, idx_vec[0]);
-                let p2 = builder.get(&table_proof.lk_out_evals, p2_idx);
-                let q1 = builder.get(&table_proof.lk_out_evals, q1_idx);
-                let q2 = builder.get(&table_proof.lk_out_evals, q2_idx);
+            builder.assign(
+                &dummy_table_item_multiplicity,
+                dummy_table_item_multiplicity + new_multiplicity,
+            );
 
-                builder.assign(
-                    &logup_sum,
-                    logup_sum - p1 * q1.inverse() - p2 * q2.inverse(),
-                );
-            });
+            let record_r_out_evals_prod = product(builder, &opcode_proof.record_r_out_evals);
+            builder.assign(&prod_r, prod_r * record_r_out_evals_prod);
 
-        let w_out_evals_prod = product(builder, &table_proof.w_out_evals);
-        builder.assign(&prod_w, prod_w * w_out_evals_prod);
-        let r_out_evals_prod = product(builder, &table_proof.r_out_evals);
-        builder.assign(&prod_r, prod_r * r_out_evals_prod);
-    });
+            let record_w_out_evals_prod = product(builder, &opcode_proof.record_w_out_evals);
+            builder.assign(&prod_w, prod_w * record_w_out_evals_prod);
+
+            builder.assign(
+                &logup_sum,
+                logup_sum + opcode_proof.lk_p1_out_eval * opcode_proof.lk_q1_out_eval.inverse(),
+            );
+            builder.assign(
+                &logup_sum,
+                logup_sum + opcode_proof.lk_p2_out_eval * opcode_proof.lk_q2_out_eval.inverse(),
+            );
+        });
+
+    TABLE_KEYS
+        .into_iter()
+        .enumerate()
+        .for_each(|(_, (table_idx, order_idx, table_name))| {
+            let table_proof =
+                builder.get(&zkvm_proof_input.table_proofs, order_idx - OPCODE_COUNTS);
+            let idx = table_proof.idx.clone();
+            let circuit_vk = builder.get(&zkvm_proof_input.circuit_vks_fixed_commits, idx);
+
+            let forked_challenger = &mut challenger_group[order_idx];
+            let fork_f: Felt<C::F> = builder.constant(C::F::from_canonical_usize(table_idx));
+            forked_challenger.observe(builder, fork_f);
+
+            verify_table_proof(
+                builder,
+                forked_challenger,
+                circuit_vk,
+                &table_proof,
+                &zkvm_proof_input.raw_pi,
+                &zkvm_proof_input.raw_pi_num_variables,
+                &zkvm_proof_input.pi_evals,
+                &challenges,
+                // _debug
+                order_idx,
+                // ceno_constraint_system,
+            );
+
+            let step = C::N::from_canonical_usize(4);
+            builder
+                .range_with_step(0, table_proof.lk_out_evals.len(), step)
+                .for_each(|idx_vec, builder| {
+                    let p2_idx: Usize<C::N> = builder.eval(idx_vec[0] + RVar::from(1));
+                    let q1_idx: Usize<C::N> = builder.eval(p2_idx.clone() + RVar::from(1));
+                    let q2_idx: Usize<C::N> = builder.eval(q1_idx.clone() + RVar::from(1));
+
+                    let p1 = builder.get(&table_proof.lk_out_evals, idx_vec[0]);
+                    let p2 = builder.get(&table_proof.lk_out_evals, p2_idx);
+                    let q1 = builder.get(&table_proof.lk_out_evals, q1_idx);
+                    let q2 = builder.get(&table_proof.lk_out_evals, q2_idx);
+
+                    builder.assign(
+                        &logup_sum,
+                        logup_sum - p1 * q1.inverse() - p2 * q2.inverse(),
+                    );
+                });
+
+            let w_out_evals_prod = product(builder, &table_proof.w_out_evals);
+            builder.assign(&prod_w, prod_w * w_out_evals_prod);
+            let r_out_evals_prod = product(builder, &table_proof.r_out_evals);
+            builder.assign(&prod_r, prod_r * r_out_evals_prod);
+        });
 
     builder.assign(
         &logup_sum,
@@ -349,11 +359,14 @@ pub fn verify_opcode_proof<C: Config>(
     let log2_num_instances = opcode_proof.log2_num_instances.clone();
 
     let num_variables: Array<C, Usize<C::N>> = builder.dyn_array(3);
-    let num_variables_r: Usize<C::N> = builder.eval(log2_num_instances.clone() + log2_r_count.clone());
+    let num_variables_r: Usize<C::N> =
+        builder.eval(log2_num_instances.clone() + log2_r_count.clone());
     builder.set(&num_variables, 0, num_variables_r);
-    let num_variables_w: Usize<C::N> = builder.eval(log2_num_instances.clone() + log2_w_count.clone());
+    let num_variables_w: Usize<C::N> =
+        builder.eval(log2_num_instances.clone() + log2_w_count.clone());
     builder.set(&num_variables, 1, num_variables_w);
-    let num_variables_lk: Usize<C::N> = builder.eval(log2_num_instances.clone() + log2_lk_count.clone());
+    let num_variables_lk: Usize<C::N> =
+        builder.eval(log2_num_instances.clone() + log2_lk_count.clone());
     builder.set(&num_variables, 2, num_variables_lk);
     let max_num_variables: Usize<C::N> =
         builder.eval(log2_num_instances.clone() + Usize::from(ceil_log2(max_expr_len)));
@@ -396,7 +409,11 @@ pub fn verify_opcode_proof<C: Config>(
             logup_specs_eval: tower_proof.logup_specs_eval.clone(),
         },
     );
-    let rt_non_lc_sumcheck: Array<C, Ext<C::F, C::EF>> = rt_tower.fs.clone().slice(builder, 0, log2_num_instances.clone());
+    let rt_non_lc_sumcheck: Array<C, Ext<C::F, C::EF>> =
+        rt_tower
+            .fs
+            .clone()
+            .slice(builder, 0, log2_num_instances.clone());
 
     builder.assert_usize_eq(record_evals.len(), Usize::from(2));
     builder.assert_usize_eq(logup_q_evals.len(), Usize::from(1));
@@ -447,7 +464,9 @@ pub fn verify_opcode_proof<C: Config>(
     // _debug
     // let max_non_lc_degree: usize = cs.max_non_lc_degree;
     let max_non_lc_degree: usize = counts[4];
-    let main_sel_subclaim_max_degree: Felt<C::F> = builder.constant(C::F::from_canonical_u32(SEL_DEGREE.max(max_non_lc_degree + 1) as u32));
+    let main_sel_subclaim_max_degree: Felt<C::F> = builder.constant(C::F::from_canonical_u32(
+        SEL_DEGREE.max(max_non_lc_degree + 1) as u32,
+    ));
 
     let main_sel_subclaim = iop_verifier_state_verify(
         builder,
@@ -581,9 +600,15 @@ pub fn verify_opcode_proof<C: Config>(
     // builder.assert_ext_eq(computed_eval, expected_evaluation);
 
     // verify records (degree = 1) statement, thus no sumcheck
-    let r_records = &opcode_proof.r_records_in_evals.slice(builder, 0, r_counts_per_instance);
-    let w_records = &opcode_proof.w_records_in_evals.slice(builder, 0, w_counts_per_instance);
-    let lk_records = &opcode_proof.lk_records_in_evals.slice(builder, 0, lk_counts_per_instance);
+    let r_records = &opcode_proof
+        .r_records_in_evals
+        .slice(builder, 0, r_counts_per_instance);
+    let w_records = &opcode_proof
+        .w_records_in_evals
+        .slice(builder, 0, w_counts_per_instance);
+    let lk_records = &opcode_proof
+        .lk_records_in_evals
+        .slice(builder, 0, lk_counts_per_instance);
 
     let _ = &cs.r_expressions.iter().enumerate().for_each(|(idx, expr)| {
         let expected_eval = builder.get(&r_records, idx);
@@ -594,9 +619,9 @@ pub fn verify_opcode_proof<C: Config>(
             &empty_arr,
             pi_evals,
             challenges,
-            expr
+            expr,
         );
-        
+
         builder.assert_ext_eq(e, expected_eval);
     });
 
@@ -609,40 +634,47 @@ pub fn verify_opcode_proof<C: Config>(
             &empty_arr,
             pi_evals,
             challenges,
-            expr
+            expr,
         );
-        
+
         builder.assert_ext_eq(e, expected_eval);
     });
 
-    let _ = &cs.lk_expressions.iter().enumerate().for_each(|(idx, expr)| {
-        let expected_eval = builder.get(&lk_records, idx);
-        let e = eval_ceno_expr_with_instance(
-            builder,
-            &empty_arr,
-            &opcode_proof.wits_in_evals,
-            &empty_arr,
-            pi_evals,
-            challenges,
-            expr
-        );
-        
-        builder.assert_ext_eq(e, expected_eval);
-    });
+    let _ = &cs
+        .lk_expressions
+        .iter()
+        .enumerate()
+        .for_each(|(idx, expr)| {
+            let expected_eval = builder.get(&lk_records, idx);
+            let e = eval_ceno_expr_with_instance(
+                builder,
+                &empty_arr,
+                &opcode_proof.wits_in_evals,
+                &empty_arr,
+                pi_evals,
+                challenges,
+                expr,
+            );
 
-    cs.assert_zero_expressions.iter().enumerate().for_each(|(_idx, expr)| {
-        let e = eval_ceno_expr_with_instance(
-            builder,
-            &empty_arr,
-            &opcode_proof.wits_in_evals,
-            &empty_arr,
-            pi_evals,
-            challenges,
-            expr
-        );
+            builder.assert_ext_eq(e, expected_eval);
+        });
 
-        builder.assert_ext_eq(e, zero);
-    });
+    cs.assert_zero_expressions
+        .iter()
+        .enumerate()
+        .for_each(|(_idx, expr)| {
+            let e = eval_ceno_expr_with_instance(
+                builder,
+                &empty_arr,
+                &opcode_proof.wits_in_evals,
+                &empty_arr,
+                pi_evals,
+                challenges,
+                expr,
+            );
+
+            builder.assert_ext_eq(e, zero);
+        });
 
     // TODO:
     // PCS::simple_batch_verify(
@@ -695,7 +727,7 @@ pub fn verify_table_proof<C: Config>(
     //         builder.set(&expected_rounds, 0, Var::<C::N>::new(num_vars as u32));
     //         builder.set(&expected_rounds, 1, Var::<C::N>::new(num_vars as u32));
     //     });
-    
+
     // cs.lk_table_expressions.iter().for_each(|l| {
     //     // iterate through structural witins and collect max round.
     //     let num_vars = l.table_spec.len.map(ceil_log2).unwrap_or_else(|| {
@@ -717,9 +749,12 @@ pub fn verify_table_proof<C: Config>(
     // _debug
     let expected_rounds_usize = TABLE_CONSTANTS[order_idx - OPCODE_COUNTS].0;
     let expected_rounds: Array<C, Usize<C::N>> = builder.dyn_array(expected_rounds_usize.len());
-    expected_rounds_usize.into_iter().enumerate().for_each(|(i, u)| {
-        builder.set(&expected_rounds, i, Usize::from(u.clone()));
-    });
+    expected_rounds_usize
+        .into_iter()
+        .enumerate()
+        .for_each(|(i, u)| {
+            builder.set(&expected_rounds, i, Usize::from(u.clone()));
+        });
     let max_expected_rounds = TABLE_CONSTANTS[order_idx - OPCODE_COUNTS].1;
 
     iter_zip!(builder, table_proof.rw_hints_num_vars_le_bytes).for_each(|ptr_vec, builder| {
@@ -728,45 +763,55 @@ pub fn verify_table_proof<C: Config>(
         challenger.observe(builder, f);
     });
 
-    let prod_out_evals: Array<C, Array<C, Ext<C::F, C::EF>>> = builder.dyn_array(table_proof.r_out_evals.len());
-    builder.range_with_step(0, table_proof.r_out_evals.len().clone(), C::N::from_canonical_usize(2)).for_each(|idx_vec, builder| {
-        let r2_idx: Usize<C::N> = builder.eval(idx_vec[0] + Usize::from(1));
-        let r1 = builder.get(&table_proof.r_out_evals, idx_vec[0]);
-        let r2 = builder.get(&table_proof.r_out_evals, r2_idx.clone());
-        let w1 = builder.get(&table_proof.w_out_evals, idx_vec[0]);
-        let w2 = builder.get(&table_proof.w_out_evals, r2_idx.clone());
+    let prod_out_evals: Array<C, Array<C, Ext<C::F, C::EF>>> =
+        builder.dyn_array(table_proof.r_out_evals.len());
+    builder
+        .range_with_step(
+            0,
+            table_proof.r_out_evals.len().clone(),
+            C::N::from_canonical_usize(2),
+        )
+        .for_each(|idx_vec, builder| {
+            let r2_idx: Usize<C::N> = builder.eval(idx_vec[0] + Usize::from(1));
+            let r1 = builder.get(&table_proof.r_out_evals, idx_vec[0]);
+            let r2 = builder.get(&table_proof.r_out_evals, r2_idx.clone());
+            let w1 = builder.get(&table_proof.w_out_evals, idx_vec[0]);
+            let w2 = builder.get(&table_proof.w_out_evals, r2_idx.clone());
 
-        let r_vec: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(2);
-        let w_vec: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(2);
+            let r_vec: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(2);
+            let w_vec: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(2);
 
-        builder.set(&r_vec, 0, r1);
-        builder.set(&r_vec, 1, r2);
-        builder.set(&w_vec, 0, w1);
-        builder.set(&w_vec, 1, w2);
+            builder.set(&r_vec, 0, r1);
+            builder.set(&r_vec, 1, r2);
+            builder.set(&w_vec, 0, w1);
+            builder.set(&w_vec, 1, w2);
 
-        builder.set(&prod_out_evals, idx_vec[0], r_vec);
-        builder.set(&prod_out_evals, r2_idx, w_vec);
-    });
+            builder.set(&prod_out_evals, idx_vec[0], r_vec);
+            builder.set(&prod_out_evals, r2_idx, w_vec);
+        });
 
-    let logup_out_evals: Array<C, Array<C, Ext<C::F, C::EF>>> = builder.dyn_array(table_proof.compressed_lk_out_len.clone());
-    builder.range(0, logup_out_evals.len()).for_each(|idx_vec, builder| {
-        let lk_vec: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(4);
-        let lk2_idx: Usize<C::N> = builder.eval(idx_vec[0] + Usize::from(1));
-        let lk3_idx: Usize<C::N> = builder.eval(lk2_idx.clone() + Usize::from(1));
-        let lk4_idx: Usize<C::N> = builder.eval(lk3_idx.clone() + Usize::from(1));
+    let logup_out_evals: Array<C, Array<C, Ext<C::F, C::EF>>> =
+        builder.dyn_array(table_proof.compressed_lk_out_len.clone());
+    builder
+        .range(0, logup_out_evals.len())
+        .for_each(|idx_vec, builder| {
+            let lk_vec: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(4);
+            let lk2_idx: Usize<C::N> = builder.eval(idx_vec[0] + Usize::from(1));
+            let lk3_idx: Usize<C::N> = builder.eval(lk2_idx.clone() + Usize::from(1));
+            let lk4_idx: Usize<C::N> = builder.eval(lk3_idx.clone() + Usize::from(1));
 
-        let lk1 = builder.get(&table_proof.lk_out_evals, idx_vec[0]);
-        let lk2 = builder.get(&table_proof.lk_out_evals, lk2_idx);
-        let lk3 = builder.get(&table_proof.lk_out_evals, lk3_idx);
-        let lk4 = builder.get(&table_proof.lk_out_evals, lk4_idx);
+            let lk1 = builder.get(&table_proof.lk_out_evals, idx_vec[0]);
+            let lk2 = builder.get(&table_proof.lk_out_evals, lk2_idx);
+            let lk3 = builder.get(&table_proof.lk_out_evals, lk3_idx);
+            let lk4 = builder.get(&table_proof.lk_out_evals, lk4_idx);
 
-        builder.set(&lk_vec, 0, lk1);
-        builder.set(&lk_vec, 1, lk2);
-        builder.set(&lk_vec, 2, lk3);
-        builder.set(&lk_vec, 3, lk4);
+            builder.set(&lk_vec, 0, lk1);
+            builder.set(&lk_vec, 1, lk2);
+            builder.set(&lk_vec, 2, lk3);
+            builder.set(&lk_vec, 3, lk4);
 
-        builder.set(&logup_out_evals, idx_vec[0], lk_vec);
-    });
+            builder.set(&logup_out_evals, idx_vec[0], lk_vec);
+        });
 
     let num_fanin: Usize<C::N> = Usize::from(NUM_FANIN);
     let num_proofs: Usize<C::N> = tower_proof.proofs.len();
@@ -774,23 +819,24 @@ pub fn verify_table_proof<C: Config>(
     let num_logup_specs: Usize<C::N> = tower_proof.logup_specs_eval.len();
     let max_num_variables: Usize<C::N> = Usize::from(max_expected_rounds);
 
-    let (rt_tower, prod_point_and_eval, logup_p_point_and_eval, logup_q_point_and_eval) = verify_tower_proof(
-        builder, 
-        challenger,
-        TowerVerifierInputVariable {
-            prod_out_evals,
-            logup_out_evals,
-            num_variables: expected_rounds,
-            num_fanin,
-            num_proofs,
-            num_prod_specs,
-            num_logup_specs,
-            max_num_variables,
-            proofs: tower_proof.proofs.clone(),
-            prod_specs_eval: tower_proof.prod_specs_eval.clone(),
-            logup_specs_eval: tower_proof.logup_specs_eval.clone(),
-        }
-    );
+    let (rt_tower, prod_point_and_eval, logup_p_point_and_eval, logup_q_point_and_eval) =
+        verify_tower_proof(
+            builder,
+            challenger,
+            TowerVerifierInputVariable {
+                prod_out_evals,
+                logup_out_evals,
+                num_variables: expected_rounds,
+                num_fanin,
+                num_proofs,
+                num_prod_specs,
+                num_logup_specs,
+                max_num_variables,
+                proofs: tower_proof.proofs.clone(),
+                prod_specs_eval: tower_proof.prod_specs_eval.clone(),
+                logup_specs_eval: tower_proof.logup_specs_eval.clone(),
+            },
+        );
 
     // _debug
     // builder.assert_usize_eq(logup_q_point_and_eval.len(), Usize::from(cs.lk_table_expressions.len()));
@@ -803,22 +849,30 @@ pub fn verify_table_proof<C: Config>(
     // let is_skip_same_point_sumcheck = true;
 
     let input_opening_point = rt_tower.clone().fs;
-    let in_evals_len: Usize<C::N> = builder.eval(prod_point_and_eval.len() + logup_p_point_and_eval.len() + logup_q_point_and_eval.len());
+    let in_evals_len: Usize<C::N> = builder.eval(
+        prod_point_and_eval.len() + logup_p_point_and_eval.len() + logup_q_point_and_eval.len(),
+    );
     let in_evals: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(in_evals_len);
-    builder.range(0, prod_point_and_eval.len()).for_each(|idx_vec, builder| {
-        let e = builder.get(&prod_point_and_eval, idx_vec[0]).eval;
-        builder.set(&in_evals, idx_vec[0], e);
-    });
-    builder.range(0, logup_p_point_and_eval.len()).for_each(|idx_vec, builder| {
-        let p_e = builder.get(&logup_p_point_and_eval, idx_vec[0]).eval;
-        let q_e = builder.get(&logup_q_point_and_eval, idx_vec[0]).eval;
+    builder
+        .range(0, prod_point_and_eval.len())
+        .for_each(|idx_vec, builder| {
+            let e = builder.get(&prod_point_and_eval, idx_vec[0]).eval;
+            builder.set(&in_evals, idx_vec[0], e);
+        });
+    builder
+        .range(0, logup_p_point_and_eval.len())
+        .for_each(|idx_vec, builder| {
+            let p_e = builder.get(&logup_p_point_and_eval, idx_vec[0]).eval;
+            let q_e = builder.get(&logup_q_point_and_eval, idx_vec[0]).eval;
 
-        let p_idx: Usize<C::N> = builder.eval(prod_point_and_eval.len() + idx_vec[0] * Usize::from(2));
-        let q_idx: Usize<C::N> = builder.eval(prod_point_and_eval.len() + idx_vec[0] * Usize::from(2) + Usize::from(1));
+            let p_idx: Usize<C::N> =
+                builder.eval(prod_point_and_eval.len() + idx_vec[0] * Usize::from(2));
+            let q_idx: Usize<C::N> = builder
+                .eval(prod_point_and_eval.len() + idx_vec[0] * Usize::from(2) + Usize::from(1));
 
-        builder.set(&in_evals, p_idx, p_e);
-        builder.set(&in_evals, q_idx, q_e);
-    });
+            builder.set(&in_evals, p_idx, p_e);
+            builder.set(&in_evals, q_idx, q_e);
+        });
 
     // // evaluate structural witness from verifier
     // let set_table_exprs = cs
@@ -868,19 +922,19 @@ pub fn verify_table_proof<C: Config>(
     // .enumerate()
     // .for_each(|(idx, expr)| {
     //     let e = eval_ceno_expr_with_instance(
-    //         builder, 
-    //         &table_proof.fixed_in_evals, 
-    //         &table_proof.wits_in_evals, 
-    //         &structural_witnesses, 
-    //         pi_evals, 
-    //         challenges, 
+    //         builder,
+    //         &table_proof.fixed_in_evals,
+    //         &table_proof.wits_in_evals,
+    //         &structural_witnesses,
+    //         pi_evals,
+    //         challenges,
     //         expr
     //     );
 
     //     let expected_evals = builder.get(&in_evals, idx);
     //     builder.assert_ext_eq(e, expected_evals);
     // });
-    
+
     // // assume public io is tiny vector, so we evaluate it directly without PCS
     // for &Instance(idx) in cs.instance_name_map.keys() {
     //     let poly = builder.get(&raw_pi, idx);

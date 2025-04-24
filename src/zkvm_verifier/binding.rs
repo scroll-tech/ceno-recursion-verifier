@@ -1,4 +1,8 @@
-use crate::{arithmetics::ceil_log2, tower_verifier::binding::{IOPProverMessage, IOPProverMessageVariable}};
+use crate::arithmetics::next_pow2_instance_padding;
+use crate::{
+    arithmetics::ceil_log2,
+    tower_verifier::binding::{IOPProverMessage, IOPProverMessageVariable},
+};
 use ff_ext::BabyBearExt4;
 use mpcs::BasefoldCommitment;
 use openvm_native_compiler::{
@@ -10,7 +14,6 @@ use openvm_native_compiler_derive::iter_zip;
 use openvm_native_recursion::hints::{Hintable, VecAutoHintable};
 use openvm_stark_sdk::p3_baby_bear::BabyBear;
 use p3_field::{extension::BinomialExtensionField, FieldAlgebra};
-use crate::arithmetics::next_pow2_instance_padding;
 
 pub type F = BabyBear;
 pub type E = BinomialExtensionField<F, 4>;
@@ -68,10 +71,10 @@ pub struct ZKVMTableProofInputVariable<C: Config> {
     pub idx: Usize<C::N>,
     pub idx_felt: Felt<C::F>,
 
-    pub r_out_evals: Array<C, Ext<C::F, C::EF>>,    // Vec<[E; 2]>,
-    pub w_out_evals: Array<C, Ext<C::F, C::EF>>,    // Vec<[E; 2]>,
+    pub r_out_evals: Array<C, Ext<C::F, C::EF>>, // Vec<[E; 2]>,
+    pub w_out_evals: Array<C, Ext<C::F, C::EF>>, // Vec<[E; 2]>,
     pub compressed_rw_out_len: Usize<C::N>,
-    pub lk_out_evals: Array<C, Ext<C::F, C::EF>>,   // Vec<[E; 4]>,
+    pub lk_out_evals: Array<C, Ext<C::F, C::EF>>, // Vec<[E; 4]>,
     pub compressed_lk_out_len: Usize<C::N>,
 
     pub has_same_r_sumcheck_proofs: Usize<C::N>, // Either 1 or 0
@@ -343,8 +346,8 @@ pub struct ZKVMTableProofInput {
     pub idx: usize,
 
     // tower evaluation at layer 1
-    pub r_out_evals: Vec<E>,  // Vec<[E; 2]>
-    pub w_out_evals: Vec<E>,  // Vec<[E; 2]>
+    pub r_out_evals: Vec<E>, // Vec<[E; 2]>
+    pub w_out_evals: Vec<E>, // Vec<[E; 2]>
     pub compressed_rw_out_len: usize,
     pub lk_out_evals: Vec<E>, // Vec<[E; 4]>
     pub compressed_lk_out_len: usize,
@@ -441,7 +444,11 @@ impl Hintable<InnerConfig> for ZKVMTableProofInput {
 
         let mut rw_hints_num_vars_le_bytes: Vec<Vec<F>> = vec![];
         for u in &self.rw_hints_num_vars {
-            let u_vec = u.to_le_bytes().into_iter().map(|n| { F::from_canonical_u8(n) }).collect::<Vec<F>>();
+            let u_vec = u
+                .to_le_bytes()
+                .into_iter()
+                .map(|n| F::from_canonical_u8(n))
+                .collect::<Vec<F>>();
             rw_hints_num_vars_le_bytes.push(u_vec);
         }
         stream.extend(rw_hints_num_vars_le_bytes.write());

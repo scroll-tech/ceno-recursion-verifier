@@ -21,10 +21,7 @@ const MAX_DEGREE: usize = 3;
 type E = BabyBearExt4;
 type F = BabyBear;
 
-pub fn print_ext_arr<C: Config>(
-    builder: &mut Builder<C>,
-    arr: &Array<C, Ext<C::F, C::EF>>,
-) {
+pub fn print_ext_arr<C: Config>(builder: &mut Builder<C>, arr: &Array<C, Ext<C::F, C::EF>>) {
     iter_zip!(builder, arr).for_each(|ptr_vec, builder| {
         let e = builder.iter_ptr_get(arr, ptr_vec[0]);
         builder.print_e(e);
@@ -272,8 +269,11 @@ pub fn eq_eval_less_or_equal_than<C: Config>(
     a: &Array<C, Ext<C::F, C::EF>>,
     b: &Array<C, Ext<C::F, C::EF>>,
 ) -> Ext<C::F, C::EF> {
-    let eq_instance: Usize<C::N> = builder.eval(opcode_proof.num_instances.clone() - Usize::from(1));
-    let eq_bit_decomp: Array<C, Felt<C::F>> = opcode_proof.num_instances_minus_one_bit_decomposition.slice(builder, 0, b.len());
+    let eq_instance: Usize<C::N> =
+        builder.eval(opcode_proof.num_instances.clone() - Usize::from(1));
+    let eq_bit_decomp: Array<C, Felt<C::F>> = opcode_proof
+        .num_instances_minus_one_bit_decomposition
+        .slice(builder, 0, b.len());
 
     // DEBUG: verify bit decomposition
 
@@ -286,7 +286,8 @@ pub fn eq_eval_less_or_equal_than<C: Config>(
         let a_i = builder.get(a, idx_vec[0]);
         let b_i = builder.get(b, idx_vec[0]);
         let v = builder.get(&running_product, idx_vec[0]);
-        let next_v: Ext<C::F ,C::EF> = builder.eval(v * (a_i * b_i + (one_ext - a_i) * (one_ext - b_i)));
+        let next_v: Ext<C::F, C::EF> =
+            builder.eval(v * (a_i * b_i + (one_ext - a_i) * (one_ext - b_i)));
         let next_idx = builder.eval_expr(idx_vec[0] + RVar::from(1));
         builder.set(&running_product, next_idx, next_v);
     });
@@ -309,7 +310,9 @@ pub fn eq_eval_less_or_equal_than<C: Config>(
         let a_i = builder.get(a, i.clone());
         let b_i = builder.get(b, i.clone());
 
-        let next_v: Ext<C::F, C::EF> = builder.eval(v * (a_i * b_i * bit_ext + (one_ext - a_i) * (one_ext - b_i) * (one_ext - bit_ext)));
+        let next_v: Ext<C::F, C::EF> = builder.eval(
+            v * (a_i * b_i * bit_ext + (one_ext - a_i) * (one_ext - b_i) * (one_ext - bit_ext)),
+        );
         builder.set(&running_product2, i, next_v);
     });
 
@@ -360,9 +363,9 @@ pub fn build_eq_x_r_vec_sequential<C: Config>(
         let idx_arr_rev = reverse(builder, &idx_arr);
 
         iter_zip!(builder, idx_arr_rev).for_each(|ptr_vec, builder| {
-           let index = builder.iter_ptr_get(&idx_arr_rev, ptr_vec[0]);
-           let prev_val = builder.get(&evals, index.clone());
-           let tmp: Ext<C::F, C::EF> = builder.eval(r * prev_val);
+            let index = builder.iter_ptr_get(&idx_arr_rev, ptr_vec[0]);
+            let prev_val = builder.get(&evals, index.clone());
+            let tmp: Ext<C::F, C::EF> = builder.eval(r * prev_val);
 
             let left_i: Usize<C::N> = builder.eval(index.clone() * Usize::from(2) + Usize::from(1));
             let right_i: Usize<C::N> = builder.eval(index.clone() * Usize::from(2));
@@ -406,9 +409,11 @@ pub fn ext_pow<C: Config>(
 ) -> Ext<C::F, C::EF> {
     let res = builder.constant(C::EF::ONE);
 
-    builder.range(0, Usize::from(exponent)).for_each(|_, builder| {
-        builder.assign(&res, res * base);
-    });
+    builder
+        .range(0, Usize::from(exponent))
+        .for_each(|_, builder| {
+            builder.assign(&res, res * base);
+        });
 
     res
 }
@@ -468,7 +473,8 @@ pub fn eval_ceno_expr_with_instance<C: Config>(
 
             let res = builder.eval(challenge_exp * scalar_ext + offset_ext);
 
-            let challenge_id_f: Felt<C::F> = builder.constant(C::F::from_canonical_u16(challenge_id));
+            let challenge_id_f: Felt<C::F> =
+                builder.constant(C::F::from_canonical_u16(challenge_id));
             let pow_f: Felt<C::F> = builder.constant(C::F::from_canonical_usize(pow));
 
             res
@@ -619,7 +625,12 @@ pub fn evaluate_ceno_expr<C: Config, T>(
 /// on r = [r0, r1, r2, ...rn] succintly
 /// a, b, is constant
 /// the result M(r0, r1,... rn) = r0 + r1 * 2 + r2 * 2^2 + .... rn * 2^n
-pub fn eval_wellform_address_vec<C: Config>(builder: &mut Builder<C>, offset: u64, scaled: u64, r: &Array<C, Ext<C::F, C::EF>>) -> Ext<C::F, C::EF> {
+pub fn eval_wellform_address_vec<C: Config>(
+    builder: &mut Builder<C>,
+    offset: u64,
+    scaled: u64,
+    r: &Array<C, Ext<C::F, C::EF>>,
+) -> Ext<C::F, C::EF> {
     let offset: Ext<C::F, C::EF> = builder.constant(C::EF::from_canonical_u32(offset as u32));
     let scaled: Ext<C::F, C::EF> = builder.constant(C::EF::from_canonical_u32(scaled as u32));
 
