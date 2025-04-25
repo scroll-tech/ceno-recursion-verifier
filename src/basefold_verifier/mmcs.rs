@@ -70,7 +70,7 @@ pub(crate) fn verify_batch<C: Config>(
     let num_dims = input.dimensions.len();
     // Assert dimensions is not empty
     builder.assert_nonzero(&num_dims);
-    builder.assert_eq(num_dims.clone(), input.opened_values.len());
+    builder.assert_usize_eq(num_dims.clone(), input.opened_values.len());
 
     // TODO: Disabled for now since TwoAdicFriPcs and CirclePcs currently pass 0 for width.
 
@@ -87,8 +87,8 @@ pub(crate) fn verify_batch<C: Config>(
     // Verify correspondence between log_h and h
     let log_max_height = builder.hint_var();
     let purported_max_height = pow_2(builder, log_max_height);
-    builder.assert_eq(purported_max_height, max_height);
-    builder.assert_eq(input.proof.len(), log_max_height);
+    builder.assert_var_eq(purported_max_height, max_height);
+    builder.assert_usize_eq(input.proof.len(), log_max_height);
 
     // Nondeterministically supplies:
     // 1. num_unique_height: number of different heights
@@ -99,12 +99,12 @@ pub(crate) fn verify_batch<C: Config>(
     let unique_height_count = builder.dyn_array(num_unique_height);
     builder.range(0, num_unique_height).for_each(|i_vec, builder| {
         let i = i_vec[0];
-        let mut next_count = builder.hint_var();
+        let next_count = builder.hint_var();
         builder.set_value(&unique_height_count, i, next_count);
     });
 
-    let height_order = builder.dyn_array(num_dims);
-    let height_diff = builder.dyn_array(num_dims);
+    let height_order = builder.dyn_array(num_dims.clone());
+    let height_diff = builder.dyn_array(num_dims.clone());
     let mut last_order = builder.hint_var();
     let mut last_diff = builder.hint_var();
     builder.set_value(&height_order, 0, last_order);
@@ -117,13 +117,13 @@ pub(crate) fn verify_batch<C: Config>(
     let last_unique_height_count: Var<C::N> = builder.eval(Usize::from(1));
     builder.range(1, num_dims).for_each(|i_vec, builder| {
         let i = i_vec[0];
-        let mut next_order = builder.hint_var();
-        let mut next_diff = builder.hint_var();
+        let next_order = builder.hint_var();
+        let next_diff = builder.hint_var();
         let next_height = builder.get(&input.dimensions, next_order).height;
 
         builder.if_eq(last_diff, Usize::from(0)).then(|builder| {
             // last_diff == 0 ==> next_height == last_height
-            builder.assert_eq(last_height, next_height);
+            builder.assert_var_eq(last_height, next_height);
             builder.assign(&last_unique_height_count, last_unique_height_count + Usize::from(1));
         });
         builder.if_ne(last_diff, Usize::from(0)).then(|builder| {
@@ -132,7 +132,7 @@ pub(crate) fn verify_batch<C: Config>(
             
             // Verify correctness of unique_height_count
             let purported_unique_height_count = builder.get(&unique_height_count, last_unique_height_index);
-            builder.assert_eq(purported_unique_height_count, last_unique_height_count);
+            builder.assert_var_eq(purported_unique_height_count, last_unique_height_count);
             builder.assign(&last_unique_height_index, last_unique_height_index + Usize::from(1));
             builder.assign(&last_unique_height_count, Usize::from(1));
         });
@@ -145,54 +145,94 @@ pub(crate) fn verify_batch<C: Config>(
     });
     // Final check on num_unique_height and unique_height_count
     let purported_unique_height_count = builder.get(&unique_height_count, last_unique_height_index);
-    builder.assert_eq(purported_unique_height_count, last_unique_height_count);
+    builder.assert_var_eq(purported_unique_height_count, last_unique_height_count);
     builder.assign(&last_unique_height_index, last_unique_height_index + Usize::from(1));
-    builder.assert_eq(last_unique_height_index, num_unique_height);
+    builder.assert_var_eq(last_unique_height_index, num_unique_height);
 
     // Construct root through hashing
     let root_dims_count = builder.get(&unique_height_count, 0);
     let root_values = builder.dyn_array(root_dims_count);
     builder.range(0, root_dims_count).for_each(|i_vec, builder| {
         let i = i_vec[0];
-        let tmp = builder.get(&input.opened_values, i);
+        let index = builder.get(&height_order, i);
+        let tmp = builder.get(&input.opened_values, index);
         builder.set_value(&root_values, i, tmp);
     });
     let root = hash_iter_slices(builder, root_values);
 
+    // Index_pow and reassembled_index for bit split
+    let index_pow: Var<C::N> = builder.eval(Usize::from(1));
+    let reassembled_index: Var<C::N> = builder.eval(Usize::from(0));
+    // next_height is the height of the next dim to be incorporated into root
+    let next_unique_height_index: Var<C::N> = builder.eval(Usize::from(1));
+    let next_unique_height_count: Var<C::N> = builder.eval(root_dims_count);
+    let next_height = builder.get(&input.dimensions, next_unique_height_count).height;
+    let next_height_padded = next_power_of_two(builder, next_height);
     builder.range(0, input.proof.len()).for_each(|i_vec, builder| {
         let i = i_vec[0];
-        
+        let sibling = builder.get(&input.proof, i);
+        let two_var: Var<C::N> = builder.eval(Usize::from(2)); // XXX: is there a better way to do this?
+        // Supply the next index bit as hint, assert that it is a bit
+        let next_index_bit = builder.hint_var();
+        builder.assert_var_eq(next_index_bit, next_index_bit * next_index_bit);
+        builder.assign(&reassembled_index, reassembled_index + index_pow * next_index_bit);
+        builder.assign(&index_pow, index_pow * two_var);
+
+        // left, right
+        let compress_elem = builder.dyn_array(2);
+        builder.if_eq(next_index_bit, Usize::from(0)).then(|builder| {
+            // root, sibling
+            builder.set_value(&compress_elem, 0, root.clone());
+            builder.set_value(&compress_elem, 0, sibling.clone());
+        });
+        builder.if_ne(next_index_bit, Usize::from(0)).then(|builder| {
+            // sibling, root
+            builder.set_value(&compress_elem, 0, sibling.clone());
+            builder.set_value(&compress_elem, 0, root.clone());
+        });
+        let new_root = compress(builder, compress_elem);
+        builder.assign(&root, new_root);
+
+        // curr_height_padded >>= 1 given curr_height_padded is a power of two
+        // Nondeterministically supply next_curr_height_padded
+        let next_curr_height_padded = builder.hint_var();
+        builder.assert_var_eq(next_curr_height_padded * two_var, curr_height_padded);
+        builder.assign(&curr_height_padded, next_curr_height_padded);
+
+        // determine whether next_height matches curr_height
+        builder.if_eq(curr_height_padded, next_height_padded).then(|builder| {
+            // hash opened_values of all dims of next_height to root
+            let root_dims_count = builder.get(&unique_height_count, next_unique_height_index);
+            let root_size: Var<C::N> = builder.eval(root_dims_count + Usize::from(1));
+            let root_values = builder.dyn_array(root_size);
+            builder.set_value(&root_values, 0, root.clone());
+            builder.range(0, root_dims_count).for_each(|i_vec, builder| {
+                let i = i_vec[0];
+                let index = builder.get(&height_order, i);
+                let tmp = builder.get(&input.opened_values, index);
+                let j = builder.eval_expr(i + RVar::from(1));
+                builder.set_value(&root_values, j, tmp);
+            });
+            let new_root = hash_iter_slices(builder, root_values);
+            builder.assign(&root, new_root);
+
+            // Update parameters
+            builder.assign(&next_unique_height_count, next_unique_height_count + root_dims_count);
+            builder.assign(&next_unique_height_index, next_unique_height_index + Usize::from(1));
+            builder.if_eq(next_unique_height_index, num_unique_height).then(|builder| {
+                builder.assign(&next_height_padded, Usize::from(0));
+            });
+            let next_height = builder.get(&input.dimensions, next_unique_height_count).height;
+            let next_tmp_height_padded = next_power_of_two(builder, next_height);
+            builder.assign(&next_height_padded, next_tmp_height_padded);
+        });
+
     });
-
-    for &sibling in proof {
-        let (left, right) = if index & 1 == 0 {
-            (root, sibling)
-        } else {
-            (sibling, root)
-        };
-
-        root = self.compress.compress([left, right]);
-        index >>= 1;
-        curr_height_padded >>= 1;
-
-        let next_height = heights_tallest_first
-            .peek()
-            .map(|(_, dims)| dims.height)
-            .filter(|h| h.next_power_of_two() == curr_height_padded);
-        if let Some(next_height) = next_height {
-            let next_height_openings_digest = self.hash.hash_iter_slices(
-                heights_tallest_first
-                    .peeking_take_while(|(_, dims)| dims.height == next_height)
-                    .map(|(i, _)| opened_values[i].as_slice()),
-            );
-
-            root = self.compress.compress([root, next_height_openings_digest]);
-        }
-    }
-
-    if commit == &root {
-        Ok(())
-    } else {
-        Err(RootMismatch)
-    }
+    builder.assert_var_eq(reassembled_index, input.index);
+    builder.range(0, DIGEST_ELEMS).for_each(|i_vec, builder| {
+        let i = i_vec[0];
+        let next_input = builder.get(&input.commit.value, i);
+        let next_root = builder.get(&root, i);
+        builder.assert_felt_eq(next_input, next_root);
+    });
 }

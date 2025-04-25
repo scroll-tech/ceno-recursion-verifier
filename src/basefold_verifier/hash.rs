@@ -51,3 +51,12 @@ pub fn hash_iter_slices<C: Config>(
   // XXX: verify hash
   builder.hint_felts_fixed(DIGEST_ELEMS)
 }
+
+pub fn compress<C: Config>(
+  builder: &mut Builder<C>,
+  // _hash: HashVariable<C>,
+  _values: Array<C, Array<C, Felt<C::F>>>,
+) -> Array<C, Felt<C::F>> {
+  // XXX: verify hash
+  builder.hint_felts_fixed(DIGEST_ELEMS)
+}
