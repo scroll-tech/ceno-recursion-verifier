@@ -12,13 +12,13 @@ pub type E = BinomialExtensionField<F, 4>;
 pub type InnerConfig = AsmConfig<F, E>;
 
 type Commitment = Hash<DIGEST_ELEMS>;
-type Proof = Vec<[F; DIGEST_ELEMS]>;
+type MmcsProof = Vec<[F; DIGEST_ELEMS]>;
 pub struct MmcsVerifierInput {
     pub commit: Commitment,
     pub dimensions: Vec<Dimensions>,
     pub index: usize,
     pub opened_values: Vec<Vec<F>>,
-    pub proof: Proof,
+    pub proof: MmcsProof,
 }
 
 impl Hintable<InnerConfig> for MmcsVerifierInput {
@@ -52,17 +52,17 @@ impl Hintable<InnerConfig> for MmcsVerifierInput {
 }
 
 type CommitmentVariable<C> = HashVariable<C>;
-type ProofVariable<C> = Array<C, Array<C, Felt<<C as Config>::F>>>;
+type MmcsProofVariable<C> = Array<C, Array<C, Felt<<C as Config>::F>>>;
 #[derive(DslVariable, Clone)]
 pub struct MmcsVerifierInputVariable<C: Config> {
     pub commit: CommitmentVariable<C>,
     pub dimensions: Array<C, DimensionsVariable<C>>,
     pub index: Var<C::N>,
     pub opened_values: Array<C, Array<C, Felt<C::F>>>,
-    pub proof: ProofVariable<C>,
+    pub proof: MmcsProofVariable<C>,
 }
 
-pub(crate) fn verify_batch<C: Config>(
+pub(crate) fn mmcs_verify_batch<C: Config>(
     builder: &mut Builder<C>,
     input: MmcsVerifierInputVariable<C>,
 ) {
@@ -235,4 +235,98 @@ pub(crate) fn verify_batch<C: Config>(
         let next_root = builder.get(&root, i);
         builder.assert_felt_eq(next_input, next_root);
     });
+}
+
+pub mod tests {
+    use openvm_circuit::arch::{instructions::program::Program, SystemConfig, VmExecutor};
+    use openvm_native_circuit::{Native, NativeConfig};
+    use openvm_native_compiler::asm::AsmBuilder;
+    use openvm_native_recursion::hints::Hintable;
+    use openvm_stark_backend::config::StarkGenericConfig;
+    use openvm_stark_sdk::{
+        config::baby_bear_poseidon2::BabyBearPoseidon2Config,
+        p3_baby_bear::BabyBear,
+    };
+    use p3_field::{extension::BinomialExtensionField, FieldAlgebra};
+    type SC = BabyBearPoseidon2Config;
+
+    type F = BabyBear;
+    type E = BinomialExtensionField<F, 4>;
+    type EF = <SC as StarkGenericConfig>::Challenge;
+    use crate::basefold_verifier::{binding::Dimensions, hash::DIGEST_ELEMS};
+
+    use super::{mmcs_verify_batch, Commitment, InnerConfig, MmcsVerifierInput};
+
+    #[allow(dead_code)]
+    pub fn build_mmcs_verify_batch() -> (Program<BabyBear>, Vec<Vec<BabyBear>>) {
+        // OpenVM DSL
+        let mut builder = AsmBuilder::<F, EF>::default();
+
+        // Witness inputs
+        let mmcs_input = MmcsVerifierInput::read(&mut builder);
+        mmcs_verify_batch(&mut builder, mmcs_input);
+        builder.halt();
+
+        // Pass in witness stream
+        let f = |n: usize| F::from_canonical_usize(n);
+        let mut witness_stream: Vec<
+            Vec<p3_monty_31::MontyField31<openvm_stark_sdk::p3_baby_bear::BabyBearParameters>>,
+        > = Vec::new();
+        let commit = Commitment {
+            value: [f(0); DIGEST_ELEMS]
+        };
+        let dimensions = vec![
+            Dimensions { width: 9, height: 9 },
+            Dimensions { width: 7, height: 7 },
+            Dimensions { width: 5, height: 5 },
+            Dimensions { width: 3, height: 3 },
+        ];
+        let opened_values = vec![
+            vec![f(47), f(22), f(14), f(6)],
+            vec![f(35), f(3), f(1)],
+            vec![f(29), f(11), f(2)],
+            vec![f(14), f(4)],
+        ];
+        let proof = vec![
+            [f(47); 4],
+            [f(35); 4],
+            [f(29); 4],
+            [f(14); 4],
+        ];
+        let mmcs_input = MmcsVerifierInput {
+            commit,
+            dimensions,
+            index: 7,
+            opened_values,
+            proof,
+        };
+        witness_stream.extend(mmcs_input.write());
+        // Hints
+        witness_stream.extend(<usize as Hintable<InnerConfig>>::write(&5));
+
+        let program: Program<
+            p3_monty_31::MontyField31<openvm_stark_sdk::p3_baby_bear::BabyBearParameters>,
+        > = builder.compile_isa();
+
+        (program, witness_stream)
+    }
+
+    #[test]
+    fn test_mmcs_verify_batch() {
+        let (program, witness) = build_mmcs_verify_batch();
+
+        let system_config = SystemConfig::default()
+            .with_public_values(4)
+            .with_max_segment_len((1 << 25) - 100);
+        let config = NativeConfig::new(system_config, Native);
+
+        let executor = VmExecutor::<BabyBear, NativeConfig>::new(config);
+        executor.execute(program, witness).unwrap();
+
+        // _debug
+        // let results = executor.execute_segments(program, witness).unwrap();
+        // for seg in results {
+        //     println!("=> cycle count: {:?}", seg.metrics.cycle_count);
+        // }
+    }
 }
