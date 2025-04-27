@@ -28,6 +28,13 @@ pub fn print_ext_arr<C: Config>(builder: &mut Builder<C>, arr: &Array<C, Ext<C::
     });
 }
 
+pub fn print_usize_arr<C: Config>(builder: &mut Builder<C>, arr: &Array<C, Usize<C::N>>) {
+    iter_zip!(builder, arr).for_each(|ptr_vec, builder| {
+        let n = builder.iter_ptr_get(arr, ptr_vec[0]);
+        builder.print_v(n.get_var());
+    });
+}
+
 pub fn is_smaller_than<C: Config>(
     builder: &mut Builder<C>,
     left: RVar<C::N>,
@@ -111,13 +118,13 @@ pub fn reverse<C: Config, T: MemVariable<C>>(
     res
 }
 
-pub fn concat<C: Config>(
+pub fn concat<C: Config, T: MemVariable<C>>(
     builder: &mut Builder<C>,
-    a: &Array<C, Ext<C::F, C::EF>>,
-    b: &Array<C, Ext<C::F, C::EF>>,
-) -> Array<C, Ext<C::F, C::EF>> {
+    a: &Array<C, T>,
+    b: &Array<C, T>,
+) -> Array<C, T> {
     let res_len: Usize<C::N> = builder.eval(a.len() + b.len());
-    let res: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(res_len);
+    let res: Array<C, T> = builder.dyn_array(res_len);
 
     builder.range(0, a.len()).for_each(|idx_vec, builder| {
         let a_v = builder.get(&a, idx_vec[0]);
@@ -647,4 +654,39 @@ pub fn eval_wellform_address_vec<C: Config>(
     let res: Ext<C::F, C::EF> = builder.eval(offset + scaled * r_sum);
 
     res
+}
+
+pub fn max_usize_vec<C: Config>(
+    builder: &mut Builder<C>,
+    vec: Vec<Usize<C::N>>,
+) -> Usize<C::N> {
+    assert!(vec.len() > 0);
+
+    let res = vec[0].clone();
+    vec.iter().skip(1).for_each(|n| {
+        let is_less = is_smaller_than(builder, RVar::from(res.clone()), RVar::from(n.clone()));
+        builder.if_eq(is_less, Usize::from(1)).then(|builder| {
+            builder.assign(&res, n.clone());
+        });
+    });
+
+    res
+}
+
+pub fn max_usize_arr<C: Config>(
+    builder: &mut Builder<C>,
+    arr: &Array<C, Usize<C::N>>,
+) -> Usize<C::N> {
+    let max_var = builder.get(&arr, 0).get_var();
+
+    builder.range(0, arr.len()).for_each(|idx_vec, builder| {
+        let n = RVar::from(builder.get(&arr, idx_vec[0]).clone());
+
+        let is_less = is_smaller_than(builder, RVar::from(max_var), n);
+        builder.if_eq(is_less, Usize::from(1)).then(|builder| {
+            builder.assign(&max_var, n.variable());
+        });
+    });
+
+    Usize::from(max_var)
 }

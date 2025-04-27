@@ -3,7 +3,6 @@ use std::io::empty;
 use super::binding::{
     ZKVMOpcodeProofInputVariable, ZKVMProofInputVariable, ZKVMTableProofInputVariable,
 };
-use crate::arithmetics::{evaluate_ceno_expr, pow_of_2};
 use crate::constants::{OPCODE_COUNTS, OPCODE_CS_COUNTS, OPCODE_KEYS, TABLE_CONSTANTS, TABLE_KEYS};
 use crate::tower_verifier::program::verify_tower_proof;
 use crate::transcript::transcript_observe_label;
@@ -11,7 +10,7 @@ use crate::{
     arithmetics::{
         build_eq_x_r_vec_sequential, ceil_log2, concat, dot_product as ext_dot_product,
         eq_eval_less_or_equal_than, eval_ceno_expr_with_instance, eval_wellform_address_vec,
-        gen_alpha_pows, next_pow2_instance_padding, print_ext_arr, product, sum as ext_sum,
+        gen_alpha_pows, next_pow2_instance_padding, print_ext_arr, product, sum as ext_sum, max_usize_vec, max_usize_arr, print_usize_arr
     },
     json::parser::parse_zkvm_proof_json,
     tower_verifier::{
@@ -691,59 +690,57 @@ pub fn verify_table_proof<C: Config>(
     let cs = cs.vk.circuit_vks[table_name].get_cs();
     let tower_proof = &table_proof.tower_proof;
 
-    // let mut max_expected_rounds: usize = 0;
-    // let expected_rounds: Array<C, Var<C::N>> = builder.dyn_array(3); // read, write, lookup
-    // cs
-    //     // only iterate r set, as read/write set round should match
-    //     .r_table_expressions
-    //     .iter()
-    //     .for_each(|r| {
-    //         // iterate through structural witins and collect max round.
-    //         let num_vars = r.table_spec.len.map(ceil_log2).unwrap_or_else(|| {
-    //             r.table_spec
-    //                 .structural_witins
-    //                 .iter()
-    //                 .map(|StructuralWitIn { id, max_len, .. }| {
-    //                     let hint_num_vars = builder.get(&table_proof.rw_hints_num_vars, *id as usize).0 as usize;
-    //                     assert!((1 << hint_num_vars) <= *max_len);
-    //                     hint_num_vars
-    //                 })
-    //                 .max()
-    //                 .unwrap()
-    //         });
-    //         if num_vars > max_expected_rounds { max_expected_rounds = num_vars; }
-    //         builder.set(&expected_rounds, 0, Var::<C::N>::new(num_vars as u32));
-    //         builder.set(&expected_rounds, 1, Var::<C::N>::new(num_vars as u32));
-    //     });
-
-    // cs.lk_table_expressions.iter().for_each(|l| {
-    //     // iterate through structural witins and collect max round.
-    //     let num_vars = l.table_spec.len.map(ceil_log2).unwrap_or_else(|| {
-    //         l.table_spec
-    //             .structural_witins
-    //             .iter()
-    //             .map(|StructuralWitIn { id, max_len, .. }| {
-    //                 let hint_num_vars = builder.get(&table_proof.rw_hints_num_vars, *id as usize).0 as usize;
-    //                 assert!((1 << hint_num_vars) <= *max_len);
-    //                 hint_num_vars
-    //             })
-    //             .max()
-    //             .unwrap()
-    //     });
-    //     if num_vars > max_expected_rounds { max_expected_rounds = num_vars; }
-    //     builder.set(&expected_rounds, 2, Var::<C::N>::new(num_vars as u32));
-    // });
-
-    // _debug
-    let expected_rounds_usize = TABLE_CONSTANTS[order_idx - OPCODE_COUNTS].0;
-    let expected_rounds: Array<C, Usize<C::N>> = builder.dyn_array(expected_rounds_usize.len());
-    expected_rounds_usize
-        .into_iter()
+    let r_expected_rounds: Array<C, Usize<C::N>> = builder.dyn_array(cs.r_table_expressions.len() * 2);
+    cs
+        // only iterate r set, as read/write set round should match
+        .r_table_expressions
+        .iter()
         .enumerate()
-        .for_each(|(i, u)| {
-            builder.set(&expected_rounds, i, Usize::from(u.clone()));
+        .for_each(|(idx, expr)| {
+            let num_vars: Usize<C::N> = match expr.table_spec.len {
+                Some(l) => Usize::from(ceil_log2(l)),
+                None => {
+                    let var_vec = expr.table_spec
+                        .structural_witins
+                        .iter()
+                        .map(|StructuralWitIn { id, .. }| {
+                            Usize::from(builder.get(&table_proof.rw_hints_num_vars, *id as usize))
+                        })
+                        .collect::<Vec<Usize<C::N>>>();
+
+                    max_usize_vec(builder, var_vec)
+                }
+            };
+
+            builder.set(&r_expected_rounds, idx * 2, num_vars.clone());
+            builder.set(&r_expected_rounds, idx * 2 + 1, num_vars.clone());
         });
-    let max_expected_rounds = TABLE_CONSTANTS[order_idx - OPCODE_COUNTS].1;
+
+    let lk_expected_rounds: Array<C, Usize<C::N>> = builder.dyn_array(cs.lk_table_expressions.len());
+    cs
+        .lk_table_expressions
+        .iter()
+        .enumerate()
+        .for_each(|(idx ,expr)| {
+            let num_vars: Usize<C::N> = match expr.table_spec.len {
+                Some(l) => Usize::from(ceil_log2(l)),
+                None => {
+                    let var_vec = expr.table_spec
+                    .structural_witins
+                    .iter()
+                    .map(|StructuralWitIn { id, .. }| {
+                        Usize::from(builder.get(&table_proof.rw_hints_num_vars, *id as usize))
+                    })
+                    .collect::<Vec<Usize<C::N>>>();
+
+                    max_usize_vec(builder, var_vec)
+                }
+            };
+
+            builder.set(&lk_expected_rounds, idx, num_vars);
+        });
+    let expected_rounds = concat(builder, &r_expected_rounds, &lk_expected_rounds);
+    let max_expected_rounds = max_usize_arr(builder, &expected_rounds);
 
     iter_zip!(builder, table_proof.rw_hints_num_vars_le_bytes).for_each(|ptr_vec, builder| {
         let v = builder.iter_ptr_get(&table_proof.rw_hints_num_vars_le_bytes, ptr_vec[0]);
