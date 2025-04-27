@@ -861,66 +861,84 @@ pub fn verify_table_proof<C: Config>(
             builder.set(&in_evals, q_idx, q_e);
         });
 
-    // // evaluate structural witness from verifier
-    // let set_table_exprs = cs
-    //     .r_table_expressions
-    //     .iter()
-    //     .map(|r| &r.table_spec)
-    //     .chain(cs.lk_table_expressions.iter().map(|r| &r.table_spec))
-    //     .collect::<Vec<&SetTableSpec>>();
-    // let structural_witnesses_vec: Vec<Ext<C::F, C::EF>> = set_table_exprs.iter().flat_map(|table_spec| {
-    //     table_spec
-    //         .structural_witins
-    //         .iter()
-    //         .map(
-    //             |StructuralWitIn {
-    //                  offset,
-    //                  multi_factor,
-    //                  ..
-    //              }| {
-    //                 eval_wellform_address_vec(
-    //                     builder,
-    //                     *offset as u64,
-    //                     *multi_factor as u64,
-    //                     &input_opening_point,
-    //                 )
-    //             },
-    //         )
-    //         .collect::<Vec<Ext<C::F, C::EF>>>()
-    // })
-    // .collect::<Vec<Ext<C::F, C::EF>>>();
+    // evaluate structural witness from verifier
+    let set_table_exprs = cs
+        .r_table_expressions
+        .iter()
+        .map(|r| &r.table_spec)
+        .chain(cs.lk_table_expressions.iter().map(|r| &r.table_spec))
+        .collect::<Vec<&SetTableSpec>>();
+    let structural_witnesses_vec: Vec<Ext<C::F, C::EF>> = set_table_exprs.iter().flat_map(|table_spec| {
+        table_spec
+            .structural_witins
+            .iter()
+            .map(
+                |StructuralWitIn {
+                     offset,
+                     multi_factor,
+                     ..
+                 }| {
+                    eval_wellform_address_vec(
+                        builder,
+                        *offset as u64,
+                        *multi_factor as u64,
+                        &input_opening_point,
+                    )
+                },
+            )
+            .collect::<Vec<Ext<C::F, C::EF>>>()
+    })
+    .collect::<Vec<Ext<C::F, C::EF>>>();
+    let structural_witnesses: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(structural_witnesses_vec.len());
+    structural_witnesses_vec.into_iter().enumerate().for_each(|(idx, e)| {
+        builder.set(&structural_witnesses, idx, e);
+    });
 
-    // let structural_witnesses: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(structural_witnesses_vec.len());
-    // structural_witnesses_vec.into_iter().enumerate().for_each(|(idx, e)| {
-    //     builder.set(&structural_witnesses, idx, e);
-    // });
+    // verify records (degree = 1) statement, thus no sumcheck
+    interleave(
+        &cs.r_table_expressions, // r
+        &cs.w_table_expressions, // w
+    )
+    .map(|rw| &rw.expr)
+    .chain(
+        cs.lk_table_expressions
+            .iter()
+            .flat_map(|lk| vec![&lk.multiplicity, &lk.values]), // p, q
+    )
+    .enumerate()
+    .for_each(|(idx, expr)| {
+        let e = eval_ceno_expr_with_instance(
+            builder,
+            &table_proof.fixed_in_evals,
+            &table_proof.wits_in_evals,
+            &structural_witnesses,
+            pi_evals,
+            challenges,
+            expr
+        );
 
-    // // verify records (degree = 1) statement, thus no sumcheck
-    // interleave(
-    //     &cs.r_table_expressions, // r
-    //     &cs.w_table_expressions, // w
-    // )
-    // .map(|rw| &rw.expr)
-    // .chain(
-    //     cs.lk_table_expressions
-    //         .iter()
-    //         .flat_map(|lk| vec![&lk.multiplicity, &lk.values]), // p, q
-    // )
-    // .enumerate()
-    // .for_each(|(idx, expr)| {
-    //     let e = eval_ceno_expr_with_instance(
-    //         builder,
-    //         &table_proof.fixed_in_evals,
-    //         &table_proof.wits_in_evals,
-    //         &structural_witnesses,
-    //         pi_evals,
-    //         challenges,
-    //         expr
-    //     );
+        let expected_evals = builder.get(&in_evals, idx);
+        builder.assert_ext_eq(e, expected_evals);
+    });
 
-    //     let expected_evals = builder.get(&in_evals, idx);
-    //     builder.assert_ext_eq(e, expected_evals);
-    // });
+
+
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     // // assume public io is tiny vector, so we evaluate it directly without PCS
     // for &Instance(idx) in cs.instance_name_map.keys() {
