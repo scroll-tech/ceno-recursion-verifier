@@ -255,9 +255,10 @@ pub fn verify_zkvm_proof<C: Config>(
                 &zkvm_proof_input.raw_pi_num_variables,
                 &zkvm_proof_input.pi_evals,
                 &challenges,
-                // _debug
+                table_idx,
                 order_idx,
-                // ceno_constraint_system,
+                table_name,
+                ceno_constraint_system,
             );
 
             let step = C::N::from_canonical_usize(4);
@@ -324,7 +325,6 @@ pub fn verify_opcode_proof<C: Config>(
     opcode_proof: &ZKVMOpcodeProofInputVariable<C>,
     pi_evals: &Array<C, Ext<C::F, C::EF>>,
     challenges: &Array<C, Ext<C::F, C::EF>>,
-    // _debug
     opcode_idx: usize,
     order_idx: usize,
     opcode_name: &str,
@@ -334,16 +334,9 @@ pub fn verify_opcode_proof<C: Config>(
     let one: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
     let zero: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
 
-    // _debug: recover
-    // let r_len = cs.r_expressions.len();
-    // let w_len = cs.w_expressions.len();
-    // let lk_len = cs.lk_expressions.len();
-
-    // _debug
-    let counts = OPCODE_CS_COUNTS[order_idx];
-    let r_len = counts[0];
-    let w_len = counts[1];
-    let lk_len = counts[2];
+    let r_len = cs.r_expressions.len();
+    let w_len = cs.w_expressions.len();
+    let lk_len = cs.lk_expressions.len();
 
     let max_expr_len = *max([r_len, w_len, lk_len].iter()).unwrap();
 
@@ -428,9 +421,7 @@ pub fn verify_opcode_proof<C: Config>(
         builder.get(&logup_q_evals, 0).point.fs,
     ];
 
-    // _debug
-    // let zero_sumcheck_expr_len: usize = cs.assert_zero_sumcheck_expressions.len();
-    let zero_sumcheck_expr_len: usize = counts[3];
+    let zero_sumcheck_expr_len: usize = cs.assert_zero_sumcheck_expressions.len();
 
     let alpha_len = MAINCONSTRAIN_SUMCHECK_BATCH_SIZE + zero_sumcheck_expr_len;
     let alpha_len: Usize<C::N> = Usize::from(alpha_len);
@@ -461,9 +452,7 @@ pub fn verify_opcode_proof<C: Config>(
     let log2_num_instances_var: Var<C::N> = RVar::from(log2_num_instances.clone()).variable();
     let log2_num_instances_f: Felt<C::F> = builder.unsafe_cast_var_to_felt(log2_num_instances_var);
 
-    // _debug
-    // let max_non_lc_degree: usize = cs.max_non_lc_degree;
-    let max_non_lc_degree: usize = counts[4];
+    let max_non_lc_degree: usize = cs.max_non_lc_degree;
     let main_sel_subclaim_max_degree: Felt<C::F> = builder.constant(C::F::from_canonical_u32(
         SEL_DEGREE.max(max_non_lc_degree + 1) as u32,
     ));
@@ -517,9 +506,7 @@ pub fn verify_opcode_proof<C: Config>(
 
     let sel_non_lc_zero_sumcheck: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
 
-    // _debug
-    // let zero_sumcheck_expressions_len = RVar::from(cs.assert_zero_sumcheck_expressions.len());
-    let zero_sumcheck_expressions_len: RVar<C::N> = RVar::from(counts[5]);
+    let zero_sumcheck_expressions_len = RVar::from(cs.assert_zero_sumcheck_expressions.len());
     builder
         .if_ne(zero_sumcheck_expressions_len, RVar::from(0))
         .then(|builder| {
@@ -696,11 +683,12 @@ pub fn verify_table_proof<C: Config>(
     raw_pi_num_variables: &Array<C, Var<C::N>>,
     pi_evals: &Array<C, Ext<C::F, C::EF>>,
     challenges: &Array<C, Ext<C::F, C::EF>>,
-    // _debug
+    table_idx: usize,
     order_idx: usize,
-    // ceno_constraint_system: &ZKVMVerifier<E, Pcs>,
+    table_name: &str,
+    cs: &ZKVMVerifier<E, Pcs>,
 ) {
-    // let cs = ceno_constraint_system.vk.circuit_vks[table_name].get_cs();
+    let cs = cs.vk.circuit_vks[table_name].get_cs();
     let tower_proof = &table_proof.tower_proof;
 
     // let mut max_expected_rounds: usize = 0;
@@ -838,10 +826,9 @@ pub fn verify_table_proof<C: Config>(
             },
         );
 
-    // _debug
-    // builder.assert_usize_eq(logup_q_point_and_eval.len(), Usize::from(cs.lk_table_expressions.len()));
-    // builder.assert_usize_eq(logup_p_point_and_eval.len(), Usize::from(cs.lk_table_expressions.len()));
-    // builder.assert_usize_eq(prod_point_and_eval.len(), Usize::from(cs.r_table_expressions.len() + cs.w_table_expressions.len()));
+    builder.assert_usize_eq(logup_q_point_and_eval.len(), Usize::from(cs.lk_table_expressions.len()));
+    builder.assert_usize_eq(logup_p_point_and_eval.len(), Usize::from(cs.lk_table_expressions.len()));
+    builder.assert_usize_eq(prod_point_and_eval.len(), Usize::from(cs.r_table_expressions.len() + cs.w_table_expressions.len()));
 
     // TODO:
     // In table proof, we always skip same point sumcheck for now
@@ -945,6 +932,25 @@ pub fn verify_table_proof<C: Config>(
     //     let expected_eval = builder.get(pi_evals, idx);
     //     builder.assert_ext_eq(eval, expected_eval);
     // }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     // TODO: PCS
     // // do optional check of fixed_commitment openings by vk
