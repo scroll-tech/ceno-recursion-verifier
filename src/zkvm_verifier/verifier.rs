@@ -10,7 +10,8 @@ use crate::{
     arithmetics::{
         build_eq_x_r_vec_sequential, ceil_log2, concat, dot_product as ext_dot_product,
         eq_eval_less_or_equal_than, eval_ceno_expr_with_instance, eval_wellform_address_vec,
-        gen_alpha_pows, next_pow2_instance_padding, print_ext_arr, product, sum as ext_sum, max_usize_vec, max_usize_arr, print_usize_arr
+        gen_alpha_pows, max_usize_arr, max_usize_vec, next_pow2_instance_padding, print_ext_arr,
+        print_usize_arr, product, sum as ext_sum,
     },
     json::parser::parse_zkvm_proof_json,
     tower_verifier::{
@@ -690,7 +691,8 @@ pub fn verify_table_proof<C: Config>(
     let cs = cs.vk.circuit_vks[table_name].get_cs();
     let tower_proof = &table_proof.tower_proof;
 
-    let r_expected_rounds: Array<C, Usize<C::N>> = builder.dyn_array(cs.r_table_expressions.len() * 2);
+    let r_expected_rounds: Array<C, Usize<C::N>> =
+        builder.dyn_array(cs.r_table_expressions.len() * 2);
     cs
         // only iterate r set, as read/write set round should match
         .r_table_expressions
@@ -700,7 +702,8 @@ pub fn verify_table_proof<C: Config>(
             let num_vars: Usize<C::N> = match expr.table_spec.len {
                 Some(l) => Usize::from(ceil_log2(l)),
                 None => {
-                    let var_vec = expr.table_spec
+                    let var_vec = expr
+                        .table_spec
                         .structural_witins
                         .iter()
                         .map(|StructuralWitIn { id, .. }| {
@@ -716,22 +719,23 @@ pub fn verify_table_proof<C: Config>(
             builder.set(&r_expected_rounds, idx * 2 + 1, num_vars.clone());
         });
 
-    let lk_expected_rounds: Array<C, Usize<C::N>> = builder.dyn_array(cs.lk_table_expressions.len());
-    cs
-        .lk_table_expressions
+    let lk_expected_rounds: Array<C, Usize<C::N>> =
+        builder.dyn_array(cs.lk_table_expressions.len());
+    cs.lk_table_expressions
         .iter()
         .enumerate()
-        .for_each(|(idx ,expr)| {
+        .for_each(|(idx, expr)| {
             let num_vars: Usize<C::N> = match expr.table_spec.len {
                 Some(l) => Usize::from(ceil_log2(l)),
                 None => {
-                    let var_vec = expr.table_spec
-                    .structural_witins
-                    .iter()
-                    .map(|StructuralWitIn { id, .. }| {
-                        Usize::from(builder.get(&table_proof.rw_hints_num_vars, *id as usize))
-                    })
-                    .collect::<Vec<Usize<C::N>>>();
+                    let var_vec = expr
+                        .table_spec
+                        .structural_witins
+                        .iter()
+                        .map(|StructuralWitIn { id, .. }| {
+                            Usize::from(builder.get(&table_proof.rw_hints_num_vars, *id as usize))
+                        })
+                        .collect::<Vec<Usize<C::N>>>();
 
                     max_usize_vec(builder, var_vec)
                 }
@@ -823,9 +827,18 @@ pub fn verify_table_proof<C: Config>(
             },
         );
 
-    builder.assert_usize_eq(logup_q_point_and_eval.len(), Usize::from(cs.lk_table_expressions.len()));
-    builder.assert_usize_eq(logup_p_point_and_eval.len(), Usize::from(cs.lk_table_expressions.len()));
-    builder.assert_usize_eq(prod_point_and_eval.len(), Usize::from(cs.r_table_expressions.len() + cs.w_table_expressions.len()));
+    builder.assert_usize_eq(
+        logup_q_point_and_eval.len(),
+        Usize::from(cs.lk_table_expressions.len()),
+    );
+    builder.assert_usize_eq(
+        logup_p_point_and_eval.len(),
+        Usize::from(cs.lk_table_expressions.len()),
+    );
+    builder.assert_usize_eq(
+        prod_point_and_eval.len(),
+        Usize::from(cs.r_table_expressions.len() + cs.w_table_expressions.len()),
+    );
 
     // TODO:
     // In table proof, we always skip same point sumcheck for now
@@ -865,31 +878,37 @@ pub fn verify_table_proof<C: Config>(
         .map(|r| &r.table_spec)
         .chain(cs.lk_table_expressions.iter().map(|r| &r.table_spec))
         .collect::<Vec<&SetTableSpec>>();
-    let structural_witnesses_vec: Vec<Ext<C::F, C::EF>> = set_table_exprs.iter().flat_map(|table_spec| {
-        table_spec
-            .structural_witins
-            .iter()
-            .map(
-                |StructuralWitIn {
-                     offset,
-                     multi_factor,
-                     ..
-                 }| {
-                    eval_wellform_address_vec(
-                        builder,
-                        *offset as u64,
-                        *multi_factor as u64,
-                        &input_opening_point,
-                    )
-                },
-            )
-            .collect::<Vec<Ext<C::F, C::EF>>>()
-    })
-    .collect::<Vec<Ext<C::F, C::EF>>>();
-    let structural_witnesses: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(structural_witnesses_vec.len());
-    structural_witnesses_vec.into_iter().enumerate().for_each(|(idx, e)| {
-        builder.set(&structural_witnesses, idx, e);
-    });
+    let structural_witnesses_vec: Vec<Ext<C::F, C::EF>> = set_table_exprs
+        .iter()
+        .flat_map(|table_spec| {
+            table_spec
+                .structural_witins
+                .iter()
+                .map(
+                    |StructuralWitIn {
+                         offset,
+                         multi_factor,
+                         ..
+                     }| {
+                        eval_wellform_address_vec(
+                            builder,
+                            *offset as u64,
+                            *multi_factor as u64,
+                            &input_opening_point,
+                        )
+                    },
+                )
+                .collect::<Vec<Ext<C::F, C::EF>>>()
+        })
+        .collect::<Vec<Ext<C::F, C::EF>>>();
+    let structural_witnesses: Array<C, Ext<C::F, C::EF>> =
+        builder.dyn_array(structural_witnesses_vec.len());
+    structural_witnesses_vec
+        .into_iter()
+        .enumerate()
+        .for_each(|(idx, e)| {
+            builder.set(&structural_witnesses, idx, e);
+        });
 
     // verify records (degree = 1) statement, thus no sumcheck
     interleave(
@@ -911,31 +930,12 @@ pub fn verify_table_proof<C: Config>(
             &structural_witnesses,
             pi_evals,
             challenges,
-            expr
+            expr,
         );
 
         let expected_evals = builder.get(&in_evals, idx);
         builder.assert_ext_eq(e, expected_evals);
     });
-
-
-
-    
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     // // assume public io is tiny vector, so we evaluate it directly without PCS
     // for &Instance(idx) in cs.instance_name_map.keys() {
@@ -947,25 +947,6 @@ pub fn verify_table_proof<C: Config>(
     //     let expected_eval = builder.get(pi_evals, idx);
     //     builder.assert_ext_eq(eval, expected_eval);
     // }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     // TODO: PCS
     // // do optional check of fixed_commitment openings by vk

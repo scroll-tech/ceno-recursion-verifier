@@ -656,10 +656,7 @@ pub fn eval_wellform_address_vec<C: Config>(
     res
 }
 
-pub fn max_usize_vec<C: Config>(
-    builder: &mut Builder<C>,
-    vec: Vec<Usize<C::N>>,
-) -> Usize<C::N> {
+pub fn max_usize_vec<C: Config>(builder: &mut Builder<C>, vec: Vec<Usize<C::N>>) -> Usize<C::N> {
     assert!(vec.len() > 0);
 
     let res = vec[0].clone();
