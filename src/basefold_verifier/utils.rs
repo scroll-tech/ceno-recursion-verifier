@@ -29,12 +29,18 @@ pub fn next_power_of_two<C: Config>(
 ) -> Var<C::N> {
     // Non-deterministically supply the exponent n such that
     // 2^n < v <= 2^{n+1}
+    // Ignore if v == 1
     let n: Var<C::N> = builder.hint_var();
     let ret = pow_2(builder, n);
-    builder.assert_less_than_slow_bit_decomp(ret, value);
-    let two: Var<C::N> = builder.constant(C::N::from_canonical_usize(2));
-    builder.assign(&ret, ret * two);
-    let ret_plus_one = builder.eval(ret.clone() + Usize::from(1));
-    builder.assert_less_than_slow_bit_decomp(value, ret_plus_one);
+    builder.if_eq(value, Usize::from(1)).then(|builder| {
+        builder.assign(&ret, Usize::from(1));
+    });
+    builder.if_ne(value, Usize::from(1)).then(|builder| {
+        builder.assert_less_than_slow_bit_decomp(ret, value);
+        let two: Var<C::N> = builder.constant(C::N::from_canonical_usize(2));
+        builder.assign(&ret, ret * two);
+        let ret_plus_one = builder.eval(ret.clone() + Usize::from(1));
+        builder.assert_less_than_slow_bit_decomp(value, ret_plus_one);
+    });
     ret
 }
