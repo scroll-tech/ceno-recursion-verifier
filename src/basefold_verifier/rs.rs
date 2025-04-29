@@ -5,6 +5,8 @@ use openvm_native_recursion::hints::Hintable;
 use openvm_stark_sdk::p3_baby_bear::BabyBear;
 use p3_field::extension::BinomialExtensionField;
 
+use super::utils::*;
+
 pub type F = BabyBear;
 pub type E = BinomialExtensionField<F, 4>;
 pub type InnerConfig = AsmConfig<F, E>;
@@ -104,8 +106,12 @@ impl<C: Config> Radix2DitVariable<C> {
         mat: RowMajorMatrixVariable<C>
     ) -> RowMajorMatrixVariable<C> {
         let h = mat.height(builder);
-        // TODO: Verify correspondence between log_h and h
         let log_h = builder.hint_var();
+        let log_h_minus_1: Var<C::N> = builder.eval(log_h - Usize::from(1));
+        let purported_h_lower_bound = pow_2(builder, log_h_minus_1);
+        let purported_h_upper_bound = pow_2(builder, log_h);
+        builder.assert_less_than_slow_small_rhs(purported_h_lower_bound, h);
+        builder.assert_less_than_slow_small_rhs(h, purported_h_upper_bound);
 
         // TODO: support memoization
         // Compute twiddle factors, or take memoized ones if already available.
@@ -122,7 +128,9 @@ impl<C: Config> Radix2DitVariable<C> {
         mat
     }
 }
+*/
 
+/*
 #[derive(DslVariable, Clone)]
 pub struct RSCodeVerifierParametersVariable<C: Config> {
     pub dft: Radix2DitVariable<C>,

@@ -258,7 +258,7 @@ pub mod tests {
     type F = BabyBear;
     type E = BinomialExtensionField<F, 4>;
     type EF = <SC as StarkGenericConfig>::Challenge;
-    use crate::basefold_verifier::{binding::Dimensions, hash::DIGEST_ELEMS};
+    use crate::basefold_verifier::binding::Dimensions;
 
     use super::{mmcs_verify_batch, Commitment, InnerConfig, MmcsVerifierInput};
 
