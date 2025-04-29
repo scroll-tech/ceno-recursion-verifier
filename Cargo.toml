@@ -4,21 +4,13 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-# openvm = { git = "https://github.com/openvm-org/openvm.git", tag = "v1.0.0-rc.1" }
-# openvm-circuit = { git = "https://github.com/openvm-org/openvm.git", tag = "v1.0.0-rc.1", features = ["bench-metrics"] }
-# openvm-native-circuit = { git = "https://github.com/openvm-org/openvm.git", tag = "v1.0.0-rc.1" }
-# openvm-native-compiler = { git = "https://github.com/openvm-org/openvm.git", tag = "v1.0.0-rc.1" }
-# openvm-native-compiler-derive = { git = "https://github.com/openvm-org/openvm.git", tag = "v1.0.0-rc.1" }
-# openvm-native-recursion = { git = "https://github.com/openvm-org/openvm.git", tag = "v1.0.0-rc.1" }
-
-openvm = { git = "https://github.com/darth-cy/openvm", branch = "build/ceno_recursion", default-features = false }
-# openvm-circuit = { git = "https://github.com/darth-cy/openvm", branch = "build/ceno_recursion", default-features = false, features = ["bench-metrics"] }
-openvm-circuit = { git = "https://github.com/darth-cy/openvm", branch = "build/ceno_recursion", default-features = false }
-openvm-native-circuit = { git = "https://github.com/darth-cy/openvm", branch = "build/ceno_recursion", default-features = false }
-openvm-native-compiler = { git = "https://github.com/darth-cy/openvm", branch = "build/ceno_recursion", default-features = false }
-openvm-native-compiler-derive = { git = "https://github.com/darth-cy/openvm", branch = "build/ceno_recursion", default-features = false }
-openvm-native-recursion = { git = "https://github.com/darth-cy/openvm", branch = "build/ceno_recursion", default-features = false }
-
+openvm = { git = "https://github.com/openvm-org/openvm.git", default-features = false, tag = "v1.0.0" }
+openvm-circuit = { git = "https://github.com/openvm-org/openvm.git", default-features = false, tag = "v1.0.0" }
+# openvm-circuit = { git = "https://github.com/openvm-org/openvm.git", default-features = false, tag = "v1.0.0", features = ["bench-metrics"] }
+openvm-native-circuit = { git = "https://github.com/openvm-org/openvm.git", default-features = false, tag = "v1.0.0" }
+openvm-native-compiler = { git = "https://github.com/openvm-org/openvm.git", default-features = false, tag = "v1.0.0" }
+openvm-native-compiler-derive = { git = "https://github.com/openvm-org/openvm.git", default-features = false, tag = "v1.0.0" }
+openvm-native-recursion = { git = "https://github.com/openvm-org/openvm.git", default-features = false, tag = "v1.0.0" }
 openvm-stark-backend = { git = "https://github.com/openvm-org/stark-backend.git", tag = "v1.0.0", default-features = false }
 openvm-stark-sdk = { git = "https://github.com/openvm-org/stark-backend.git", tag = "v1.0.0", default-features = false }
 
@@ -37,18 +29,15 @@ p3-symmetric = { git = "https://github.com/Plonky3/Plonky3.git", rev = "1ba4e5c"
 p3-goldilocks = { git = "https://github.com/scroll-tech/plonky3", rev = "1ba4e5c" }
 
 # WHIR
-whir = { git = "https://github.com/scroll-tech/whir.git", branch = "feat/openvm-binding" }
 ark-std = { version = "0.5", features = ["std"] }
 ark-ff = { version = "0.5", features = ["asm", "std"] }
 ark-poly = "0.5"
 ark-serialize = "0.5"
-nimue = { git = "https://github.com/arkworks-rs/nimue", features = ["ark"], rev="3a83250" }
-nimue-pow = { git = "https://github.com/arkworks-rs/nimue", rev="3a83250" }
 
 # Ceno
-ceno_zkvm = { git = "https://github.com/darth-cy/ceno.git", branch = "feat/export_ff_ext" }
-ceno_emul = { git = "https://github.com/darth-cy/ceno.git", branch = "feat/export_ff_ext" }
-mpcs = { git = "https://github.com/darth-cy/ceno.git", branch = "feat/export_ff_ext" }
-ff_ext = { git = "https://github.com/darth-cy/ceno.git", branch = "feat/export_ff_ext" }
+ceno_zkvm = { git = "https://github.com/scroll-tech/ceno.git", branch = "feat/export_ff_ext" }
+ceno_emul = { git = "https://github.com/scroll-tech/ceno.git", branch = "feat/export_ff_ext" }
+mpcs = { git = "https://github.com/scroll-tech/ceno.git", branch = "feat/export_ff_ext" }
+ff_ext = { git = "https://github.com/scroll-tech/ceno.git", branch = "feat/export_ff_ext" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"

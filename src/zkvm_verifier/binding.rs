@@ -3,6 +3,7 @@ use crate::{
     arithmetics::ceil_log2,
     tower_verifier::binding::{IOPProverMessage, IOPProverMessageVariable},
 };
+use ark_std::iterable::Iterable;
 use ff_ext::BabyBearExt4;
 use mpcs::BasefoldCommitment;
 use openvm_native_compiler::{
@@ -90,7 +91,7 @@ pub struct ZKVMTableProofInputVariable<C: Config> {
     pub wits_in_evals: Array<C, Ext<C::F, C::EF>>,
 }
 
-#[derive(Default, Debug)]
+#[derive(Default)]
 pub(crate) struct ZKVMProofInput {
     pub raw_pi: Vec<Vec<F>>,
     // Evaluation of raw_pi.
@@ -139,11 +140,19 @@ impl Hintable<InnerConfig> for ZKVMProofInput {
         let mut circuit_vks_fixed_commits: Vec<Vec<F>> = vec![];
         for cmt in &self.circuit_vks_fixed_commits {
             let mut cmt_vec: Vec<F> = vec![];
-            cmt.root().0.iter().for_each(|x| {
-                let f: F = serde_json::from_str(&serde_json::to_string(x).expect("serialization"))
+
+            cmt.commit().iter().for_each(|x| {
+                let f: F = serde_json::from_str(&serde_json::to_string(&x).expect("serialization"))
                     .expect("serialization bridge");
                 cmt_vec.push(f);
             });
+
+            // _debug
+            // cmt.root().0.iter().for_each(|x| {
+            //     let f: F = serde_json::from_str(&serde_json::to_string(x).expect("serialization"))
+            //         .expect("serialization bridge");
+            //     cmt_vec.push(f);
+            // });
             circuit_vks_fixed_commits.push(cmt_vec);
         }
         stream.extend(circuit_vks_fixed_commits.write());
@@ -223,7 +232,6 @@ impl Hintable<InnerConfig> for TowerProofInput {
     }
 }
 
-#[derive(Default, Debug)]
 pub struct ZKVMOpcodeProofInput {
     pub idx: usize,
     pub num_instances: usize,
@@ -329,11 +337,18 @@ impl Hintable<InnerConfig> for ZKVMOpcodeProofInput {
         stream.extend(self.w_records_in_evals.write());
         stream.extend(self.lk_records_in_evals.write());
         let mut cmt_vec: Vec<F> = vec![];
-        self.wits_commit.root().0.iter().for_each(|x| {
-            let f: F = serde_json::from_str(&serde_json::to_string(x).expect("serialization"))
+
+        self.wits_commit.commit().iter().for_each(|x| {
+            let f: F = serde_json::from_str(&serde_json::to_string(&x).expect("serialization"))
                 .expect("serialization bridge");
             cmt_vec.push(f);
         });
+        // _debug
+        // self.wits_commit.root().0.iter().for_each(|x| {
+        //     let f: F = serde_json::from_str(&serde_json::to_string(x).expect("serialization"))
+        //         .expect("serialization bridge");
+        //     cmt_vec.push(f);
+        // });
         stream.extend(cmt_vec.write());
         stream.extend(self.wits_in_evals.write());
 
@@ -341,7 +356,6 @@ impl Hintable<InnerConfig> for ZKVMOpcodeProofInput {
     }
 }
 
-#[derive(Default, Debug)]
 pub struct ZKVMTableProofInput {
     pub idx: usize,
 
@@ -456,11 +470,17 @@ impl Hintable<InnerConfig> for ZKVMTableProofInput {
         stream.extend(self.fixed_in_evals.write());
 
         let mut cmt_vec: Vec<F> = vec![];
-        self.wits_commit.root().0.iter().for_each(|x| {
-            let f: F = serde_json::from_str(&serde_json::to_string(x).expect("serialization"))
+        self.wits_commit.commit().iter().for_each(|x| {
+            let f: F = serde_json::from_str(&serde_json::to_string(&x).expect("serialization"))
                 .expect("serialization bridge");
             cmt_vec.push(f);
         });
+        // _debug
+        // self.wits_commit.root().0.iter().for_each(|x| {
+        //     let f: F = serde_json::from_str(&serde_json::to_string(x).expect("serialization"))
+        //         .expect("serialization bridge");
+        //     cmt_vec.push(f);
+        // });
         stream.extend(cmt_vec.write());
         stream.extend(self.wits_in_evals.write());
         stream

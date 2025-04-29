@@ -100,7 +100,6 @@ fn print_structure(value: &Value, indent: usize) {
     }
 }
 
-#[derive(Default, Debug)]
 pub(crate) struct ZKVMProofJSONParsed {
     raw_pi: Vec<Vec<F>>,
 

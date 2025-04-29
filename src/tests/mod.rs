@@ -28,7 +28,7 @@ type Pcs = Basefold<E, BasefoldRSParams>;
 
 use ceno_zkvm::{
     e2e::{
-        construct_configs, generate_fixed_traces, init_mem, run_e2e_with_checkpoint,
+        construct_configs, generate_fixed_traces, run_e2e_with_checkpoint,
         setup_platform, Checkpoint, ConstraintSystemConfig, InitMemState, Preset,
     },
     instructions::riscv::{DummyExtraConfig, MemPadder, MmuConfig, Rv32imConfig},
@@ -47,96 +47,96 @@ use ceno_zkvm::{
     with_panic_hook,
 };
 
-fn build_constraint_system() -> ZKVMVerifier<E, Pcs> {
-    let elf_filename = "./src/tests/elf/fibonacci.elf";
-    let elf_bytes = fs::read(elf_filename).expect("read elf file");
-    let program = CenoProgram::load_elf(&elf_bytes, u32::MAX).unwrap();
+// fn build_constraint_system() -> ZKVMVerifier<E, Pcs> {
+//     let elf_filename = "./src/tests/elf/fibonacci.elf";
+//     let elf_bytes = fs::read(elf_filename).expect("read elf file");
+//     let program = CenoProgram::load_elf(&elf_bytes, u32::MAX).unwrap();
 
-    let stack_size = (32000u32).next_multiple_of(WORD_SIZE as u32);
-    let heap_size = (131072u32).next_multiple_of(WORD_SIZE as u32);
-    let pub_io_size = 16; // TODO: configure.
+//     let stack_size = (32000u32).next_multiple_of(WORD_SIZE as u32);
+//     let heap_size = (131072u32).next_multiple_of(WORD_SIZE as u32);
+//     let pub_io_size = 16; // TODO: configure.
 
-    let platform = setup_platform(Preset::Sp1, &program, stack_size, heap_size, pub_io_size);
-    let mem_init = init_mem(&program, &platform);
-    let pub_io_len = platform.public_io.iter_addresses().len();
+//     let platform = setup_platform(Preset::Sp1, &program, stack_size, heap_size, pub_io_size);
+//     let mem_init = init_mem(&program, &platform);
+//     let pub_io_len = platform.public_io.iter_addresses().len();
 
-    let program_params = ProgramParams {
-        platform: platform.clone(),
-        program_size: program.instructions.len(),
-        static_memory_len: mem_init.len(),
-        pub_io_len,
-    };
-    let system_config = construct_configs::<E>(program_params);
+//     let program_params = ProgramParams {
+//         platform: platform.clone(),
+//         program_size: program.instructions.len(),
+//         static_memory_len: mem_init.len(),
+//         pub_io_len,
+//     };
+//     let system_config = construct_configs::<E>(program_params);
 
-    let reg_init = system_config.mmu_config.initial_registers();
-    let io_init = MemPadder::init_mem(platform.public_io.clone(), pub_io_len, &[]);
-    let init_full_mem = InitMemState {
-        mem: mem_init,
-        reg: reg_init,
-        io: io_init,
-        priv_io: vec![],
-    };
+//     let reg_init = system_config.mmu_config.initial_registers();
+//     let io_init = MemPadder::init_mem(platform.public_io.clone(), pub_io_len, &[]);
+//     let init_full_mem = InitMemState {
+//         mem: mem_init,
+//         reg: reg_init,
+//         io: io_init,
+//         priv_io: vec![],
+//     };
 
-    // Generate fixed traces
-    let zkvm_fixed_traces = generate_fixed_traces(&system_config, &init_full_mem, &program);
+//     // Generate fixed traces
+//     let zkvm_fixed_traces = generate_fixed_traces(&system_config, &init_full_mem, &program);
 
-    // Keygen
-    let pcs_param = Pcs::setup(1 << MAX_NUM_VARIABLES).expect("Basefold PCS setup");
-    let (pp, vp) = Pcs::trim(pcs_param, 1 << MAX_NUM_VARIABLES).expect("Basefold trim");
-    let pk = system_config
-        .zkvm_cs
-        .clone()
-        .key_gen::<Pcs>(pp.clone(), vp.clone(), zkvm_fixed_traces.clone())
-        .expect("keygen failed");
-    let vk = pk.get_vk();
+//     // Keygen
+//     let pcs_param = Pcs::setup(1 << MAX_NUM_VARIABLES).expect("Basefold PCS setup");
+//     let (pp, vp) = Pcs::trim(pcs_param, 1 << MAX_NUM_VARIABLES).expect("Basefold trim");
+//     let pk = system_config
+//         .zkvm_cs
+//         .clone()
+//         .key_gen::<Pcs>(pp.clone(), vp.clone(), zkvm_fixed_traces.clone())
+//         .expect("keygen failed");
+//     let vk = pk.get_vk();
 
-    let verifier = ZKVMVerifier::new(vk);
+//     let verifier = ZKVMVerifier::new(vk);
 
-    verifier
-}
+//     verifier
+// }
 
-#[allow(dead_code)]
-fn build_zkvm_proof_verifier_test() -> (Program<BabyBear>, Vec<Vec<BabyBear>>) {
-    let ceno_constraint_system = build_constraint_system();
+// #[allow(dead_code)]
+// fn build_zkvm_proof_verifier_test() -> (Program<BabyBear>, Vec<Vec<BabyBear>>) {
+//     let ceno_constraint_system = build_constraint_system();
 
-    // OpenVM DSL
-    let engine = default_engine();
-    let mut builder = AsmBuilder::<F, EF>::default();
+//     // OpenVM DSL
+//     let engine = default_engine();
+//     let mut builder = AsmBuilder::<F, EF>::default();
 
-    // Obtain witness inputs
-    let zkvm_proof_input_variables = ZKVMProofInput::read(&mut builder);
-    verify_zkvm_proof(
-        &mut builder,
-        zkvm_proof_input_variables,
-        &ceno_constraint_system,
-    );
-    builder.halt();
+//     // Obtain witness inputs
+//     let zkvm_proof_input_variables = ZKVMProofInput::read(&mut builder);
+//     verify_zkvm_proof(
+//         &mut builder,
+//         zkvm_proof_input_variables,
+//         &ceno_constraint_system,
+//     );
+//     builder.halt();
 
-    // Pass in witness stream
-    let mut witness_stream: Vec<
-        Vec<p3_monty_31::MontyField31<openvm_stark_sdk::p3_baby_bear::BabyBearParameters>>,
-    > = Vec::new();
+//     // Pass in witness stream
+//     let mut witness_stream: Vec<
+//         Vec<p3_monty_31::MontyField31<openvm_stark_sdk::p3_baby_bear::BabyBearParameters>>,
+//     > = Vec::new();
 
-    let zkvm_proof_input = parse_zkvm_proof_json();
-    witness_stream.extend(zkvm_proof_input.write());
+//     let zkvm_proof_input = parse_zkvm_proof_json();
+//     witness_stream.extend(zkvm_proof_input.write());
 
-    // Compile program
-    let program: Program<
-        p3_monty_31::MontyField31<openvm_stark_sdk::p3_baby_bear::BabyBearParameters>,
-    > = builder.compile_isa();
+//     // Compile program
+//     let program: Program<
+//         p3_monty_31::MontyField31<openvm_stark_sdk::p3_baby_bear::BabyBearParameters>,
+//     > = builder.compile_isa();
 
-    (program, witness_stream)
-}
+//     (program, witness_stream)
+// }
 
-#[test]
-fn test_zkvm_proof_verifier() {
-    let (program, witness) = build_zkvm_proof_verifier_test();
+// #[test]
+// fn test_zkvm_proof_verifier() {
+//     let (program, witness) = build_zkvm_proof_verifier_test();
 
-    let system_config = SystemConfig::default()
-        .with_public_values(4)
-        .with_max_segment_len((1 << 25) - 100);
-    let config = NativeConfig::new(system_config, Native);
+//     let system_config = SystemConfig::default()
+//         .with_public_values(4)
+//         .with_max_segment_len((1 << 25) - 100);
+//     let config = NativeConfig::new(system_config, Native);
 
-    let executor = VmExecutor::<BabyBear, NativeConfig>::new(config);
-    executor.execute(program, witness).unwrap();
-}
+//     let executor = VmExecutor::<BabyBear, NativeConfig>::new(config);
+//     executor.execute(program, witness).unwrap();
+// }

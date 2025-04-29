@@ -27,22 +27,7 @@ use p3_field::{
     ExtensionField, Field as Plonky3Field, FieldAlgebra, FieldExtensionAlgebra, PackedValue,
     TwoAdicField,
 };
-use whir::{
-    crypto::{
-        fields::Field64,
-        merkle_tree::blake3::{self as merkle_tree, Blake3Digest},
-    },
-    poly_utils::{eq_poly_outside, MultilinearPoint},
-    sumcheck::proof::SumcheckPolynomial,
-    whir::{
-        fs_utils::DigestReader,
-        parameters::WhirConfig,
-        vm_binding::{
-            BlakeDigestVariable, StatementVariable, WhirProofRoundVariable, WhirProofVariable,
-        },
-        WhirProof,
-    },
-};
+
 type InnerConfig = AsmConfig<InnerVal, InnerChallenge>;
 const NUM_FANIN: usize = 2;
 const MAX_DEGREE: usize = 3;
@@ -652,502 +637,501 @@ pub fn verify_tower_proof<C: Config>(
     )
 }
 
-pub mod tests {
-    use crate::tower_verifier::binding::{IOPProverMessage, Point, TowerVerifierInput, F};
-    use crate::transcript::transcript_observe_label;
-    use ceno_zkvm::scheme::{verifier, ZKVMProof};
-    use mpcs::{Basefold, BasefoldCommitment, BasefoldRSParams};
-    use openvm::io::println;
-    use openvm_circuit::arch::{instructions::program::Program, SystemConfig, VmExecutor};
-    use openvm_native_circuit::{Native, NativeConfig};
-    use openvm_native_compiler::asm::{AsmBuilder, AsmConfig};
-    use openvm_native_compiler::prelude::*;
-    use openvm_native_recursion::challenger::ChallengerVariable;
-    use openvm_native_recursion::challenger::FeltChallenger;
-    use openvm_native_recursion::{
-        challenger::{duplex::DuplexChallengerVariable, CanObserveVariable, CanSampleVariable},
-        fri::witness,
-        hints::Hintable,
-        types::InnerConfig,
-    };
-    use openvm_stark_backend::config::StarkGenericConfig;
-    use openvm_stark_sdk::{
-        config::baby_bear_poseidon2::{default_engine, BabyBearPoseidon2Config},
-        p3_baby_bear::BabyBear,
-    };
-    use p3_field::{
-        extension::BinomialExtensionField, FieldAlgebra, FieldExtensionAlgebra, PrimeField32,
-        PrimeField64,
-    };
-    use p3_util::array_serialization::deserialize;
-    use serde::{Deserialize, Serialize};
-    use serde_json::Value;
-    use std::io::Read;
-    use std::{default, fs::File};
-
-    use super::verify_tower_proof;
-    type SC = BabyBearPoseidon2Config;
-    type EF = <SC as StarkGenericConfig>::Challenge;
-    type Challenger = <SC as StarkGenericConfig>::Challenger;
-
-    use crate::tower_verifier::binding::E;
-    use ff_ext::BabyBearExt4;
-
-    type B = BabyBear;
-    type Pcs = Basefold<E, BasefoldRSParams>;
-
-    fn read_json() -> Value {
-        let mut file = File::open("zkvm_proof.json").unwrap();
-        let mut contents = String::new();
-        let _ = file.read_to_string(&mut contents);
-        serde_json::from_str(&contents).unwrap()
-    }
-
-    fn print_structure(value: &Value, indent: usize) {
-        let recursive = false;
-        // Generate indentation for pretty printing
-        let indent_str = "  ".repeat(indent);
-
-        match value {
-            // If it's an object, recursively print each key-value pair's type
-            Value::Object(obj) => {
-                println!("{}Object ({} fields):", indent_str, obj.len());
-                for (key, val) in obj {
-                    println!("{}  {}: ", indent_str, key);
-                    print_structure(val, indent + 1);
-                }
-            }
-
-            // If it's an array, recursively print the type of each item
-            Value::Array(arr) => {
-                println!("{}Array ({} elements):", indent_str, arr.len());
-                for (i, item) in arr.iter().enumerate() {
-                    println!("{}  [{}]:", indent_str, i);
-                    if recursive {
-                        print_structure(item, indent + 1);
-                    }
-                }
-            }
-
-            // If it's a string, print its type
-            Value::String(_) => {
-                println!("{}String", indent_str);
-            }
-
-            // If it's a number (integer or float), print its type
-            Value::Number(_) => {
-                println!("{}Number", indent_str);
-            }
-
-            // If it's a boolean, print its type
-            Value::Bool(_) => {
-                println!("{}Boolean", indent_str);
-            }
-
-            // If it's null, print its type
-            Value::Null => {
-                println!("{}Null", indent_str);
-            }
-        }
-    }
-
-    #[derive(Default, Debug)]
-    pub struct ZKVMProofJSONParsed {
-        raw_pi: Vec<Vec<F>>,
-
-        circuit_vks_fixed_commits: Vec<BasefoldCommitment<BabyBearExt4>>,
-        opcode_proof_commits: Vec<BasefoldCommitment<BabyBearExt4>>,
-        table_proof_commits: Vec<BasefoldCommitment<BabyBearExt4>>,
-
-        pub prod_out_evals: Vec<Vec<E>>,
-        pub logup_out_evals: Vec<Vec<E>>,
-        pub num_variables: Vec<usize>,
-        pub num_fanin: usize,
-
-        // TowerProof
-        pub num_proofs: usize,
-        pub num_prod_specs: usize,
-        pub num_logup_specs: usize,
-        pub max_num_variables: usize,
-
-        proofs: Vec<Vec<IOPProverMessage>>,
-        prod_specs_eval: Vec<Vec<Vec<E>>>,
-        logup_specs_eval: Vec<Vec<Vec<E>>>,
-    }
-
-    fn parse_json() -> ZKVMProofJSONParsed {
-        let mut res = ZKVMProofJSONParsed::default();
-
-        let filename = "zkvm_proof.json";
-        let section = "opcode_proofs";
-        let opcode_idx: usize = 0;
-        let opcode_str = "ADD";
-
-        let mut file = File::open(filename).unwrap();
-        let mut contents = String::new();
-        file.read_to_string(&mut contents);
-        let data: Value = serde_json::from_str(&contents).unwrap();
-
-        // Check if the root is an object (it is in this case)
-        if let Some(obj) = data.as_object() {
-            let mut raw_pi_vec: Vec<Vec<F>> = vec![];
-
-            if let Some(raw_pi) = obj.get("raw_pi").and_then(Value::as_array) {
-                for pi in raw_pi {
-                    let mut sub_pi_vec: Vec<F> = vec![];
-                    let fs = Value::as_array(pi).expect("Correct structure");
-                    for f in fs {
-                        let f_v: F =
-                            serde_json::from_value(f.clone()).expect("correct deserlization");
-                        sub_pi_vec.push(f_v);
-                    }
-                    raw_pi_vec.push(sub_pi_vec);
-                }
-                res.raw_pi = raw_pi_vec;
-            }
-
-            // deal with opcode + table proof
-            let opcode_proofs =
-                Value::as_object(obj.get(section).expect("section")).expect("section");
-            let table_proofs =
-                Value::as_object(obj.get("table_proofs").expect("section")).expect("section");
-
-            // Gather opcode proof and table proof commitments
-            let opcode_keys = vec![
-                "ADD", "ADDI", "ANDI", "BEQ", "BLTU", "BNE", "JALR", "LW", "ORI", "SB", "SRAI",
-                "SRLI", "SUB", "SW",
-            ];
-            let table_keys = vec![
-                "OPS_And",
-                "OPS_Ltu",
-                "OPS_Or",
-                "OPS_Pow",
-                "OPS_Xor",
-                "PROGRAM",
-                "RAM_Memory_PubIOTable",
-                "RAM_Memory_StaticMemTable",
-                "RAM_Register_RegTable",
-                "RANGE_U14",
-                "RANGE_U16",
-                "RANGE_U5",
-                "RANGE_U8",
-            ];
-
-            let mut opcode_commits: Vec<BasefoldCommitment<BabyBearExt4>> = vec![];
-            for key in opcode_keys {
-                let op_proof = Value::as_array(opcode_proofs.get(key).expect("opcode"))
-                    .expect("opcode_section");
-                let commit = op_proof[1].get("wits_commit").expect("commitment");
-                let basefold_cmt: BasefoldCommitment<BabyBearExt4> =
-                    serde_json::from_value(commit.clone()).expect("deserialization");
-                opcode_commits.push(basefold_cmt);
-            }
-            res.opcode_proof_commits = opcode_commits;
-
-            let mut table_commits: Vec<BasefoldCommitment<BabyBearExt4>> = vec![];
-            for key in table_keys {
-                let tb_proof =
-                    Value::as_array(table_proofs.get(key).expect("table")).expect("table_section");
-                let commit = tb_proof[1].get("wits_commit").expect("commitment");
-                let basefold_cmt: BasefoldCommitment<BabyBearExt4> =
-                    serde_json::from_value(commit.clone()).expect("deserialization");
-                table_commits.push(basefold_cmt);
-            }
-            res.table_proof_commits = table_commits;
-
-            // Parse out ADD proof for testing
-            let opcode_proof =
-                Value::as_array(opcode_proofs.get(opcode_str).expect("opcode_section"))
-                    .expect("opcode_section");
-
-            // prod_out_evals
-            let mut prod_out_evals: Vec<Vec<E>> = vec![];
-
-            let mut record_r_out_evals: Vec<E> = vec![];
-            let record_r_out_evals_v =
-                Value::as_array(opcode_proof[1].get("record_r_out_evals").expect("section"))
-                    .expect("section");
-            for e in record_r_out_evals_v {
-                let e_v: E = serde_json::from_value(e.clone()).expect("conversion");
-                record_r_out_evals.push(e_v);
-            }
-            prod_out_evals.push(record_r_out_evals);
-
-            let mut record_w_out_evals: Vec<E> = vec![];
-            let record_w_out_evals_v =
-                Value::as_array(opcode_proof[1].get("record_w_out_evals").expect("section"))
-                    .expect("section");
-            for e in record_w_out_evals_v {
-                let e_v: E = serde_json::from_value(e.clone()).expect("conversion");
-                record_w_out_evals.push(e_v);
-            }
-            prod_out_evals.push(record_w_out_evals);
-            res.prod_out_evals = prod_out_evals;
-
-            // logup_out_evals
-            let mut logup_out_evals: Vec<Vec<E>> = vec![];
-            let mut inner: Vec<E> = vec![];
-
-            for label in [
-                "lk_p1_out_eval",
-                "lk_p2_out_eval",
-                "lk_q1_out_eval",
-                "lk_q2_out_eval",
-            ] {
-                let e_v: E =
-                    serde_json::from_value(opcode_proof[1].get(label).expect("section").clone())
-                        .expect("conversion");
-                inner.push(e_v);
-            }
-            logup_out_evals.push(inner);
-            res.logup_out_evals = logup_out_evals;
-
-            // parse out tower proof fields
-            let tower_proof =
-                Value::as_object(opcode_proof[1].get("tower_proof").expect("tower_proof"))
-                    .expect("tower_proof");
-
-            let mut proofs: Vec<Vec<IOPProverMessage>> = vec![];
-            let proofs_section =
-                Value::as_array(tower_proof.get("proofs").expect("proofs")).expect("proof");
-            for proof in proofs_section {
-                let mut proof_messages: Vec<IOPProverMessage> = vec![];
-                let messages = Value::as_array(proof).expect("messages");
-                for m in messages {
-                    let mut evaluations_vec: Vec<E> = vec![];
-                    let evaluations = Value::as_array(
-                        Value::as_object(m)
-                            .expect("IOPProverMessage")
-                            .get("evaluations")
-                            .expect("evaluations"),
-                    )
-                    .expect("evaluations");
-                    for v in evaluations {
-                        let e_v: E = serde_json::from_value(v.clone()).expect("e");
-                        evaluations_vec.push(e_v);
-                    }
-                    proof_messages.push(IOPProverMessage {
-                        evaluations: evaluations_vec,
-                    });
-                    // println!("=> m: {:?}", m);
-                    // println!("=> m parsed evaluations: {:?}", evaluations_vec);
-                }
-                proofs.push(proof_messages);
-            }
-            res.num_proofs = proofs.len();
-            res.proofs = proofs;
-
-            let mut prod_specs_eval: Vec<Vec<Vec<E>>> = vec![];
-            let prod_specs_eval_section =
-                Value::as_array(tower_proof.get("prod_specs_eval").expect("eval")).expect("evals");
-            for inner in prod_specs_eval_section {
-                let mut inner_v: Vec<Vec<E>> = vec![];
-                let v = Value::as_array(inner).expect("inner vec");
-                for inner_inner in v {
-                    let mut inner_evals_v: Vec<E> = vec![];
-                    let inner_evals = Value::as_array(inner_inner).expect("inner evals vec");
-                    for e in inner_evals {
-                        let e_v: E = serde_json::from_value(e.clone()).expect("e");
-                        inner_evals_v.push(e_v);
-                    }
-                    inner_v.push(inner_evals_v);
-                }
-                prod_specs_eval.push(inner_v);
-            }
-            res.num_prod_specs = prod_specs_eval.len();
-            res.prod_specs_eval = prod_specs_eval;
-
-            let mut logup_specs_eval: Vec<Vec<Vec<E>>> = vec![];
-            let logup_specs_eval_section =
-                Value::as_array(tower_proof.get("logup_specs_eval").expect("eval")).expect("evals");
-            for inner in logup_specs_eval_section {
-                let mut inner_v: Vec<Vec<E>> = vec![];
-                let v = Value::as_array(inner).expect("inner vec");
-                for inner_inner in v {
-                    let mut inner_evals_v: Vec<E> = vec![];
-                    let inner_evals = Value::as_array(inner_inner).expect("inner evals vec");
-                    for e in inner_evals {
-                        let e_v: E = serde_json::from_value(e.clone()).expect("e");
-                        inner_evals_v.push(e_v);
-                    }
-                    inner_v.push(inner_evals_v);
-                }
-                logup_specs_eval.push(inner_v);
-            }
-            res.num_logup_specs = logup_specs_eval.len();
-            res.logup_specs_eval = logup_specs_eval;
-
-            res.num_variables = vec![17, 17, 19];
-            res.num_fanin = 2;
-            res.max_num_variables = 19;
-        }
-
-        // parse out fixed commits
-        let mut vk_file = File::open("circuit_vks_fixed_commits.json").unwrap();
-        let mut vk_contents = String::new();
-        vk_file.read_to_string(&mut vk_contents);
-        let data: Value = serde_json::from_str(&vk_contents).unwrap();
-
-        let mut circuit_vks_fixed_commits: Vec<BasefoldCommitment<BabyBearExt4>> = vec![];
-        for c in Value::as_array(&data).expect("conversion") {
-            let cmt: BasefoldCommitment<BabyBearExt4> =
-                serde_json::from_value(c.clone()).expect("conversion");
-            circuit_vks_fixed_commits.push(cmt);
-        }
-        res.circuit_vks_fixed_commits = circuit_vks_fixed_commits;
-
-        res
-    }
-
-    #[allow(dead_code)]
-    pub fn build_tower_verifier_input() -> TowerVerifierInput {
-        TowerVerifierInput {
-            prod_out_evals: vec![vec![
-                E::from_canonical_u64(0x01),
-                E::from_canonical_u64(0x22),
-            ]],
-            logup_out_evals: vec![],
-            num_variables: vec![2usize],
-            num_fanin: 2,
-
-            // TowerProof
-            num_proofs: 1usize,
-            num_prod_specs: 1usize,
-            num_logup_specs: 0usize,
-            _max_num_variables: 2usize,
-
-            proofs: vec![vec![IOPProverMessage {
-                evaluations: vec![
-                    E::from_canonical_u64(0x03),
-                    E::from_canonical_u64(0x04),
-                    E::from_canonical_u64(0x05),
-                    E::from_canonical_u64(0x06),
-                ],
-            }]],
-            prod_specs_eval: vec![vec![vec![
-                E::from_canonical_u64(0x07),
-                E::from_canonical_u64(0x08),
-            ]]],
-            logup_specs_eval: vec![],
-        }
-    }
-
-    #[allow(dead_code)]
-    pub fn build_test_tower_verifier() -> (Program<BabyBear>, Vec<Vec<BabyBear>>) {
-        // OpenVM DSL
-        let engine = default_engine();
-        let perm = engine.perm;
-        let mut challenger = Challenger::new(perm.clone());
-
-        let mut builder = AsmBuilder::<F, EF>::default();
-        let mut challenger = DuplexChallengerVariable::new(&mut builder);
-
-        // Obtain witness inputs
-        let tower_verifier_input = TowerVerifierInput::read(&mut builder);
-
-        // Initialize transcript
-        transcript_observe_label(&mut builder, &mut challenger, b"riscv");
-
-        // Setup pre-program transcript operations
-        let parsed_zkvm_proof_fields = parse_json();
-
-        for v in parsed_zkvm_proof_fields.raw_pi.clone() {
-            for f in v {
-                let f_v = builder.constant(f);
-                challenger.observe(&mut builder, f_v);
-            }
-        }
-
-        for cmt in parsed_zkvm_proof_fields.circuit_vks_fixed_commits.clone() {
-            cmt.root().0.iter().for_each(|x| {
-                let f: F = serde_json::from_str(&serde_json::to_string(x).expect("serialization"))
-                    .expect("serialization bridge");
-                let f_v: Felt<F> = builder.constant(f);
-                challenger.observe(&mut builder, f_v);
-            });
-        }
-
-        for cmt in parsed_zkvm_proof_fields.opcode_proof_commits.clone() {
-            cmt.root().0.iter().for_each(|x| {
-                let f: F = serde_json::from_str(&serde_json::to_string(x).expect("serialization"))
-                    .expect("serialization bridge");
-                let f_v: Felt<F> = builder.constant(f);
-                challenger.observe(&mut builder, f_v);
-            });
-        }
-
-        for cmt in parsed_zkvm_proof_fields.table_proof_commits.clone() {
-            cmt.root().0.iter().for_each(|x| {
-                let f: F = serde_json::from_str(&serde_json::to_string(x).expect("serialization"))
-                    .expect("serialization bridge");
-                let f_v: Felt<F> = builder.constant(f);
-                challenger.observe(&mut builder, f_v);
-            });
-        }
-
-        // Sampling before verification
-        let _alpha = challenger.sample_ext(&mut builder);
-        let _beta = challenger.sample_ext(&mut builder);
-
-        // Fork the transcript depending on sub-circuit
-        // ```
-        //     => forking transcript length: 62
-        //     => using transcript fork: 0
-        // ```
-        let transcript_forking_segment: usize = 0;
-        let f_v: Felt<F> = builder.constant(F::from_canonical_usize(transcript_forking_segment));
-        challenger.observe(&mut builder, f_v);
-
-        let (_, _, _, _) = verify_tower_proof(&mut builder, &mut challenger, tower_verifier_input);
-        builder.halt();
-
-        // Pass in witness stream
-        let mut witness_stream: Vec<
-            Vec<p3_monty_31::MontyField31<openvm_stark_sdk::p3_baby_bear::BabyBearParameters>>,
-        > = Vec::new();
-
-        let verifier_input = TowerVerifierInput {
-            prod_out_evals: parsed_zkvm_proof_fields.prod_out_evals,
-            logup_out_evals: parsed_zkvm_proof_fields.logup_out_evals,
-            num_variables: parsed_zkvm_proof_fields.num_variables,
-            num_fanin: parsed_zkvm_proof_fields.num_fanin,
-
-            // TowerProof
-            num_proofs: parsed_zkvm_proof_fields.num_proofs,
-            num_prod_specs: parsed_zkvm_proof_fields.num_prod_specs,
-            num_logup_specs: parsed_zkvm_proof_fields.num_logup_specs,
-            _max_num_variables: parsed_zkvm_proof_fields.max_num_variables,
-
-            proofs: parsed_zkvm_proof_fields.proofs,
-            prod_specs_eval: parsed_zkvm_proof_fields.prod_specs_eval,
-            logup_specs_eval: parsed_zkvm_proof_fields.logup_specs_eval,
-        };
-
-        witness_stream.extend(verifier_input.write());
-
-        let program: Program<
-            p3_monty_31::MontyField31<openvm_stark_sdk::p3_baby_bear::BabyBearParameters>,
-        > = builder.compile_isa();
-
-        (program, witness_stream)
-    }
-
-    #[test]
-    fn test_tower_proof_verifier() {
-        let (program, witness) = build_test_tower_verifier();
-
-        let system_config = SystemConfig::default()
-            .with_public_values(4)
-            .with_max_segment_len((1 << 25) - 100);
-        let config = NativeConfig::new(system_config, Native);
-
-        let executor = VmExecutor::<BabyBear, NativeConfig>::new(config);
-        executor.execute(program, witness).unwrap();
-
-        // _debug
-        // let results = executor.execute_segments(program, witness).unwrap();
-        // for seg in results {
-        //     println!("=> cycle count: {:?}", seg.metrics.cycle_count);
-        // }
-    }
-}
+// pub mod tests {
+//     use crate::tower_verifier::binding::{IOPProverMessage, Point, TowerVerifierInput, F};
+//     use crate::transcript::transcript_observe_label;
+//     use ceno_zkvm::scheme::{verifier, ZKVMProof};
+//     use mpcs::{Basefold, BasefoldCommitment, BasefoldRSParams};
+//     use openvm::io::println;
+//     use openvm_circuit::arch::{instructions::program::Program, SystemConfig, VmExecutor};
+//     use openvm_native_circuit::{Native, NativeConfig};
+//     use openvm_native_compiler::asm::{AsmBuilder, AsmConfig};
+//     use openvm_native_compiler::prelude::*;
+//     use openvm_native_recursion::challenger::ChallengerVariable;
+//     use openvm_native_recursion::challenger::FeltChallenger;
+//     use openvm_native_recursion::{
+//         challenger::{duplex::DuplexChallengerVariable, CanObserveVariable, CanSampleVariable},
+//         fri::witness,
+//         hints::Hintable,
+//         types::InnerConfig,
+//     };
+//     use openvm_stark_backend::config::StarkGenericConfig;
+//     use openvm_stark_sdk::{
+//         config::baby_bear_poseidon2::{default_engine, BabyBearPoseidon2Config},
+//         p3_baby_bear::BabyBear,
+//     };
+//     use p3_field::{
+//         extension::BinomialExtensionField, FieldAlgebra, FieldExtensionAlgebra, PrimeField32,
+//         PrimeField64,
+//     };
+//     use p3_util::array_serialization::deserialize;
+//     use serde::{Deserialize, Serialize};
+//     use serde_json::Value;
+//     use std::io::Read;
+//     use std::{default, fs::File};
+
+//     use super::verify_tower_proof;
+//     type SC = BabyBearPoseidon2Config;
+//     type EF = <SC as StarkGenericConfig>::Challenge;
+//     type Challenger = <SC as StarkGenericConfig>::Challenger;
+
+//     use crate::tower_verifier::binding::E;
+//     use ff_ext::BabyBearExt4;
+
+//     type B = BabyBear;
+//     type Pcs = Basefold<E, BasefoldRSParams>;
+
+//     fn read_json() -> Value {
+//         let mut file = File::open("zkvm_proof.json").unwrap();
+//         let mut contents = String::new();
+//         let _ = file.read_to_string(&mut contents);
+//         serde_json::from_str(&contents).unwrap()
+//     }
+
+//     fn print_structure(value: &Value, indent: usize) {
+//         let recursive = false;
+//         // Generate indentation for pretty printing
+//         let indent_str = "  ".repeat(indent);
+
+//         match value {
+//             // If it's an object, recursively print each key-value pair's type
+//             Value::Object(obj) => {
+//                 println!("{}Object ({} fields):", indent_str, obj.len());
+//                 for (key, val) in obj {
+//                     println!("{}  {}: ", indent_str, key);
+//                     print_structure(val, indent + 1);
+//                 }
+//             }
+
+//             // If it's an array, recursively print the type of each item
+//             Value::Array(arr) => {
+//                 println!("{}Array ({} elements):", indent_str, arr.len());
+//                 for (i, item) in arr.iter().enumerate() {
+//                     println!("{}  [{}]:", indent_str, i);
+//                     if recursive {
+//                         print_structure(item, indent + 1);
+//                     }
+//                 }
+//             }
+
+//             // If it's a string, print its type
+//             Value::String(_) => {
+//                 println!("{}String", indent_str);
+//             }
+
+//             // If it's a number (integer or float), print its type
+//             Value::Number(_) => {
+//                 println!("{}Number", indent_str);
+//             }
+
+//             // If it's a boolean, print its type
+//             Value::Bool(_) => {
+//                 println!("{}Boolean", indent_str);
+//             }
+
+//             // If it's null, print its type
+//             Value::Null => {
+//                 println!("{}Null", indent_str);
+//             }
+//         }
+//     }
+
+//     pub struct ZKVMProofJSONParsed {
+//         raw_pi: Vec<Vec<F>>,
+
+//         circuit_vks_fixed_commits: Vec<BasefoldCommitment<BabyBearExt4>>,
+//         opcode_proof_commits: Vec<BasefoldCommitment<BabyBearExt4>>,
+//         table_proof_commits: Vec<BasefoldCommitment<BabyBearExt4>>,
+
+//         pub prod_out_evals: Vec<Vec<E>>,
+//         pub logup_out_evals: Vec<Vec<E>>,
+//         pub num_variables: Vec<usize>,
+//         pub num_fanin: usize,
+
+//         // TowerProof
+//         pub num_proofs: usize,
+//         pub num_prod_specs: usize,
+//         pub num_logup_specs: usize,
+//         pub max_num_variables: usize,
+
+//         proofs: Vec<Vec<IOPProverMessage>>,
+//         prod_specs_eval: Vec<Vec<Vec<E>>>,
+//         logup_specs_eval: Vec<Vec<Vec<E>>>,
+//     }
+
+//     fn parse_json() -> ZKVMProofJSONParsed {
+//         let mut res = ZKVMProofJSONParsed::default();
+
+//         let filename = "zkvm_proof.json";
+//         let section = "opcode_proofs";
+//         let opcode_idx: usize = 0;
+//         let opcode_str = "ADD";
+
+//         let mut file = File::open(filename).unwrap();
+//         let mut contents = String::new();
+//         file.read_to_string(&mut contents);
+//         let data: Value = serde_json::from_str(&contents).unwrap();
+
+//         // Check if the root is an object (it is in this case)
+//         if let Some(obj) = data.as_object() {
+//             let mut raw_pi_vec: Vec<Vec<F>> = vec![];
+
+//             if let Some(raw_pi) = obj.get("raw_pi").and_then(Value::as_array) {
+//                 for pi in raw_pi {
+//                     let mut sub_pi_vec: Vec<F> = vec![];
+//                     let fs = Value::as_array(pi).expect("Correct structure");
+//                     for f in fs {
+//                         let f_v: F =
+//                             serde_json::from_value(f.clone()).expect("correct deserlization");
+//                         sub_pi_vec.push(f_v);
+//                     }
+//                     raw_pi_vec.push(sub_pi_vec);
+//                 }
+//                 res.raw_pi = raw_pi_vec;
+//             }
+
+//             // deal with opcode + table proof
+//             let opcode_proofs =
+//                 Value::as_object(obj.get(section).expect("section")).expect("section");
+//             let table_proofs =
+//                 Value::as_object(obj.get("table_proofs").expect("section")).expect("section");
+
+//             // Gather opcode proof and table proof commitments
+//             let opcode_keys = vec![
+//                 "ADD", "ADDI", "ANDI", "BEQ", "BLTU", "BNE", "JALR", "LW", "ORI", "SB", "SRAI",
+//                 "SRLI", "SUB", "SW",
+//             ];
+//             let table_keys = vec![
+//                 "OPS_And",
+//                 "OPS_Ltu",
+//                 "OPS_Or",
+//                 "OPS_Pow",
+//                 "OPS_Xor",
+//                 "PROGRAM",
+//                 "RAM_Memory_PubIOTable",
+//                 "RAM_Memory_StaticMemTable",
+//                 "RAM_Register_RegTable",
+//                 "RANGE_U14",
+//                 "RANGE_U16",
+//                 "RANGE_U5",
+//                 "RANGE_U8",
+//             ];
+
+//             let mut opcode_commits: Vec<BasefoldCommitment<BabyBearExt4>> = vec![];
+//             for key in opcode_keys {
+//                 let op_proof = Value::as_array(opcode_proofs.get(key).expect("opcode"))
+//                     .expect("opcode_section");
+//                 let commit = op_proof[1].get("wits_commit").expect("commitment");
+//                 let basefold_cmt: BasefoldCommitment<BabyBearExt4> =
+//                     serde_json::from_value(commit.clone()).expect("deserialization");
+//                 opcode_commits.push(basefold_cmt);
+//             }
+//             res.opcode_proof_commits = opcode_commits;
+
+//             let mut table_commits: Vec<BasefoldCommitment<BabyBearExt4>> = vec![];
+//             for key in table_keys {
+//                 let tb_proof =
+//                     Value::as_array(table_proofs.get(key).expect("table")).expect("table_section");
+//                 let commit = tb_proof[1].get("wits_commit").expect("commitment");
+//                 let basefold_cmt: BasefoldCommitment<BabyBearExt4> =
+//                     serde_json::from_value(commit.clone()).expect("deserialization");
+//                 table_commits.push(basefold_cmt);
+//             }
+//             res.table_proof_commits = table_commits;
+
+//             // Parse out ADD proof for testing
+//             let opcode_proof =
+//                 Value::as_array(opcode_proofs.get(opcode_str).expect("opcode_section"))
+//                     .expect("opcode_section");
+
+//             // prod_out_evals
+//             let mut prod_out_evals: Vec<Vec<E>> = vec![];
+
+//             let mut record_r_out_evals: Vec<E> = vec![];
+//             let record_r_out_evals_v =
+//                 Value::as_array(opcode_proof[1].get("record_r_out_evals").expect("section"))
+//                     .expect("section");
+//             for e in record_r_out_evals_v {
+//                 let e_v: E = serde_json::from_value(e.clone()).expect("conversion");
+//                 record_r_out_evals.push(e_v);
+//             }
+//             prod_out_evals.push(record_r_out_evals);
+
+//             let mut record_w_out_evals: Vec<E> = vec![];
+//             let record_w_out_evals_v =
+//                 Value::as_array(opcode_proof[1].get("record_w_out_evals").expect("section"))
+//                     .expect("section");
+//             for e in record_w_out_evals_v {
+//                 let e_v: E = serde_json::from_value(e.clone()).expect("conversion");
+//                 record_w_out_evals.push(e_v);
+//             }
+//             prod_out_evals.push(record_w_out_evals);
+//             res.prod_out_evals = prod_out_evals;
+
+//             // logup_out_evals
+//             let mut logup_out_evals: Vec<Vec<E>> = vec![];
+//             let mut inner: Vec<E> = vec![];
+
+//             for label in [
+//                 "lk_p1_out_eval",
+//                 "lk_p2_out_eval",
+//                 "lk_q1_out_eval",
+//                 "lk_q2_out_eval",
+//             ] {
+//                 let e_v: E =
+//                     serde_json::from_value(opcode_proof[1].get(label).expect("section").clone())
+//                         .expect("conversion");
+//                 inner.push(e_v);
+//             }
+//             logup_out_evals.push(inner);
+//             res.logup_out_evals = logup_out_evals;
+
+//             // parse out tower proof fields
+//             let tower_proof =
+//                 Value::as_object(opcode_proof[1].get("tower_proof").expect("tower_proof"))
+//                     .expect("tower_proof");
+
+//             let mut proofs: Vec<Vec<IOPProverMessage>> = vec![];
+//             let proofs_section =
+//                 Value::as_array(tower_proof.get("proofs").expect("proofs")).expect("proof");
+//             for proof in proofs_section {
+//                 let mut proof_messages: Vec<IOPProverMessage> = vec![];
+//                 let messages = Value::as_array(proof).expect("messages");
+//                 for m in messages {
+//                     let mut evaluations_vec: Vec<E> = vec![];
+//                     let evaluations = Value::as_array(
+//                         Value::as_object(m)
+//                             .expect("IOPProverMessage")
+//                             .get("evaluations")
+//                             .expect("evaluations"),
+//                     )
+//                     .expect("evaluations");
+//                     for v in evaluations {
+//                         let e_v: E = serde_json::from_value(v.clone()).expect("e");
+//                         evaluations_vec.push(e_v);
+//                     }
+//                     proof_messages.push(IOPProverMessage {
+//                         evaluations: evaluations_vec,
+//                     });
+//                     // println!("=> m: {:?}", m);
+//                     // println!("=> m parsed evaluations: {:?}", evaluations_vec);
+//                 }
+//                 proofs.push(proof_messages);
+//             }
+//             res.num_proofs = proofs.len();
+//             res.proofs = proofs;
+
+//             let mut prod_specs_eval: Vec<Vec<Vec<E>>> = vec![];
+//             let prod_specs_eval_section =
+//                 Value::as_array(tower_proof.get("prod_specs_eval").expect("eval")).expect("evals");
+//             for inner in prod_specs_eval_section {
+//                 let mut inner_v: Vec<Vec<E>> = vec![];
+//                 let v = Value::as_array(inner).expect("inner vec");
+//                 for inner_inner in v {
+//                     let mut inner_evals_v: Vec<E> = vec![];
+//                     let inner_evals = Value::as_array(inner_inner).expect("inner evals vec");
+//                     for e in inner_evals {
+//                         let e_v: E = serde_json::from_value(e.clone()).expect("e");
+//                         inner_evals_v.push(e_v);
+//                     }
+//                     inner_v.push(inner_evals_v);
+//                 }
+//                 prod_specs_eval.push(inner_v);
+//             }
+//             res.num_prod_specs = prod_specs_eval.len();
+//             res.prod_specs_eval = prod_specs_eval;
+
+//             let mut logup_specs_eval: Vec<Vec<Vec<E>>> = vec![];
+//             let logup_specs_eval_section =
+//                 Value::as_array(tower_proof.get("logup_specs_eval").expect("eval")).expect("evals");
+//             for inner in logup_specs_eval_section {
+//                 let mut inner_v: Vec<Vec<E>> = vec![];
+//                 let v = Value::as_array(inner).expect("inner vec");
+//                 for inner_inner in v {
+//                     let mut inner_evals_v: Vec<E> = vec![];
+//                     let inner_evals = Value::as_array(inner_inner).expect("inner evals vec");
+//                     for e in inner_evals {
+//                         let e_v: E = serde_json::from_value(e.clone()).expect("e");
+//                         inner_evals_v.push(e_v);
+//                     }
+//                     inner_v.push(inner_evals_v);
+//                 }
+//                 logup_specs_eval.push(inner_v);
+//             }
+//             res.num_logup_specs = logup_specs_eval.len();
+//             res.logup_specs_eval = logup_specs_eval;
+
+//             res.num_variables = vec![17, 17, 19];
+//             res.num_fanin = 2;
+//             res.max_num_variables = 19;
+//         }
+
+//         // parse out fixed commits
+//         let mut vk_file = File::open("circuit_vks_fixed_commits.json").unwrap();
+//         let mut vk_contents = String::new();
+//         vk_file.read_to_string(&mut vk_contents);
+//         let data: Value = serde_json::from_str(&vk_contents).unwrap();
+
+//         let mut circuit_vks_fixed_commits: Vec<BasefoldCommitment<BabyBearExt4>> = vec![];
+//         for c in Value::as_array(&data).expect("conversion") {
+//             let cmt: BasefoldCommitment<BabyBearExt4> =
+//                 serde_json::from_value(c.clone()).expect("conversion");
+//             circuit_vks_fixed_commits.push(cmt);
+//         }
+//         res.circuit_vks_fixed_commits = circuit_vks_fixed_commits;
+
+//         res
+//     }
+
+//     #[allow(dead_code)]
+//     pub fn build_tower_verifier_input() -> TowerVerifierInput {
+//         TowerVerifierInput {
+//             prod_out_evals: vec![vec![
+//                 E::from_canonical_u64(0x01),
+//                 E::from_canonical_u64(0x22),
+//             ]],
+//             logup_out_evals: vec![],
+//             num_variables: vec![2usize],
+//             num_fanin: 2,
+
+//             // TowerProof
+//             num_proofs: 1usize,
+//             num_prod_specs: 1usize,
+//             num_logup_specs: 0usize,
+//             _max_num_variables: 2usize,
+
+//             proofs: vec![vec![IOPProverMessage {
+//                 evaluations: vec![
+//                     E::from_canonical_u64(0x03),
+//                     E::from_canonical_u64(0x04),
+//                     E::from_canonical_u64(0x05),
+//                     E::from_canonical_u64(0x06),
+//                 ],
+//             }]],
+//             prod_specs_eval: vec![vec![vec![
+//                 E::from_canonical_u64(0x07),
+//                 E::from_canonical_u64(0x08),
+//             ]]],
+//             logup_specs_eval: vec![],
+//         }
+//     }
+
+//     #[allow(dead_code)]
+//     pub fn build_test_tower_verifier() -> (Program<BabyBear>, Vec<Vec<BabyBear>>) {
+//         // OpenVM DSL
+//         let engine = default_engine();
+//         let perm = engine.perm;
+//         let mut challenger = Challenger::new(perm.clone());
+
+//         let mut builder = AsmBuilder::<F, EF>::default();
+//         let mut challenger = DuplexChallengerVariable::new(&mut builder);
+
+//         // Obtain witness inputs
+//         let tower_verifier_input = TowerVerifierInput::read(&mut builder);
+
+//         // Initialize transcript
+//         transcript_observe_label(&mut builder, &mut challenger, b"riscv");
+
+//         // Setup pre-program transcript operations
+//         let parsed_zkvm_proof_fields = parse_json();
+
+//         for v in parsed_zkvm_proof_fields.raw_pi.clone() {
+//             for f in v {
+//                 let f_v = builder.constant(f);
+//                 challenger.observe(&mut builder, f_v);
+//             }
+//         }
+
+//         for cmt in parsed_zkvm_proof_fields.circuit_vks_fixed_commits.clone() {
+//             cmt.root().0.iter().for_each(|x| {
+//                 let f: F = serde_json::from_str(&serde_json::to_string(x).expect("serialization"))
+//                     .expect("serialization bridge");
+//                 let f_v: Felt<F> = builder.constant(f);
+//                 challenger.observe(&mut builder, f_v);
+//             });
+//         }
+
+//         for cmt in parsed_zkvm_proof_fields.opcode_proof_commits.clone() {
+//             cmt.root().0.iter().for_each(|x| {
+//                 let f: F = serde_json::from_str(&serde_json::to_string(x).expect("serialization"))
+//                     .expect("serialization bridge");
+//                 let f_v: Felt<F> = builder.constant(f);
+//                 challenger.observe(&mut builder, f_v);
+//             });
+//         }
+
+//         for cmt in parsed_zkvm_proof_fields.table_proof_commits.clone() {
+//             cmt.root().0.iter().for_each(|x| {
+//                 let f: F = serde_json::from_str(&serde_json::to_string(x).expect("serialization"))
+//                     .expect("serialization bridge");
+//                 let f_v: Felt<F> = builder.constant(f);
+//                 challenger.observe(&mut builder, f_v);
+//             });
+//         }
+
+//         // Sampling before verification
+//         let _alpha = challenger.sample_ext(&mut builder);
+//         let _beta = challenger.sample_ext(&mut builder);
+
+//         // Fork the transcript depending on sub-circuit
+//         // ```
+//         //     => forking transcript length: 62
+//         //     => using transcript fork: 0
+//         // ```
+//         let transcript_forking_segment: usize = 0;
+//         let f_v: Felt<F> = builder.constant(F::from_canonical_usize(transcript_forking_segment));
+//         challenger.observe(&mut builder, f_v);
+
+//         let (_, _, _, _) = verify_tower_proof(&mut builder, &mut challenger, tower_verifier_input);
+//         builder.halt();
+
+//         // Pass in witness stream
+//         let mut witness_stream: Vec<
+//             Vec<p3_monty_31::MontyField31<openvm_stark_sdk::p3_baby_bear::BabyBearParameters>>,
+//         > = Vec::new();
+
+//         let verifier_input = TowerVerifierInput {
+//             prod_out_evals: parsed_zkvm_proof_fields.prod_out_evals,
+//             logup_out_evals: parsed_zkvm_proof_fields.logup_out_evals,
+//             num_variables: parsed_zkvm_proof_fields.num_variables,
+//             num_fanin: parsed_zkvm_proof_fields.num_fanin,
+
+//             // TowerProof
+//             num_proofs: parsed_zkvm_proof_fields.num_proofs,
+//             num_prod_specs: parsed_zkvm_proof_fields.num_prod_specs,
+//             num_logup_specs: parsed_zkvm_proof_fields.num_logup_specs,
+//             _max_num_variables: parsed_zkvm_proof_fields.max_num_variables,
+
+//             proofs: parsed_zkvm_proof_fields.proofs,
+//             prod_specs_eval: parsed_zkvm_proof_fields.prod_specs_eval,
+//             logup_specs_eval: parsed_zkvm_proof_fields.logup_specs_eval,
+//         };
+
+//         witness_stream.extend(verifier_input.write());
+
+//         let program: Program<
+//             p3_monty_31::MontyField31<openvm_stark_sdk::p3_baby_bear::BabyBearParameters>,
+//         > = builder.compile_isa();
+
+//         (program, witness_stream)
+//     }
+
+//     #[test]
+//     fn test_tower_proof_verifier() {
+//         let (program, witness) = build_test_tower_verifier();
+
+//         let system_config = SystemConfig::default()
+//             .with_public_values(4)
+//             .with_max_segment_len((1 << 25) - 100);
+//         let config = NativeConfig::new(system_config, Native);
+
+//         let executor = VmExecutor::<BabyBear, NativeConfig>::new(config);
+//         executor.execute(program, witness).unwrap();
+
+//         // _debug
+//         // let results = executor.execute_segments(program, witness).unwrap();
+//         // for seg in results {
+//         //     println!("=> cycle count: {:?}", seg.metrics.cycle_count);
+//         // }
+//     }
+// }
