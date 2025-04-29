@@ -554,37 +554,33 @@ pub fn verify_opcode_proof<C: Config>(
         builder.eval(alpha_lk * sel_lk * (lk_prod + alpha * (eq_lk_rest_sum - one)));
 
     let computed_eval: Ext<C::F, C::EF> = builder.eval(r_eval + w_eval + lk_eval);
-
-    // // sel(rt_non_lc_sumcheck, main_sel_eval_point) * \sum_j (alpha{j} * expr(main_sel_eval_point))
-    // let sel_sum: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
     let empty_arr: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(0);
-    // let mut expr_idx: usize = 0;
-    // builder
-    //     .range(0, cs.assert_zero_sumcheck_expressions.len())
-    //     .for_each(|idx_vec, builder| {
-    //         let expr = &cs.assert_zero_expressions[expr_idx];
-    //         let alpha = builder.get(&alpha_pow, idx_vec[0]);
 
-    //         let expr_eval = eval_ceno_expr_with_instance(
-    //             builder,
-    //             &empty_arr,
-    //             &opcode_proof.wits_in_evals,
-    //             &empty_arr,
-    //             pi_evals,
-    //             challenges,
-    //             expr,
-    //         );
+    // sel(rt_non_lc_sumcheck, main_sel_eval_point) * \sum_j (alpha{j} * expr(main_sel_eval_point))
+    let sel_sum: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
+    let alpha_pow_sel_sum = alpha_pow.slice(builder, 3, alpha_pow.len());
+    for i in 0..cs.assert_zero_sumcheck_expressions.len() {
+        let expr = &cs.assert_zero_sumcheck_expressions[i];
+        let al = builder.get(&alpha_pow_sel_sum, i);
 
-    //         builder.assign(&sel_sum, sel_sum + alpha * expr_eval);
-    //         expr_idx += 1;
-    //     });
+        let expr_eval = eval_ceno_expr_with_instance(
+            builder,
+            &empty_arr,
+            &opcode_proof.wits_in_evals,
+            &empty_arr,
+            pi_evals,
+            challenges,
+            expr
+        );
 
-    // builder.assign(
-    //     &computed_eval,
-    //     computed_eval + sel_sum * sel_non_lc_zero_sumcheck,
-    // );
+        builder.assign(&sel_sum, sel_sum + al * expr_eval);
+    }
 
-    // builder.assert_ext_eq(computed_eval, expected_evaluation);
+    builder.assign(
+        &computed_eval,
+        computed_eval + sel_sum * sel_non_lc_zero_sumcheck,
+    );
+    builder.assert_ext_eq(computed_eval, expected_evaluation);
 
     // verify records (degree = 1) statement, thus no sumcheck
     let r_records = &opcode_proof
