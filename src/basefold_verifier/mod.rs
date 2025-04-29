@@ -1,5 +1,5 @@
-pub(crate) mod binding;
-pub(crate) mod program;
+pub(crate) mod structs;
+pub(crate) mod basefold;
 pub(crate) mod query_phase;
 pub(crate) mod rs;
 pub(crate) mod mmcs;

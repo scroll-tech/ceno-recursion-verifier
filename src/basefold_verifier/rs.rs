@@ -5,8 +5,6 @@ use openvm_native_recursion::hints::Hintable;
 use openvm_stark_sdk::p3_baby_bear::BabyBear;
 use p3_field::extension::BinomialExtensionField;
 
-use super::utils::*;
-
 pub type F = BabyBear;
 pub type E = BinomialExtensionField<F, 4>;
 pub type InnerConfig = AsmConfig<F, E>;
@@ -21,7 +19,7 @@ impl Hintable<InnerConfig> for DenseMatrix {
 
     fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
         let values = Vec::<E>::read(builder);
-        let width = Usize::Var(usize::read(builder));
+        let width = usize::read(builder);
 
         DenseMatrixVariable {
             values,
@@ -40,7 +38,7 @@ impl Hintable<InnerConfig> for DenseMatrix {
 #[derive(DslVariable, Clone)]
 pub struct DenseMatrixVariable<C: Config> {
     pub values: Array<C, Ext<C::F, C::EF>>,
-    pub width: Usize<C::N>,
+    pub width: Var<C::N>,
 }
 pub type RowMajorMatrixVariable<C> = DenseMatrixVariable<C>;
 
@@ -65,7 +63,7 @@ impl<C: Config> DenseMatrixVariable<C> {
     pub fn pad_to_height(
         &self,
         builder: &mut Builder<C>,
-        new_height: RVar<C::N>,
+        new_height: Var<C::N>,
         fill: Ext<C::F, C::EF>,
     ) {
         // XXX: Not necessary, only for testing purpose
@@ -90,8 +88,29 @@ pub fn get_rate_log<C: Config>() -> Usize<C::N> {
     Usize::from(1)
 }
 
-/*
 /// The DIT FFT algorithm.
+pub struct Radix2Dit {
+    pub twiddles: Vec<E>,
+}
+
+impl Hintable<InnerConfig> for Radix2Dit {
+    type HintVariable = Radix2DitVariable<InnerConfig>;
+
+    fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
+        let twiddles = Vec::<E>::read(builder);
+
+        Radix2DitVariable {
+            twiddles,
+        }
+    }
+
+    fn write(&self) -> Vec<Vec<<InnerConfig as Config>::N>> {
+        let mut stream = Vec::new();
+        stream.extend(self.twiddles.write());
+        stream
+    }
+}
+
 #[derive(DslVariable, Clone)]
 pub struct Radix2DitVariable<C: Config> {
     /// Memoized twiddle factors for each length log_n.
@@ -99,6 +118,7 @@ pub struct Radix2DitVariable<C: Config> {
     pub twiddles: Array<C, Ext<C::F, C::EF>>,
 }
 
+/*
 impl<C: Config> Radix2DitVariable<C> {
     fn dft_batch(
         &self, 
@@ -130,14 +150,44 @@ impl<C: Config> Radix2DitVariable<C> {
 }
 */
 
-/*
+pub struct RSCodeVerifierParameters {
+    pub dft: Radix2Dit,
+    pub t_inv_halves: Vec<Vec<F>>,
+    pub full_message_size_log: usize,
+}
+
+impl Hintable<InnerConfig> for RSCodeVerifierParameters {
+    type HintVariable = RSCodeVerifierParametersVariable<InnerConfig>;
+
+    fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
+        let dft = Radix2Dit::read(builder);
+        let t_inv_halves = Vec::<Vec::<F>>::read(builder);
+        let full_message_size_log = Usize::Var(usize::read(builder));
+
+        RSCodeVerifierParametersVariable {
+            dft,
+            t_inv_halves,
+            full_message_size_log,
+        }
+    }
+
+    fn write(&self) -> Vec<Vec<<InnerConfig as Config>::N>> {
+        let mut stream = Vec::new();
+        stream.extend(self.dft.write());
+        stream.extend(self.t_inv_halves.write());
+        stream.extend(<usize as Hintable<InnerConfig>>::write(&self.full_message_size_log));
+        stream
+    }
+}
+
 #[derive(DslVariable, Clone)]
 pub struct RSCodeVerifierParametersVariable<C: Config> {
     pub dft: Radix2DitVariable<C>,
-    pub t_inv_halves: Array<C, Array<C, C::F>>,
+    pub t_inv_halves: Array<C, Array<C, Felt<C::F>>>,
     pub full_message_size_log: Usize<C::N>,
 }
 
+/*
 pub(crate) fn encode_small<C: Config>(
     builder: &mut Builder<C>,
     vp: RSCodeVerifierParametersVariable<C>,
@@ -153,6 +203,26 @@ pub(crate) fn encode_small<C: Config>(
     m
 }
 */
+
+pub(crate) fn encode_small<C: Config>(
+    builder: &mut Builder<C>,
+    _vp: RSCodeVerifierParametersVariable<C>,
+    _rmm: RowMajorMatrixVariable<C>,
+) -> RowMajorMatrixVariable<C> {
+    // XXX: nondeterministically supply the results for now
+    let len = builder.hint_var();
+    let values = builder.dyn_array(len);
+    builder.range(0, len).for_each(|i_vec, builder| {
+        let i = i_vec[0];
+        let next_input = builder.hint_ext();
+        builder.set_value(&values, i, next_input);
+    });
+    let width = builder.hint_var();
+    DenseMatrixVariable { 
+        values, 
+        width,
+    }
+}
 
 pub mod tests {
     use openvm_circuit::arch::{instructions::program::Program, SystemConfig, VmExecutor};
@@ -180,7 +250,7 @@ pub mod tests {
 
         // Witness inputs
         let dense_matrix_variable = DenseMatrix::read(&mut builder);
-        let new_height = RVar::from(8);
+        let new_height = builder.eval(Usize::from(8));
         let fill = Ext::new(0);
         dense_matrix_variable.pad_to_height(&mut builder, new_height, fill);
         builder.halt();

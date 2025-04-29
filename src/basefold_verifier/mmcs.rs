@@ -5,16 +5,16 @@ use openvm_native_recursion::hints::Hintable;
 use openvm_stark_sdk::p3_baby_bear::BabyBear;
 use p3_field::extension::BinomialExtensionField;
 
-use super::{binding::*, utils::*, hash::*};
+use super::{structs::*, utils::*, hash::*};
 
 pub type F = BabyBear;
 pub type E = BinomialExtensionField<F, 4>;
 pub type InnerConfig = AsmConfig<F, E>;
 
-type Commitment = Hash<DIGEST_ELEMS>;
-type MmcsProof = Vec<[F; DIGEST_ELEMS]>;
+pub type MmcsCommitment = Hash<DIGEST_ELEMS>;
+pub type MmcsProof = Vec<[F; DIGEST_ELEMS]>;
 pub struct MmcsVerifierInput {
-    pub commit: Commitment,
+    pub commit: MmcsCommitment,
     pub dimensions: Vec<Dimensions>,
     pub index: usize,
     pub opened_values: Vec<Vec<F>>,
@@ -25,7 +25,7 @@ impl Hintable<InnerConfig> for MmcsVerifierInput {
     type HintVariable = MmcsVerifierInputVariable<InnerConfig>;
 
     fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
-        let commit = Commitment::read(builder);
+        let commit = MmcsCommitment::read(builder);
         let dimensions = Vec::<Dimensions>::read(builder);
         let index = usize::read(builder);
         let opened_values = Vec::<Vec::<F>>::read(builder);
@@ -51,11 +51,11 @@ impl Hintable<InnerConfig> for MmcsVerifierInput {
     }
 }
 
-type CommitmentVariable<C> = HashVariable<C>;
-type MmcsProofVariable<C> = Array<C, Array<C, Felt<<C as Config>::F>>>;
+pub type MmcsCommitmentVariable<C> = HashVariable<C>;
+pub type MmcsProofVariable<C> = Array<C, Array<C, Felt<<C as Config>::F>>>;
 #[derive(DslVariable, Clone)]
 pub struct MmcsVerifierInputVariable<C: Config> {
-    pub commit: CommitmentVariable<C>,
+    pub commit: MmcsCommitmentVariable<C>,
     pub dimensions: Array<C, DimensionsVariable<C>>,
     pub index: Var<C::N>,
     pub opened_values: Array<C, Array<C, Felt<C::F>>>,
@@ -258,9 +258,9 @@ pub mod tests {
     type F = BabyBear;
     type E = BinomialExtensionField<F, 4>;
     type EF = <SC as StarkGenericConfig>::Challenge;
-    use crate::basefold_verifier::binding::Dimensions;
+    use crate::basefold_verifier::structs::Dimensions;
 
-    use super::{mmcs_verify_batch, Commitment, InnerConfig, MmcsVerifierInput};
+    use super::{mmcs_verify_batch, MmcsCommitment, InnerConfig, MmcsVerifierInput};
 
     #[allow(dead_code)]
     pub fn build_mmcs_verify_batch() -> (Program<BabyBear>, Vec<Vec<BabyBear>>) {
@@ -277,7 +277,7 @@ pub mod tests {
         let mut witness_stream: Vec<
             Vec<p3_monty_31::MontyField31<openvm_stark_sdk::p3_baby_bear::BabyBearParameters>>,
         > = Vec::new();
-        let commit = Commitment {
+        let commit = MmcsCommitment {
             value: [
                 f(778527199),
                 f(28726932),

@@ -1,7 +1,8 @@
 use openvm_native_compiler::{asm::AsmConfig, prelude::*};
-use openvm_native_recursion::hints::Hintable;
+use openvm_native_recursion::hints::{Hintable, VecAutoHintable};
 use openvm_stark_sdk::p3_baby_bear::BabyBear;
 use p3_field::extension::BinomialExtensionField;
+use p3_field::FieldAlgebra;
 
 pub const DIGEST_ELEMS: usize = 8;
 
@@ -11,6 +12,14 @@ pub type InnerConfig = AsmConfig<F, E>;
 
 pub struct Hash<const DIGEST_ELEMS: usize> {
     pub value: [F; DIGEST_ELEMS],
+}
+
+impl Default for Hash<DIGEST_ELEMS> {
+    fn default() -> Self {
+        Hash {
+            value: [F::ZERO; DIGEST_ELEMS],
+        }
+    }
 }
 
 impl Hintable<InnerConfig> for Hash<DIGEST_ELEMS> {
@@ -23,9 +32,7 @@ impl Hintable<InnerConfig> for Hash<DIGEST_ELEMS> {
             builder.set(&value, i, tmp);
         }
 
-        HashVariable {
-            value,
-        }
+        HashVariable { value }
     }
 
     fn write(&self) -> Vec<Vec<<InnerConfig as Config>::N>> {
@@ -37,6 +44,7 @@ impl Hintable<InnerConfig> for Hash<DIGEST_ELEMS> {
         stream
     }
 }
+impl VecAutoHintable for Hash<DIGEST_ELEMS> {}
 
 #[derive(DslVariable, Clone)]
 pub struct HashVariable<C: Config> {
@@ -44,19 +52,19 @@ pub struct HashVariable<C: Config> {
 }
 
 pub fn hash_iter_slices<C: Config>(
-  builder: &mut Builder<C>,
-  // _hash: HashVariable<C>,
-  _values: Array<C, Array<C, Felt<C::F>>>,
+    builder: &mut Builder<C>,
+    // _hash: HashVariable<C>,
+    _values: Array<C, Array<C, Felt<C::F>>>,
 ) -> Array<C, Felt<C::F>> {
-  // XXX: verify hash
-  builder.hint_felts_fixed(DIGEST_ELEMS)
+    // XXX: verify hash
+    builder.hint_felts_fixed(DIGEST_ELEMS)
 }
 
 pub fn compress<C: Config>(
-  builder: &mut Builder<C>,
-  // _hash: HashVariable<C>,
-  _values: Array<C, Array<C, Felt<C::F>>>,
+    builder: &mut Builder<C>,
+    // _hash: HashVariable<C>,
+    _values: Array<C, Array<C, Felt<C::F>>>,
 ) -> Array<C, Felt<C::F>> {
-  // XXX: verify hash
-  builder.hint_felts_fixed(DIGEST_ELEMS)
+    // XXX: verify hash
+    builder.hint_felts_fixed(DIGEST_ELEMS)
 }
