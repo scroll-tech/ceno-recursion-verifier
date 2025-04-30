@@ -274,8 +274,8 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
 
     // encode_small
     let final_rmm_values_len = builder.get(&input.final_message, 0).len();
-    let final_rmm_values = builder.dyn_array(final_rmm_values_len);
-    builder.range(0, final_rmm_values_len).for_each(|i_vec, builder| {
+    let final_rmm_values = builder.dyn_array(final_rmm_values_len.clone());
+    builder.range(0, final_rmm_values_len.clone()).for_each(|i_vec, builder| {
         let i = i_vec[0];
         let row = builder.get(&input.final_message, i);
         let sum = builder.constant(C::EF::ZERO);
@@ -295,14 +295,21 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
         input.vp.clone(), 
         final_rmm,
     );
-
-    let mmcs_ext = ExtensionMmcs::<E::BaseField, E, _>::new(poseidon2_merkle_tree::<E>());
-    let mmcs = poseidon2_merkle_tree::<E>();
-    let check_queries_span = entered_span!("check_queries");
+    // XXX: we might need to add generics to MMCS to account for different field types
+    let mmcs_ext: MerkleTreeMmcsVariables<C> = Default::default();
+    let mmcs: MerkleTreeMmcsVariables<C> = Default::default();
     // can't use witin_comm.log2_max_codeword_size since it's untrusted
-    let log2_witin_max_codeword_size =
-        max_num_var + <Spec::EncodingScheme as EncodingScheme<E>>::get_rate_log();
+    let log2_witin_max_codeword_size: Var<C::N> = builder.eval(input.max_num_var + get_rate_log::<C>());
+    // Nondeterministically supply the index folding_sorted_order
+    // Check that:
+    // 1. It has the same length as input.circuit_meta (checked by requesting folding_len hints)
+    // 2. It does not contain the same index twice (checked via a correspondence array)
+    // 3. Indexed witin_num_vars are sorted in decreasing order
+    // Infer witin_num_vars through index
+    let folding_len = input.circuit_meta.len();
+    // let folding_sorted_order_index = builder.dyn_array(folding_len);
 
+    /*
     // an vector with same length as circuit_meta, which is sorted by num_var in descending order and keep its index
     // for reverse lookup when retrieving next base codeword to involve into batching
     let folding_sorted_order = circuit_meta
@@ -572,4 +579,5 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
             })
             .sum()
     );
+    */
 }

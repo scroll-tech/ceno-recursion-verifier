@@ -390,11 +390,10 @@ pub fn verify_tower_proof<C: Config>(
     let initial_claim: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
     builder.assign(&initial_claim, prod_sub_sum + logup_sub_sum);
 
-    let mut curr_pt = initial_rt.clone();
-    let mut curr_eval = initial_claim.clone();
+    let curr_pt = initial_rt.clone();
+    let curr_eval = initial_claim.clone();
     let op_range = builder.eval_expr(tower_verifier_input.max_num_variables - RVar::from(1));
     let round: Felt<C::F> = builder.constant(C::F::ZERO);
-    let one: Ext<<C as Config>::F, <C as Config>::EF> = builder.constant(C::EF::ONE);
 
     let mut next_rt = PointAndEvalVariable {
         point: PointVariable {

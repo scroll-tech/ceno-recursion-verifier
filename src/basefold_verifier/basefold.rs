@@ -40,7 +40,7 @@ impl Hintable<InnerConfig> for BasefoldCommitment {
     }
 }
 
-pub type HashDigestVariable<C: Config> = MmcsCommitmentVariable<C>;
+pub type HashDigestVariable<C> = MmcsCommitmentVariable<C>;
 #[derive(DslVariable, Clone)]
 pub struct BasefoldCommitmentVariable<C: Config> {
     pub commit: HashDigestVariable<C>,
