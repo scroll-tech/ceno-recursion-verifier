@@ -1,3 +1,4 @@
+/*
 use crate::constants::{OPCODE_KEYS, TABLE_KEYS};
 use crate::tower_verifier::binding::{IOPProverMessage, Point, TowerVerifierInput, F};
 use crate::zkvm_verifier::binding::{
@@ -288,9 +289,10 @@ pub fn parse_zkvm_proof_json() -> ZKVMProofInput {
             lk_records_in_evals.push(v_e);
         }
 
+        // _debug
         // PCS
-        let wits_commit: BasefoldCommitment<BabyBearExt4> =
-            serde_json::from_value(op_proof.get("wits_commit").unwrap().clone()).unwrap();
+        // let wits_commit: BasefoldCommitment<BabyBearExt4> =
+        //     serde_json::from_value(op_proof.get("wits_commit").unwrap().clone()).unwrap();
         let mut wits_in_evals: Vec<E> = vec![];
         for v in Value::as_array(op_proof.get("wits_in_evals").unwrap()).unwrap() {
             let v_e: E = serde_json::from_value(v.clone()).unwrap();
@@ -311,7 +313,7 @@ pub fn parse_zkvm_proof_json() -> ZKVMProofInput {
             r_records_in_evals,
             w_records_in_evals,
             lk_records_in_evals,
-            wits_commit,
+            // wits_commit,
             wits_in_evals,
         });
     }
@@ -453,10 +455,6 @@ pub fn parse_zkvm_proof_json() -> ZKVMProofInput {
             let v_e: E = serde_json::from_value(v.clone()).unwrap();
             fixed_in_evals.push(v_e);
         }
-
-        // PCS
-        let wits_commit: BasefoldCommitment<BabyBearExt4> =
-            serde_json::from_value(table_proof.get("wits_commit").unwrap().clone()).unwrap();
         let mut wits_in_evals: Vec<E> = vec![];
         for v in Value::as_array(table_proof.get("wits_in_evals").unwrap()).unwrap() {
             let v_e: E = serde_json::from_value(v.clone()).unwrap();
@@ -475,9 +473,7 @@ pub fn parse_zkvm_proof_json() -> ZKVMProofInput {
             rw_in_evals,
             lk_in_evals,
             tower_proof,
-            rw_hints_num_vars,
             fixed_in_evals,
-            wits_commit,
             wits_in_evals,
         });
     }
@@ -499,3 +495,4 @@ pub fn parse_zkvm_proof_json() -> ZKVMProofInput {
 
     res
 }
+*/

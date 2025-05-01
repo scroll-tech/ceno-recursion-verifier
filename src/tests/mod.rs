@@ -1,12 +1,12 @@
-use crate::json::parser::parse_zkvm_proof_json;
-use crate::tower_verifier::binding::F;
+use crate::zkvm_verifier::binding::{ZKVMOpcodeProofInput, E, F, TowerProofInput, ZKVMTableProofInput};
 use crate::transcript::transcript_observe_label;
 use crate::zkvm_verifier::binding::ZKVMProofInput;
 use crate::zkvm_verifier::verifier::verify_zkvm_proof;
 use ceno_emul::{IterAddresses, Program as CenoProgram, Word, WORD_SIZE};
-use ff_ext::BabyBearExt4;
+use ff_ext::{BabyBearExt4, SmallField};
 use itertools::Itertools;
 use mpcs::PolynomialCommitmentScheme;
+use mpcs::BasefoldCommitment;
 use mpcs::{Basefold, BasefoldRSParams};
 use openvm_circuit::arch::{instructions::program::Program, SystemConfig, VmExecutor};
 use openvm_native_circuit::{Native, NativeConfig};
@@ -17,10 +17,11 @@ use openvm_stark_sdk::{
     config::baby_bear_poseidon2::{default_engine, BabyBearPoseidon2Config},
     p3_baby_bear::BabyBear,
 };
-use std::fs;
+use std::fs::File;
+use crate::tower_verifier::binding::IOPProverMessage;
+use std::collections::HashMap;
 
 type SC = BabyBearPoseidon2Config;
-type E = BabyBearExt4;
 type EF = <SC as StarkGenericConfig>::Challenge;
 type Challenger = <SC as StarkGenericConfig>::Challenger;
 type B = BabyBear;
@@ -33,110 +34,410 @@ use ceno_zkvm::{
     },
     instructions::riscv::{DummyExtraConfig, MemPadder, MmuConfig, Rv32imConfig},
     scheme::{
-        constants::MAX_NUM_VARIABLES,
-        mock_prover::{LkMultiplicityKey, MockProver},
-        prover::ZKVMProver,
+        ZKVMProof,
         verifier::ZKVMVerifier,
-        PublicValues, ZKVMProof,
     },
     state::GlobalState,
     structs::{
-        ProgramParams, ZKVMConstraintSystem, ZKVMFixedTraces, ZKVMProvingKey, ZKVMWitnesses,
+        ZKVMVerifyingKey,
+        // ProgramParams, ZKVMConstraintSystem, ZKVMFixedTraces, ZKVMProvingKey, ZKVMWitnesses,
     },
     tables::{MemFinalRecord, MemInitRecord, ProgramTableCircuit, ProgramTableConfig},
     with_panic_hook,
 };
 
-// fn build_constraint_system() -> ZKVMVerifier<E, Pcs> {
-//     let elf_filename = "./src/tests/elf/fibonacci.elf";
-//     let elf_bytes = fs::read(elf_filename).expect("read elf file");
-//     let program = CenoProgram::load_elf(&elf_bytes, u32::MAX).unwrap();
+fn parse_zkvm_proof_import(
+    zkvm_proof: ZKVMProof<BabyBearExt4, Basefold<BabyBearExt4, BasefoldRSParams>>,
+    verifier: &ZKVMVerifier<BabyBearExt4, Basefold<BabyBearExt4, BasefoldRSParams>>,
+) -> (ZKVMProofInput, Vec<(usize, usize, String, usize)>, Vec<(usize, usize, String, usize)>) {
+    let mut opcode_keys = vec![];
+    let mut table_keys = vec![];
+    let subcircuit_names = verifier.vk.circuit_vks.iter().map(|(str, _)| { String::from(str) }).collect::<Vec<String>>();
+    let mut order_idx: usize = 0;
 
-//     let stack_size = (32000u32).next_multiple_of(WORD_SIZE as u32);
-//     let heap_size = (131072u32).next_multiple_of(WORD_SIZE as u32);
-//     let pub_io_size = 16; // TODO: configure.
+    let mut opcode_num_instances_lookup: HashMap<usize, usize> = HashMap::new();
+    let mut table_num_instances_lookup: HashMap<usize, usize> = HashMap::new();
+    for (index, num_instances) in &zkvm_proof.num_instances {
+        if let Some(_opcode_proof) = zkvm_proof.opcode_proofs.get(index) {
+            opcode_num_instances_lookup.insert(index.clone(), num_instances.clone());
+        } else if let Some(_table_proof) = zkvm_proof.table_proofs.get(index) {
+            table_num_instances_lookup.insert(index.clone(), num_instances.clone());
+        } else {
+            unreachable!("respective proof of index {} should exist", index)
+        }
+    }
 
-//     let platform = setup_platform(Preset::Sp1, &program, stack_size, heap_size, pub_io_size);
-//     let mem_init = init_mem(&program, &platform);
-//     let pub_io_len = platform.public_io.iter_addresses().len();
+    for (opcode_id, _) in &zkvm_proof.opcode_proofs {
+        let name = subcircuit_names[order_idx].clone();
+        opcode_keys.push((opcode_id.clone(), order_idx, name, opcode_num_instances_lookup.get(opcode_id).unwrap().clone()));
+        order_idx += 1;
+    }
 
-//     let program_params = ProgramParams {
-//         platform: platform.clone(),
-//         program_size: program.instructions.len(),
-//         static_memory_len: mem_init.len(),
-//         pub_io_len,
-//     };
-//     let system_config = construct_configs::<E>(program_params);
+    for (table_id, _) in &zkvm_proof.table_proofs {
+        let name = subcircuit_names[order_idx].clone();
+        table_keys.push((table_id.clone(), order_idx, name, table_num_instances_lookup.get(table_id).unwrap().clone()));
+        order_idx += 1;
+    }
 
-//     let reg_init = system_config.mmu_config.initial_registers();
-//     let io_init = MemPadder::init_mem(platform.public_io.clone(), pub_io_len, &[]);
-//     let init_full_mem = InitMemState {
-//         mem: mem_init,
-//         reg: reg_init,
-//         io: io_init,
-//         priv_io: vec![],
-//     };
+    let raw_pi = zkvm_proof.raw_pi.iter().map(|m_vec| {
+        m_vec.iter().map(|m| {
+            let f_v: F = serde_json::from_value(serde_json::to_value(m.clone()).unwrap()).unwrap();
+            f_v
+        })
+        .collect::<Vec<F>>()
+    }).collect::<Vec<Vec<F>>>();
 
-//     // Generate fixed traces
-//     let zkvm_fixed_traces = generate_fixed_traces(&system_config, &init_full_mem, &program);
+    let pi_evals = zkvm_proof.pi_evals.iter().map(|e| {
+        let e_v: E = serde_json::from_value(serde_json::to_value(e.clone()).unwrap()).unwrap();
+        e_v
+    }).collect::<Vec<E>>();
 
-//     // Keygen
-//     let pcs_param = Pcs::setup(1 << MAX_NUM_VARIABLES).expect("Basefold PCS setup");
-//     let (pp, vp) = Pcs::trim(pcs_param, 1 << MAX_NUM_VARIABLES).expect("Basefold trim");
-//     let pk = system_config
-//         .zkvm_cs
-//         .clone()
-//         .key_gen::<Pcs>(pp.clone(), vp.clone(), zkvm_fixed_traces.clone())
-//         .expect("keygen failed");
-//     let vk = pk.get_vk();
+    let mut opcode_proofs_vec: Vec<ZKVMOpcodeProofInput> = vec![];
+    for (opcode_id, opcode_proof) in &zkvm_proof.opcode_proofs {
+        let mut record_r_out_evals: Vec<E> = vec![];
+        let mut record_w_out_evals: Vec<E> = vec![];
+        for v in &opcode_proof.record_r_out_evals {
+            let v_e: E = serde_json::from_value(serde_json::to_value(v.clone()).unwrap()).unwrap();
+            record_r_out_evals.push(v_e);
+        }
+        for v in &opcode_proof.record_w_out_evals {
+            let v_e: E = serde_json::from_value(serde_json::to_value(v.clone()).unwrap()).unwrap();
+            record_w_out_evals.push(v_e);
+        }
 
-//     let verifier = ZKVMVerifier::new(vk);
 
-//     verifier
-// }
+        // logup sum at layer 1
+        let lk_p1_out_eval: E =
+            serde_json::from_value(serde_json::to_value(opcode_proof.lk_p1_out_eval).unwrap()).unwrap();
+        let lk_p2_out_eval: E =
+            serde_json::from_value(serde_json::to_value(opcode_proof.lk_p2_out_eval).unwrap()).unwrap();
+        let lk_q1_out_eval: E =
+            serde_json::from_value(serde_json::to_value(opcode_proof.lk_q1_out_eval).unwrap()).unwrap();
+        let lk_q2_out_eval: E =
+            serde_json::from_value(serde_json::to_value(opcode_proof.lk_q2_out_eval).unwrap()).unwrap();
+
+
+        // Tower proof
+        let mut tower_proof = TowerProofInput::default();
+        let mut proofs: Vec<Vec<IOPProverMessage>> = vec![];
+
+        for proof in &opcode_proof.tower_proof.proofs {
+            let mut proof_messages: Vec<IOPProverMessage> = vec![];
+            for m in proof {
+                let mut evaluations_vec: Vec<E> = vec![];
+
+                for v in &m.evaluations {
+                    let v_e: E = serde_json::from_value(serde_json::to_value(v.clone()).unwrap()).unwrap();
+                    evaluations_vec.push(v_e);
+                }
+                proof_messages.push(IOPProverMessage { evaluations: evaluations_vec });
+            }
+            proofs.push(proof_messages);
+        }
+        tower_proof.num_proofs = proofs.len();
+        tower_proof.proofs = proofs;
+
+
+        let mut prod_specs_eval: Vec<Vec<Vec<E>>> = vec![];
+        for inner_val in &opcode_proof.tower_proof.prod_specs_eval {
+            let mut inner_v: Vec<Vec<E>> = vec![];
+            for inner_evals_val in inner_val {
+                let mut inner_evals_v: Vec<E> = vec![];
+
+                for v in inner_evals_val {
+                    let v_e: E = serde_json::from_value(serde_json::to_value(v.clone()).unwrap()).unwrap();
+                    inner_evals_v.push(v_e);
+                }
+                inner_v.push(inner_evals_v);
+            }
+            prod_specs_eval.push(inner_v);
+        }
+        tower_proof.num_prod_specs = prod_specs_eval.len();
+        tower_proof.prod_specs_eval = prod_specs_eval;
+
+
+        let mut logup_specs_eval: Vec<Vec<Vec<E>>> = vec![];
+        for inner_val in &opcode_proof.tower_proof.logup_specs_eval {
+            let mut inner_v: Vec<Vec<E>> = vec![];
+            for inner_evals_val in inner_val {
+                let mut inner_evals_v: Vec<E> = vec![];
+
+                for v in inner_evals_val {
+                    let v_e: E = serde_json::from_value(serde_json::to_value(v.clone()).unwrap()).unwrap();
+                    inner_evals_v.push(v_e);
+                }
+                inner_v.push(inner_evals_v);
+            }
+            logup_specs_eval.push(inner_v);
+        }
+        tower_proof.num_logup_specs = logup_specs_eval.len();
+        tower_proof.logup_specs_eval = logup_specs_eval;
+
+
+        // main constraint and select sumcheck proof
+        let mut main_sel_sumcheck_proofs: Vec<IOPProverMessage> = vec![];
+        for m in &opcode_proof.main_sel_sumcheck_proofs {
+            let mut evaluations_vec: Vec<E> = vec![];
+            for v in &m.evaluations {
+                let v_e: E = serde_json::from_value(serde_json::to_value(v.clone()).unwrap()).unwrap();
+                evaluations_vec.push(v_e);
+            }
+            main_sel_sumcheck_proofs.push(IOPProverMessage { evaluations: evaluations_vec });
+        }
+        let mut r_records_in_evals: Vec<E> = vec![];
+        for v in &opcode_proof.r_records_in_evals {
+            let v_e: E = serde_json::from_value(serde_json::to_value(v.clone()).unwrap()).unwrap();
+            r_records_in_evals.push(v_e);
+        }
+        let mut w_records_in_evals: Vec<E> = vec![];
+        for v in &opcode_proof.w_records_in_evals {
+            let v_e: E = serde_json::from_value(serde_json::to_value(v.clone()).unwrap()).unwrap();
+            w_records_in_evals.push(v_e);
+        }
+        let mut lk_records_in_evals: Vec<E> = vec![];
+        for v in &opcode_proof.lk_records_in_evals {
+            let v_e: E = serde_json::from_value(serde_json::to_value(v.clone()).unwrap()).unwrap();
+            lk_records_in_evals.push(v_e);
+        }
+        let mut wits_in_evals: Vec<E> = vec![];
+        for v in &opcode_proof.wits_in_evals {
+            let v_e: E = serde_json::from_value(serde_json::to_value(v.clone()).unwrap()).unwrap();
+            wits_in_evals.push(v_e);
+        }
+
+        opcode_proofs_vec.push(ZKVMOpcodeProofInput {
+            idx: opcode_id.clone(),
+            num_instances: opcode_num_instances_lookup.get(opcode_id).unwrap().clone(),
+            record_r_out_evals,
+            record_w_out_evals,
+            lk_p1_out_eval,
+            lk_p2_out_eval,
+            lk_q1_out_eval,
+            lk_q2_out_eval,
+            tower_proof,
+            main_sel_sumcheck_proofs,
+            r_records_in_evals,
+            w_records_in_evals,
+            lk_records_in_evals,
+            wits_in_evals,
+        });
+    }
+
+    let mut table_proofs_vec: Vec<ZKVMTableProofInput> = vec![];
+    for (table_id, table_proof) in &zkvm_proof.table_proofs {
+        let mut r_out_evals: Vec<E> = vec![];
+        let mut w_out_evals: Vec<E> = vec![];
+        let mut lk_out_evals: Vec<E> = vec![];
+
+        for v in &table_proof.r_out_evals {
+            r_out_evals.push(serde_json::from_value(serde_json::to_value(v[0]).unwrap()).unwrap());
+            r_out_evals.push(serde_json::from_value(serde_json::to_value(v[1]).unwrap()).unwrap());
+        }
+        for v in &table_proof.w_out_evals {
+            w_out_evals.push(serde_json::from_value(serde_json::to_value(v[0]).unwrap()).unwrap());
+            w_out_evals.push(serde_json::from_value(serde_json::to_value(v[1]).unwrap()).unwrap());
+        }
+        let compressed_rw_out_len: usize = r_out_evals.len() / 2;
+        for v in &table_proof.lk_out_evals {
+            lk_out_evals.push(serde_json::from_value(serde_json::to_value(v[0]).unwrap()).unwrap());
+            lk_out_evals.push(serde_json::from_value(serde_json::to_value(v[1]).unwrap()).unwrap());
+            lk_out_evals.push(serde_json::from_value(serde_json::to_value(v[2]).unwrap()).unwrap());
+            lk_out_evals.push(serde_json::from_value(serde_json::to_value(v[3]).unwrap()).unwrap());
+        }
+        let compressed_lk_out_len: usize = lk_out_evals.len() / 4;
+
+        let mut has_same_r_sumcheck_proofs: usize = 0;
+        let mut same_r_sumcheck_proofs: Vec<IOPProverMessage> = vec![];
+        if table_proof.same_r_sumcheck_proofs.is_some() {
+            for m in table_proof.same_r_sumcheck_proofs.as_ref().unwrap() {
+                let mut evaluation_vec: Vec<E> = vec![];
+                for v in &m.evaluations {
+                    let v_e: E = serde_json::from_value(serde_json::to_value(v).unwrap()).unwrap();
+                    evaluation_vec.push(v_e);
+                }
+                same_r_sumcheck_proofs.push(IOPProverMessage { evaluations: evaluation_vec });
+            }
+        } else {
+            has_same_r_sumcheck_proofs = 0;
+        }
+
+        let mut rw_in_evals: Vec<E> = vec![];
+        for v in &table_proof.rw_in_evals {
+            let v_e: E = serde_json::from_value(serde_json::to_value(v).unwrap()).unwrap();
+            rw_in_evals.push(v_e);
+        }
+        let mut lk_in_evals: Vec<E> = vec![];
+        for v in &table_proof.lk_in_evals {
+            let v_e: E = serde_json::from_value(serde_json::to_value(v).unwrap()).unwrap();
+            lk_in_evals.push(v_e);
+        }
+
+        // Tower proof
+        let mut tower_proof = TowerProofInput::default();
+        let mut proofs: Vec<Vec<IOPProverMessage>> = vec![];
+
+        for proof in &table_proof.tower_proof.proofs {
+            let mut proof_messages: Vec<IOPProverMessage> = vec![];
+            for m in proof {
+                let mut evaluations_vec: Vec<E> = vec![];
+
+                for v in &m.evaluations {
+                    let v_e: E = serde_json::from_value(serde_json::to_value(v.clone()).unwrap()).unwrap();
+                    evaluations_vec.push(v_e);
+                }
+                proof_messages.push(IOPProverMessage { evaluations: evaluations_vec });
+            }
+            proofs.push(proof_messages);
+        }
+        tower_proof.num_proofs = proofs.len();
+        tower_proof.proofs = proofs;
+
+
+        let mut prod_specs_eval: Vec<Vec<Vec<E>>> = vec![];
+        for inner_val in &table_proof.tower_proof.prod_specs_eval {
+            let mut inner_v: Vec<Vec<E>> = vec![];
+            for inner_evals_val in inner_val {
+                let mut inner_evals_v: Vec<E> = vec![];
+
+                for v in inner_evals_val {
+                    let v_e: E = serde_json::from_value(serde_json::to_value(v.clone()).unwrap()).unwrap();
+                    inner_evals_v.push(v_e);
+                }
+                inner_v.push(inner_evals_v);
+            }
+            prod_specs_eval.push(inner_v);
+        }
+        tower_proof.num_prod_specs = prod_specs_eval.len();
+        tower_proof.prod_specs_eval = prod_specs_eval;
+
+
+        let mut logup_specs_eval: Vec<Vec<Vec<E>>> = vec![];
+        for inner_val in &table_proof.tower_proof.logup_specs_eval {
+            let mut inner_v: Vec<Vec<E>> = vec![];
+            for inner_evals_val in inner_val {
+                let mut inner_evals_v: Vec<E> = vec![];
+
+                for v in inner_evals_val {
+                    let v_e: E = serde_json::from_value(serde_json::to_value(v.clone()).unwrap()).unwrap();
+                    inner_evals_v.push(v_e);
+                }
+                inner_v.push(inner_evals_v);
+            }
+            logup_specs_eval.push(inner_v);
+        }
+        tower_proof.num_logup_specs = logup_specs_eval.len();
+        tower_proof.logup_specs_eval = logup_specs_eval;
+
+
+        let mut fixed_in_evals: Vec<E> = vec![];
+        for v in &table_proof.fixed_in_evals {
+            let v_e: E = serde_json::from_value(serde_json::to_value(v.clone()).unwrap()).unwrap();
+            fixed_in_evals.push(v_e);
+        }
+        let mut wits_in_evals: Vec<E> = vec![];
+        for v in &table_proof.wits_in_evals {
+            let v_e: E = serde_json::from_value(serde_json::to_value(v.clone()).unwrap()).unwrap();
+            wits_in_evals.push(v_e);
+        }
+
+        let num_instances = table_num_instances_lookup.get(table_id).unwrap().clone();
+
+        table_proofs_vec.push(ZKVMTableProofInput {
+            idx: table_id.clone(),
+            num_instances,
+            r_out_evals,
+            w_out_evals,
+            compressed_rw_out_len,
+            lk_out_evals,
+            compressed_lk_out_len,
+            has_same_r_sumcheck_proofs,
+            same_r_sumcheck_proofs,
+            rw_in_evals,
+            lk_in_evals,
+            tower_proof,
+            fixed_in_evals,
+            wits_in_evals,
+        });
+    }
+
+    let witin_commit: BasefoldCommitment<BabyBearExt4> = serde_json::from_value(serde_json::to_value(zkvm_proof.witin_commit).unwrap()).unwrap();
+
+    (
+        ZKVMProofInput {
+            raw_pi,
+            pi_evals,
+            opcode_proofs: opcode_proofs_vec,
+            table_proofs: table_proofs_vec,
+            witin_commit,
+        },
+        opcode_keys,
+        table_keys
+    )
+}
+
+#[test]
+fn test_zkvm_proof_verifier_from_bincode_exports() {
+    let proof_path = "./src/tests/encoded/proof.bin";
+    let vk_path = "./src/tests/encoded/vk.bin";
+
+    let zkvm_proof: ZKVMProof<BabyBearExt4, Basefold<BabyBearExt4, BasefoldRSParams>> = bincode::deserialize_from(
+        File::open(proof_path).expect("Failed to open proof file"),
+    ).expect("Failed to deserialize proof file");
+
+    let vk: ZKVMVerifyingKey<BabyBearExt4, Basefold<BabyBearExt4, BasefoldRSParams>> =
+        bincode::deserialize_from(File::open(vk_path).expect("Failed to open vk file"))
+            .expect("Failed to deserialize vk file");
+
+    let verifier = ZKVMVerifier::new(vk);
+    let (zkvm_proof_input, opcode_keys, table_keys) = parse_zkvm_proof_import(zkvm_proof, &verifier);
+
+    // OpenVM DSL
+    let engine = default_engine();
+    let mut builder = AsmBuilder::<F, EF>::default();
+
+    // Obtain witness inputs
+    let zkvm_proof_input_variables = ZKVMProofInput::read(&mut builder);
+    verify_zkvm_proof(
+        &mut builder,
+        zkvm_proof_input_variables,
+        &verifier,
+        opcode_keys,
+        table_keys,
+    );
+    builder.halt();
+
+    // Pass in witness stream
+    let mut witness_stream: Vec<
+        Vec<p3_monty_31::MontyField31<openvm_stark_sdk::p3_baby_bear::BabyBearParameters>>,
+    > = Vec::new();
+
+    witness_stream.extend(zkvm_proof_input.write());
+
+    // Compile program
+    let program: Program<
+        p3_monty_31::MontyField31<openvm_stark_sdk::p3_baby_bear::BabyBearParameters>,
+    > = builder.compile_isa();
+
+
+
+
+    // let (program, witness) = build_zkvm_proof_verifier_test();
+
+    // let system_config = SystemConfig::default()
+    //     .with_public_values(4)
+    //     .with_max_segment_len((1 << 25) - 100);
+    // let config = NativeConfig::new(system_config, Native);
+
+    // let executor = VmExecutor::<BabyBear, NativeConfig>::new(config);
+    // executor.execute(program, witness).unwrap();
+}
+
 
 // #[allow(dead_code)]
 // fn build_zkvm_proof_verifier_test() -> (Program<BabyBear>, Vec<Vec<BabyBear>>) {
 //     let ceno_constraint_system = build_constraint_system();
 
-//     // OpenVM DSL
-//     let engine = default_engine();
-//     let mut builder = AsmBuilder::<F, EF>::default();
 
-//     // Obtain witness inputs
-//     let zkvm_proof_input_variables = ZKVMProofInput::read(&mut builder);
-//     verify_zkvm_proof(
-//         &mut builder,
-//         zkvm_proof_input_variables,
-//         &ceno_constraint_system,
-//     );
-//     builder.halt();
-
-//     // Pass in witness stream
-//     let mut witness_stream: Vec<
-//         Vec<p3_monty_31::MontyField31<openvm_stark_sdk::p3_baby_bear::BabyBearParameters>>,
-//     > = Vec::new();
-
-//     let zkvm_proof_input = parse_zkvm_proof_json();
-//     witness_stream.extend(zkvm_proof_input.write());
-
-//     // Compile program
-//     let program: Program<
-//         p3_monty_31::MontyField31<openvm_stark_sdk::p3_baby_bear::BabyBearParameters>,
-//     > = builder.compile_isa();
 
 //     (program, witness_stream)
-// }
-
-// #[test]
-// fn test_zkvm_proof_verifier() {
-//     let (program, witness) = build_zkvm_proof_verifier_test();
-
-//     let system_config = SystemConfig::default()
-//         .with_public_values(4)
-//         .with_max_segment_len((1 << 25) - 100);
-//     let config = NativeConfig::new(system_config, Native);
-
-//     let executor = VmExecutor::<BabyBear, NativeConfig>::new(config);
-//     executor.execute(program, witness).unwrap();
 // }

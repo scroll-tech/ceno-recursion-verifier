@@ -27,8 +27,10 @@ pub struct ZKVMProofInputVariable<C: Config> {
     pub pi_evals: Array<C, Ext<C::F, C::EF>>,
     pub opcode_proofs: Array<C, ZKVMOpcodeProofInputVariable<C>>,
     pub table_proofs: Array<C, ZKVMTableProofInputVariable<C>>,
-    pub circuit_vks_fixed_commits: Array<C, Array<C, Felt<C::F>>>,
+    pub witin_commit: Array<C, Felt<C::F>>,
 }
+
+// pub wits_commit: Array<C, Felt<C::F>>, // LEN = DIGEST_WIDTH, TODO: SPEC
 
 #[derive(DslVariable, Clone)]
 pub struct TowerProofInputVariable<C: Config> {
@@ -62,8 +64,6 @@ pub struct ZKVMOpcodeProofInputVariable<C: Config> {
     pub r_records_in_evals: Array<C, Ext<C::F, C::EF>>,
     pub w_records_in_evals: Array<C, Ext<C::F, C::EF>>,
     pub lk_records_in_evals: Array<C, Ext<C::F, C::EF>>,
-
-    pub wits_commit: Array<C, Felt<C::F>>, // LEN = DIGEST_WIDTH, TODO: SPEC
     pub wits_in_evals: Array<C, Ext<C::F, C::EF>>,
 }
 
@@ -71,6 +71,8 @@ pub struct ZKVMOpcodeProofInputVariable<C: Config> {
 pub struct ZKVMTableProofInputVariable<C: Config> {
     pub idx: Usize<C::N>,
     pub idx_felt: Felt<C::F>,
+    pub num_instances: Usize<C::N>,
+    pub log2_num_instances: Usize<C::N>,
 
     pub r_out_evals: Array<C, Ext<C::F, C::EF>>, // Vec<[E; 2]>,
     pub w_out_evals: Array<C, Ext<C::F, C::EF>>, // Vec<[E; 2]>,
@@ -84,23 +86,18 @@ pub struct ZKVMTableProofInputVariable<C: Config> {
     pub lk_in_evals: Array<C, Ext<C::F, C::EF>>,
 
     pub tower_proof: TowerProofInputVariable<C>,
-    pub rw_hints_num_vars: Array<C, Var<C::N>>,
-    pub rw_hints_num_vars_le_bytes: Array<C, Array<C, Felt<C::F>>>,
     pub fixed_in_evals: Array<C, Ext<C::F, C::EF>>,
     pub wits_commit: Array<C, Felt<C::F>>, // LEN = DIGEST_WIDTH, TODO: SPEC
     pub wits_in_evals: Array<C, Ext<C::F, C::EF>>,
 }
 
-#[derive(Default)]
 pub(crate) struct ZKVMProofInput {
     pub raw_pi: Vec<Vec<F>>,
     // Evaluation of raw_pi.
     pub pi_evals: Vec<E>,
     pub opcode_proofs: Vec<ZKVMOpcodeProofInput>,
     pub table_proofs: Vec<ZKVMTableProofInput>,
-
-    // VKs for opcode and table circuits
-    pub circuit_vks_fixed_commits: Vec<BasefoldCommitment<BabyBearExt4>>,
+    pub witin_commit: BasefoldCommitment<BabyBearExt4>,
 }
 impl Hintable<InnerConfig> for ZKVMProofInput {
     type HintVariable = ZKVMProofInputVariable<InnerConfig>;
@@ -111,7 +108,7 @@ impl Hintable<InnerConfig> for ZKVMProofInput {
         let pi_evals = Vec::<E>::read(builder);
         let opcode_proofs = Vec::<ZKVMOpcodeProofInput>::read(builder);
         let table_proofs = Vec::<ZKVMTableProofInput>::read(builder);
-        let circuit_vks_fixed_commits = Vec::<Vec<F>>::read(builder);
+        let witin_commit = Vec::<F>::read(builder);
 
         ZKVMProofInputVariable {
             raw_pi,
@@ -119,7 +116,7 @@ impl Hintable<InnerConfig> for ZKVMProofInput {
             pi_evals,
             opcode_proofs,
             table_proofs,
-            circuit_vks_fixed_commits,
+            witin_commit,
         }
     }
 
@@ -137,25 +134,13 @@ impl Hintable<InnerConfig> for ZKVMProofInput {
         stream.extend(self.opcode_proofs.write());
         stream.extend(self.table_proofs.write());
 
-        let mut circuit_vks_fixed_commits: Vec<Vec<F>> = vec![];
-        for cmt in &self.circuit_vks_fixed_commits {
-            let mut cmt_vec: Vec<F> = vec![];
-
-            cmt.commit().iter().for_each(|x| {
-                let f: F = serde_json::from_str(&serde_json::to_string(&x).expect("serialization"))
-                    .expect("serialization bridge");
-                cmt_vec.push(f);
-            });
-
-            // _debug
-            // cmt.root().0.iter().for_each(|x| {
-            //     let f: F = serde_json::from_str(&serde_json::to_string(x).expect("serialization"))
-            //         .expect("serialization bridge");
-            //     cmt_vec.push(f);
-            // });
-            circuit_vks_fixed_commits.push(cmt_vec);
-        }
-        stream.extend(circuit_vks_fixed_commits.write());
+        let mut cmt_vec: Vec<F> = vec![];
+        self.witin_commit.commit().iter().for_each(|x| {
+            let f: F = serde_json::from_str(&serde_json::to_string(&x).expect("serialization"))
+                .expect("serialization bridge");
+            cmt_vec.push(f);
+        });
+        stream.extend(cmt_vec.write());
 
         stream
     }
@@ -253,10 +238,6 @@ pub struct ZKVMOpcodeProofInput {
     pub r_records_in_evals: Vec<E>,
     pub w_records_in_evals: Vec<E>,
     pub lk_records_in_evals: Vec<E>,
-
-    pub wits_commit: BasefoldCommitment<BabyBearExt4>,
-    // TODO: PCS
-    // pub wits_opening_proof: PCS::Proof,
     pub wits_in_evals: Vec<E>,
 }
 impl VecAutoHintable for ZKVMOpcodeProofInput {}
@@ -280,7 +261,6 @@ impl Hintable<InnerConfig> for ZKVMOpcodeProofInput {
         let r_records_in_evals = Vec::<E>::read(builder);
         let w_records_in_evals = Vec::<E>::read(builder);
         let lk_records_in_evals = Vec::<E>::read(builder);
-        let wits_commit = Vec::<F>::read(builder);
         let wits_in_evals = Vec::<E>::read(builder);
 
         ZKVMOpcodeProofInputVariable {
@@ -300,7 +280,6 @@ impl Hintable<InnerConfig> for ZKVMOpcodeProofInput {
             r_records_in_evals,
             w_records_in_evals,
             lk_records_in_evals,
-            wits_commit,
             wits_in_evals,
         }
     }
@@ -336,20 +315,6 @@ impl Hintable<InnerConfig> for ZKVMOpcodeProofInput {
         stream.extend(self.r_records_in_evals.write());
         stream.extend(self.w_records_in_evals.write());
         stream.extend(self.lk_records_in_evals.write());
-        let mut cmt_vec: Vec<F> = vec![];
-
-        self.wits_commit.commit().iter().for_each(|x| {
-            let f: F = serde_json::from_str(&serde_json::to_string(&x).expect("serialization"))
-                .expect("serialization bridge");
-            cmt_vec.push(f);
-        });
-        // _debug
-        // self.wits_commit.root().0.iter().for_each(|x| {
-        //     let f: F = serde_json::from_str(&serde_json::to_string(x).expect("serialization"))
-        //         .expect("serialization bridge");
-        //     cmt_vec.push(f);
-        // });
-        stream.extend(cmt_vec.write());
         stream.extend(self.wits_in_evals.write());
 
         stream
@@ -358,7 +323,8 @@ impl Hintable<InnerConfig> for ZKVMOpcodeProofInput {
 
 pub struct ZKVMTableProofInput {
     pub idx: usize,
-
+    pub num_instances: usize,
+    
     // tower evaluation at layer 1
     pub r_out_evals: Vec<E>, // Vec<[E; 2]>
     pub w_out_evals: Vec<E>, // Vec<[E; 2]>
@@ -373,16 +339,8 @@ pub struct ZKVMTableProofInput {
 
     pub tower_proof: TowerProofInput,
 
-    // num_vars hint for rw dynamic address to work
-    pub rw_hints_num_vars: Vec<usize>,
-
     pub fixed_in_evals: Vec<E>,
-    // TODO: PCS
-    // pub fixed_opening_proof: Option<PCS::Proof>,
-    pub wits_commit: BasefoldCommitment<BabyBearExt4>,
     pub wits_in_evals: Vec<E>,
-    // TODO: PCS
-    // pub wits_opening_proof: PCS::Proof,
 }
 impl VecAutoHintable for ZKVMTableProofInput {}
 impl Hintable<InnerConfig> for ZKVMTableProofInput {
@@ -391,6 +349,9 @@ impl Hintable<InnerConfig> for ZKVMTableProofInput {
     fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
         let idx = Usize::Var(usize::read(builder));
         let idx_felt = F::read(builder);
+
+        let num_instances = Usize::Var(usize::read(builder));
+        let log2_num_instances = Usize::Var(usize::read(builder));
 
         let r_out_evals = Vec::<E>::read(builder);
         let w_out_evals = Vec::<E>::read(builder);
@@ -403,8 +364,6 @@ impl Hintable<InnerConfig> for ZKVMTableProofInput {
         let rw_in_evals = Vec::<E>::read(builder);
         let lk_in_evals = Vec::<E>::read(builder);
         let tower_proof = TowerProofInput::read(builder);
-        let rw_hints_num_vars = Vec::<usize>::read(builder);
-        let rw_hints_num_vars_le_bytes = Vec::<Vec<F>>::read(builder);
         let fixed_in_evals = Vec::<E>::read(builder);
         let wits_commit = Vec::<F>::read(builder);
         let wits_in_evals = Vec::<E>::read(builder);
@@ -412,6 +371,8 @@ impl Hintable<InnerConfig> for ZKVMTableProofInput {
         ZKVMTableProofInputVariable {
             idx,
             idx_felt,
+            num_instances,
+            log2_num_instances,
             r_out_evals,
             w_out_evals,
             compressed_rw_out_len,
@@ -422,8 +383,6 @@ impl Hintable<InnerConfig> for ZKVMTableProofInput {
             rw_in_evals,
             lk_in_evals,
             tower_proof,
-            rw_hints_num_vars,
-            rw_hints_num_vars_le_bytes,
             fixed_in_evals,
             wits_commit,
             wits_in_evals,
@@ -436,6 +395,11 @@ impl Hintable<InnerConfig> for ZKVMTableProofInput {
 
         let idx_u32: F = F::from_canonical_u32(self.idx as u32);
         stream.extend(idx_u32.write());
+
+        stream.extend(<usize as Hintable<InnerConfig>>::write(&self.num_instances));
+        
+        let log2_num_instances = ceil_log2(self.num_instances);
+        stream.extend(<usize as Hintable<InnerConfig>>::write(&log2_num_instances));
 
         stream.extend(self.r_out_evals.write());
         stream.extend(self.w_out_evals.write());
@@ -454,34 +418,7 @@ impl Hintable<InnerConfig> for ZKVMTableProofInput {
         stream.extend(self.rw_in_evals.write());
         stream.extend(self.lk_in_evals.write());
         stream.extend(self.tower_proof.write());
-        stream.extend(self.rw_hints_num_vars.write());
-
-        let mut rw_hints_num_vars_le_bytes: Vec<Vec<F>> = vec![];
-        for u in &self.rw_hints_num_vars {
-            let u_vec = u
-                .to_le_bytes()
-                .into_iter()
-                .map(|n| F::from_canonical_u8(n))
-                .collect::<Vec<F>>();
-            rw_hints_num_vars_le_bytes.push(u_vec);
-        }
-        stream.extend(rw_hints_num_vars_le_bytes.write());
-
         stream.extend(self.fixed_in_evals.write());
-
-        let mut cmt_vec: Vec<F> = vec![];
-        self.wits_commit.commit().iter().for_each(|x| {
-            let f: F = serde_json::from_str(&serde_json::to_string(&x).expect("serialization"))
-                .expect("serialization bridge");
-            cmt_vec.push(f);
-        });
-        // _debug
-        // self.wits_commit.root().0.iter().for_each(|x| {
-        //     let f: F = serde_json::from_str(&serde_json::to_string(x).expect("serialization"))
-        //         .expect("serialization bridge");
-        //     cmt_vec.push(f);
-        // });
-        stream.extend(cmt_vec.write());
         stream.extend(self.wits_in_evals.write());
         stream
     }

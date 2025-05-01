@@ -612,11 +612,6 @@ pub fn verify_tower_proof<C: Config>(
                 builder.iter_ptr_set(&alpha_pows, ptr_vec[0], new_alpha);
             });
 
-            // _debug
-            // builder.print_debug(101);
-            // builder.print_e(next_prod_spec_evals);
-            // builder.print_e(next_logup_spec_evals);
-
             builder.assign(&curr_pt, rt_prime.clone());
             builder.assign(&curr_eval, next_prod_spec_evals + next_logup_spec_evals);
             builder.assign(&round, round + C::F::ONE);

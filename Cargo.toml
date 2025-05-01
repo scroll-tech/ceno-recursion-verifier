@@ -16,6 +16,7 @@ openvm-stark-sdk = { git = "https://github.com/openvm-org/stark-backend.git", ta
 
 rand = { version = "0.8.5", default-features = false }
 itertools = { version = "0.13.0", default-features = false }
+bincode = "1"
 
 # Plonky3
 p3-air = { git = "https://github.com/Plonky3/Plonky3.git", rev = "1ba4e5c" }
