@@ -1,5 +1,5 @@
 /target
 Cargo.lock
 vm_run_output.log
-.bin
+*.bin
 .DS_Store
