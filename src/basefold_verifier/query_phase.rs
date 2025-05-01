@@ -390,10 +390,52 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
         mmcs_verify_batch(builder, mmcs.clone(), mmcs_verifier_input);
 
         // verify fixed
+        let fixed_commit_leafs = builder.dyn_array(0);
         builder.if_eq(fixed_is_some, Usize::from(1)).then(|builder| {
-            // idx_shift and idx
-            // let idx_shift = log2_witin_max_codeword_size - input.fixed_comm.log2_max_codeword_size.clone();
-            
+            let fixed_opened_values = fixed_commit.opened_values.clone();
+            let fixed_opening_proof = fixed_commit.opening_proof.clone();
+            // new_idx used by mmcs proof
+            let new_idx: Var<C::N> = builder.eval(idx);
+            // Nondeterministically supply a hint: 
+            //   0: input.fixed_comm.log2_max_codeword_size < log2_witin_max_codeword_size
+            //   1: >=
+            let branch_le = builder.hint_var();
+            builder.if_eq(branch_le, Usize::from(0)).then(|builder| {
+                // input.fixed_comm.log2_max_codeword_size < log2_witin_max_codeword_size
+                builder.assert_less_than_slow_small_rhs(input.fixed_comm.log2_max_codeword_size.clone(), log2_witin_max_codeword_size);
+                // idx >> idx_shift
+                let idx_shift_remain: Var<C::N> = builder.eval(idx_len - (log2_witin_max_codeword_size - input.fixed_comm.log2_max_codeword_size.clone()));
+                let tmp_idx = bin_to_dec(builder, &idx_bits, idx_shift_remain);
+                builder.assign(&new_idx, tmp_idx);
+            });
+            builder.if_ne(branch_le, Usize::from(0)).then(|builder| {
+                // input.fixed_comm.log2_max_codeword_size >= log2_witin_max_codeword_size
+                let input_codeword_size_plus_one: Var<C::N> = builder.eval(input.fixed_comm.log2_max_codeword_size.clone() + Usize::from(1));
+                builder.assert_less_than_slow_small_rhs(log2_witin_max_codeword_size, input_codeword_size_plus_one);
+                // idx << -idx_shift
+                let idx_shift = builder.eval(input.fixed_comm.log2_max_codeword_size.clone() - log2_witin_max_codeword_size);
+                let idx_factor = pow_2(builder, idx_shift);
+                builder.assign(&new_idx, new_idx * idx_factor);
+            });
+            // verify witness
+            let mmcs_verifier_input = MmcsVerifierInputVariable {
+                commit: input.fixed_comm.commit.clone(),
+                dimensions: fixed_dimensions.clone(),
+                index: new_idx,
+                opened_values: fixed_opened_values.clone(),
+                proof: fixed_opening_proof,
+            };
+            mmcs_verify_batch(builder, mmcs.clone(), mmcs_verifier_input);
+            builder.assign(&fixed_commit_leafs, fixed_opened_values);
+        });
+
+        builder.range(0, folding_len.clone()).for_each(|j_vec, builder| {
+            let j = j_vec[0];
+            let circuit_meta = builder.get(&input.circuit_meta, j);
+            let witin_num_polys = circuit_meta.witin_num_polys;
+            let fixed_num_vars = circuit_meta.fixed_num_vars;
+            let fixed_num_polys = circuit_meta.fixed_num_polys;
+            let witin_leafs = builder.get(&witin_opened_values, j);
         });
     });
     /*
@@ -410,54 +452,6 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                 commit_phase_openings: opening_ext,
             },
         )| {
-            // verify base oracle query proof
-            // refer to prover documentation for the reason of right shift by 1
-            let mut idx = idx >> 1;
-
-            let (witin_dimentions, fixed_dimentions) =
-                get_base_codeword_dimentions::<E, Spec>(circuit_meta);
-            // verify witness
-            mmcs.verify_batch(
-                &witin_comm.commit,
-                &witin_dimentions,
-                idx,
-                witin_opened_values,
-                witin_opening_proof,
-            )
-            .expect("verify witin commit batch failed");
-
-            // verify fixed
-            let fixed_commit_leafs = if let Some(fixed_comm) = fixed_comm {
-                let BatchOpening {
-                    opened_values: fixed_opened_values,
-                    opening_proof: fixed_opening_proof,
-                } = &fixed_commit_option.as_ref().unwrap();
-                
-
-                mmcs.verify_batch(
-                    &fixed_comm.commit,
-                    &fixed_dimentions,
-                    {
-                        let idx_shift = log2_witin_max_codeword_size as i32
-                            - fixed_comm.log2_max_codeword_size as i32;
-                        if idx_shift > 0 {
-                            idx >> idx_shift
-                        } else {
-                            idx << -idx_shift
-                        }
-                    },
-                    fixed_opened_values,
-                    fixed_opening_proof,
-                )
-                .expect("verify fixed commit batch failed");
-                fixed_opened_values
-            } else {
-                &vec![]
-            };
-
-            let mut fixed_commit_leafs_iter = fixed_commit_leafs.iter();
-            let mut batch_coeffs_iter = batch_coeffs.iter();
-
             let base_codeword_lo_hi = circuit_meta
                 .iter()
                 .zip_eq(witin_opened_values)
