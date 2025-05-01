@@ -300,6 +300,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
     let mmcs: MerkleTreeMmcsVariables<C> = Default::default();
     // can't use witin_comm.log2_max_codeword_size since it's untrusted
     let log2_witin_max_codeword_size: Var<C::N> = builder.eval(input.max_num_var + get_rate_log::<C>());
+
     // Nondeterministically supply the index folding_sorted_order
     // Check that:
     // 1. It has the same length as input.circuit_meta (checked by requesting folding_len hints)
@@ -307,18 +308,59 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
     // 3. Indexed witin_num_vars are sorted in decreasing order
     // Infer witin_num_vars through index
     let folding_len = input.circuit_meta.len();
-    // let folding_sorted_order_index = builder.dyn_array(folding_len);
+    let zero: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
+    let one: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
+    let folding_sort_surjective: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(folding_len.clone());
+    builder.range(0, folding_len.clone()).for_each(|i_vec, builder| {
+        let i = i_vec[0];
+        builder.set(&folding_sort_surjective, i, zero.clone());
+    });
 
-    /*
     // an vector with same length as circuit_meta, which is sorted by num_var in descending order and keep its index
     // for reverse lookup when retrieving next base codeword to involve into batching
-    let folding_sorted_order = circuit_meta
-        .iter()
-        .enumerate()
-        .sorted_by_key(|(_, CircuitIndexMeta { witin_num_vars, .. })| Reverse(witin_num_vars))
-        .map(|(index, CircuitIndexMeta { witin_num_vars, .. })| (witin_num_vars, index))
-        .collect_vec();
+    let folding_sorted_order_witin_num_vars: Array<C, Usize<C::N>> = builder.dyn_array(folding_len.clone());
+    let folding_sorted_order_index: Array<C, Usize<C::N>> = builder.dyn_array(folding_len.clone());
+    let next_order = builder.hint_var();
+    // Check surjection
+    let surjective = builder.get(&folding_sort_surjective, next_order);
+    builder.assert_ext_eq(surjective, zero.clone());
+    builder.set(&folding_sort_surjective, next_order, one.clone());
+    // Assignment
+    let next_witin_num_vars = builder.get(&input.circuit_meta, next_order).witin_num_vars;
+    builder.set_value(&folding_sorted_order_witin_num_vars, 0, next_witin_num_vars.clone());
+    builder.set_value(&folding_sorted_order_index, 0, Usize::Var(next_order));
+    let last_witin_num_vars_plus_one: Var<C::N> = builder.eval(next_witin_num_vars + Usize::from(1));
+    builder.range(1, folding_len.clone()).for_each(|i_vec, builder| {
+        let i = i_vec[0];
+        let next_order = builder.hint_var();
+        // Check surjection
+        let surjective = builder.get(&folding_sort_surjective, next_order);
+        builder.assert_ext_eq(surjective, zero.clone());
+        builder.set(&folding_sort_surjective, next_order, one.clone());
+        // Check witin_num_vars, next_witin_num_vars < last_witin_num_vars_plus_one
+        let next_witin_num_vars = builder.get(&input.circuit_meta, next_order).witin_num_vars;
+        builder.assert_less_than_slow_small_rhs(next_witin_num_vars.clone(), last_witin_num_vars_plus_one);
+        builder.assign(&last_witin_num_vars_plus_one, next_witin_num_vars.clone() + Usize::from(1));
+        // Assignment
+        builder.set_value(&folding_sorted_order_witin_num_vars, i, next_witin_num_vars);
+        builder.set_value(&folding_sorted_order_index, i, Usize::Var(next_order));
+    });
 
+    builder.range(0, input.indices.len()).for_each(|i_vec, builder| {
+        let i = i_vec[0];
+        let idx = builder.get(&input.indices, i);
+        let query = builder.get(&input.queries, i);
+        let witin_opened_values = query.witin_base_proof.opened_values;
+        let witin_opened_proof = query.witin_base_proof.opening_proof;
+        let fixed_is_some = query.fixed_is_some;
+        let fixed_commit = query.fixed_base_proof;
+        let opening_ext = query.commit_phase_openings;
+
+        // verify base oracle query proof
+        // refer to prover documentation for the reason of right shift by 1
+        let mut idx = idx >> 1;
+    });
+    /*
     indices.iter().zip_eq(queries).for_each(
         |(
             idx,

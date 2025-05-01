@@ -63,3 +63,13 @@ pub fn dot_product<C: Config>(
     });
     ret
 }
+
+// Right shift
+// Note: we try to avoid this as much as possible. This is unnecessary in the case where Var is a pow of 2.
+pub fn right_shift<C: Config>(
+    builder: &mut Builder<C>,
+    base: Var<C::N>,
+    exp: Var<C::N>,
+) -> Var<C::N> {
+
+}
