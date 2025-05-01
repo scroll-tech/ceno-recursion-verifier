@@ -7,7 +7,7 @@ use p3_field::extension::BinomialExtensionField;
 use p3_field::FieldAlgebra;
 
 use crate::tower_verifier::binding::*;
-use super::{basefold::*, mmcs::*, rs::*, structs::*};
+use super::{basefold::*, mmcs::*, rs::*, structs::*, utils::*};
 
 pub type F = BabyBear;
 pub type E = BinomialExtensionField<F, 4>;
@@ -351,14 +351,50 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
         let idx = builder.get(&input.indices, i);
         let query = builder.get(&input.queries, i);
         let witin_opened_values = query.witin_base_proof.opened_values;
-        let witin_opened_proof = query.witin_base_proof.opening_proof;
+        let witin_opening_proof = query.witin_base_proof.opening_proof;
         let fixed_is_some = query.fixed_is_some;
         let fixed_commit = query.fixed_base_proof;
         let opening_ext = query.commit_phase_openings;
 
         // verify base oracle query proof
         // refer to prover documentation for the reason of right shift by 1
-        let mut idx = idx >> 1;
+        // Nondeterministically supply the bits of idx in BIG ENDIAN
+        // These are not only used by the right shift here but also later on idx_shift
+        let idx_len = builder.hint_var();
+        let idx_bits: Array<C, Var<C::N>> = builder.dyn_array(idx_len);
+        builder.range(0, idx_len).for_each(|j_vec, builder| {
+            let j = j_vec[0];
+            let next_bit = builder.hint_var();
+            // Assert that it is a bit
+            builder.assert_eq::<Var<C::N>>(next_bit * next_bit, next_bit);
+            builder.set_value(&idx_bits, j, next_bit);
+        });
+        // Right shift
+        let idx_len_minus_one: Var<C::N> = builder.eval(idx_len - Usize::from(1));
+        builder.assign(&idx_len, idx_len_minus_one);
+        let new_idx = bin_to_dec(builder, &idx_bits, idx_len);
+        let last_bit = builder.get(&idx_bits, idx_len);
+        builder.assert_eq::<Var<C::N>>(new_idx + last_bit, idx);
+        builder.assign(&idx, new_idx);
+
+        let (witin_dimensions, fixed_dimensions) = 
+            get_base_codeword_dimensions(builder, input.circuit_meta.clone());
+        // verify witness
+        let mmcs_verifier_input = MmcsVerifierInputVariable {
+            commit: input.witin_comm.commit.clone(),
+            dimensions: witin_dimensions,
+            index: idx,
+            opened_values: witin_opened_values,
+            proof: witin_opening_proof,
+        };
+        mmcs_verify_batch(builder, mmcs.clone(), mmcs_verifier_input);
+
+        // verify fixed
+        builder.if_eq(fixed_is_some, Usize::from(1)).then(|builder| {
+            // idx_shift and idx
+            // let idx_shift = log2_witin_max_codeword_size - input.fixed_comm.log2_max_codeword_size.clone();
+            
+        });
     });
     /*
     indices.iter().zip_eq(queries).for_each(

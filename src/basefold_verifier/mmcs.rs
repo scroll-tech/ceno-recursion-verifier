@@ -20,7 +20,7 @@ pub struct MerkleTreeMmcs {
     pub compress: (),
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct MerkleTreeMmcsVariables<C: Config> {
     pub hash: (),
     pub compress: (),

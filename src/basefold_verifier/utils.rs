@@ -64,12 +64,20 @@ pub fn dot_product<C: Config>(
     ret
 }
 
-// Right shift
-// Note: we try to avoid this as much as possible. This is unnecessary in the case where Var is a pow of 2.
-pub fn right_shift<C: Config>(
+// Convert the first len entries of binary to decimal
+// BIN is in big endian
+pub fn bin_to_dec<C: Config>(
     builder: &mut Builder<C>,
-    base: Var<C::N>,
-    exp: Var<C::N>,
+    bin: &Array<C, Var<C::N>>,
+    len: Var<C::N>,
 ) -> Var<C::N> {
-
+    let value: Var<C::N> = builder.constant(C::N::ZERO);
+    let two: Var<C::N> = builder.constant(C::N::TWO);
+    builder.range(0, len).for_each(|i_vec, builder| {
+        let i = i_vec[0];
+        builder.assign(&value, value * two);
+        let next_bit = builder.get(bin, i);
+        builder.assign(&value, value + next_bit);
+    });
+    value
 }

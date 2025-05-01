@@ -92,7 +92,7 @@ impl Hintable<InnerConfig> for Dimensions {
 }
 impl VecAutoHintable for Dimensions {}
 
-fn get_base_codeword_dimensions<C: Config>(
+pub fn get_base_codeword_dimensions<C: Config>(
     builder: &mut Builder<C>,
     circuit_meta_map: Array<C, CircuitIndexMetaVariable<C>>,
 ) -> (
