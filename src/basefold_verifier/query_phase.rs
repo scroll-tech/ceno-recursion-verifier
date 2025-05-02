@@ -299,7 +299,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
     let mmcs_ext: MerkleTreeMmcsVariables<C> = Default::default();
     let mmcs: MerkleTreeMmcsVariables<C> = Default::default();
     // can't use witin_comm.log2_max_codeword_size since it's untrusted
-    let log2_witin_max_codeword_size: Var<C::N> = builder.eval(input.max_num_var + get_rate_log::<C>());
+    let log2_witin_max_codeword_size: Var<C::N> = builder.eval(input.max_num_var.clone() + get_rate_log::<C>());
 
     // Nondeterministically supply the index folding_sorted_order
     // Check that:
@@ -384,14 +384,14 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
             commit: input.witin_comm.commit.clone(),
             dimensions: witin_dimensions,
             index: idx,
-            opened_values: witin_opened_values,
+            opened_values: witin_opened_values.clone(),
             proof: witin_opening_proof,
         };
         mmcs_verify_batch(builder, mmcs.clone(), mmcs_verifier_input);
 
         // verify fixed
         let fixed_commit_leafs = builder.dyn_array(0);
-        builder.if_eq(fixed_is_some, Usize::from(1)).then(|builder| {
+        builder.if_eq(fixed_is_some.clone(), Usize::from(1)).then(|builder| {
             let fixed_opened_values = fixed_commit.opened_values.clone();
             let fixed_opening_proof = fixed_commit.opening_proof.clone();
             // new_idx used by mmcs proof
@@ -429,6 +429,9 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
             builder.assign(&fixed_commit_leafs, fixed_opened_values);
         });
 
+        // base_codeword_lo_hi
+        let base_codeword_lo = builder.dyn_array(folding_len.clone());
+        let base_codeword_hi = builder.dyn_array(folding_len.clone());
         builder.range(0, folding_len.clone()).for_each(|j_vec, builder| {
             let j = j_vec[0];
             let circuit_meta = builder.get(&input.circuit_meta, j);
@@ -436,8 +439,68 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
             let fixed_num_vars = circuit_meta.fixed_num_vars;
             let fixed_num_polys = circuit_meta.fixed_num_polys;
             let witin_leafs = builder.get(&witin_opened_values, j);
+            // lo_wit, hi_wit
+            let leafs_len_div_2 = builder.hint_var();
+            let two: Var<C::N> = builder.eval(Usize::from(2));
+            builder.assert_eq::<Var<C::N>>(leafs_len_div_2 * two, witin_leafs.len()); // Can we assume that leafs.len() is even?
+            // Actual dot_product only computes the first num_polys terms (can we assume leafs_len_div_2 == num_polys?)
+            let lo_wit = dot_product(builder, 
+                &input.batch_coeffs, 
+                &witin_leafs, 
+                Usize::from(0),
+                Usize::from(0),
+                witin_num_polys.clone(), 
+            );
+            let hi_wit = dot_product(builder, 
+                &input.batch_coeffs, 
+                &witin_leafs, 
+                Usize::from(0),
+                Usize::Var(leafs_len_div_2), 
+                witin_num_polys.clone(), 
+            );
+            // lo_fixed, hi_fixed
+            let lo_fixed: Ext<C::F, C::EF> = builder.constant(C::EF::from_canonical_usize(0));
+            let hi_fixed: Ext<C::F, C::EF> = builder.constant(C::EF::from_canonical_usize(0));
+            builder.if_ne(fixed_num_vars, Usize::from(0)).then(|builder| {
+                let fixed_leafs = builder.get(&fixed_commit_leafs, j);
+                let leafs_len_div_2 = builder.hint_var();
+                let two: Var<C::N> = builder.eval(Usize::from(2));
+                builder.assert_eq::<Var<C::N>>(leafs_len_div_2 * two, fixed_leafs.len()); // Can we assume that leafs.len() is even?
+                // Actual dot_product only computes the first num_polys terms (can we assume leafs_len_div_2 == num_polys?)
+                let tmp_lo_fixed = dot_product(builder, 
+                    &input.batch_coeffs, 
+                    &fixed_leafs, 
+                    Usize::from(0),
+                    Usize::from(0),
+                    fixed_num_polys.clone(), 
+                );
+                let tmp_hi_fixed = dot_product(builder, 
+                    &input.batch_coeffs, 
+                    &fixed_leafs, 
+                    Usize::from(0),
+                    Usize::Var(leafs_len_div_2), 
+                    fixed_num_polys.clone(), 
+                );
+                builder.assign(&lo_fixed, tmp_lo_fixed);
+                builder.assign(&hi_fixed, tmp_hi_fixed);
+            });
+            let lo: Ext<C::F, C::EF> = builder.eval(lo_wit + lo_fixed);
+            let hi: Ext<C::F, C::EF> = builder.eval(hi_wit + hi_fixed);
+            builder.set_value(&base_codeword_lo, j, lo);
+            builder.set_value(&base_codeword_hi, j, hi);
         });
+
+        // fold and query
+        let cur_num_var: Var<C::N> = builder.eval(input.max_num_var.clone());
+        let rounds: Var<C::N> = builder.eval(cur_num_var - get_basecode_msg_size_log::<C>() - Usize::from(1));
+        let n_d_next_log: Var<C::N> = builder.eval(cur_num_var - get_rate_log::<C>() - Usize::from(1));
+        let n_d_next = pow_2(builder, n_d_next_log);
+
+        // first folding challenge
+        let r = builder.get(&input.fold_challenges, 0);
     });
+
+    
     /*
     indices.iter().zip_eq(queries).for_each(
         |(
@@ -452,70 +515,6 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                 commit_phase_openings: opening_ext,
             },
         )| {
-            let base_codeword_lo_hi = circuit_meta
-                .iter()
-                .zip_eq(witin_opened_values)
-                .map(
-                    |(
-                        CircuitIndexMeta {
-                            witin_num_polys,
-                            fixed_num_vars,
-                            fixed_num_polys,
-                            ..
-                        },
-                        witin_leafs,
-                    )| {
-                        let (lo, hi) = std::iter::once((witin_leafs, *witin_num_polys))
-                            .chain((*fixed_num_vars > 0).then(|| {
-                                (fixed_commit_leafs_iter.next().unwrap(), *fixed_num_polys)
-                            }))
-                            .map(|(leafs, num_polys)| {
-                                let batch_coeffs = batch_coeffs_iter
-                                    .by_ref()
-                                    .take(num_polys)
-                                    .copied()
-                                    .collect_vec();
-                                let (lo, hi): (&[E::BaseField], &[E::BaseField]) =
-                                    leafs.split_at(leafs.len() / 2);
-                                (
-                                    dot_product::<E, _, _>(
-                                        batch_coeffs.iter().copied(),
-                                        lo.iter().copied(),
-                                    ),
-                                    dot_product::<E, _, _>(
-                                        batch_coeffs.iter().copied(),
-                                        hi.iter().copied(),
-                                    ),
-                                )
-                            })
-                            // fold witin/fixed lo, hi together because they share the same num_vars
-                            .reduce(|(lo_wit, hi_wit), (lo_fixed, hi_fixed)| {
-                                (lo_wit + lo_fixed, hi_wit + hi_fixed)
-                            })
-                            .expect("unreachable");
-                        (lo, hi)
-                    },
-                )
-                .collect_vec();
-            debug_assert_eq!(folding_sorted_order.len(), base_codeword_lo_hi.len());
-            debug_assert!(fixed_commit_leafs_iter.next().is_none());
-            debug_assert!(batch_coeffs_iter.next().is_none());
-
-            // fold and query
-            let mut cur_num_var = max_num_var;
-            // -1 because for there are only #max_num_var-1 openings proof
-            let rounds = cur_num_var
-                - <Spec::EncodingScheme as EncodingScheme<E>>::get_basecode_msg_size_log()
-                - 1;
-            let n_d_next = 1
-                << (cur_num_var + <Spec::EncodingScheme as EncodingScheme<E>>::get_rate_log() - 1);
-            debug_assert_eq!(rounds, fold_challenges.len() - 1);
-            debug_assert_eq!(rounds, commits.len(),);
-            debug_assert_eq!(rounds, opening_ext.len(),);
-
-            // first folding challenge
-            let r = fold_challenges.first().unwrap();
-
             let mut folding_sorted_order_iter = folding_sorted_order.iter();
             // take first batch which num_vars match max_num_var to initial fold value
             let mut folded = folding_sorted_order_iter

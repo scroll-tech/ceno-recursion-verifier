@@ -45,20 +45,23 @@ pub fn next_power_of_two<C: Config>(
     ret
 }
 
-// Generic dot product
+// Generic dot product of li[llo..llo+len] * ri[rlo..rlo+len]
 pub fn dot_product<C: Config>(
     builder: &mut Builder<C>,
-    li: Array<C, Ext<C::F, C::EF>>,
-    ri: Array<C, Ext<C::F, C::EF>>,
+    li: &Array<C, Ext<C::F, C::EF>>,
+    ri: &Array<C, Felt<C::F>>,
+    llo: Usize<C::N>,
+    rlo: Usize<C::N>,
+    len: Usize<C::N>,
 ) -> Ext<C::F, C::EF> {
     let ret: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
-    builder.assert_eq::<Usize<C::N>>(li.len(), ri.len());
-    let len = li.len();
 
     builder.range(0, len).for_each(|i_vec, builder| {
         let i = i_vec[0];
-        let l = builder.get(&li, i);
-        let r = builder.get(&ri, i);
+        let lidx: Var<C::N> = builder.eval(llo.clone() + i);
+        let ridx: Var<C::N> = builder.eval(rlo.clone() + i);
+        let l = builder.get(li, lidx);
+        let r = builder.get(ri, ridx);
         builder.assign(&ret, ret + l * r);
     });
     ret

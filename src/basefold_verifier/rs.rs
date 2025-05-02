@@ -88,6 +88,10 @@ pub fn get_rate_log<C: Config>() -> Usize<C::N> {
     Usize::from(1)
 }
 
+pub fn get_basecode_msg_size_log<C: Config>() -> Usize<C::N> {
+    Usize::from(7)
+}
+
 /// The DIT FFT algorithm.
 pub struct Radix2Dit {
     pub twiddles: Vec<E>,
