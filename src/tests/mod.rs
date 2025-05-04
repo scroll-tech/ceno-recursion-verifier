@@ -46,14 +46,20 @@ use ceno_zkvm::{
     with_panic_hook,
 };
 
+pub struct SubcircuitParams {
+    pub id: usize,
+    pub order_idx: usize,
+    pub type_order_idx: usize,
+    pub name: String,
+    pub num_instances: usize,
+    pub is_opcode: bool,
+}
+
 fn parse_zkvm_proof_import(
     zkvm_proof: ZKVMProof<BabyBearExt4, Basefold<BabyBearExt4, BasefoldRSParams>>,
     verifier: &ZKVMVerifier<BabyBearExt4, Basefold<BabyBearExt4, BasefoldRSParams>>,
-) -> (ZKVMProofInput, Vec<(usize, usize, String, usize)>, Vec<(usize, usize, String, usize)>) {
-    let mut opcode_keys = vec![];
-    let mut table_keys = vec![];
+) -> (ZKVMProofInput, Vec<SubcircuitParams>) {
     let subcircuit_names = verifier.vk.circuit_vks.iter().map(|(str, _)| { String::from(str) }).collect::<Vec<String>>();
-    let mut order_idx: usize = 0;
 
     let mut opcode_num_instances_lookup: HashMap<usize, usize> = HashMap::new();
     let mut table_num_instances_lookup: HashMap<usize, usize> = HashMap::new();
@@ -67,15 +73,37 @@ fn parse_zkvm_proof_import(
         }
     }
 
-    for (opcode_id, _) in &zkvm_proof.opcode_proofs {
+    let mut order_idx: usize = 0;
+    let mut opcode_order_idx: usize = 0;
+    let mut table_order_idx: usize = 0;
+    let mut proving_sequence: Vec<SubcircuitParams> = vec![];
+    for (index, _) in &zkvm_proof.num_instances {
         let name = subcircuit_names[order_idx].clone();
-        opcode_keys.push((opcode_id.clone(), order_idx, name, opcode_num_instances_lookup.get(opcode_id).unwrap().clone()));
-        order_idx += 1;
-    }
 
-    for (table_id, _) in &zkvm_proof.table_proofs {
-        let name = subcircuit_names[order_idx].clone();
-        table_keys.push((table_id.clone(), order_idx, name, table_num_instances_lookup.get(table_id).unwrap().clone()));
+        if zkvm_proof.opcode_proofs.get(index).is_some() {
+            proving_sequence.push(SubcircuitParams {
+                id: *index,
+                order_idx: order_idx.clone(),
+                type_order_idx: opcode_order_idx.clone(),
+                name,
+                num_instances: opcode_num_instances_lookup.get(index).unwrap().clone(),
+                is_opcode: true,
+            });
+            opcode_order_idx += 1;
+        } else if zkvm_proof.table_proofs.get(index).is_some() {
+            proving_sequence.push(SubcircuitParams {
+                id: *index,
+                order_idx: order_idx.clone(),
+                type_order_idx: table_order_idx.clone(),
+                name,
+                num_instances: table_num_instances_lookup.get(index).unwrap().clone(),
+                is_opcode: false,
+            });
+            table_order_idx += 1;
+        }else {
+            unreachable!("respective proof of index {} should exist", index)
+        }
+
         order_idx += 1;
     }
 
@@ -105,7 +133,6 @@ fn parse_zkvm_proof_import(
             record_w_out_evals.push(v_e);
         }
 
-
         // logup sum at layer 1
         let lk_p1_out_eval: E =
             serde_json::from_value(serde_json::to_value(opcode_proof.lk_p1_out_eval).unwrap()).unwrap();
@@ -115,7 +142,6 @@ fn parse_zkvm_proof_import(
             serde_json::from_value(serde_json::to_value(opcode_proof.lk_q1_out_eval).unwrap()).unwrap();
         let lk_q2_out_eval: E =
             serde_json::from_value(serde_json::to_value(opcode_proof.lk_q2_out_eval).unwrap()).unwrap();
-
 
         // Tower proof
         let mut tower_proof = TowerProofInput::default();
@@ -361,6 +387,7 @@ fn parse_zkvm_proof_import(
     }
 
     let witin_commit: BasefoldCommitment<BabyBearExt4> = serde_json::from_value(serde_json::to_value(zkvm_proof.witin_commit).unwrap()).unwrap();
+    let fixed_commit = verifier.vk.fixed_commit.clone();
 
     (
         ZKVMProofInput {
@@ -369,9 +396,10 @@ fn parse_zkvm_proof_import(
             opcode_proofs: opcode_proofs_vec,
             table_proofs: table_proofs_vec,
             witin_commit,
+            fixed_commit,
+            num_instances: zkvm_proof.num_instances.clone(),
         },
-        opcode_keys,
-        table_keys
+        proving_sequence
     )
 }
 
@@ -389,7 +417,7 @@ fn test_zkvm_proof_verifier_from_bincode_exports() {
             .expect("Failed to deserialize vk file");
 
     let verifier = ZKVMVerifier::new(vk);
-    let (zkvm_proof_input, opcode_keys, table_keys) = parse_zkvm_proof_import(zkvm_proof, &verifier);
+    let (zkvm_proof_input, proving_sequence) = parse_zkvm_proof_import(zkvm_proof, &verifier);
 
     // OpenVM DSL
     let engine = default_engine();
@@ -401,8 +429,7 @@ fn test_zkvm_proof_verifier_from_bincode_exports() {
         &mut builder,
         zkvm_proof_input_variables,
         &verifier,
-        opcode_keys,
-        table_keys,
+        proving_sequence
     );
     builder.halt();
 
@@ -418,26 +445,11 @@ fn test_zkvm_proof_verifier_from_bincode_exports() {
         p3_monty_31::MontyField31<openvm_stark_sdk::p3_baby_bear::BabyBearParameters>,
     > = builder.compile_isa();
 
+    let system_config = SystemConfig::default()
+        .with_public_values(4)
+        .with_max_segment_len((1 << 25) - 100);
+    let config = NativeConfig::new(system_config, Native);
 
-
-
-    // let (program, witness) = build_zkvm_proof_verifier_test();
-
-    // let system_config = SystemConfig::default()
-    //     .with_public_values(4)
-    //     .with_max_segment_len((1 << 25) - 100);
-    // let config = NativeConfig::new(system_config, Native);
-
-    // let executor = VmExecutor::<BabyBear, NativeConfig>::new(config);
-    // executor.execute(program, witness).unwrap();
+    let executor = VmExecutor::<BabyBear, NativeConfig>::new(config);
+    executor.execute(program, witness_stream).unwrap();
 }
-
-
-// #[allow(dead_code)]
-// fn build_zkvm_proof_verifier_test() -> (Program<BabyBear>, Vec<Vec<BabyBear>>) {
-//     let ceno_constraint_system = build_constraint_system();
-
-
-
-//     (program, witness_stream)
-// }

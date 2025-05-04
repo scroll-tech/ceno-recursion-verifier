@@ -28,6 +28,13 @@ pub fn print_ext_arr<C: Config>(builder: &mut Builder<C>, arr: &Array<C, Ext<C::
     });
 }
 
+pub fn print_felt_arr<C: Config>(builder: &mut Builder<C>, arr: &Array<C, Felt<C::F>>) {
+    iter_zip!(builder, arr).for_each(|ptr_vec, builder| {
+        let f = builder.iter_ptr_get(arr, ptr_vec[0]);
+        builder.print_f(f);
+    });
+}
+
 pub fn print_usize_arr<C: Config>(builder: &mut Builder<C>, arr: &Array<C, Usize<C::N>>) {
     iter_zip!(builder, arr).for_each(|ptr_vec, builder| {
         let n = builder.iter_ptr_get(arr, ptr_vec[0]);
