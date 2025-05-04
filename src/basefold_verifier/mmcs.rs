@@ -111,67 +111,19 @@ pub(crate) fn mmcs_verify_batch<C: Config>(
     builder.assert_less_than_slow_small_rhs(max_height, purported_max_height_upper_bound);
     builder.assert_usize_eq(input.proof.len(), log_max_height);
 
-    // Nondeterministically supplies:
-    // 1. num_unique_height: number of different heights
-    // 2. height_order: after sorting by decreasing height, the original index of each entry
-    // To ensure that height_order represents sorted index, assert that
-    // 1. It has the same length as input.dimensions (checked by requesting num_dims hints)
-    // 2. It does not contain the same index twice (checked via a correspondence array)
-    // 3. Indexed heights are sorted in decreasing order
-    // While checking, record:
-    // 1. unique_height_count: for each unique height, number of dimensions of that height
-    let num_unique_height = builder.hint_var();
-    let unique_height_count = builder.dyn_array(num_unique_height);
-    let zero: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
-    let one: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
-    let height_sort_surjective: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(num_dims.clone());
-    builder.range(0, num_dims.clone()).for_each(|i_vec, builder| {
-        let i = i_vec[0];
-        builder.set(&height_sort_surjective, i, zero.clone());
-    });
-
-    let height_order = builder.dyn_array(num_dims.clone());
-    let next_order = builder.hint_var();
-    // Check surjection
-    let surjective = builder.get(&height_sort_surjective, next_order);
-    builder.assert_ext_eq(surjective, zero.clone());
-    builder.set(&height_sort_surjective, next_order, one.clone());
-    builder.set_value(&height_order, 0, next_order);
-    let last_height = builder.get(&input.dimensions, next_order).height;
-    
-    let last_unique_height_index: Var<C::N> = builder.eval(Usize::from(0));
-    let last_unique_height_count: Var<C::N> = builder.eval(Usize::from(1));
-    builder.range(1, num_dims).for_each(|i_vec, builder| {
-        let i = i_vec[0];
-        let next_order = builder.hint_var();
-        // Check surjection
-        let surjective = builder.get(&height_sort_surjective, next_order);
-        builder.assert_ext_eq(surjective, zero.clone());
-        builder.set(&height_sort_surjective, next_order, one.clone());
-        // Check height
-        let next_height = builder.get(&input.dimensions, next_order).height;
-        builder.if_eq(last_height, next_height).then(|builder| {
-            // next_height == last_height
-            builder.assign(&last_unique_height_count, last_unique_height_count + Usize::from(1));
-        });
-        builder.if_ne(last_height, next_height).then(|builder| {
-            // next_height < last_height
-            builder.assert_less_than_slow_small_rhs(next_height, last_height);
-            
-            // Update unique_height_count
-            builder.set(&unique_height_count, last_unique_height_index, last_unique_height_count);
-            builder.assign(&last_height, next_height);
-            builder.assign(&last_unique_height_index, last_unique_height_index + Usize::from(1));
-            builder.assign(&last_unique_height_count, Usize::from(1));
-        });
-
-        builder.set_value(&height_order, i, next_order);
-    });
-
-    // Final check on num_unique_height and unique_height_count
-    builder.set(&unique_height_count, last_unique_height_index, last_unique_height_count);
-    builder.assign(&last_unique_height_index, last_unique_height_index + Usize::from(1));
-    builder.assert_var_eq(last_unique_height_index, num_unique_height);
+    // Sort input.dimensions by height, returns
+    // 1. height_order: after sorting by decreasing height, the original index of each entry
+    // 2. num_unique_height: number of different heights
+    // 3. count_per_unique_height: for each unique height, number of dimensions of that height
+    let (
+        height_order, 
+        num_unique_height, 
+        count_per_unique_height
+    ) = sort_with_count(
+        builder,
+        &input.dimensions,
+        |d: DimensionsVariable<C>| d.height,
+    );
 
     // First padded_height
     let first_order = builder.get(&height_order, 0);
@@ -179,7 +131,7 @@ pub(crate) fn mmcs_verify_batch<C: Config>(
     let curr_height_padded = next_power_of_two(builder, first_height);
 
     // Construct root through hashing
-    let root_dims_count: Var<C::N> = builder.get(&unique_height_count, 0);
+    let root_dims_count: Var<C::N> = builder.get(&count_per_unique_height, 0);
     let root_values = builder.dyn_array(root_dims_count);
     builder.range(0, root_dims_count).for_each(|i_vec, builder| {
         let i = i_vec[0];
@@ -194,10 +146,10 @@ pub(crate) fn mmcs_verify_batch<C: Config>(
     let reassembled_index: Var<C::N> = builder.eval(Usize::from(0));
     // next_height is the height of the next dim to be incorporated into root
     let next_unique_height_index: Var<C::N> = builder.eval(Usize::from(1));
-    let next_unique_height_count: Var<C::N> = builder.eval(root_dims_count);
+    let next_count_per_unique_height: Var<C::N> = builder.eval(root_dims_count);
     let next_height_padded: Var<C::N> = builder.eval(Usize::from(0));
     builder.if_ne(num_unique_height, Usize::from(1)).then(|builder| {
-        let next_height = builder.get(&input.dimensions, next_unique_height_count).height;
+        let next_height = builder.get(&input.dimensions, next_count_per_unique_height).height;
         let tmp_next_height_padded = next_power_of_two(builder, next_height);
         builder.assign(&next_height_padded, tmp_next_height_padded);
     });
@@ -235,7 +187,7 @@ pub(crate) fn mmcs_verify_batch<C: Config>(
         // determine whether next_height matches curr_height
         builder.if_eq(curr_height_padded, next_height_padded).then(|builder| {
             // hash opened_values of all dims of next_height to root
-            let root_dims_count = builder.get(&unique_height_count, next_unique_height_index);
+            let root_dims_count = builder.get(&count_per_unique_height, next_unique_height_index);
             let root_size: Var<C::N> = builder.eval(root_dims_count + Usize::from(1));
             let root_values = builder.dyn_array(root_size);
             builder.set_value(&root_values, 0, root.clone());
@@ -250,13 +202,13 @@ pub(crate) fn mmcs_verify_batch<C: Config>(
             builder.assign(&root, new_root);
 
             // Update parameters
-            builder.assign(&next_unique_height_count, next_unique_height_count + root_dims_count);
+            builder.assign(&next_count_per_unique_height, next_count_per_unique_height + root_dims_count);
             builder.assign(&next_unique_height_index, next_unique_height_index + Usize::from(1));
             builder.if_eq(next_unique_height_index, num_unique_height).then(|builder| {
                 builder.assign(&next_height_padded, Usize::from(0));
             });
             builder.if_ne(next_unique_height_index, num_unique_height).then(|builder| {
-                let next_height = builder.get(&input.dimensions, next_unique_height_count).height;
+                let next_height = builder.get(&input.dimensions, next_count_per_unique_height).height;
                 let next_tmp_height_padded = next_power_of_two(builder, next_height);
                 builder.assign(&next_height_padded, next_tmp_height_padded);
             });

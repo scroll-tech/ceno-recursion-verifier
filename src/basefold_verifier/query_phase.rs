@@ -318,33 +318,19 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
 
     // an vector with same length as circuit_meta, which is sorted by num_var in descending order and keep its index
     // for reverse lookup when retrieving next base codeword to involve into batching
-    let folding_sorted_order_witin_num_vars: Array<C, Usize<C::N>> = builder.dyn_array(folding_len.clone());
-    let folding_sorted_order_index: Array<C, Usize<C::N>> = builder.dyn_array(folding_len.clone());
-    let next_order = builder.hint_var();
-    // Check surjection
-    let surjective = builder.get(&folding_sort_surjective, next_order);
-    builder.assert_ext_eq(surjective, zero.clone());
-    builder.set(&folding_sort_surjective, next_order, one.clone());
-    // Assignment
-    let next_witin_num_vars = builder.get(&input.circuit_meta, next_order).witin_num_vars;
-    builder.set_value(&folding_sorted_order_witin_num_vars, 0, next_witin_num_vars.clone());
-    builder.set_value(&folding_sorted_order_index, 0, Usize::Var(next_order));
-    let last_witin_num_vars_plus_one: Var<C::N> = builder.eval(next_witin_num_vars + Usize::from(1));
-    builder.range(1, folding_len.clone()).for_each(|i_vec, builder| {
-        let i = i_vec[0];
-        let next_order = builder.hint_var();
-        // Check surjection
-        let surjective = builder.get(&folding_sort_surjective, next_order);
-        builder.assert_ext_eq(surjective, zero.clone());
-        builder.set(&folding_sort_surjective, next_order, one.clone());
-        // Check witin_num_vars, next_witin_num_vars < last_witin_num_vars_plus_one
-        let next_witin_num_vars = builder.get(&input.circuit_meta, next_order).witin_num_vars;
-        builder.assert_less_than_slow_small_rhs(next_witin_num_vars.clone(), last_witin_num_vars_plus_one);
-        builder.assign(&last_witin_num_vars_plus_one, next_witin_num_vars.clone() + Usize::from(1));
-        // Assignment
-        builder.set_value(&folding_sorted_order_witin_num_vars, i, next_witin_num_vars);
-        builder.set_value(&folding_sorted_order_index, i, Usize::Var(next_order));
-    });
+    // Sort input.dimensions by height, returns
+    // 1. height_order: after sorting by decreasing height, the original index of each entry
+    // 2. num_unique_height: number of different heights
+    // 3. count_per_unique_height: for each unique height, number of dimensions of that height
+    let (
+        folding_sorted_order_index, 
+        num_unique_num_vars, 
+        count_per_unique_num_var
+    ) = sort_with_count(
+        builder,
+        &input.circuit_meta,
+        |m: CircuitIndexMetaVariable<C>| m.witin_num_vars,
+    );
 
     builder.range(0, input.indices.len()).for_each(|i_vec, builder| {
         let i = i_vec[0];
@@ -498,6 +484,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
 
         // first folding challenge
         let r = builder.get(&input.fold_challenges, 0);
+        
     });
 
     

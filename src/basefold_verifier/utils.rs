@@ -84,3 +84,81 @@ pub fn bin_to_dec<C: Config>(
     });
     value
 }
+
+// Sort a list in decreasing order, returns:
+// 1. The original index of each sorted entry
+// 2. Number of unique entries
+// 3. Number of counts of each unique entry
+pub fn sort_with_count<C: Config, E, N, Ind>(
+    builder: &mut Builder<C>,
+    list: &Array<C, E>,
+    ind: Ind, // Convert loaded out entries into comparable ones
+) -> (Array<C, Var<C::N>>, Var<C::N>, Array<C, Var<C::N>>)
+    where E: openvm_native_compiler::ir::MemVariable<C>,
+        N: Into<SymbolicVar<<C as openvm_native_compiler::ir::Config>::N>> + openvm_native_compiler::ir::Variable<C>,
+        Ind: Fn(E) -> N {
+    let len = list.len();
+    // Nondeterministically supplies:
+    // 1. num_unique_entries: number of different entries
+    // 2. entry_order: after sorting by decreasing order, the original index of each entry
+    // To ensure that entry_order represents sorted index, assert that
+    // 1. It has the same length as list (checked by requesting list.len() hints)
+    // 2. It does not contain the same index twice (checked via a correspondence array)
+    // 3. Sorted entries are in decreasing order
+    // While checking, record:
+    // 1. count_per_unique_entry: for each unique entry value, count of entries of that value
+    let num_unique_entries = builder.hint_var();
+    let count_per_unique_entry = builder.dyn_array(num_unique_entries);
+    let zero: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
+    let one: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
+    let entries_sort_surjective: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(len.clone());
+    builder.range(0, len.clone()).for_each(|i_vec, builder| {
+        let i = i_vec[0];
+        builder.set(&entries_sort_surjective, i, zero.clone());
+    });
+
+    let entries_order = builder.dyn_array(len.clone());
+    let next_order = builder.hint_var();
+    // Check surjection
+    let surjective = builder.get(&entries_sort_surjective, next_order);
+    builder.assert_ext_eq(surjective, zero.clone());
+    builder.set(&entries_sort_surjective, next_order, one.clone());
+    builder.set_value(&entries_order, 0, next_order);
+    let last_entry = ind(builder.get(&list, next_order));
+    
+    let last_unique_entry_index: Var<C::N> = builder.eval(Usize::from(0));
+    let last_count_per_unique_entry: Var<C::N> = builder.eval(Usize::from(1));
+    builder.range(1, len).for_each(|i_vec, builder| {
+        let i = i_vec[0];
+        let next_order = builder.hint_var();
+        // Check surjection
+        let surjective = builder.get(&entries_sort_surjective, next_order);
+        builder.assert_ext_eq(surjective, zero.clone());
+        builder.set(&entries_sort_surjective, next_order, one.clone());
+        // Check entries
+        let next_entry = ind(builder.get(&list, next_order));
+        builder.if_eq(last_entry.clone(), next_entry.clone()).then(|builder| {
+            // next_entry == last_entry
+            builder.assign(&last_count_per_unique_entry, last_count_per_unique_entry + Usize::from(1));
+        });
+        builder.if_ne(last_entry.clone(), next_entry.clone()).then(|builder| {
+            // next_entry < last_entry
+            builder.assert_less_than_slow_small_rhs(next_entry.clone(), last_entry.clone());
+            
+            // Update count_per_unique_entry
+            builder.set(&count_per_unique_entry, last_unique_entry_index, last_count_per_unique_entry);
+            builder.assign(&last_entry, next_entry.clone());
+            builder.assign(&last_unique_entry_index, last_unique_entry_index + Usize::from(1));
+            builder.assign(&last_count_per_unique_entry, Usize::from(1));
+        });
+
+        builder.set_value(&entries_order, i, next_order);
+    });
+
+    // Final check on num_unique_entries and count_per_unique_entry
+    builder.set(&count_per_unique_entry, last_unique_entry_index, last_count_per_unique_entry);
+    builder.assign(&last_unique_entry_index, last_unique_entry_index + Usize::from(1));
+    builder.assert_var_eq(last_unique_entry_index, num_unique_entries);
+
+    (entries_order, num_unique_entries, count_per_unique_entry)
+}
