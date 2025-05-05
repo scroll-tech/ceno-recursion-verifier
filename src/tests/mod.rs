@@ -1,17 +1,14 @@
 use crate::zkvm_verifier::binding::{ZKVMOpcodeProofInput, E, F, TowerProofInput, ZKVMTableProofInput};
-use crate::transcript::transcript_observe_label;
 use crate::zkvm_verifier::binding::ZKVMProofInput;
 use crate::zkvm_verifier::verifier::verify_zkvm_proof;
-use ceno_emul::{IterAddresses, Program as CenoProgram, Word, WORD_SIZE};
-use ff_ext::{BabyBearExt4, SmallField};
+use ff_ext::BabyBearExt4;
 use itertools::Itertools;
-use mpcs::PolynomialCommitmentScheme;
 use mpcs::BasefoldCommitment;
 use mpcs::{Basefold, BasefoldRSParams};
 use openvm_circuit::arch::{instructions::program::Program, SystemConfig, VmExecutor};
 use openvm_native_circuit::{Native, NativeConfig};
 use openvm_native_compiler::asm::AsmBuilder;
-use openvm_native_recursion::{challenger::duplex::DuplexChallengerVariable, hints::Hintable};
+use openvm_native_recursion::hints::Hintable;
 use openvm_stark_backend::config::StarkGenericConfig;
 use openvm_stark_sdk::{
     config::baby_bear_poseidon2::BabyBearPoseidon2Config,

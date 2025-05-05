@@ -1,41 +1,30 @@
 use crate::tower_verifier::binding::PointAndEvalVariable;
 use crate::zkvm_verifier::binding::ZKVMOpcodeProofInputVariable;
-use ark_ff::Field;
 use ceno_zkvm::expression::{Expression, Fixed, Instance};
 use ceno_zkvm::structs::{ChallengeId, WitnessId};
 use ff_ext::ExtensionField;
 use ff_ext::{BabyBearExt4, SmallField};
-use openvm_native_compiler::asm::AsmConfig;
 use openvm_native_compiler::prelude::*;
 use openvm_native_compiler_derive::iter_zip;
-use openvm_native_recursion::{
-    challenger::ChallengerVariable,
-    hints::{InnerChallenge, InnerVal},
-};
-use openvm_stark_sdk::p3_baby_bear::BabyBear;
+use openvm_native_recursion::challenger::ChallengerVariable;
 use p3_field::{FieldAlgebra, FieldExtensionAlgebra};
-
-type InnerConfig = AsmConfig<InnerVal, InnerChallenge>;
-const NUM_FANIN: usize = 2;
-const MAX_DEGREE: usize = 3;
 type E = BabyBearExt4;
-type F = BabyBear;
 
-pub fn print_ext_arr<C: Config>(builder: &mut Builder<C>, arr: &Array<C, Ext<C::F, C::EF>>) {
+pub fn _print_ext_arr<C: Config>(builder: &mut Builder<C>, arr: &Array<C, Ext<C::F, C::EF>>) {
     iter_zip!(builder, arr).for_each(|ptr_vec, builder| {
         let e = builder.iter_ptr_get(arr, ptr_vec[0]);
         builder.print_e(e);
     });
 }
 
-pub fn print_felt_arr<C: Config>(builder: &mut Builder<C>, arr: &Array<C, Felt<C::F>>) {
+pub fn _print_felt_arr<C: Config>(builder: &mut Builder<C>, arr: &Array<C, Felt<C::F>>) {
     iter_zip!(builder, arr).for_each(|ptr_vec, builder| {
         let f = builder.iter_ptr_get(arr, ptr_vec[0]);
         builder.print_f(f);
     });
 }
 
-pub fn print_usize_arr<C: Config>(builder: &mut Builder<C>, arr: &Array<C, Usize<C::N>>) {
+pub fn _print_usize_arr<C: Config>(builder: &mut Builder<C>, arr: &Array<C, Usize<C::N>>) {
     iter_zip!(builder, arr).for_each(|ptr_vec, builder| {
         let n = builder.iter_ptr_get(arr, ptr_vec[0]);
         builder.print_v(n.get_var());
@@ -157,23 +146,6 @@ pub fn gen_idx_arr<C: Config>(builder: &mut Builder<C>, len: Usize<C::N>) -> Arr
     res
 }
 
-pub fn reverse_idx_arr<C: Config>(
-    builder: &mut Builder<C>,
-    arr: &Array<C, Usize<C::N>>,
-) -> Array<C, Usize<C::N>> {
-    let len = arr.len();
-    let res: Array<C, Usize<C::N>> = builder.dyn_array(len.clone());
-    builder.range(0, len.clone()).for_each(|i_vec, builder| {
-        let i = i_vec[0];
-        let rev_i: RVar<_> = builder.eval_expr(len.clone() - i - RVar::from(1));
-
-        let el = builder.get(arr, i);
-        builder.set(&res, rev_i, el);
-    });
-
-    res
-}
-
 // Evaluate eq polynomial.
 pub fn eq_eval<C: Config>(
     builder: &mut Builder<C>,
@@ -278,18 +250,14 @@ pub fn gen_alpha_pows<C: Config>(
 ///         = \sum_{\mathbf{b}=0}^{max_idx} \prod_{i=0}^{n-1} (x_i y_i b_i + (1 - x_i)(1 - y_i)(1 - b_i))
 pub fn eq_eval_less_or_equal_than<C: Config>(
     builder: &mut Builder<C>,
-    challenger: &mut impl ChallengerVariable<C>,
+    _challenger: &mut impl ChallengerVariable<C>,
     opcode_proof: &ZKVMOpcodeProofInputVariable<C>,
     a: &Array<C, Ext<C::F, C::EF>>,
     b: &Array<C, Ext<C::F, C::EF>>,
 ) -> Ext<C::F, C::EF> {
-    let eq_instance: Usize<C::N> =
-        builder.eval(opcode_proof.num_instances.clone() - Usize::from(1));
     let eq_bit_decomp: Array<C, Felt<C::F>> = opcode_proof
         .num_instances_minus_one_bit_decomposition
         .slice(builder, 0, b.len());
-
-    // DEBUG: verify bit decomposition
 
     let one_ext: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
     let rp_len = builder.eval_expr(RVar::from(b.len()) + RVar::from(1));
@@ -486,10 +454,6 @@ pub fn eval_ceno_expr_with_instance<C: Config>(
                 builder.constant(C::EF::from_base_slice(&offset_base_slice));
 
             let res = builder.eval(challenge_exp * scalar_ext + offset_ext);
-
-            let challenge_id_f: Felt<C::F> =
-                builder.constant(C::F::from_canonical_u16(challenge_id));
-            let pow_f: Felt<C::F> = builder.constant(C::F::from_canonical_usize(pow));
 
             res
         },
