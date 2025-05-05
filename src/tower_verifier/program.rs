@@ -1,36 +1,16 @@
 use super::binding::{
-    IOPProverMessage, IOPProverMessageVariable, Point, PointAndEvalVariable, PointVariable,
-    TowerVerifierInput, TowerVerifierInputVariable,
+    IOPProverMessageVariable, PointAndEvalVariable, PointVariable,
+    TowerVerifierInputVariable,
 };
 use crate::arithmetics::{
     dot_product, dot_product_pt_n_eval, eq_eval, evaluate_at_point, gen_alpha_pows,
-    is_smaller_than, join, print_ext_arr, product, reverse,
+    is_smaller_than, join, product, reverse,
 };
-use crate::tower_verifier;
 use crate::transcript::transcript_observe_label;
-use ark_ff::{AdditiveGroup, BigInteger, Field, PrimeField};
-use ark_poly::domain::EvaluationDomain;
-use ark_std::collections::BTreeSet;
-use ceno_zkvm::structs::PointAndEval;
-use mpcs::BasefoldCommitment;
-use openvm::io::println;
 use openvm_native_compiler::prelude::*;
-use openvm_native_compiler::{asm::AsmConfig, ir::MemVariable};
 use openvm_native_compiler_derive::iter_zip;
-use openvm_native_recursion::{
-    challenger::ChallengerVariable,
-    hints::{Hintable, InnerChallenge, InnerVal, VecAutoHintable},
-};
-use openvm_stark_sdk::{p3_baby_bear::BabyBear, p3_blake3::Blake3};
-use p3_field::PrimeField32;
-use p3_field::{
-    ExtensionField, Field as Plonky3Field, FieldAlgebra, FieldExtensionAlgebra, PackedValue,
-    TwoAdicField,
-};
-
-type InnerConfig = AsmConfig<InnerVal, InnerChallenge>;
-const NUM_FANIN: usize = 2;
-const MAX_DEGREE: usize = 3;
+use openvm_native_recursion::challenger::ChallengerVariable;
+use p3_field::FieldAlgebra;
 
 // Interpolate a uni-variate degree-`p_i.len()-1` polynomial and evaluate this
 // polynomial at `eval_at`:
@@ -351,7 +331,6 @@ pub fn verify_tower_proof<C: Config>(
     let op_range: RVar<C::N> =
         builder.eval_expr(tower_verifier_input.max_num_variables - Usize::from(1));
     let round: Felt<C::F> = builder.constant(C::F::ZERO);
-    let one: Ext<<C as Config>::F, <C as Config>::EF> = builder.constant(C::EF::ONE);
 
     let mut next_rt = PointAndEvalVariable {
         point: PointVariable {

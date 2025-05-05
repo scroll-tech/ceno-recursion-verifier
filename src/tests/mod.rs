@@ -14,7 +14,7 @@ use openvm_native_compiler::asm::AsmBuilder;
 use openvm_native_recursion::{challenger::duplex::DuplexChallengerVariable, hints::Hintable};
 use openvm_stark_backend::config::StarkGenericConfig;
 use openvm_stark_sdk::{
-    config::baby_bear_poseidon2::{default_engine, BabyBearPoseidon2Config},
+    config::baby_bear_poseidon2::BabyBearPoseidon2Config,
     p3_baby_bear::BabyBear,
 };
 use std::fs::File;
@@ -23,27 +23,13 @@ use std::collections::HashMap;
 
 type SC = BabyBearPoseidon2Config;
 type EF = <SC as StarkGenericConfig>::Challenge;
-type Challenger = <SC as StarkGenericConfig>::Challenger;
-type B = BabyBear;
-type Pcs = Basefold<E, BasefoldRSParams>;
 
 use ceno_zkvm::{
-    e2e::{
-        construct_configs, generate_fixed_traces, run_e2e_with_checkpoint,
-        setup_platform, Checkpoint, ConstraintSystemConfig, InitMemState, Preset,
-    },
-    instructions::riscv::{DummyExtraConfig, MemPadder, MmuConfig, Rv32imConfig},
     scheme::{
         ZKVMProof,
         verifier::ZKVMVerifier,
     },
-    state::GlobalState,
-    structs::{
-        ZKVMVerifyingKey,
-        // ProgramParams, ZKVMConstraintSystem, ZKVMFixedTraces, ZKVMProvingKey, ZKVMWitnesses,
-    },
-    tables::{MemFinalRecord, MemInitRecord, ProgramTableCircuit, ProgramTableConfig},
-    with_panic_hook,
+    structs::ZKVMVerifyingKey,
 };
 
 #[derive(Debug)]
@@ -56,7 +42,8 @@ pub struct SubcircuitParams {
     pub is_opcode: bool,
 }
 
-fn parse_zkvm_proof_import(
+
+pub fn parse_zkvm_proof_import(
     zkvm_proof: ZKVMProof<BabyBearExt4, Basefold<BabyBearExt4, BasefoldRSParams>>,
     verifier: &ZKVMVerifier<BabyBearExt4, Basefold<BabyBearExt4, BasefoldRSParams>>,
 ) -> (ZKVMProofInput, Vec<SubcircuitParams>) {
@@ -402,7 +389,7 @@ fn parse_zkvm_proof_import(
 }
 
 #[test]
-fn test_zkvm_proof_verifier_from_bincode_exports() {
+pub fn test_zkvm_proof_verifier_from_bincode_exports() {
     let proof_path = "./src/tests/encoded/proof.bin";
     let vk_path = "./src/tests/encoded/vk.bin";
 
@@ -418,7 +405,6 @@ fn test_zkvm_proof_verifier_from_bincode_exports() {
     let (zkvm_proof_input, proving_sequence) = parse_zkvm_proof_import(zkvm_proof, &verifier);
 
     // OpenVM DSL
-    let engine = default_engine();
     let mut builder = AsmBuilder::<F, EF>::default();
 
     // Obtain witness inputs
