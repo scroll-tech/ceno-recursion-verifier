@@ -169,12 +169,14 @@ impl Hintable<InnerConfig> for ZKVMProofInput {
         for trivial_commit in &self.witin_commit.trivial_commits {
             let mut t_cmt_vec: Vec<F> = vec![];
             trivial_commit.iter().for_each(|x| {
-                let f: F = serde_json::from_value(serde_json::to_value(x.clone()).unwrap()).unwrap();
+                let f: F =
+                    serde_json::from_value(serde_json::to_value(x.clone()).unwrap()).unwrap();
                 t_cmt_vec.push(f);
             });
             witin_commit_trivial_commits.push(t_cmt_vec);
         }
-        let witin_commit_log2_max_codeword_size = F::from_canonical_u32(self.witin_commit.log2_max_codeword_size as u32);
+        let witin_commit_log2_max_codeword_size =
+            F::from_canonical_u32(self.witin_commit.log2_max_codeword_size as u32);
         stream.extend(cmt_vec.write());
         stream.extend(witin_commit_trivial_commits.write());
         stream.extend(witin_commit_log2_max_codeword_size.write());
@@ -185,20 +187,29 @@ impl Hintable<InnerConfig> for ZKVMProofInput {
         let mut fixed_commit_trivial_commits: Vec<Vec<F>> = vec![];
         let mut fixed_commit_log2_max_codeword_size: F = F::ZERO.clone();
         if has_fixed_commit > 0 {
-            self.fixed_commit.as_ref().unwrap().commit().iter().for_each(|x| {
-                let f: F = serde_json::from_value(serde_json::to_value(x.clone()).unwrap()).unwrap();
-                fixed_commit_vec.push(f);
-            });
+            self.fixed_commit
+                .as_ref()
+                .unwrap()
+                .commit()
+                .iter()
+                .for_each(|x| {
+                    let f: F =
+                        serde_json::from_value(serde_json::to_value(x.clone()).unwrap()).unwrap();
+                    fixed_commit_vec.push(f);
+                });
 
             for trivial_commit in &self.fixed_commit.as_ref().unwrap().trivial_commits {
                 let mut t_cmt_vec: Vec<F> = vec![];
                 trivial_commit.iter().for_each(|x| {
-                    let f: F = serde_json::from_value(serde_json::to_value(x.clone()).unwrap()).unwrap();
+                    let f: F =
+                        serde_json::from_value(serde_json::to_value(x.clone()).unwrap()).unwrap();
                     t_cmt_vec.push(f);
                 });
                 fixed_commit_trivial_commits.push(t_cmt_vec);
             }
-            fixed_commit_log2_max_codeword_size = F::from_canonical_u32(self.fixed_commit.as_ref().unwrap().log2_max_codeword_size as u32);
+            fixed_commit_log2_max_codeword_size = F::from_canonical_u32(
+                self.fixed_commit.as_ref().unwrap().log2_max_codeword_size as u32,
+            );
         }
         stream.extend(<usize as Hintable<InnerConfig>>::write(&has_fixed_commit));
         stream.extend(fixed_commit_vec.write());
@@ -208,7 +219,10 @@ impl Hintable<InnerConfig> for ZKVMProofInput {
         // Write num_instances
         let mut num_instances_vec: Vec<Vec<F>> = vec![];
         for (circuit_size, num_var) in &self.num_instances {
-            num_instances_vec.push(vec![F::from_canonical_usize(*circuit_size), F::from_canonical_usize(*num_var)]);
+            num_instances_vec.push(vec![
+                F::from_canonical_usize(*circuit_size),
+                F::from_canonical_usize(*num_var),
+            ]);
         }
         stream.extend(num_instances_vec.write());
 
@@ -394,7 +408,7 @@ impl Hintable<InnerConfig> for ZKVMOpcodeProofInput {
 pub struct ZKVMTableProofInput {
     pub idx: usize,
     pub num_instances: usize,
-    
+
     // tower evaluation at layer 1
     pub r_out_evals: Vec<E>, // Vec<[E; 2]>
     pub w_out_evals: Vec<E>, // Vec<[E; 2]>

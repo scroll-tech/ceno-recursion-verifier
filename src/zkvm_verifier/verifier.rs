@@ -8,8 +8,8 @@ use crate::{
     arithmetics::{
         build_eq_x_r_vec_sequential, ceil_log2, concat, dot_product as ext_dot_product,
         eq_eval_less_or_equal_than, eval_ceno_expr_with_instance, eval_wellform_address_vec,
-        gen_alpha_pows, max_usize_arr, max_usize_vec, next_pow2_instance_padding,
-        product, sum as ext_sum,
+        gen_alpha_pows, max_usize_arr, max_usize_vec, next_pow2_instance_padding, product,
+        sum as ext_sum,
     },
     tower_verifier::{
         binding::{PointVariable, TowerVerifierInputVariable},
@@ -17,17 +17,17 @@ use crate::{
     },
 };
 use ceno_zkvm::circuit_builder::SetTableSpec;
+use ceno_zkvm::{expression::StructuralWitIn, scheme::verifier::ZKVMVerifier};
+use ff_ext::BabyBearExt4;
 use itertools::interleave;
 use itertools::max;
+use mpcs::{Basefold, BasefoldRSParams};
 use openvm_native_compiler::prelude::*;
 use openvm_native_compiler_derive::iter_zip;
 use openvm_native_recursion::challenger::{
-        duplex::DuplexChallengerVariable, CanObserveVariable, FeltChallenger,
-    };
+    duplex::DuplexChallengerVariable, CanObserveVariable, FeltChallenger,
+};
 use p3_field::FieldAlgebra;
-use ceno_zkvm::{expression::StructuralWitIn, scheme::verifier::ZKVMVerifier};
-use ff_ext::BabyBearExt4;
-use mpcs::{Basefold, BasefoldRSParams};
 
 type E = BabyBearExt4;
 type Pcs = Basefold<E, BasefoldRSParams>;
@@ -101,19 +101,25 @@ pub fn verify_zkvm_proof<C: Config>(
             });
         },
     );
-    
+
     iter_zip!(builder, zkvm_proof_input.fixed_commit).for_each(|ptr_vec, builder| {
         let f = builder.iter_ptr_get(&zkvm_proof_input.fixed_commit, ptr_vec[0]);
         challenger.observe(builder, f);
     });
-    iter_zip!(builder, zkvm_proof_input.fixed_commit_trivial_commits).for_each(|ptr_vec, builder| {
-        let trivial_cmt = builder.iter_ptr_get(&zkvm_proof_input.fixed_commit_trivial_commits, ptr_vec[0]);
-        iter_zip!(builder, trivial_cmt).for_each(|t_ptr_vec, builder| {
-            let f = builder.iter_ptr_get(&trivial_cmt, t_ptr_vec[0]);
-            challenger.observe(builder, f);
-        });
-    });
-    challenger.observe(builder, zkvm_proof_input.fixed_commit_log2_max_codeword_size);
+    iter_zip!(builder, zkvm_proof_input.fixed_commit_trivial_commits).for_each(
+        |ptr_vec, builder| {
+            let trivial_cmt =
+                builder.iter_ptr_get(&zkvm_proof_input.fixed_commit_trivial_commits, ptr_vec[0]);
+            iter_zip!(builder, trivial_cmt).for_each(|t_ptr_vec, builder| {
+                let f = builder.iter_ptr_get(&trivial_cmt, t_ptr_vec[0]);
+                challenger.observe(builder, f);
+            });
+        },
+    );
+    challenger.observe(
+        builder,
+        zkvm_proof_input.fixed_commit_log2_max_codeword_size,
+    );
 
     iter_zip!(builder, zkvm_proof_input.num_instances).for_each(|ptr_vec, builder| {
         let ns = builder.iter_ptr_get(&zkvm_proof_input.num_instances, ptr_vec[0]);
@@ -127,14 +133,20 @@ pub fn verify_zkvm_proof<C: Config>(
         let f = builder.iter_ptr_get(&zkvm_proof_input.witin_commit, ptr_vec[0]);
         challenger.observe(builder, f);
     });
-    iter_zip!(builder, zkvm_proof_input.witin_commit_trivial_commits).for_each(|ptr_vec, builder| {
-        let trivial_cmt = builder.iter_ptr_get(&zkvm_proof_input.witin_commit_trivial_commits, ptr_vec[0]);
-        iter_zip!(builder, trivial_cmt).for_each(|t_ptr_vec, builder| {
-            let f = builder.iter_ptr_get(&trivial_cmt, t_ptr_vec[0]);
-            challenger.observe(builder, f);
-        });
-    });
-    challenger.observe(builder, zkvm_proof_input.witin_commit_log2_max_codeword_size);
+    iter_zip!(builder, zkvm_proof_input.witin_commit_trivial_commits).for_each(
+        |ptr_vec, builder| {
+            let trivial_cmt =
+                builder.iter_ptr_get(&zkvm_proof_input.witin_commit_trivial_commits, ptr_vec[0]);
+            iter_zip!(builder, trivial_cmt).for_each(|t_ptr_vec, builder| {
+                let f = builder.iter_ptr_get(&trivial_cmt, t_ptr_vec[0]);
+                challenger.observe(builder, f);
+            });
+        },
+    );
+    challenger.observe(
+        builder,
+        zkvm_proof_input.witin_commit_log2_max_codeword_size,
+    );
 
     let alpha = challenger.sample_ext(builder);
     let beta = challenger.sample_ext(builder);
@@ -148,8 +160,12 @@ pub fn verify_zkvm_proof<C: Config>(
 
     for subcircuit_params in proving_sequence {
         if subcircuit_params.is_opcode {
-            let opcode_proof = builder.get(&zkvm_proof_input.opcode_proofs, subcircuit_params.type_order_idx);
-            let id_f: Felt<C::F> = builder.constant(C::F::from_canonical_usize(subcircuit_params.id));
+            let opcode_proof = builder.get(
+                &zkvm_proof_input.opcode_proofs,
+                subcircuit_params.type_order_idx,
+            );
+            let id_f: Felt<C::F> =
+                builder.constant(C::F::from_canonical_usize(subcircuit_params.id));
             challenger.observe(builder, id_f);
 
             verify_opcode_proof(
@@ -193,9 +209,12 @@ pub fn verify_zkvm_proof<C: Config>(
                 logup_sum + opcode_proof.lk_p2_out_eval * opcode_proof.lk_q2_out_eval.inverse(),
             );
         } else {
-            let table_proof =
-                builder.get(&zkvm_proof_input.table_proofs, subcircuit_params.type_order_idx);
-            let id_f: Felt<C::F> = builder.constant(C::F::from_canonical_usize(subcircuit_params.id));
+            let table_proof = builder.get(
+                &zkvm_proof_input.table_proofs,
+                subcircuit_params.type_order_idx,
+            );
+            let id_f: Felt<C::F> =
+                builder.constant(C::F::from_canonical_usize(subcircuit_params.id));
             challenger.observe(builder, id_f);
 
             verify_table_proof(
@@ -510,7 +529,7 @@ pub fn verify_opcode_proof<C: Config>(
             &empty_arr,
             pi_evals,
             challenges,
-            expr
+            expr,
         );
 
         builder.assign(&sel_sum, sel_sum + al * expr_eval);
@@ -639,9 +658,7 @@ pub fn verify_table_proof<C: Config>(
                         .table_spec
                         .structural_witins
                         .iter()
-                        .map(|StructuralWitIn { .. }| {
-                            table_proof.log2_num_instances.clone()
-                        })
+                        .map(|StructuralWitIn { .. }| table_proof.log2_num_instances.clone())
                         .collect::<Vec<Usize<C::N>>>();
 
                     max_usize_vec(builder, var_vec)
@@ -665,9 +682,7 @@ pub fn verify_table_proof<C: Config>(
                         .table_spec
                         .structural_witins
                         .iter()
-                        .map(|StructuralWitIn { .. }| {
-                            table_proof.log2_num_instances.clone()
-                        })
+                        .map(|StructuralWitIn { .. }| table_proof.log2_num_instances.clone())
                         .collect::<Vec<Usize<C::N>>>();
 
                     max_usize_vec(builder, var_vec)

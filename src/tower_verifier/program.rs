@@ -1,6 +1,5 @@
 use super::binding::{
-    IOPProverMessageVariable, PointAndEvalVariable, PointVariable,
-    TowerVerifierInputVariable,
+    IOPProverMessageVariable, PointAndEvalVariable, PointVariable, TowerVerifierInputVariable,
 };
 use crate::arithmetics::{
     dot_product, dot_product_pt_n_eval, eq_eval, evaluate_at_point, gen_alpha_pows,
