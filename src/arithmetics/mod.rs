@@ -641,12 +641,13 @@ pub fn evaluate_ceno_expr<C: Config, T>(
 /// the result M(r0, r1,... rn) = r0 + r1 * 2 + r2 * 2^2 + .... rn * 2^n
 pub fn eval_wellform_address_vec<C: Config>(
     builder: &mut Builder<C>,
-    offset: u64,
-    scaled: u64,
+    offset: u32,
+    scaled: u32,
     r: &Array<C, Ext<C::F, C::EF>>,
+    descending: bool,
 ) -> Ext<C::F, C::EF> {
-    let offset: Ext<C::F, C::EF> = builder.constant(C::EF::from_canonical_u32(offset as u32));
-    let scaled: Ext<C::F, C::EF> = builder.constant(C::EF::from_canonical_u32(scaled as u32));
+    let offset: Ext<C::F, C::EF> = builder.constant(C::EF::from_canonical_u32(offset));
+    let scaled: Ext<C::F, C::EF> = builder.constant(C::EF::from_canonical_u32(scaled));
 
     let r_sum: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
     let two: Ext<C::F, C::EF> = builder.constant(C::EF::TWO);
@@ -657,8 +658,14 @@ pub fn eval_wellform_address_vec<C: Config>(
         builder.assign(&r_sum, r_sum + x * state);
         builder.assign(&state, state * two);
     });
+    let shift: Ext<C::F, C::EF> = builder.eval(scaled * r_sum);
 
-    let res: Ext<C::F, C::EF> = builder.eval(offset + scaled * r_sum);
+    if descending {
+        let zero: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
+        builder.assign(&shift, zero - shift);
+    }
+
+    let res: Ext<C::F, C::EF> = builder.eval(offset + shift);
 
     res
 }

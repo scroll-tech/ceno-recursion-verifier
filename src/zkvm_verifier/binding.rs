@@ -1,10 +1,9 @@
 use crate::arithmetics::next_pow2_instance_padding;
 use crate::{
-    arithmetics::{ceil_log2, print_felt_arr},
+    arithmetics::ceil_log2,
     tower_verifier::binding::{IOPProverMessage, IOPProverMessageVariable},
 };
 use ark_std::iterable::Iterable;
-use ceno_zkvm::scheme::verifier;
 use ff_ext::BabyBearExt4;
 use mpcs::BasefoldCommitment;
 use openvm_native_compiler::{

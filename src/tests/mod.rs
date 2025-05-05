@@ -46,6 +46,7 @@ use ceno_zkvm::{
     with_panic_hook,
 };
 
+#[derive(Debug)]
 pub struct SubcircuitParams {
     pub id: usize,
     pub order_idx: usize,
@@ -59,7 +60,7 @@ fn parse_zkvm_proof_import(
     zkvm_proof: ZKVMProof<BabyBearExt4, Basefold<BabyBearExt4, BasefoldRSParams>>,
     verifier: &ZKVMVerifier<BabyBearExt4, Basefold<BabyBearExt4, BasefoldRSParams>>,
 ) -> (ZKVMProofInput, Vec<SubcircuitParams>) {
-    let subcircuit_names = verifier.vk.circuit_vks.iter().map(|(str, _)| { String::from(str) }).collect::<Vec<String>>();
+    let subcircuit_names = verifier.vk.circuit_vks.keys().collect_vec();
 
     let mut opcode_num_instances_lookup: HashMap<usize, usize> = HashMap::new();
     let mut table_num_instances_lookup: HashMap<usize, usize> = HashMap::new();
@@ -78,14 +79,13 @@ fn parse_zkvm_proof_import(
     let mut table_order_idx: usize = 0;
     let mut proving_sequence: Vec<SubcircuitParams> = vec![];
     for (index, _) in &zkvm_proof.num_instances {
-        let name = subcircuit_names[order_idx].clone();
-
+        let name = subcircuit_names[*index].clone();
         if zkvm_proof.opcode_proofs.get(index).is_some() {
             proving_sequence.push(SubcircuitParams {
                 id: *index,
                 order_idx: order_idx.clone(),
                 type_order_idx: opcode_order_idx.clone(),
-                name,
+                name: name.clone(),
                 num_instances: opcode_num_instances_lookup.get(index).unwrap().clone(),
                 is_opcode: true,
             });
@@ -95,7 +95,7 @@ fn parse_zkvm_proof_import(
                 id: *index,
                 order_idx: order_idx.clone(),
                 type_order_idx: table_order_idx.clone(),
-                name,
+                name: name.clone(),
                 num_instances: table_num_instances_lookup.get(index).unwrap().clone(),
                 is_opcode: false,
             });
@@ -181,7 +181,6 @@ fn parse_zkvm_proof_import(
         tower_proof.num_prod_specs = prod_specs_eval.len();
         tower_proof.prod_specs_eval = prod_specs_eval;
 
-
         let mut logup_specs_eval: Vec<Vec<Vec<E>>> = vec![];
         for inner_val in &opcode_proof.tower_proof.logup_specs_eval {
             let mut inner_v: Vec<Vec<E>> = vec![];
@@ -198,7 +197,6 @@ fn parse_zkvm_proof_import(
         }
         tower_proof.num_logup_specs = logup_specs_eval.len();
         tower_proof.logup_specs_eval = logup_specs_eval;
-
 
         // main constraint and select sumcheck proof
         let mut main_sel_sumcheck_proofs: Vec<IOPProverMessage> = vec![];
