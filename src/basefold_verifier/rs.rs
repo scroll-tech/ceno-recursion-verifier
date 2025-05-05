@@ -92,6 +92,14 @@ pub fn get_basecode_msg_size_log<C: Config>() -> Usize<C::N> {
     Usize::from(7)
 }
 
+pub fn verifier_folding_coeffs_level<C: Config>(
+    builder: &mut Builder<C>,
+    pp: &RSCodeVerifierParametersVariable<C>,
+    level: Var<C::N>,
+) -> Array<C, Felt<C::F>> {
+    builder.get(&pp.t_inv_halves, level)
+}
+
 /// The DIT FFT algorithm.
 pub struct Radix2Dit {
     pub twiddles: Vec<E>,

@@ -96,7 +96,8 @@ pub fn sort_with_count<C: Config, E, N, Ind>(
 ) -> (Array<C, Var<C::N>>, Var<C::N>, Array<C, Var<C::N>>)
     where E: openvm_native_compiler::ir::MemVariable<C>,
         N: Into<SymbolicVar<<C as openvm_native_compiler::ir::Config>::N>> + openvm_native_compiler::ir::Variable<C>,
-        Ind: Fn(E) -> N {
+        Ind: Fn(E) -> N 
+{
     let len = list.len();
     // Nondeterministically supplies:
     // 1. num_unique_entries: number of different entries
@@ -161,4 +162,21 @@ pub fn sort_with_count<C: Config, E, N, Ind>(
     builder.assert_var_eq(last_unique_entry_index, num_unique_entries);
 
     (entries_order, num_unique_entries, count_per_unique_entry)
+}
+
+pub fn codeword_fold_with_challenge<C: Config>(
+    builder: &mut Builder<C>,
+    left: Ext<C::F, C::EF>,
+    right: Ext<C::F, C::EF>,
+    challenge: Ext<C::F, C::EF>,
+    coeff: Felt<C::F>,
+    inv_2: Felt<C::F>,
+) -> Ext<C::F, C::EF> {
+    // original (left, right) = (lo + hi*x, lo - hi*x), lo, hi are codeword, but after times x it's not codeword
+    // recover left & right codeword via (lo, hi) = ((left + right) / 2, (left - right) / 2x)
+    let lo: Ext<C::F, C::EF> = builder.eval((left + right) * inv_2);
+    let hi: Ext<C::F, C::EF> = builder.eval((left - right) * coeff); // e.g. coeff = (2 * dit_butterfly)^(-1) in rs code
+    // we do fold on (lo, hi) to get folded = (1-r) * lo + r * hi (with lo, hi are two codewords), as it match perfectly with raw message in lagrange domain fixed variable
+    let ret: Ext<C::F, C::EF> = builder.eval(lo + challenge * (hi - lo));
+    ret
 }

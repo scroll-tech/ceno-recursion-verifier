@@ -360,7 +360,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
         builder.assign(&idx_len, idx_len_minus_one);
         let new_idx = bin_to_dec(builder, &idx_bits, idx_len);
         let last_bit = builder.get(&idx_bits, idx_len);
-        builder.assert_eq::<Var<C::N>>(new_idx + last_bit, idx);
+        builder.assert_eq::<Var<C::N>>(Usize::from(2) * new_idx + last_bit, idx);
         builder.assign(&idx, new_idx);
 
         let (witin_dimensions, fixed_dimensions) = 
@@ -484,7 +484,65 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
 
         // first folding challenge
         let r = builder.get(&input.fold_challenges, 0);
-        
+        let next_unique_num_vars_count: Var<C::N> = builder.get(&count_per_unique_num_var, 0);
+        let folded: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
+        builder.range(0, next_unique_num_vars_count).for_each(|j_vec, builder| {
+            let j = j_vec[0];
+            let index = builder.get(&folding_sorted_order_index, j);
+            let lo = builder.get(&base_codeword_lo, index.clone());
+            let hi = builder.get(&base_codeword_hi, index.clone());
+            let level: Var<C::N> = builder.eval(cur_num_var + get_rate_log::<C>() - Usize::from(1));
+            let coeffs = verifier_folding_coeffs_level(builder, &input.vp, level);
+            let coeff = builder.get(&coeffs, idx);
+            let fold = codeword_fold_with_challenge::<C>(builder, lo, hi, r, coeff, inv_2);
+            builder.assign(&folded, folded + fold);
+        });
+        let next_unique_num_vars_index: Var<C::N> = builder.eval(Usize::from(1));
+        let cumul_num_vars_count: Var<C::N> = builder.eval(next_unique_num_vars_count);
+        let n_d_i: Var<C::N> = builder.eval(n_d_next);
+        // zip_eq
+        builder.assert_eq::<Var<C::N>>(input.commits.len() + Usize::from(1), input.fold_challenges.len());
+        builder.assert_eq::<Var<C::N>>(input.commits.len(), opening_ext.len());
+        builder.range(0, input.commits.len()).for_each(|j_vec, builder| {
+            let j = j_vec[0];
+            let pi_comm = builder.get(&input.commits, j);
+            let j_plus_one = builder.eval_expr(j + RVar::from(1));
+            let r = builder.get(&input.fold_challenges, j_plus_one);
+            let leaf = builder.get(&opening_ext, j).sibling_value;
+            let proof = builder.get(&opening_ext, j).opening_proof;
+            builder.assign(&cur_num_var, cur_num_var - Usize::from(1));
+
+            // next folding challenges
+            let idx_len_minus_one: Var<C::N> = builder.eval(idx_len - Usize::from(1));
+            let is_interpolate_to_right_index = builder.get(&idx_bits, idx_len_minus_one);
+            let new_involved_codewords: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
+            let next_unique_num_vars_count: Var<C::N> = builder.get(&count_per_unique_num_var, next_unique_num_vars_index);
+            builder.range(0, next_unique_num_vars_count).for_each(|k_vec, builder| {
+                let k = builder.eval_expr(k_vec[0] + cumul_num_vars_count);
+                let index = builder.get(&folding_sorted_order_index, k);
+                let lo = builder.get(&base_codeword_lo, index.clone());
+                let hi = builder.get(&base_codeword_hi, index.clone());
+                builder.if_eq(is_interpolate_to_right_index, Usize::from(1)).then(|builder| {
+                    builder.assign(&new_involved_codewords, new_involved_codewords + hi);
+                });
+                builder.if_ne(is_interpolate_to_right_index, Usize::from(1)).then(|builder| {
+                    builder.assign(&new_involved_codewords, new_involved_codewords + lo);
+                });
+            });
+            builder.assign(&cumul_num_vars_count, cumul_num_vars_count + next_unique_num_vars_count);
+            builder.assign(&next_unique_num_vars_index, next_unique_num_vars_index + Usize::from(1));
+
+            // leafs
+            let leafs = builder.dyn_array(2);
+            builder.if_eq(is_interpolate_to_right_index, Usize::from(1)).then(|builder| {
+                builder.set_value(&leafs, 0, leaf);
+                builder.set_value(&leafs, 1, folded + new_involved_codewords);
+            });
+            builder.if_ne(is_interpolate_to_right_index, Usize::from(1)).then(|builder| {
+                builder.set_value(&leafs, 0, folded + new_involved_codewords);
+                builder.set_value(&leafs, 1, leaf);
+            });
+        });
     });
 
     
@@ -502,25 +560,6 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                 commit_phase_openings: opening_ext,
             },
         )| {
-            let mut folding_sorted_order_iter = folding_sorted_order.iter();
-            // take first batch which num_vars match max_num_var to initial fold value
-            let mut folded = folding_sorted_order_iter
-                .by_ref()
-                .peeking_take_while(|(num_vars, _)| **num_vars == cur_num_var)
-                .map(|(_, index)| {
-                    let (lo, hi) = &base_codeword_lo_hi[*index];
-                    let coeff =
-                        <Spec::EncodingScheme as EncodingScheme<E>>::verifier_folding_coeffs_level(
-                            vp,
-                            cur_num_var
-                                + <Spec::EncodingScheme as EncodingScheme<E>>::get_rate_log()
-                                - 1,
-                        )[idx];
-                    codeword_fold_with_challenge(&[*lo, *hi], *r, coeff, inv_2)
-                })
-                .sum::<E>();
-
-            let mut n_d_i = n_d_next;
             for (
                 (pi_comm, r),
                 CommitPhaseProofStep {
@@ -532,22 +571,6 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                 .zip_eq(fold_challenges.iter().skip(1))
                 .zip_eq(opening_ext)
             {
-                cur_num_var -= 1;
-
-                let is_interpolate_to_right_index = (idx & 1) == 1;
-                let new_involved_codewords = folding_sorted_order_iter
-                    .by_ref()
-                    .peeking_take_while(|(num_vars, _)| **num_vars == cur_num_var)
-                    .map(|(_, index)| {
-                        let (lo, hi) = &base_codeword_lo_hi[*index];
-                        if is_interpolate_to_right_index {
-                            *hi
-                        } else {
-                            *lo
-                        }
-                    })
-                    .sum::<E>();
-
                 let mut leafs = vec![*leaf; 2];
                 leafs[is_interpolate_to_right_index as usize] = folded + new_involved_codewords;
                 idx >>= 1;

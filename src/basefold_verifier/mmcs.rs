@@ -146,10 +146,10 @@ pub(crate) fn mmcs_verify_batch<C: Config>(
     let reassembled_index: Var<C::N> = builder.eval(Usize::from(0));
     // next_height is the height of the next dim to be incorporated into root
     let next_unique_height_index: Var<C::N> = builder.eval(Usize::from(1));
-    let next_count_per_unique_height: Var<C::N> = builder.eval(root_dims_count);
+    let cumul_dims_count: Var<C::N> = builder.eval(root_dims_count);
     let next_height_padded: Var<C::N> = builder.eval(Usize::from(0));
     builder.if_ne(num_unique_height, Usize::from(1)).then(|builder| {
-        let next_height = builder.get(&input.dimensions, next_count_per_unique_height).height;
+        let next_height = builder.get(&input.dimensions, cumul_dims_count).height;
         let tmp_next_height_padded = next_power_of_two(builder, next_height);
         builder.assign(&next_height_padded, tmp_next_height_padded);
     });
@@ -202,13 +202,13 @@ pub(crate) fn mmcs_verify_batch<C: Config>(
             builder.assign(&root, new_root);
 
             // Update parameters
-            builder.assign(&next_count_per_unique_height, next_count_per_unique_height + root_dims_count);
+            builder.assign(&cumul_dims_count, cumul_dims_count + root_dims_count);
             builder.assign(&next_unique_height_index, next_unique_height_index + Usize::from(1));
             builder.if_eq(next_unique_height_index, num_unique_height).then(|builder| {
                 builder.assign(&next_height_padded, Usize::from(0));
             });
             builder.if_ne(next_unique_height_index, num_unique_height).then(|builder| {
-                let next_height = builder.get(&input.dimensions, next_count_per_unique_height).height;
+                let next_height = builder.get(&input.dimensions, cumul_dims_count).height;
                 let next_tmp_height_padded = next_power_of_two(builder, next_height);
                 builder.assign(&next_height_padded, next_tmp_height_padded);
             });
