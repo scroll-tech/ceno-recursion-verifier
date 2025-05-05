@@ -429,6 +429,7 @@ pub fn verify_opcode_proof<C: Config>(
     let input_opening_point = PointVariable {
         fs: main_sel_subclaim.0,
     };
+    let expected_evaluation: Ext<C::F, C::EF> = main_sel_subclaim.1;
 
     let rt_r_eq = rt_r.slice(builder, 0, log2_r_count.clone());
     let eq_r = build_eq_x_r_vec_sequential(builder, &rt_r_eq);
@@ -539,7 +540,7 @@ pub fn verify_opcode_proof<C: Config>(
         &computed_eval,
         computed_eval + sel_sum * sel_non_lc_zero_sumcheck,
     );
-    // builder.assert_ext_eq(computed_eval, expected_evaluation);
+    builder.assert_ext_eq(computed_eval, expected_evaluation);
 
     // verify records (degree = 1) statement, thus no sumcheck
     let r_records = &opcode_proof

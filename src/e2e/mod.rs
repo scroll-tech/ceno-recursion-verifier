@@ -411,8 +411,8 @@ pub fn parse_zkvm_proof_import(
 
 #[test]
 pub fn test_zkvm_proof_verifier_from_bincode_exports() {
-    let proof_path = "./src/tests/encoded/proof.bin";
-    let vk_path = "./src/tests/encoded/vk.bin";
+    let proof_path = "./src/e2e/encoded/proof.bin";
+    let vk_path = "./src/e2e/encoded/vk.bin";
 
     let zkvm_proof: ZKVMProof<BabyBearExt4, Basefold<BabyBearExt4, BasefoldRSParams>> =
         bincode::deserialize_from(File::open(proof_path).expect("Failed to open proof file"))
