@@ -6,4 +6,4 @@ mod transcript;
 pub mod zkvm_verifier;
 
 #[allow(dead_code)]
-mod tests;
+mod e2e;
