@@ -4,10 +4,12 @@ use openvm_stark_sdk::p3_baby_bear::BabyBear;
 use p3_field::extension::BinomialExtensionField;
 use p3_field::FieldAlgebra;
 
+use super::structs::DIMENSIONS;
+
 pub const DIGEST_ELEMS: usize = 8;
 
 pub type F = BabyBear;
-pub type E = BinomialExtensionField<F, 4>;
+pub type E = BinomialExtensionField<F, DIMENSIONS>;
 pub type InnerConfig = AsmConfig<F, E>;
 
 pub struct Hash<const DIGEST_ELEMS: usize> {

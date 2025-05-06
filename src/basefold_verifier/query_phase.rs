@@ -7,10 +7,10 @@ use p3_field::extension::BinomialExtensionField;
 use p3_field::FieldAlgebra;
 
 use crate::tower_verifier::binding::*;
-use super::{basefold::*, mmcs::*, rs::*, structs::*, utils::*};
+use super::{basefold::*, extension_mmcs::ExtensionMmcsVariable, mmcs::*, rs::*, structs::*, utils::*};
 
 pub type F = BabyBear;
-pub type E = BinomialExtensionField<F, 4>;
+pub type E = BinomialExtensionField<F, DIMENSIONS>;
 pub type InnerConfig = AsmConfig<F, E>;
 
 pub struct BatchOpening {
@@ -45,7 +45,7 @@ pub struct BatchOpeningVariable<C: Config> {
 }
 
 pub struct CommitPhaseProofStep {
-    pub sibling_value: F,
+    pub sibling_value: E,
     pub opening_proof: MmcsProof,
 }
 
@@ -53,7 +53,7 @@ impl Hintable<InnerConfig> for CommitPhaseProofStep {
     type HintVariable = CommitPhaseProofStepVariable<InnerConfig>;
   
     fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
-        let sibling_value = F::read(builder);
+        let sibling_value = E::read(builder);
         let opening_proof = Vec::<Vec::<F>>::read(builder);
         CommitPhaseProofStepVariable {
             sibling_value,
@@ -72,7 +72,7 @@ impl VecAutoHintable for CommitPhaseProofStep {}
 
 #[derive(DslVariable, Clone)]
 pub struct CommitPhaseProofStepVariable<C: Config> {
-    pub sibling_value: Felt<C::F>,
+    pub sibling_value: Ext<C::F, C::EF>,
     pub opening_proof: MmcsProofVariable<C>,
 }
 
@@ -296,8 +296,8 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
         final_rmm,
     );
     // XXX: we might need to add generics to MMCS to account for different field types
-    let mmcs_ext: MerkleTreeMmcsVariables<C> = Default::default();
-    let mmcs: MerkleTreeMmcsVariables<C> = Default::default();
+    let mmcs_ext: ExtensionMmcsVariable<C> = Default::default();
+    let mmcs: MerkleTreeMmcsVariable<C> = Default::default();
     // can't use witin_comm.log2_max_codeword_size since it's untrusted
     let log2_witin_max_codeword_size: Var<C::N> = builder.eval(input.max_num_var.clone() + get_rate_log::<C>());
 
@@ -534,14 +534,24 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
 
             // leafs
             let leafs = builder.dyn_array(2);
+            let new_leaf = builder.eval(folded + new_involved_codewords);
             builder.if_eq(is_interpolate_to_right_index, Usize::from(1)).then(|builder| {
                 builder.set_value(&leafs, 0, leaf);
-                builder.set_value(&leafs, 1, folded + new_involved_codewords);
+                builder.set_value(&leafs, 1, new_leaf);
             });
             builder.if_ne(is_interpolate_to_right_index, Usize::from(1)).then(|builder| {
-                builder.set_value(&leafs, 0, folded + new_involved_codewords);
+                builder.set_value(&leafs, 0, new_leaf);
                 builder.set_value(&leafs, 1, leaf);
             });
+            // idx >>= 1
+            let idx_len_minus_one: Var<C::N> = builder.eval(idx_len - Usize::from(1));
+            builder.assign(&idx_len, idx_len_minus_one);
+            let new_idx = bin_to_dec(builder, &idx_bits, idx_len);
+            let last_bit = builder.get(&idx_bits, idx_len);
+            builder.assert_eq::<Var<C::N>>(Usize::from(2) * new_idx + last_bit, idx);
+            builder.assign(&idx, new_idx);
+            // mmcs_ext.verify_batch
+            
         });
     });
 
@@ -571,9 +581,6 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                 .zip_eq(fold_challenges.iter().skip(1))
                 .zip_eq(opening_ext)
             {
-                let mut leafs = vec![*leaf; 2];
-                leafs[is_interpolate_to_right_index as usize] = folded + new_involved_codewords;
-                idx >>= 1;
                 mmcs_ext
                     .verify_batch(
                         pi_comm,

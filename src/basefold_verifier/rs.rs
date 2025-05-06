@@ -5,8 +5,10 @@ use openvm_native_recursion::hints::Hintable;
 use openvm_stark_sdk::p3_baby_bear::BabyBear;
 use p3_field::extension::BinomialExtensionField;
 
+use super::structs::*;
+
 pub type F = BabyBear;
-pub type E = BinomialExtensionField<F, 4>;
+pub type E = BinomialExtensionField<F, DIMENSIONS>;
 pub type InnerConfig = AsmConfig<F, E>;
 
 pub struct DenseMatrix {

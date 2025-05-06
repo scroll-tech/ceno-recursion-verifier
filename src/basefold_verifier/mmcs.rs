@@ -11,7 +11,7 @@ use p3_field::FieldAlgebra;
 use super::{structs::*, utils::*, hash::*};
 
 pub type F = BabyBear;
-pub type E = BinomialExtensionField<F, 4>;
+pub type E = BinomialExtensionField<F, DIMENSIONS>;
 pub type InnerConfig = AsmConfig<F, E>;
 
 // XXX: Fill in MerkleTreeMmcs
@@ -21,7 +21,7 @@ pub struct MerkleTreeMmcs {
 }
 
 #[derive(Default, Clone)]
-pub struct MerkleTreeMmcsVariables<C: Config> {
+pub struct MerkleTreeMmcsVariable<C: Config> {
     pub hash: (),
     pub compress: (),
     _phantom: PhantomData<C>,
@@ -80,7 +80,7 @@ pub struct MmcsVerifierInputVariable<C: Config> {
 
 pub(crate) fn mmcs_verify_batch<C: Config>(
     builder: &mut Builder<C>,
-    _mmcs: MerkleTreeMmcsVariables<C>, // self
+    _mmcs: MerkleTreeMmcsVariable<C>, // self
     input: MmcsVerifierInputVariable<C>,
 ) {
     // Check that the openings have the correct shape.
