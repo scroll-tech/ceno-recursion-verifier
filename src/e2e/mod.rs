@@ -456,5 +456,20 @@ pub fn test_zkvm_proof_verifier_from_bincode_exports() {
     let config = NativeConfig::new(system_config, Native);
 
     let executor = VmExecutor::<BabyBear, NativeConfig>::new(config);
-    executor.execute(program, witness_stream).unwrap();
+    
+    // Alternative execution
+    // executor.execute(program, witness_stream).unwrap();
+
+    let res = executor.execute_and_then(
+        program,
+        witness_stream,
+        |_, seg| {
+            Ok(seg)
+        },
+        |err| err,
+    ).unwrap();
+
+    for (i, seg) in res.iter().enumerate() {
+        println!("=> segment {:?} cycles: {:?}", i, seg.metrics.cycle_count);
+    }
 }

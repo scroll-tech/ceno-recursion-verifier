@@ -5,8 +5,7 @@ edition = "2021"
 
 [dependencies]
 openvm = { git = "https://github.com/openvm-org/openvm.git", default-features = false, tag = "v1.0.0" }
-openvm-circuit = { git = "https://github.com/openvm-org/openvm.git", default-features = false, tag = "v1.0.0" }
-# openvm-circuit = { git = "https://github.com/openvm-org/openvm.git", default-features = false, tag = "v1.0.0", features = ["bench-metrics"] }
+openvm-circuit = { git = "https://github.com/openvm-org/openvm.git", default-features = false, tag = "v1.0.0", features = ["bench-metrics"] }
 openvm-native-circuit = { git = "https://github.com/openvm-org/openvm.git", default-features = false, tag = "v1.0.0" }
 openvm-native-compiler = { git = "https://github.com/openvm-org/openvm.git", default-features = false, tag = "v1.0.0" }
 openvm-native-compiler-derive = { git = "https://github.com/openvm-org/openvm.git", default-features = false, tag = "v1.0.0" }
