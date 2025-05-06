@@ -80,10 +80,18 @@ pub(crate) fn ext_mmcs_verify_batch<C: Config>(
         let next_opened_values = builder.get(&input.opened_values, i);
         let next_opened_base_values_len: Var<C::N> = builder.eval(next_opened_values.len() * dim_factor);
         let next_opened_base_values = builder.dyn_array(next_opened_base_values_len);
+        let next_opened_base_index: Var<C::N> = builder.eval(Usize::from(0));
         builder.range(0, next_opened_values.len()).for_each(|j_vec, builder| {
             let j = j_vec[0];
             let next_opened_value = builder.get(&next_opened_values, j);
             // XXX: how to convert Ext to [Felt]?
+            let next_opened_value_felt = builder.ext2felt(next_opened_value);
+            builder.range(0, next_opened_value_felt.len()).for_each(|k_vec, builder| {
+                let k = k_vec[0];
+                let next_felt = builder.get(&next_opened_value_felt, k);
+                builder.set_value(&next_opened_base_values, next_opened_base_index, next_felt);
+                builder.assign(&next_opened_base_index, next_opened_base_index + Usize::from(1));
+            });
         });
         builder.set_value(&opened_base_values, i, next_opened_base_values);
 

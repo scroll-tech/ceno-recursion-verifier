@@ -177,19 +177,38 @@ pub fn reverse_idx_arr<C: Config>(
     res
 }
 
-// Evaluate eq polynomial.
 pub fn eq_eval<C: Config>(
     builder: &mut Builder<C>,
     x: &Array<C, Ext<C::F, C::EF>>,
     y: &Array<C, Ext<C::F, C::EF>>,
 ) -> Ext<C::F, C::EF> {
+    eq_eval_with_index::<C>(
+        builder,
+        x,
+        y,
+        Usize::from(0),
+        Usize::from(0),
+        x.len(),
+    )
+}
+
+// Evaluate eq polynomial.
+pub fn eq_eval_with_index<C: Config>(
+    builder: &mut Builder<C>,
+    x: &Array<C, Ext<C::F, C::EF>>,
+    y: &Array<C, Ext<C::F, C::EF>>,
+    xlo: Usize<C::N>,
+    ylo: Usize<C::N>,
+    len: Usize<C::N>,
+) -> Ext<C::F, C::EF> {
     let acc: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
 
-    iter_zip!(builder, x, y).for_each(|idx_vec, builder| {
-        let ptr_x = idx_vec[0];
-        let ptr_y = idx_vec[1];
-        let v_x = builder.iter_ptr_get(&x, ptr_x);
-        let v_y = builder.iter_ptr_get(&y, ptr_y);
+    builder.range(0, len).for_each(|i_vec, builder| {
+        let i = i_vec[0];
+        let ptr_x: Var<C::N> = builder.eval(xlo.clone() + i);
+        let ptr_y: Var<C::N> = builder.eval(ylo.clone() + i);
+        let v_x = builder.get(&x, ptr_x);
+        let v_y = builder.get(&y, ptr_y);
         let xi_yi: Ext<C::F, C::EF> = builder.eval(v_x * v_y);
         let one: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
         let new_acc: Ext<C::F, C::EF> = builder.eval(acc * (xi_yi + xi_yi - v_x - v_y + one));
@@ -387,6 +406,35 @@ pub fn build_eq_x_r_vec_sequential<C: Config>(
 
     // _debug
     // build_eq_x_r_helper_sequential(r, &mut evals, E::ONE);
+    // unsafe { std::mem::transmute(evals) }
+    evals
+}
+
+pub fn build_eq_x_r_vec_sequential_with_offset<C: Config>(
+    builder: &mut Builder<C>,
+    r: &Array<C, Ext<C::F, C::EF>>,
+    offset: Usize<C::N>,
+) -> Array<C, Ext<C::F, C::EF>> {
+    // we build eq(x,r) from its evaluations
+    // we want to evaluate eq(x,r) over x \in {0, 1}^num_vars
+    // for example, with num_vars = 4, x is a binary vector of 4, then
+    //  0 0 0 0 -> (1-r0)   * (1-r1)    * (1-r2)    * (1-r3)
+    //  1 0 0 0 -> r0       * (1-r1)    * (1-r2)    * (1-r3)
+    //  0 1 0 0 -> (1-r0)   * r1        * (1-r2)    * (1-r3)
+    //  1 1 0 0 -> r0       * r1        * (1-r2)    * (1-r3)
+    //  ....
+    //  1 1 1 1 -> r0       * r1        * r2        * r3
+    // we will need 2^num_var evaluations
+
+    let r_len: Var<C::N> = builder.eval(r.len() - offset);
+    let evals_len: Felt<C::F> = builder.constant(C::F::ONE);
+    let evals_len = builder.exp_power_of_2_v::<Felt<C::F>>(evals_len, r_len);
+    let evals_len = builder.cast_felt_to_var(evals_len);
+
+    let evals: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(evals_len);
+
+    // _debug
+    // build_eq_x_r_helper_sequential_offset(r, &mut evals, E::ONE);
     // unsafe { std::mem::transmute(evals) }
     evals
 }

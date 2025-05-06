@@ -45,15 +45,35 @@ pub fn next_power_of_two<C: Config>(
     ret
 }
 
-// Generic dot product of li[llo..llo+len] * ri[rlo..rlo+len]
-pub fn dot_product<C: Config>(
+// Dot product: li * ri
+pub fn dot_product<C: Config, F>(
     builder: &mut Builder<C>,
     li: &Array<C, Ext<C::F, C::EF>>,
-    ri: &Array<C, Felt<C::F>>,
+    ri: &Array<C, F>,
+) -> Ext<C::F, C::EF> 
+where F: openvm_native_compiler::ir::MemVariable<C> + 'static
+{
+    dot_product_with_index::<C, F>(
+        builder,
+        li,
+        ri,
+        Usize::from(0),
+        Usize::from(0),
+        li.len(),
+    )
+}
+
+// Generic dot product of li[llo..llo+len] * ri[rlo..rlo+len]
+pub fn dot_product_with_index<C: Config, F>(
+    builder: &mut Builder<C>,
+    li: &Array<C, Ext<C::F, C::EF>>,
+    ri: &Array<C, F>,
     llo: Usize<C::N>,
     rlo: Usize<C::N>,
     len: Usize<C::N>,
-) -> Ext<C::F, C::EF> {
+) -> Ext<C::F, C::EF> 
+    where F: openvm_native_compiler::ir::MemVariable<C> + 'static
+{
     let ret: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
 
     builder.range(0, len).for_each(|i_vec, builder| {
