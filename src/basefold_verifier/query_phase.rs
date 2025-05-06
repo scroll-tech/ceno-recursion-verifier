@@ -7,7 +7,7 @@ use p3_field::extension::BinomialExtensionField;
 use p3_field::FieldAlgebra;
 
 use crate::tower_verifier::binding::*;
-use super::{basefold::*, extension_mmcs::ExtensionMmcsVariable, mmcs::*, rs::*, structs::*, utils::*};
+use super::{basefold::*, extension_mmcs::*, mmcs::*, rs::*, structs::*, utils::*};
 
 pub type F = BabyBear;
 pub type E = BinomialExtensionField<F, DIMENSIONS>;
@@ -309,7 +309,6 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
     // Infer witin_num_vars through index
     let folding_len = input.circuit_meta.len();
     let zero: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
-    let one: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
     let folding_sort_surjective: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(folding_len.clone());
     builder.range(0, folding_len.clone()).for_each(|i_vec, builder| {
         let i = i_vec[0];
@@ -324,7 +323,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
     // 3. count_per_unique_height: for each unique height, number of dimensions of that height
     let (
         folding_sorted_order_index, 
-        num_unique_num_vars, 
+        _num_unique_num_vars, 
         count_per_unique_num_var
     ) = sort_with_count(
         builder,
@@ -478,9 +477,9 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
 
         // fold and query
         let cur_num_var: Var<C::N> = builder.eval(input.max_num_var.clone());
-        let rounds: Var<C::N> = builder.eval(cur_num_var - get_basecode_msg_size_log::<C>() - Usize::from(1));
+        // let rounds: Var<C::N> = builder.eval(cur_num_var - get_basecode_msg_size_log::<C>() - Usize::from(1));
         let n_d_next_log: Var<C::N> = builder.eval(cur_num_var - get_rate_log::<C>() - Usize::from(1));
-        let n_d_next = pow_2(builder, n_d_next_log);
+        // let n_d_next = pow_2(builder, n_d_next_log);
 
         // first folding challenge
         let r = builder.get(&input.fold_challenges, 0);
@@ -499,7 +498,8 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
         });
         let next_unique_num_vars_index: Var<C::N> = builder.eval(Usize::from(1));
         let cumul_num_vars_count: Var<C::N> = builder.eval(next_unique_num_vars_count);
-        let n_d_i: Var<C::N> = builder.eval(n_d_next);
+        let n_d_i_log: Var<C::N> = builder.eval(n_d_next_log);
+        // let n_d_i: Var<C::N> = builder.eval(n_d_next);
         // zip_eq
         builder.assert_eq::<Var<C::N>>(input.commits.len() + Usize::from(1), input.fold_challenges.len());
         builder.assert_eq::<Var<C::N>>(input.commits.len(), opening_ext.len());
@@ -550,77 +550,47 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
             let last_bit = builder.get(&idx_bits, idx_len);
             builder.assert_eq::<Var<C::N>>(Usize::from(2) * new_idx + last_bit, idx);
             builder.assign(&idx, new_idx);
+            // n_d_i >> 1
+            builder.assign(&n_d_i_log, n_d_i_log - Usize::from(1));
+            let n_d_i = pow_2(builder, n_d_i_log);
             // mmcs_ext.verify_batch
-            
+            let dimensions = builder.uninit_fixed_array(1);
+            let two = builder.eval(Usize::from(2));
+            builder.set_value(&dimensions, 0, DimensionsVariable {
+                width: two,
+                height: n_d_i.clone(),
+            });
+            let opened_values = builder.uninit_fixed_array(1);
+            builder.set_value(&opened_values, 0, leafs.clone());
+            let ext_mmcs_verifier_input = ExtMmcsVerifierInputVariable {
+                commit: pi_comm.clone(),
+                dimensions,
+                index: idx.clone(),
+                opened_values,
+                proof,
+            };
+            ext_mmcs_verify_batch::<C>(builder, mmcs_ext.clone(), ext_mmcs_verifier_input);
+
+            let coeffs = verifier_folding_coeffs_level(builder, &input.vp, n_d_i_log.clone());
+            let coeff = builder.get(&coeffs, idx.clone());
+            let left = builder.get(&leafs, 0);
+            let right = builder.get(&leafs, 1);
+            let new_folded = codeword_fold_with_challenge(
+                builder, 
+                left, 
+                right, 
+                r.clone(), 
+                coeff, 
+                inv_2
+            );
+            builder.assign(&folded, new_folded);
         });
+        let final_value = builder.get(&final_codeword.values, idx.clone());
+        builder.assert_eq::<Ext::<C::F, C::EF>>(final_value, folded);
     });
 
     
     /*
-    indices.iter().zip_eq(queries).for_each(
-        |(
-            idx,
-            QueryOpeningProof {
-                witin_base_proof:
-                    BatchOpening {
-                        opened_values: witin_opened_values,
-                        opening_proof: witin_opening_proof,
-                    },
-                fixed_base_proof: fixed_commit_option,
-                commit_phase_openings: opening_ext,
-            },
-        )| {
-            for (
-                (pi_comm, r),
-                CommitPhaseProofStep {
-                    sibling_value: leaf,
-                    opening_proof: proof,
-                },
-            ) in commits
-                .iter()
-                .zip_eq(fold_challenges.iter().skip(1))
-                .zip_eq(opening_ext)
-            {
-                mmcs_ext
-                    .verify_batch(
-                        pi_comm,
-                        &[Dimensions {
-                            width: 2,
-                            // width is 2, thus height divide by 2 via right shift
-                            height: n_d_i >> 1,
-                        }],
-                        idx,
-                        slice::from_ref(&leafs),
-                        proof,
-                    )
-                    .expect("verify failed");
-                let coeff =
-                    <Spec::EncodingScheme as EncodingScheme<E>>::verifier_folding_coeffs_level(
-                        vp,
-                        log2_strict_usize(n_d_i) - 1,
-                    )[idx];
-                debug_assert_eq!(
-                    <Spec::EncodingScheme as EncodingScheme<E>>::verifier_folding_coeffs_level(
-                        vp,
-                        log2_strict_usize(n_d_i) - 1,
-                    )
-                    .len(),
-                    n_d_i >> 1
-                );
-                folded = codeword_fold_with_challenge(&[leafs[0], leafs[1]], *r, coeff, inv_2);
-                n_d_i >>= 1;
-            }
-            debug_assert!(folding_sorted_order_iter.next().is_none());
-            assert!(
-                final_codeword.values[idx] == folded,
-                "final_codeword.values[idx] value {:?} != folded {:?}",
-                final_codeword.values[idx],
-                folded
-            );
-        },
-    );
-    exit_span!(check_queries_span);
-
     // 1. check initial claim match with first round sumcheck value
     assert_eq!(
         // we need to scale up with scalar for witin_num_vars < max_num_var
