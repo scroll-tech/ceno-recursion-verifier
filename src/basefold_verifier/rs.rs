@@ -1,9 +1,12 @@
 // Note: check all XXX comments!
 
+use std::{cell::RefCell, collections::BTreeMap};
+
 use openvm_native_compiler::{asm::AsmConfig, prelude::*};
 use openvm_native_recursion::hints::Hintable;
 use openvm_stark_sdk::p3_baby_bear::BabyBear;
 use p3_field::extension::BinomialExtensionField;
+use serde::Deserialize;
 
 use super::structs::*;
 
@@ -103,8 +106,9 @@ pub fn verifier_folding_coeffs_level<C: Config>(
 }
 
 /// The DIT FFT algorithm.
+#[derive(Deserialize)]
 pub struct Radix2Dit {
-    pub twiddles: Vec<E>,
+    pub twiddles: RefCell<BTreeMap<usize, Vec<F>>>,
 }
 
 impl Hintable<InnerConfig> for Radix2Dit {
@@ -120,7 +124,9 @@ impl Hintable<InnerConfig> for Radix2Dit {
 
     fn write(&self) -> Vec<Vec<<InnerConfig as Config>::N>> {
         let mut stream = Vec::new();
-        stream.extend(self.twiddles.write());
+        // XXX: process BTreeMap
+        let twiddles_vec: Vec<E> = Vec::new();
+        stream.extend(twiddles_vec.write());
         stream
     }
 }
@@ -164,6 +170,7 @@ impl<C: Config> Radix2DitVariable<C> {
 }
 */
 
+#[derive(Deserialize)]
 pub struct RSCodeVerifierParameters {
     pub dft: Radix2Dit,
     pub t_inv_halves: Vec<Vec<F>>,

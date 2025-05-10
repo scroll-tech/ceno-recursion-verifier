@@ -27,7 +27,7 @@ pub struct MerkleTreeMmcsVariable<C: Config> {
     _phantom: PhantomData<C>,
 }
 
-pub type MmcsCommitment = Hash<DIGEST_ELEMS>;
+pub type MmcsCommitment = Hash;
 pub type MmcsProof = Vec<[F; DIGEST_ELEMS]>;
 pub struct MmcsVerifierInput {
     pub commit: MmcsCommitment,

@@ -3,6 +3,7 @@ use openvm_native_compiler_derive::DslVariable;
 use openvm_native_recursion::hints::{Hintable, VecAutoHintable};
 use openvm_stark_sdk::p3_baby_bear::BabyBear;
 use p3_field::extension::BinomialExtensionField;
+use serde::Deserialize;
 
 pub const DIMENSIONS: usize = 4;
 
@@ -21,6 +22,7 @@ pub struct CircuitIndexMetaVariable<C: Config> {
     pub fixed_num_polys: Usize<C::N>,
 }
 
+#[derive(Deserialize)]
 pub struct CircuitIndexMeta {
     pub witin_num_vars: usize,
     pub witin_num_polys: usize,

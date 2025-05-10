@@ -2,6 +2,7 @@ use openvm_native_compiler::{asm::AsmConfig, prelude::*};
 use openvm_native_recursion::hints::Hintable;
 use openvm_stark_sdk::p3_baby_bear::BabyBear;
 use p3_field::extension::BinomialExtensionField;
+use serde::Deserialize;
 
 use super::{mmcs::*, structs::DIMENSIONS};
 
@@ -10,6 +11,7 @@ pub type E = BinomialExtensionField<F, DIMENSIONS>;
 pub type InnerConfig = AsmConfig<F, E>;
 
 pub type HashDigest = MmcsCommitment;
+#[derive(Deserialize)]
 pub struct BasefoldCommitment {
     pub commit: HashDigest,
     pub log2_max_codeword_size: usize,

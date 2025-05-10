@@ -3,6 +3,7 @@ use openvm_native_recursion::hints::{Hintable, VecAutoHintable};
 use openvm_stark_sdk::p3_baby_bear::BabyBear;
 use p3_field::extension::BinomialExtensionField;
 use p3_field::FieldAlgebra;
+use serde::Deserialize;
 
 use super::structs::DIMENSIONS;
 
@@ -12,11 +13,12 @@ pub type F = BabyBear;
 pub type E = BinomialExtensionField<F, DIMENSIONS>;
 pub type InnerConfig = AsmConfig<F, E>;
 
-pub struct Hash<const DIGEST_ELEMS: usize> {
+#[derive(Deserialize)]
+pub struct Hash {
     pub value: [F; DIGEST_ELEMS],
 }
 
-impl Default for Hash<DIGEST_ELEMS> {
+impl Default for Hash {
     fn default() -> Self {
         Hash {
             value: [F::ZERO; DIGEST_ELEMS],
@@ -24,7 +26,7 @@ impl Default for Hash<DIGEST_ELEMS> {
     }
 }
 
-impl Hintable<InnerConfig> for Hash<DIGEST_ELEMS> {
+impl Hintable<InnerConfig> for Hash {
     type HintVariable = HashVariable<InnerConfig>;
 
     fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
@@ -46,7 +48,7 @@ impl Hintable<InnerConfig> for Hash<DIGEST_ELEMS> {
         stream
     }
 }
-impl VecAutoHintable for Hash<DIGEST_ELEMS> {}
+impl VecAutoHintable for Hash {}
 
 #[derive(DslVariable, Clone)]
 pub struct HashVariable<C: Config> {

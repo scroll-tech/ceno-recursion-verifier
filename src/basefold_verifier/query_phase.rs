@@ -5,6 +5,7 @@ use openvm_native_recursion::hints::{Hintable, VecAutoHintable};
 use openvm_stark_sdk::p3_baby_bear::BabyBear;
 use p3_field::extension::BinomialExtensionField;
 use p3_field::FieldAlgebra;
+use serde::Deserialize;
 
 use crate::{arithmetics::{build_eq_x_r_vec_sequential_with_offset, eq_eval_with_index}, tower_verifier::{binding::*, program::interpolate_uni_poly}};
 use super::{basefold::*, extension_mmcs::*, mmcs::*, rs::*, structs::*, utils::*};
@@ -13,6 +14,7 @@ pub type F = BabyBear;
 pub type E = BinomialExtensionField<F, DIMENSIONS>;
 pub type InnerConfig = AsmConfig<F, E>;
 
+#[derive(Deserialize)]
 pub struct BatchOpening {
     pub opened_values: Vec<Vec<F>>,
     pub opening_proof: MmcsProof,
@@ -44,6 +46,7 @@ pub struct BatchOpeningVariable<C: Config> {
     pub opening_proof: MmcsProofVariable<C>,
 }
 
+#[derive(Deserialize)]
 pub struct CommitPhaseProofStep {
     pub sibling_value: E,
     pub opening_proof: MmcsProof,
@@ -76,6 +79,7 @@ pub struct CommitPhaseProofStepVariable<C: Config> {
     pub opening_proof: MmcsProofVariable<C>,
 }
 
+#[derive(Deserialize)]
 pub struct QueryOpeningProof {
     pub witin_base_proof: BatchOpening,
     pub fixed_base_proof: Option<BatchOpening>,
@@ -161,6 +165,7 @@ pub struct PointAndEvalsVariable<C: Config> {
     pub evals: Array<C, Ext<C::F, C::EF>>,
 }
 
+#[derive(Deserialize)]
 pub struct QueryPhaseVerifierInput {
     pub max_num_var: usize,
     pub indices: Vec<usize>,
@@ -659,4 +664,76 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
         builder.assign(&right, right + dot_prod);
     });
     builder.assert_eq::<Ext<C::F, C::EF>>(left, right);
+}
+
+pub mod tests {
+    use std::{fs::File, io::Read};
+
+    use openvm_circuit::arch::{instructions::program::Program, SystemConfig, VmExecutor};
+    use openvm_native_circuit::{Native, NativeConfig};
+    use openvm_native_compiler::asm::AsmBuilder;
+    use openvm_native_recursion::hints::Hintable;
+    use openvm_stark_backend::config::StarkGenericConfig;
+    use openvm_stark_sdk::{
+        config::baby_bear_poseidon2::BabyBearPoseidon2Config,
+        p3_baby_bear::BabyBear,
+    };
+    use p3_field::{extension::BinomialExtensionField, FieldAlgebra, FieldExtensionAlgebra};
+    type SC = BabyBearPoseidon2Config;
+
+    type F = BabyBear;
+    type E = BinomialExtensionField<F, 4>;
+    type EF = <SC as StarkGenericConfig>::Challenge;
+
+    use super::{batch_verifier_query_phase, QueryPhaseVerifierInput};
+
+    #[allow(dead_code)]
+    pub fn build_batch_verifier_query_phase() -> (Program<BabyBear>, Vec<Vec<BabyBear>>) {
+        // OpenVM DSL
+        let mut builder = AsmBuilder::<F, EF>::default();
+
+        // Witness inputs
+        let query_phase_input = QueryPhaseVerifierInput::read(&mut builder);
+        batch_verifier_query_phase(&mut builder, query_phase_input);
+        builder.halt();
+
+        // Pass in witness stream
+        let f = |n: usize| F::from_canonical_usize(n);
+        let mut witness_stream: Vec<
+            Vec<p3_monty_31::MontyField31<openvm_stark_sdk::p3_baby_bear::BabyBearParameters>>,
+        > = Vec::new();
+        
+        // INPUT
+        let mut f = File::open("input.bin".to_string()).unwrap();
+        let mut content: Vec<u8> = Vec::new();
+        f.read_to_end(&mut content).unwrap();
+        let input: QueryPhaseVerifierInput = bincode::deserialize(&content).unwrap();
+        witness_stream.extend(input.write());
+
+        // PROGRAM
+        let program: Program<
+            p3_monty_31::MontyField31<openvm_stark_sdk::p3_baby_bear::BabyBearParameters>,
+        > = builder.compile_isa();
+
+        (program, witness_stream)
+    }
+
+    #[test]
+    fn test_mmcs_verify_batch() {
+        let (program, witness) = build_batch_verifier_query_phase();
+
+        let system_config = SystemConfig::default()
+            .with_public_values(4)
+            .with_max_segment_len((1 << 25) - 100);
+        let config = NativeConfig::new(system_config, Native);
+
+        let executor = VmExecutor::<BabyBear, NativeConfig>::new(config);
+        executor.execute(program, witness).unwrap();
+
+        // _debug
+        // let results = executor.execute_segments(program, witness).unwrap();
+        // for seg in results {
+        //     println!("=> cycle count: {:?}", seg.metrics.cycle_count);
+        // }
+    }
 }

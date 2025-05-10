@@ -17,6 +17,7 @@ use openvm_stark_sdk::{
     p3_baby_bear::{BabyBear, Poseidon2BabyBear},
 };
 use p3_field::extension::BinomialExtensionField;
+use serde::Deserialize;
 
 #[derive(DslVariable, Clone)]
 pub struct PointVariable<C: Config> {
@@ -52,7 +53,7 @@ pub struct TowerVerifierInputVariable<C: Config> {
     pub logup_specs_eval: Array<C, Array<C, Array<C, Ext<C::F, C::EF>>>>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Deserialize)]
 pub struct Point {
     pub fs: Vec<F>,
 }
@@ -98,7 +99,7 @@ impl Hintable<InnerConfig> for PointAndEval {
 }
 impl VecAutoHintable for PointAndEval {}
 
-#[derive(Debug)]
+#[derive(Debug, Deserialize)]
 pub struct IOPProverMessage {
     pub evaluations: Vec<E>,
 }
