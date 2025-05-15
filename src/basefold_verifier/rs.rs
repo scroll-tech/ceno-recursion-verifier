@@ -26,10 +26,7 @@ impl Hintable<InnerConfig> for DenseMatrix {
         let values = Vec::<E>::read(builder);
         let width = usize::read(builder);
 
-        DenseMatrixVariable {
-            values,
-            width,
-        }
+        DenseMatrixVariable { values, width }
     }
 
     fn write(&self) -> Vec<Vec<<InnerConfig as Config>::N>> {
@@ -48,19 +45,20 @@ pub struct DenseMatrixVariable<C: Config> {
 pub type RowMajorMatrixVariable<C> = DenseMatrixVariable<C>;
 
 impl<C: Config> DenseMatrixVariable<C> {
-    pub fn height(
-        &self,
-        builder: &mut Builder<C>,
-    ) -> Var<C::N> {
+    pub fn height(&self, builder: &mut Builder<C>) -> Var<C::N> {
         // Supply height as hint
         let height = builder.hint_var();
-        builder.if_eq(self.width.clone(), Usize::from(0)).then(|builder| {
-            builder.assert_usize_eq(height, Usize::from(0));
-        });
-        builder.if_ne(self.width.clone(), Usize::from(0)).then(|builder| {
-            // XXX: check that width * height is not a field multiplication
-            builder.assert_usize_eq(self.width.clone() * height, self.values.len());
-        });
+        builder
+            .if_eq(self.width.clone(), Usize::from(0))
+            .then(|builder| {
+                builder.assert_usize_eq(height, Usize::from(0));
+            });
+        builder
+            .if_ne(self.width.clone(), Usize::from(0))
+            .then(|builder| {
+                // XXX: check that width * height is not a field multiplication
+                builder.assert_usize_eq(self.width.clone() * height, self.values.len());
+            });
         height
     }
 
@@ -76,15 +74,19 @@ impl<C: Config> DenseMatrixVariable<C> {
         builder.assert_less_than_slow_small_rhs(old_height, new_height + RVar::from(1));
         let new_size = builder.eval_expr(self.width.clone() * new_height.clone());
         let evals: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(new_size);
-        builder.range(0, self.values.len()).for_each(|i_vec, builder| {
-            let i = i_vec[0];
-            let tmp: Ext<C::F, C::EF> = builder.get(&self.values, i);
-            builder.set(&evals, i, tmp);
-        });
-        builder.range(self.values.len(), evals.len()).for_each(|i_vec, builder| {
-            let i = i_vec[0];
-            builder.set(&evals, i, fill);
-        });
+        builder
+            .range(0, self.values.len())
+            .for_each(|i_vec, builder| {
+                let i = i_vec[0];
+                let tmp: Ext<C::F, C::EF> = builder.get(&self.values, i);
+                builder.set(&evals, i, tmp);
+            });
+        builder
+            .range(self.values.len(), evals.len())
+            .for_each(|i_vec, builder| {
+                let i = i_vec[0];
+                builder.set(&evals, i, fill);
+            });
         builder.assign(&self.values, evals);
     }
 }
@@ -117,9 +119,7 @@ impl Hintable<InnerConfig> for Radix2Dit {
     fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
         let twiddles = Vec::<E>::read(builder);
 
-        Radix2DitVariable {
-            twiddles,
-        }
+        Radix2DitVariable { twiddles }
     }
 
     fn write(&self) -> Vec<Vec<<InnerConfig as Config>::N>> {
@@ -141,7 +141,7 @@ pub struct Radix2DitVariable<C: Config> {
 /*
 impl<C: Config> Radix2DitVariable<C> {
     fn dft_batch(
-        &self, 
+        &self,
         builder: &mut Builder<C>,
         mat: RowMajorMatrixVariable<C>
     ) -> RowMajorMatrixVariable<C> {
@@ -182,7 +182,7 @@ impl Hintable<InnerConfig> for RSCodeVerifierParameters {
 
     fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
         let dft = Radix2Dit::read(builder);
-        let t_inv_halves = Vec::<Vec::<F>>::read(builder);
+        let t_inv_halves = Vec::<Vec<F>>::read(builder);
         let full_message_size_log = Usize::Var(usize::read(builder));
 
         RSCodeVerifierParametersVariable {
@@ -196,7 +196,9 @@ impl Hintable<InnerConfig> for RSCodeVerifierParameters {
         let mut stream = Vec::new();
         stream.extend(self.dft.write());
         stream.extend(self.t_inv_halves.write());
-        stream.extend(<usize as Hintable<InnerConfig>>::write(&self.full_message_size_log));
+        stream.extend(<usize as Hintable<InnerConfig>>::write(
+            &self.full_message_size_log,
+        ));
         stream
     }
 }
@@ -225,23 +227,26 @@ pub(crate) fn encode_small<C: Config>(
 }
 */
 
+/// Encode the last message sent from the prover to the verifier
+/// in the commit phase. Currently, for simplicity, we drop the
+/// early stopping strategy so the last message has just one
+/// element, and the encoding is simply repeating this element
+/// by the expansion rate.
 pub(crate) fn encode_small<C: Config>(
     builder: &mut Builder<C>,
     _vp: RSCodeVerifierParametersVariable<C>,
-    _rmm: RowMajorMatrixVariable<C>,
+    rmm: RowMajorMatrixVariable<C>, // Assumed to have only one row and one column
 ) -> RowMajorMatrixVariable<C> {
     // XXX: nondeterministically supply the results for now
-    let len = builder.hint_var();
-    let values = builder.dyn_array(len);
-    builder.range(0, len).for_each(|i_vec, builder| {
+    let result = builder.array(2); // Assume the expansion rate is fixed to 2 by now
+    let value = builder.get(&rmm.values, 0);
+    builder.range(0, 2).for_each(|i_vec, builder| {
         let i = i_vec[0];
-        let next_input = builder.hint_ext();
-        builder.set_value(&values, i, next_input);
+        builder.set_value(&result, i, value);
     });
-    let width = builder.hint_var();
-    DenseMatrixVariable { 
-        values, 
-        width,
+    DenseMatrixVariable {
+        values: result,
+        width: builder.eval(Usize::from(1)),
     }
 }
 
@@ -253,8 +258,7 @@ pub mod tests {
     use openvm_native_recursion::hints::Hintable;
     use openvm_stark_backend::config::StarkGenericConfig;
     use openvm_stark_sdk::{
-        config::baby_bear_poseidon2::BabyBearPoseidon2Config,
-        p3_baby_bear::BabyBear,
+        config::baby_bear_poseidon2::BabyBearPoseidon2Config, p3_baby_bear::BabyBear,
     };
     use p3_field::{extension::BinomialExtensionField, FieldAlgebra};
     type SC = BabyBearPoseidon2Config;
