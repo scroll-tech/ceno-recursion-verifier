@@ -10,7 +10,7 @@ use mpcs::BasefoldCommitment;
 use mpcs::{Basefold, BasefoldRSParams};
 use openvm_circuit::arch::{instructions::program::Program, SystemConfig, VmExecutor};
 use openvm_native_circuit::{Native, NativeConfig};
-use openvm_native_compiler::asm::AsmBuilder;
+use openvm_native_compiler::{asm::AsmBuilder, conversion::CompilerOptions};
 use openvm_native_recursion::hints::Hintable;
 use openvm_stark_backend::config::StarkGenericConfig;
 use openvm_stark_sdk::{
@@ -448,7 +448,9 @@ pub fn test_zkvm_proof_verifier_from_bincode_exports() {
     // Compile program
     let program: Program<
         p3_monty_31::MontyField31<openvm_stark_sdk::p3_baby_bear::BabyBearParameters>,
-    > = builder.compile_isa();
+    // _debug
+    // > = builder.compile_isa();
+    > =builder.compile_isa_with_options(CompilerOptions::default().with_cycle_tracker());
 
     let system_config = SystemConfig::default()
         .with_public_values(4)
@@ -470,6 +472,7 @@ pub fn test_zkvm_proof_verifier_from_bincode_exports() {
     ).unwrap();
 
     for (i, seg) in res.iter().enumerate() {
-        println!("=> segment {:?} cycles: {:?}", i, seg.metrics.cycle_count);
+        // println!("=> segment {:?} cycles: {:?}", i, seg.metrics.cycle_count);
+        println!("=> segment {:?} metrics: {:?}", i, seg.metrics);
     }
 }

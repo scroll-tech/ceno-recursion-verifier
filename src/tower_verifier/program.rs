@@ -109,6 +109,7 @@ pub fn iop_verifier_state_verify<C: Config>(
         builder.dyn_array(max_num_variables_usize.clone());
     let challenges: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(max_num_variables_usize.clone());
 
+    builder.cycle_tracker_start("IOPVerifierState::verify_round_and_update_state");
     builder
         .range(0, max_num_variables_usize.clone())
         .for_each(|i_vec, builder| {
@@ -128,6 +129,7 @@ pub fn iop_verifier_state_verify<C: Config>(
             builder.set(&polynomials_received, i, prover_msg.evaluations);
             builder.assign(&round, round + one);
         });
+    builder.cycle_tracker_end("IOPVerifierState::verify_round_and_update_state");
 
     // set `expected` to P(r)`
     let expected_len: RVar<_> = builder.eval_expr(polynomials_received.len() + RVar::from(1));
