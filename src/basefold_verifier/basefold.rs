@@ -15,7 +15,7 @@ pub type HashDigest = MmcsCommitment;
 pub struct BasefoldCommitment {
     pub commit: HashDigest,
     pub log2_max_codeword_size: usize,
-    pub trivial_commits: Vec<HashDigest>,
+    // pub trivial_commits: Vec<HashDigest>,
 }
 
 impl Hintable<InnerConfig> for BasefoldCommitment {
@@ -24,12 +24,12 @@ impl Hintable<InnerConfig> for BasefoldCommitment {
     fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
         let commit = HashDigest::read(builder);
         let log2_max_codeword_size = Usize::Var(usize::read(builder));
-        let trivial_commits = Vec::<HashDigest>::read(builder);
+        // let trivial_commits = Vec::<HashDigest>::read(builder);
 
         BasefoldCommitmentVariable {
             commit,
             log2_max_codeword_size,
-            trivial_commits,
+            // trivial_commits,
         }
     }
 
@@ -37,7 +37,7 @@ impl Hintable<InnerConfig> for BasefoldCommitment {
         let mut stream = Vec::new();
         stream.extend(self.commit.write());
         stream.extend(<usize as Hintable<InnerConfig>>::write(&self.log2_max_codeword_size));
-        stream.extend(self.trivial_commits.write());
+        // stream.extend(self.trivial_commits.write());
         stream
     }
 }
@@ -47,5 +47,5 @@ pub type HashDigestVariable<C> = MmcsCommitmentVariable<C>;
 pub struct BasefoldCommitmentVariable<C: Config> {
     pub commit: HashDigestVariable<C>,
     pub log2_max_codeword_size: Usize<C::N>,
-    pub trivial_commits: Array<C, HashDigestVariable<C>>,
+    // pub trivial_commits: Array<C, HashDigestVariable<C>>,
 }

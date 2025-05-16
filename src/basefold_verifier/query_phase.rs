@@ -235,7 +235,7 @@ impl Hintable<InnerConfig> for QueryPhaseVerifierInput {
             let tmp_comm = BasefoldCommitment {
                 commit: Default::default(),
                 log2_max_codeword_size: 0,
-                trivial_commits: Vec::new(),
+                // trivial_commits: Vec::new(),
             };
             stream.extend(tmp_comm.write());
         }
