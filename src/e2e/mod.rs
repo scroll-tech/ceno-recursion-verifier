@@ -452,9 +452,10 @@ pub fn test_zkvm_proof_verifier_from_bincode_exports() {
     // > = builder.compile_isa();
     > =builder.compile_isa_with_options(CompilerOptions::default().with_cycle_tracker());
 
-    let system_config = SystemConfig::default()
+    let mut system_config = SystemConfig::default()
         .with_public_values(4)
         .with_max_segment_len((1 << 25) - 100);
+    system_config.profiling = true;
     let config = NativeConfig::new(system_config, Native);
 
     let executor = VmExecutor::<BabyBear, NativeConfig>::new(config);
