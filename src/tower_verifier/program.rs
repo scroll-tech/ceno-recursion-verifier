@@ -109,13 +109,13 @@ pub fn iop_verifier_state_verify<C: Config>(
         builder.dyn_array(max_num_variables_usize.clone());
     let challenges: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(max_num_variables_usize.clone());
 
-    builder.cycle_tracker_start("IOPVerifierState::verify_round_and_update_state");
     builder
         .range(0, max_num_variables_usize.clone())
         .for_each(|i_vec, builder| {
             let i = i_vec[0];
             let prover_msg = builder.get(&prover_messages, i);
 
+            builder.cycle_tracker_start("IOPVerifierState::verify_round_and_update_state");
             iter_zip!(builder, prover_msg.evaluations).for_each(|ptr_vec, builder| {
                 let e = builder.iter_ptr_get(&prover_msg.evaluations, ptr_vec[0]);
                 let e_felts = builder.ext2felt(e);
@@ -128,9 +128,10 @@ pub fn iop_verifier_state_verify<C: Config>(
             builder.set(&challenges, i, challenge);
             builder.set(&polynomials_received, i, prover_msg.evaluations);
             builder.assign(&round, round + one);
+            builder.cycle_tracker_end("IOPVerifierState::verify_round_and_update_state");
         });
-    builder.cycle_tracker_end("IOPVerifierState::verify_round_and_update_state");
-
+    
+    builder.cycle_tracker_start("IOPVerifierState::check_and_generate_subclaim");
     // set `expected` to P(r)`
     let expected_len: RVar<_> = builder.eval_expr(polynomials_received.len() + RVar::from(1));
     let expected_vec: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(expected_len.clone());
@@ -169,6 +170,7 @@ pub fn iop_verifier_state_verify<C: Config>(
     });
 
     let expected = builder.get(&expected_vec, max_num_variables_usize);
+    builder.cycle_tracker_end("IOPVerifierState::check_and_generate_subclaim");
 
     (challenges, expected)
 }

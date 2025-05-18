@@ -448,8 +448,6 @@ pub fn test_zkvm_proof_verifier_from_bincode_exports() {
     // Compile program
     let program: Program<
         p3_monty_31::MontyField31<openvm_stark_sdk::p3_baby_bear::BabyBearParameters>,
-    // _debug
-    // > = builder.compile_isa();
     > =builder.compile_isa_with_options(CompilerOptions::default().with_cycle_tracker());
 
     let mut system_config = SystemConfig::default()
@@ -473,7 +471,6 @@ pub fn test_zkvm_proof_verifier_from_bincode_exports() {
     ).unwrap();
 
     for (i, seg) in res.iter().enumerate() {
-        // println!("=> segment {:?} cycles: {:?}", i, seg.metrics.cycle_count);
         println!("=> segment {:?} metrics: {:?}", i, seg.metrics);
     }
 }
