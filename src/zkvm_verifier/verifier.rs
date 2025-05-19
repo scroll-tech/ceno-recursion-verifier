@@ -377,7 +377,9 @@ pub fn verify_opcode_proof<C: Config>(
             prod_specs_eval: tower_proof.prod_specs_eval.clone(),
             logup_specs_eval: tower_proof.logup_specs_eval.clone(),
         },
+        subcircuit_params.id,
     );
+
     let rt_non_lc_sumcheck: Array<C, Ext<C::F, C::EF>> =
         rt_tower
             .fs
@@ -634,16 +636,6 @@ pub fn verify_opcode_proof<C: Config>(
 
             builder.assert_ext_eq(e, zero);
         });
-
-    // TODO:
-    // PCS::simple_batch_verify(
-    //     vp,
-    //     &proof.wits_commit,
-    //     &input_opening_point,
-    //     &proof.wits_in_evals,
-    //     &proof.wits_opening_proof,
-    //     transcript,
-    // )
 }
 
 pub fn verify_table_proof<C: Config>(
@@ -658,7 +650,7 @@ pub fn verify_table_proof<C: Config>(
     cs: &ZKVMVerifier<E, Pcs>,
 ) {
     let cs = cs.vk.circuit_vks[&subcircuit_params.name].get_cs();
-    let tower_proof = &table_proof.tower_proof;
+    let tower_proof: &super::binding::TowerProofInputVariable<C> = &table_proof.tower_proof;
 
     let r_expected_rounds: Array<C, Usize<C::N>> =
         builder.dyn_array(cs.r_table_expressions.len() * 2);
@@ -784,6 +776,7 @@ pub fn verify_table_proof<C: Config>(
                 prod_specs_eval: tower_proof.prod_specs_eval.clone(),
                 logup_specs_eval: tower_proof.logup_specs_eval.clone(),
             },
+            subcircuit_params.id,
         );
 
     builder.assert_usize_eq(
@@ -912,45 +905,4 @@ pub fn verify_table_proof<C: Config>(
         let expected_evals = builder.get(&in_evals, idx);
         builder.assert_ext_eq(e, expected_evals);
     });
-
-    // // assume public io is tiny vector, so we evaluate it directly without PCS
-    // for &Instance(idx) in cs.instance_name_map.keys() {
-    //     let poly = builder.get(&raw_pi, idx);
-    //     let poly_num_variables = builder.get(raw_pi_num_variables, idx);
-    //     let pts = input_opening_point.slice(builder, 0, poly_num_variables.clone());
-    //     let eval: Ext<C::F, C::EF> = evaluate_felt_poly(builder, &poly, &pts, poly_num_variables);
-
-    //     let expected_eval = builder.get(pi_evals, idx);
-    //     builder.assert_ext_eq(eval, expected_eval);
-    // }
-
-    // TODO: PCS
-    // // do optional check of fixed_commitment openings by vk
-    // if circuit_vk.fixed_commit.is_some() {
-    // let Some(fixed_opening_proof) = &proof.fixed_opening_proof else {
-    //     return Err(ZKVMError::VerifyError(
-    //         "fixed openning proof shoudn't be none".into(),
-    //     ));
-    // };
-
-    // PCS::simple_batch_verify(
-    //     vp,
-    //     circuit_vk.fixed_commit.as_ref().unwrap(),
-    //     &input_opening_point,
-    //     &proof.fixed_in_evals,
-    //     fixed_opening_proof,
-    //     transcript,
-    // )
-    // .map_err(ZKVMError::PCSError)?;
-    // }
-
-    // TODO: PCS
-    // PCS::simple_batch_verify(
-    //     vp,
-    //     &proof.wits_commit,
-    //     &input_opening_point,
-    //     &proof.wits_in_evals,
-    //     &proof.wits_opening_proof,
-    //     transcript,
-    // )
 }
