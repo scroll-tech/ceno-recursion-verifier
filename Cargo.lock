@@ -578,6 +578,7 @@ dependencies = [
  "p3-challenger 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
  "p3-commit 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
  "p3-field 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-fri 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
  "p3-goldilocks 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=1ba4e5c)",
  "p3-matrix 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
  "p3-monty-31 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",

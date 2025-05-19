@@ -1,35 +1,9 @@
 use openvm_native_compiler::prelude::*;
 
-use crate::{digest::DigestVariable, fri::TwoAdicMultiplicativeCosetVariable, vars::HintSlice};
-
-#[derive(Clone)]
-pub struct FriConfigVariable<C: Config> {
-    pub log_blowup: usize,
-    pub blowup: usize,
-    pub log_final_poly_len: usize,
-    pub num_queries: usize,
-    pub proof_of_work_bits: usize,
-    pub generators: Array<C, Felt<C::F>>,
-    pub subgroups: Array<C, TwoAdicMultiplicativeCosetVariable<C>>,
-}
-
-impl<C: Config> FriConfigVariable<C> {
-    pub fn get_subgroup(
-        &self,
-        builder: &mut Builder<C>,
-        log_degree: impl Into<RVar<C::N>>,
-    ) -> TwoAdicMultiplicativeCosetVariable<C> {
-        builder.get(&self.subgroups, log_degree)
-    }
-
-    pub fn get_two_adic_generator(
-        &self,
-        builder: &mut Builder<C>,
-        bits: impl Into<RVar<C::N>>,
-    ) -> Felt<C::F> {
-        builder.get(&self.generators, bits)
-    }
-}
+pub use openvm_native_recursion::fri::types::FriConfigVariable;
+use openvm_native_recursion::{
+    digest::DigestVariable, fri::TwoAdicMultiplicativeCosetVariable, vars::HintSlice,
+};
 
 #[derive(DslVariable, Clone)]
 pub struct FriProofVariable<C: Config> {

@@ -4,8 +4,7 @@ use openvm_stark_backend::{
     p3_field::{Field, FieldAlgebra, TwoAdicField},
 };
 
-use super::types::FriConfigVariable;
-use crate::commit::PolynomialSpaceVariable;
+use super::{commit::PolynomialSpaceVariable, types::FriConfigVariable};
 
 /// Reference: [`openvm_stark_backend::p3_commit::TwoAdicMultiplicativeCoset`]
 #[derive(DslVariable, Clone)]
@@ -170,7 +169,7 @@ pub(crate) mod tests {
     use rand::{thread_rng, Rng};
 
     use super::*;
-    use crate::utils::const_fri_config;
+    use openvm_native_recursion::utils::const_fri_config;
 
     pub(crate) fn domain_assertions<F: TwoAdicField + PrimeField, C: Config<N = F, F = F>>(
         builder: &mut Builder<C>,

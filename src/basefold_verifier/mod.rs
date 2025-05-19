@@ -7,22 +7,19 @@ use openvm_native_compiler::{
     prelude::MemVariable,
 };
 use openvm_native_compiler_derive::iter_zip;
+pub use openvm_native_recursion::fri::two_adic_pcs::*;
 use openvm_stark_backend::p3_field::{FieldAlgebra, TwoAdicField};
-pub use two_adic_pcs::*;
 
 use self::types::{DimensionsVariable, FriConfigVariable, FriQueryProofVariable};
-use crate::{
-    digest::{CanPoseidon2Digest, DigestVariable},
-    outer_poseidon2::Poseidon2CircuitBuilder,
-    utils::cond_eval,
-    vars::{HintSlice, OuterDigestVariable},
-};
+use openvm_native_recursion::digest::{CanPoseidon2Digest, DigestVariable};
+use openvm_native_recursion::utils::cond_eval;
+use openvm_native_recursion::vars::{HintSlice, OuterDigestVariable};
+use outer_poseidon2::Poseidon2CircuitBuilder;
 
+mod commit;
 pub mod domain;
-pub mod hints;
-pub mod two_adic_pcs;
+mod outer_poseidon2;
 pub mod types;
-pub mod witness;
 
 /// Verifies a FRI query.
 ///
