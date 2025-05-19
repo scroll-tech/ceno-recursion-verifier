@@ -10,6 +10,7 @@ pub const RATE: usize = 2;
 const POSEIDON_CELL_TRACKER_NAME: &str = "PoseidonCell";
 
 pub trait Poseidon2CircuitBuilder<C: Config> {
+    #[allow(dead_code)]
     fn p2_permute_mut(&mut self, state: [Var<C::N>; SPONGE_SIZE]);
     #[allow(dead_code)]
     fn p2_hash(&mut self, input: &[Felt<C::F>]) -> OuterDigestVariable<C>;
