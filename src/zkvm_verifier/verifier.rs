@@ -377,7 +377,6 @@ pub fn verify_opcode_proof<C: Config>(
             prod_specs_eval: tower_proof.prod_specs_eval.clone(),
             logup_specs_eval: tower_proof.logup_specs_eval.clone(),
         },
-        subcircuit_params.id,
     );
 
     let rt_non_lc_sumcheck: Array<C, Ext<C::F, C::EF>> =
@@ -776,7 +775,6 @@ pub fn verify_table_proof<C: Config>(
                 prod_specs_eval: tower_proof.prod_specs_eval.clone(),
                 logup_specs_eval: tower_proof.logup_specs_eval.clone(),
             },
-            subcircuit_params.id,
         );
 
     builder.assert_usize_eq(

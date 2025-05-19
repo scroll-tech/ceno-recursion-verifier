@@ -179,7 +179,6 @@ pub fn verify_tower_proof<C: Config>(
     builder: &mut Builder<C>,
     challenger: &mut impl ChallengerVariable<C>,
     tower_verifier_input: TowerVerifierInputVariable<C>,
-    opcode_idx: usize,
 ) -> (
     PointVariable<C>,
     Array<C, PointAndEvalVariable<C>>,
