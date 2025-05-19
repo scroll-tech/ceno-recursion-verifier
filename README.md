@@ -12,3 +12,10 @@ Step 3: Run proving command:
 ```
 RUST_BACKTRACE=1 cargo test --package ceno-recursion-verifier --lib -- e2e::test_zkvm_proof_verifier_from_bincode_exports --exact --show-output 2>&1 | tee vm_run_output.log
 ```
+
+### with metrics info
+```
+METRICS_PATH=metrics.json RUST_LOG=info RUST_BACKTRACE=1 cargo test --features bench-metrics --package ceno-recursion-verifier --lib -- e2e::test_zkvm_proof_verifier_from_bincode_exports --exact --show-output 2>&1 | tee vm_run_output.log
+
+# metrics file appear under path `./metrics.json`
+```
