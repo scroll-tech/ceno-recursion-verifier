@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 openvm = { git = "https://github.com/openvm-org/openvm.git", default-features = false, tag = "v1.0.0" }
-openvm-circuit = { git = "https://github.com/openvm-org/openvm.git", default-features = false, tag = "v1.0.0", features = ["bench-metrics"] }
+openvm-circuit = { git = "https://github.com/openvm-org/openvm.git", default-features = false, tag = "v1.0.0" }
 openvm-native-circuit = { git = "https://github.com/openvm-org/openvm.git", default-features = false, tag = "v1.0.0" }
 openvm-native-compiler = { git = "https://github.com/openvm-org/openvm.git", default-features = false, tag = "v1.0.0" }
 openvm-native-compiler-derive = { git = "https://github.com/openvm-org/openvm.git", default-features = false, tag = "v1.0.0" }
@@ -42,3 +42,15 @@ mpcs = { git = "https://github.com/scroll-tech/ceno.git", branch = "feat/export_
 ff_ext = { git = "https://github.com/scroll-tech/ceno.git", branch = "feat/export_ff_ext" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+
+[features]
+default = ["parallel"]
+bench-metrics = ["openvm-circuit/bench-metrics"]
+parallel = [
+    "openvm-circuit/parallel",
+    "openvm-native-circuit/parallel",
+    "openvm-native-compiler/parallel",
+    "openvm-native-recursion/parallel",
+    "openvm-stark-backend/parallel",
+    "openvm-stark-sdk/parallel",
+]

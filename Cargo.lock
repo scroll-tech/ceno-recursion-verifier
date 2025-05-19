@@ -2198,6 +2198,7 @@ dependencies = [
  "p3-maybe-rayon 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
  "p3-uni-stark",
  "p3-util 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "rayon",
  "rustc-hash",
  "serde",
  "thiserror",
@@ -2669,6 +2670,9 @@ dependencies = [
 name = "p3-maybe-rayon"
 version = "0.1.0"
 source = "git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c#1ba4e5c40417f4f7aae86bcca56b6484b4b2490b"
+dependencies = [
+ "rayon",
+]
 
 [[package]]
 name = "p3-maybe-rayon"

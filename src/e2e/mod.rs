@@ -1,22 +1,22 @@
 use crate::tower_verifier::binding::IOPProverMessage;
 use crate::zkvm_verifier::binding::ZKVMProofInput;
-use eyre::Result;
 use crate::zkvm_verifier::binding::{
-    TowerProofInput, ZKVMOpcodeProofInput, ZKVMTableProofInput, E, F,
+    E, F, TowerProofInput, ZKVMOpcodeProofInput, ZKVMTableProofInput,
 };
 use crate::zkvm_verifier::verifier::verify_zkvm_proof;
+use eyre::Result;
 use ff_ext::BabyBearExt4;
 use itertools::Itertools;
 use mpcs::BasefoldCommitment;
 use mpcs::{Basefold, BasefoldRSParams};
-use openvm_circuit::arch::{instructions::program::Program, SystemConfig, VmExecutor};
+use openvm_circuit::arch::{SystemConfig, VmExecutor, instructions::program::Program};
 use openvm_native_circuit::{Native, NativeConfig};
 use openvm_native_compiler::{asm::AsmBuilder, conversion::CompilerOptions};
 use openvm_native_recursion::hints::Hintable;
 use openvm_stark_backend::config::StarkGenericConfig;
 use openvm_stark_sdk::{
-    bench::run_with_metric_collection,
-    config::baby_bear_poseidon2::BabyBearPoseidon2Config, p3_baby_bear::BabyBear,
+    bench::run_with_metric_collection, config::baby_bear_poseidon2::BabyBearPoseidon2Config,
+    p3_baby_bear::BabyBear,
 };
 use std::collections::HashMap;
 use std::fs::File;
@@ -25,7 +25,7 @@ type SC = BabyBearPoseidon2Config;
 type EF = <SC as StarkGenericConfig>::Challenge;
 
 use ceno_zkvm::{
-    scheme::{verifier::ZKVMVerifier, ZKVMProof},
+    scheme::{ZKVMProof, verifier::ZKVMVerifier},
     structs::ZKVMVerifyingKey,
 };
 
@@ -450,28 +450,23 @@ pub fn test_zkvm_proof_verifier_from_bincode_exports() {
     // Compile program
     let program: Program<
         p3_monty_31::MontyField31<openvm_stark_sdk::p3_baby_bear::BabyBearParameters>,
-    > =builder.compile_isa_with_options(CompilerOptions::default().with_cycle_tracker());
+    > = builder.compile_isa_with_options(CompilerOptions::default().with_cycle_tracker());
 
-    let mut system_config = SystemConfig::default()
+    let system_config = SystemConfig::default()
         .with_public_values(4)
-        .with_max_segment_len((1 << 25) - 100);
-    system_config.profiling = true;
+        .with_max_segment_len((1 << 25) - 100)
+        .with_profiling();
     let config = NativeConfig::new(system_config, Native);
 
     let executor = VmExecutor::<BabyBear, NativeConfig>::new(config);
-    
+
     // Alternative execution
     // executor.execute(program, witness_stream).unwrap();
 
-    let _ = run_with_metric_collection("./metrics.json", || -> Result<()> {
-        let _res = executor.execute_and_then(
-            program,
-            witness_stream,
-            |_, seg| {
-                Ok(seg)
-            },
-            |err| err,
-        ).unwrap();
+    let _ = run_with_metric_collection("METRICS_PATH", || -> Result<()> {
+        let _res = executor
+            .execute_and_then(program, witness_stream, |_, seg| Ok(seg), |err| err)
+            .unwrap();
         Ok(())
     });
 
