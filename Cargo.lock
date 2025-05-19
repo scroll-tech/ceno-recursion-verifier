@@ -563,6 +563,7 @@ dependencies = [
  "bincode",
  "ceno_emul",
  "ceno_zkvm",
+ "eyre",
  "ff_ext",
  "itertools 0.13.0",
  "mpcs",

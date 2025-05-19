@@ -1,5 +1,6 @@
 use crate::tower_verifier::binding::IOPProverMessage;
 use crate::zkvm_verifier::binding::ZKVMProofInput;
+use eyre::Result;
 use crate::zkvm_verifier::binding::{
     TowerProofInput, ZKVMOpcodeProofInput, ZKVMTableProofInput, E, F,
 };
@@ -14,6 +15,7 @@ use openvm_native_compiler::{asm::AsmBuilder, conversion::CompilerOptions};
 use openvm_native_recursion::hints::Hintable;
 use openvm_stark_backend::config::StarkGenericConfig;
 use openvm_stark_sdk::{
+    bench::run_with_metric_collection,
     config::baby_bear_poseidon2::BabyBearPoseidon2Config, p3_baby_bear::BabyBear,
 };
 use std::collections::HashMap;
@@ -461,6 +463,19 @@ pub fn test_zkvm_proof_verifier_from_bincode_exports() {
     // Alternative execution
     // executor.execute(program, witness_stream).unwrap();
 
+    let _ = run_with_metric_collection("./metrics.json", || -> Result<()> {
+        let _res = executor.execute_and_then(
+            program,
+            witness_stream,
+            |_, seg| {
+                Ok(seg)
+            },
+            |err| err,
+        ).unwrap();
+        Ok(())
+    });
+
+    /*
     let res = executor.execute_and_then(
         program,
         witness_stream,
@@ -473,4 +488,5 @@ pub fn test_zkvm_proof_verifier_from_bincode_exports() {
     for (i, seg) in res.iter().enumerate() {
         println!("=> segment {:?} metrics: {:?}", i, seg.metrics);
     }
+    */
 }
