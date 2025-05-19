@@ -16,7 +16,6 @@ use openvm_native_recursion::utils::cond_eval;
 use openvm_native_recursion::vars::{HintSlice, OuterDigestVariable};
 use outer_poseidon2::Poseidon2CircuitBuilder;
 
-mod commit;
 mod outer_poseidon2;
 pub mod types;
 
