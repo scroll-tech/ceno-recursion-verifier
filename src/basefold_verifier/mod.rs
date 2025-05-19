@@ -1,4 +1,3 @@
-pub use domain::*;
 use openvm_native_compiler::{
     ir::{
         Array, ArrayLike, Builder, Config, Ext, ExtensionOperand, Felt, RVar, SymbolicVar, Usize,
@@ -7,6 +6,7 @@ use openvm_native_compiler::{
     prelude::MemVariable,
 };
 use openvm_native_compiler_derive::iter_zip;
+pub use openvm_native_recursion::fri::domain::*;
 pub use openvm_native_recursion::fri::two_adic_pcs::*;
 use openvm_stark_backend::p3_field::{FieldAlgebra, TwoAdicField};
 
@@ -17,7 +17,6 @@ use openvm_native_recursion::vars::{HintSlice, OuterDigestVariable};
 use outer_poseidon2::Poseidon2CircuitBuilder;
 
 mod commit;
-pub mod domain;
 mod outer_poseidon2;
 pub mod types;
 
