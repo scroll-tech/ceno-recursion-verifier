@@ -9,7 +9,7 @@ use openvm_native_compiler_derive::iter_zip;
 pub use openvm_native_recursion::fri::domain::*;
 use openvm_stark_backend::p3_field::{FieldAlgebra, TwoAdicField};
 
-use self::types::{DimensionsVariable, FriConfigVariable};
+use self::types::{BasefoldConfigVariable, DimensionsVariable};
 use openvm_native_recursion::utils::cond_eval;
 use openvm_native_recursion::vars::{HintSlice, OuterDigestVariable};
 use openvm_native_recursion::{
@@ -32,7 +32,7 @@ pub mod types;
 #[allow(unused_variables)]
 pub fn verify_query<C: Config>(
     builder: &mut Builder<C>,
-    config: &FriConfigVariable<C>,
+    config: &BasefoldConfigVariable<C>,
     commit_phase_commits: &Array<C, DigestVariable<C>>,
     index_bits: &Array<C, Var<C::N>>,
     proof: &FriQueryProofVariable<C>,

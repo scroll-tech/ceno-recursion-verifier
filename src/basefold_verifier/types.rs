@@ -1,29 +1,29 @@
 use openvm_native_compiler::prelude::*;
 
-pub use openvm_native_recursion::fri::types::FriConfigVariable;
+pub use openvm_native_recursion::fri::types::FriConfigVariable as BasefoldConfigVariable;
 use openvm_native_recursion::{
     digest::DigestVariable,
     fri::{types::FriQueryProofVariable, TwoAdicMultiplicativeCosetVariable},
-    hints::{Hintable, InnerFriProof as OpenVMInnerFriProof},
+    hints::{Hintable, InnerFriProof},
     types::InnerConfig,
     vars::HintSlice,
 };
 
 #[derive(DslVariable, Clone)]
-pub struct FriProofVariable<C: Config> {
+pub struct BasefoldProofVariable<C: Config> {
     pub commit_phase_commits: Array<C, DigestVariable<C>>,
     pub query_proofs: Array<C, FriQueryProofVariable<C>>,
     pub final_poly: Array<C, Ext<C::F, C::EF>>,
     pub pow_witness: Felt<C::F>,
 }
 
-pub struct InnerFriProof(OpenVMInnerFriProof);
+pub struct InnerBasefoldProof(InnerFriProof);
 
-impl Hintable<InnerConfig> for InnerFriProof {
-    type HintVariable = FriProofVariable<InnerConfig>;
+impl Hintable<InnerConfig> for InnerBasefoldProof {
+    type HintVariable = BasefoldProofVariable<InnerConfig>;
 
     fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
-        let proof_variable = OpenVMInnerFriProof::read(builder);
+        let proof_variable = InnerFriProof::read(builder);
         let commit_phase_commits = proof_variable.commit_phase_commits;
         let query_proofs = proof_variable.query_proofs;
         let final_poly = proof_variable.final_poly;
@@ -42,13 +42,13 @@ impl Hintable<InnerConfig> for InnerFriProof {
 }
 
 #[derive(DslVariable, Clone)]
-pub struct FriCommitPhaseProofStepVariable<C: Config> {
+pub struct BasefoldCommitPhaseProofStepVariable<C: Config> {
     pub sibling_value: Ext<C::F, C::EF>,
     pub opening_proof: HintSlice<C>,
 }
 
 #[derive(DslVariable, Clone)]
-pub struct FriChallengesVariable<C: Config> {
+pub struct BasefoldChallengesVariable<C: Config> {
     pub query_indices: Array<C, Array<C, Var<C::N>>>,
     pub betas: Array<C, Ext<C::F, C::EF>>,
 }

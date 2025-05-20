@@ -1,7 +1,7 @@
 use openvm_native_compiler::ir::{Array, Builder, Config, Ext, FromConstant, RVar};
 use openvm_stark_backend::p3_commit::{LagrangeSelectors, PolynomialSpace};
 
-use super::types::{FriConfigVariable, TwoAdicPcsRoundVariable};
+use super::types::{BasefoldConfigVariable, TwoAdicPcsRoundVariable};
 use openvm_native_recursion::challenger::ChallengerVariable;
 
 pub trait PolynomialSpaceVariable<C: Config>: Sized + FromConstant<C> {
@@ -30,7 +30,7 @@ pub trait PolynomialSpaceVariable<C: Config>: Sized + FromConstant<C> {
         &self,
         builder: &mut Builder<C>,
         log_degree: RVar<C::N>,
-        config: Option<FriConfigVariable<C>>,
+        config: Option<BasefoldConfigVariable<C>>,
     ) -> Self;
 }
 

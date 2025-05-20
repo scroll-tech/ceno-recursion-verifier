@@ -9,7 +9,7 @@ use p3_symmetric::Hash;
 use super::{
     commit::{PcsVariable, PolynomialSpaceVariable},
     types::{
-        DimensionsVariable, FriConfigVariable, FriProofVariable, TwoAdicPcsMatsVariable,
+        BasefoldConfigVariable, BasefoldProofVariable, DimensionsVariable, TwoAdicPcsMatsVariable,
         TwoAdicPcsRoundVariable,
     },
     verify_batch, verify_query, NestedOpenedValues, TwoAdicMultiplicativeCosetVariable,
@@ -38,9 +38,9 @@ pub const MAX_TWO_ADICITY: usize = 27;
 /// <https://github.com/Plonky3/Plonky3/blob/784b7dd1fa87c1202e63350cc8182d7c5327a7af/fri/src/verifier.rs#L22>
 pub fn verify_two_adic_pcs<C: Config>(
     builder: &mut Builder<C>,
-    config: &FriConfigVariable<C>,
+    config: &BasefoldConfigVariable<C>,
     rounds: Array<C, TwoAdicPcsRoundVariable<C>>,
-    proof: FriProofVariable<C>,
+    proof: BasefoldProofVariable<C>,
     log_max_height: RVar<C::N>,
     challenger: &mut impl ChallengerVariable<C>,
 ) where
@@ -508,7 +508,7 @@ where
         &self,
         builder: &mut Builder<C>,
         log_degree: RVar<<C as Config>::N>,
-        config: Option<FriConfigVariable<C>>,
+        config: Option<BasefoldConfigVariable<C>>,
     ) -> Self {
         let domain = config.unwrap().get_subgroup(builder, log_degree);
         TwoAdicMultiplicativeCosetVariable {
@@ -521,7 +521,7 @@ where
 
 #[derive(Clone)]
 pub struct TwoAdicBasefoldPcsVariable<C: Config> {
-    pub config: FriConfigVariable<C>,
+    pub config: BasefoldConfigVariable<C>,
 }
 
 impl<C: Config> PcsVariable<C> for TwoAdicBasefoldPcsVariable<C>
@@ -533,7 +533,7 @@ where
 
     type Commitment = DigestVariable<C>;
 
-    type Proof = FriProofVariable<C>;
+    type Proof = BasefoldProofVariable<C>;
 
     fn natural_domain_for_log_degree(
         &self,
@@ -649,7 +649,7 @@ fn compute_rounds_context<C: Config>(
             let mat = builder.iter_ptr_get(&round.mats, ptr_vec[0]);
             let local = builder.get(&mat.values, 0);
             // We allocate the underlying buffer for the current `ov_ptr` here. On allocation, it is uninit, and
-            // will be written to on the first call of `fri_single_reduced_opening_eval` for this `ov_ptr`.
+            // will be written to on the first call of `basefold_single_reduced_opening_eval` for this `ov_ptr`.
             let buf = builder.array(local.len());
             let width = buf.len();
             builder.iter_ptr_set(&ov_ptrs, ptr_vec[1], buf);
@@ -731,11 +731,11 @@ pub mod tests {
         digest::DigestVariable,
         fri::TwoAdicMultiplicativeCosetVariable,
         hints::{Hintable, InnerVal},
-        utils::const_fri_config,
+        utils::const_fri_config as const_basefold_config,
     };
 
     #[allow(dead_code)]
-    pub fn build_test_fri_with_cols_and_log2_rows(
+    pub fn build_test_basefold_with_cols_and_log2_rows(
         nb_cols: usize,
         nb_log2_rows: usize,
     ) -> (Program<BabyBear>, Vec<Vec<BabyBear>>) {
@@ -786,7 +786,7 @@ pub mod tests {
 
         // Test the recursive Pcs.
         let mut builder = AsmBuilder::<F, EF>::default();
-        let config = const_fri_config(&mut builder, &engine.fri_params);
+        let config = const_basefold_config(&mut builder, &engine.fri_params);
         let pcs_var = TwoAdicBasefoldPcsVariable { config };
         let rounds =
             builder.constant::<Array<_, TwoAdicPcsRoundVariable<_>>>(vec![(commit, os.clone())]);
@@ -806,7 +806,7 @@ pub mod tests {
         }
 
         // Test proof verification.
-        let proofvar = crate::basefold_verifier::types::InnerFriProof::read(&mut builder);
+        let proofvar = crate::basefold_verifier::types::InnerBasefoldProof::read(&mut builder);
         let mut challenger = DuplexChallengerVariable::new(&mut builder);
         let commit = <[InnerVal; DIGEST_SIZE]>::from(commit).to_vec();
         let commit = DigestVariable::Felt(builder.constant::<Array<_, _>>(commit));
@@ -828,8 +828,8 @@ pub mod tests {
     }
 
     #[test]
-    fn test_two_adic_fri_pcs_single_batch() {
-        let (program, witness) = build_test_fri_with_cols_and_log2_rows(10, 10);
+    fn test_two_adic_basefold_pcs_single_batch() {
+        let (program, witness) = build_test_basefold_with_cols_and_log2_rows(10, 10);
         openvm_native_circuit::execute_program(program, witness);
     }
 }
