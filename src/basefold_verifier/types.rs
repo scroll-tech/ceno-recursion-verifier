@@ -2,7 +2,11 @@ use openvm_native_compiler::prelude::*;
 
 pub use openvm_native_recursion::fri::types::FriConfigVariable;
 use openvm_native_recursion::{
-    digest::DigestVariable, fri::TwoAdicMultiplicativeCosetVariable, vars::HintSlice,
+    digest::DigestVariable,
+    fri::{types::FriQueryProofVariable, TwoAdicMultiplicativeCosetVariable},
+    hints::{Hintable, InnerFriProof as OpenVMInnerFriProof},
+    types::InnerConfig,
+    vars::HintSlice,
 };
 
 #[derive(DslVariable, Clone)]
@@ -13,10 +17,28 @@ pub struct FriProofVariable<C: Config> {
     pub pow_witness: Felt<C::F>,
 }
 
-#[derive(DslVariable, Clone)]
-pub struct FriQueryProofVariable<C: Config> {
-    pub input_proof: Array<C, BatchOpeningVariable<C>>,
-    pub commit_phase_openings: Array<C, FriCommitPhaseProofStepVariable<C>>,
+pub struct InnerFriProof(OpenVMInnerFriProof);
+
+impl Hintable<InnerConfig> for InnerFriProof {
+    type HintVariable = FriProofVariable<InnerConfig>;
+
+    fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
+        let proof_variable = OpenVMInnerFriProof::read(builder);
+        let commit_phase_commits = proof_variable.commit_phase_commits;
+        let query_proofs = proof_variable.query_proofs;
+        let final_poly = proof_variable.final_poly;
+        let pow_witness = proof_variable.pow_witness;
+        Self::HintVariable {
+            commit_phase_commits,
+            query_proofs,
+            final_poly,
+            pow_witness,
+        }
+    }
+
+    fn write(&self) -> Vec<Vec<<InnerConfig as Config>::F>> {
+        self.0.write()
+    }
 }
 
 #[derive(DslVariable, Clone)]
