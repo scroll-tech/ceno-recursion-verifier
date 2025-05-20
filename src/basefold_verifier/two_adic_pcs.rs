@@ -723,8 +723,9 @@ pub mod tests {
     use rand::rngs::OsRng;
 
     use crate::basefold_verifier::{
-        commit::PcsVariable, two_adic_pcs::TwoAdicBasefoldPcsVariable,
-        types::TwoAdicPcsRoundVariable,
+        commit::PcsVariable,
+        two_adic_pcs::TwoAdicBasefoldPcsVariable,
+        types::{InnerBasefoldProof, TwoAdicPcsRoundVariable},
     };
     use openvm_native_recursion::{
         challenger::{duplex::DuplexChallengerVariable, CanObserveDigest, FeltChallenger},
@@ -806,7 +807,7 @@ pub mod tests {
         }
 
         // Test proof verification.
-        let proofvar = crate::basefold_verifier::types::InnerBasefoldProof::read(&mut builder);
+        let proofvar = InnerBasefoldProof::read(&mut builder);
         let mut challenger = DuplexChallengerVariable::new(&mut builder);
         let commit = <[InnerVal; DIGEST_SIZE]>::from(commit).to_vec();
         let commit = DigestVariable::Felt(builder.constant::<Array<_, _>>(commit));
