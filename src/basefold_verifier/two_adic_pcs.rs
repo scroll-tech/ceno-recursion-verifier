@@ -520,11 +520,11 @@ where
 }
 
 #[derive(Clone)]
-pub struct TwoAdicFriPcsVariable<C: Config> {
+pub struct TwoAdicBasefoldPcsVariable<C: Config> {
     pub config: FriConfigVariable<C>,
 }
 
-impl<C: Config> PcsVariable<C> for TwoAdicFriPcsVariable<C>
+impl<C: Config> PcsVariable<C> for TwoAdicBasefoldPcsVariable<C>
 where
     C::F: TwoAdicField,
     C::EF: TwoAdicField,
@@ -704,149 +704,111 @@ fn compute_rounds_context<C: Config>(
 pub mod tests {
     use std::cmp::Reverse;
 
-    use std::collections::BTreeMap;
-
-    use ff_ext::{BabyBearExt4, ExtensionField};
     use itertools::Itertools;
-    use mpcs::{Basefold, BasefoldRSParams, PolynomialCommitmentScheme};
-    use multilinear_extensions::mle::MultilinearExtension;
-    use openvm_circuit::arch::{instructions::program::Program, SystemConfig, VmExecutor};
-    use openvm_native_circuit::{Native, NativeConfig};
+    use openvm_circuit::arch::instructions::program::Program;
     use openvm_native_compiler::{
         asm::AsmBuilder,
         ir::{Array, RVar, DIGEST_SIZE},
     };
-    use openvm_stark_backend::config::StarkGenericConfig;
+    use openvm_stark_backend::{
+        config::{StarkGenericConfig, Val},
+        p3_challenger::{CanObserve, FieldChallenger},
+        p3_commit::{Pcs, TwoAdicMultiplicativeCoset},
+        p3_matrix::dense::RowMajorMatrix,
+    };
     use openvm_stark_sdk::{
         config::baby_bear_poseidon2::{default_engine, BabyBearPoseidon2Config},
         p3_baby_bear::BabyBear,
     };
-    use transcript::{BasicTranscript, Transcript};
-    use witness::RowMajorMatrix;
+    use rand::rngs::OsRng;
 
     use crate::basefold_verifier::{
-        commit::PcsVariable,
-        two_adic_pcs::TwoAdicFriPcsVariable,
-        types::{InnerFriProof, TwoAdicPcsRoundVariable},
+        commit::PcsVariable, two_adic_pcs::TwoAdicBasefoldPcsVariable,
+        types::TwoAdicPcsRoundVariable,
     };
     use openvm_native_recursion::{
         challenger::{duplex::DuplexChallengerVariable, CanObserveDigest, FeltChallenger},
         digest::DigestVariable,
+        fri::TwoAdicMultiplicativeCosetVariable,
         hints::{Hintable, InnerVal},
         utils::const_fri_config,
     };
-    type SC = BabyBearPoseidon2Config;
-
-    type F = BabyBear;
-    type E = BabyBearExt4;
-    type EF = <SC as StarkGenericConfig>::Challenge;
-    type Pcs = Basefold<E, BasefoldRSParams>;
 
     #[allow(dead_code)]
     pub fn build_test_fri_with_cols_and_log2_rows(
         nb_cols: usize,
         nb_log2_rows: usize,
     ) -> (Program<BabyBear>, Vec<Vec<BabyBear>>) {
-        let mut rng = rand::thread_rng();
-        let num_vars = 4;
-        let batch_size = 2;
-        let poly_size = 1 << num_vars;
-        let param = <Pcs as PolynomialCommitmentScheme<E>>::setup(poly_size).unwrap();
-        let (pp, vp) = Pcs::trim(param, poly_size).unwrap();
-        let num_instances = vec![(0, 1 << num_vars)];
-        let circuit_num_polys = vec![(batch_size, 0)];
+        type SC = BabyBearPoseidon2Config;
+        type F = Val<SC>;
+        type EF = <SC as StarkGenericConfig>::Challenge;
+        type Challenger = <SC as StarkGenericConfig>::Challenger;
+        type ScPcs = <SC as StarkGenericConfig>::Pcs;
 
-        let (comm, evals, proof, challenge) = {
-            let mut transcript = BasicTranscript::new(b"BaseFold");
-            let rmm = RowMajorMatrix::<<E as ExtensionField>::BaseField>::rand(
-                &mut rng,
-                1 << num_vars,
-                batch_size,
-            );
+        let mut rng = &mut OsRng;
+        let log_degrees = &[nb_log2_rows];
+        let engine = default_engine();
+        let pcs = engine.config.pcs();
+        let perm = engine.perm;
 
-            let polys = rmm.to_mles();
+        // Generate proof.
+        let domains_and_polys = log_degrees
+            .iter()
+            .map(|&d| {
+                (
+                    <ScPcs as Pcs<EF, Challenger>>::natural_domain_for_degree(pcs, 1 << d),
+                    RowMajorMatrix::<F>::rand(&mut rng, 1 << d, nb_cols),
+                )
+            })
+            .sorted_by_key(|(dom, _)| Reverse(dom.log_n))
+            .collect::<Vec<_>>();
+        let (commit, data) = <ScPcs as Pcs<EF, Challenger>>::commit(pcs, domains_and_polys.clone());
+        let mut challenger = Challenger::new(perm.clone());
+        challenger.observe(commit);
+        let zeta = challenger.sample_ext_element::<EF>();
+        let points = domains_and_polys
+            .iter()
+            .map(|_| vec![zeta])
+            .collect::<Vec<_>>();
+        let (opening, proof) = pcs.open(vec![(&data, points)], &mut challenger);
 
-            let comm =
-                Pcs::batch_commit_and_write(&pp, BTreeMap::from([(0, rmm)]), &mut transcript)
-                    .unwrap();
-            let point = transcript.sample_and_append_vec(b"Point", num_vars);
-            let evals = polys.iter().map(|poly| poly.evaluate(&point)).collect_vec();
-            transcript.append_field_element_exts(&evals);
-
-            let proof = Pcs::batch_open(
-                &pp,
-                &num_instances,
-                None,
-                &comm,
-                &[point.clone()],
-                &[evals.clone()],
-                &circuit_num_polys,
-                &mut transcript,
-            )
+        // Verify proof.
+        let mut challenger = Challenger::new(perm.clone());
+        challenger.observe(commit);
+        challenger.sample_ext_element::<EF>();
+        let os: Vec<(TwoAdicMultiplicativeCoset<F>, Vec<_>)> = domains_and_polys
+            .iter()
+            .zip(&opening[0])
+            .map(|((domain, _), mat_openings)| (*domain, vec![(zeta, mat_openings[0].clone())]))
+            .collect();
+        pcs.verify(vec![(commit, os.clone())], &proof, &mut challenger)
             .unwrap();
-            (
-                Pcs::get_pure_commitment(&comm),
-                evals,
-                proof,
-                transcript.read_challenge(),
-            )
-        };
-        // Batch verify
-        {
-            let mut transcript = BasicTranscript::new(b"BaseFold");
-            Pcs::write_commitment(&comm, &mut transcript).unwrap();
-
-            let point = transcript.sample_and_append_vec(b"Point", num_vars);
-            transcript.append_field_element_exts(&evals);
-
-            Pcs::batch_verify(
-                &vp,
-                &num_instances,
-                &[point.clone()],
-                None,
-                &comm,
-                &[evals.clone()],
-                &proof,
-                &circuit_num_polys,
-                &mut transcript,
-            )
-            .unwrap();
-
-            let v_challenge = transcript.read_challenge();
-            assert_eq!(challenge, v_challenge);
-
-            println!(
-                "Proof size for simple batch: {} bytes",
-                bincode::serialized_size(&proof).unwrap()
-            );
-        }
 
         // Test the recursive Pcs.
-        let engine = default_engine();
         let mut builder = AsmBuilder::<F, EF>::default();
         let config = const_fri_config(&mut builder, &engine.fri_params);
-        let pcs_var = TwoAdicFriPcsVariable { config };
+        let pcs_var = TwoAdicBasefoldPcsVariable { config };
         let rounds =
             builder.constant::<Array<_, TwoAdicPcsRoundVariable<_>>>(vec![(commit, os.clone())]);
 
         // Test natural domain for degree.
-        // for log_d_val in log_degrees.iter() {
-        //     let log_d = *log_d_val;
-        //     let domain = pcs_var.natural_domain_for_log_degree(&mut builder, RVar::from(log_d));
+        for log_d_val in log_degrees.iter() {
+            let log_d = *log_d_val;
+            let domain = pcs_var.natural_domain_for_log_degree(&mut builder, RVar::from(log_d));
 
-        //     let domain_val =
-        //         <ScPcs as Pcs<EF, Challenger>>::natural_domain_for_degree(pcs, 1 << log_d_val);
+            let domain_val =
+                <ScPcs as Pcs<EF, Challenger>>::natural_domain_for_degree(pcs, 1 << log_d_val);
 
-        //     let expected_domain: TwoAdicMultiplicativeCosetVariable<_> =
-        //         builder.constant(domain_val);
+            let expected_domain: TwoAdicMultiplicativeCosetVariable<_> =
+                builder.constant(domain_val);
 
-        //     builder.assert_eq::<TwoAdicMultiplicativeCosetVariable<_>>(domain, expected_domain);
-        // }
+            builder.assert_eq::<TwoAdicMultiplicativeCosetVariable<_>>(domain, expected_domain);
+        }
 
         // Test proof verification.
-        let proofvar = InnerFriProof::read(&mut builder);
+        let proofvar = crate::basefold_verifier::types::InnerFriProof::read(&mut builder);
         let mut challenger = DuplexChallengerVariable::new(&mut builder);
-        let commit = <[InnerVal; DIGEST_SIZE]>::from(comm).to_vec();
+        let commit = <[InnerVal; DIGEST_SIZE]>::from(commit).to_vec();
         let commit = DigestVariable::Felt(builder.constant::<Array<_, _>>(commit));
         challenger.observe_digest(&mut builder, commit);
         challenger.sample_ext(&mut builder);
