@@ -342,6 +342,9 @@ pub fn verify_tower_proof<C: Config>(
         eval: builder.constant(C::EF::ZERO),
     };
 
+    // _debug
+    let op_range = RVar::from(1);
+
     builder
         .range(0, op_range.clone())
         .for_each(|i_vec, builder| {

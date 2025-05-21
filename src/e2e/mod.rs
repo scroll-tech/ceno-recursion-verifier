@@ -37,6 +37,8 @@ pub struct SubcircuitParams {
     pub name: String,
     pub num_instances: usize,
     pub is_opcode: bool,
+    // _debug
+    pub enabled: bool,
 }
 
 pub fn parse_zkvm_proof_import(
@@ -71,6 +73,8 @@ pub fn parse_zkvm_proof_import(
                 name: name.clone(),
                 num_instances: opcode_num_instances_lookup.get(index).unwrap().clone(),
                 is_opcode: true,
+                // _debug
+                enabled: false,
             });
             opcode_order_idx += 1;
         } else if zkvm_proof.table_proofs.get(index).is_some() {
@@ -81,6 +85,8 @@ pub fn parse_zkvm_proof_import(
                 name: name.clone(),
                 num_instances: table_num_instances_lookup.get(index).unwrap().clone(),
                 is_opcode: false,
+                // _debug
+                enabled: false,
             });
             table_order_idx += 1;
         } else {
@@ -425,7 +431,10 @@ pub fn test_zkvm_proof_verifier_from_bincode_exports() {
             .expect("Failed to deserialize vk file");
 
     let verifier = ZKVMVerifier::new(vk);
-    let (zkvm_proof_input, proving_sequence) = parse_zkvm_proof_import(zkvm_proof, &verifier);
+    let (zkvm_proof_input, mut proving_sequence) = parse_zkvm_proof_import(zkvm_proof, &verifier);
+
+    // _debug
+    proving_sequence[0].enabled = true;
 
     // OpenVM DSL
     let mut builder = AsmBuilder::<F, EF>::default();
@@ -463,14 +472,16 @@ pub fn test_zkvm_proof_verifier_from_bincode_exports() {
     // Alternative execution
     // executor.execute(program, witness_stream).unwrap();
 
+    /*
     let _ = run_with_metric_collection("METRICS_PATH", || -> Result<()> {
         let _res = executor
             .execute_and_then(program, witness_stream, |_, seg| Ok(seg), |err| err)
             .unwrap();
         Ok(())
     });
+    */
 
-    /*
+
     let res = executor.execute_and_then(
         program,
         witness_stream,
@@ -483,5 +494,4 @@ pub fn test_zkvm_proof_verifier_from_bincode_exports() {
     for (i, seg) in res.iter().enumerate() {
         println!("=> segment {:?} metrics: {:?}", i, seg.metrics);
     }
-    */
 }

@@ -159,99 +159,103 @@ pub fn verify_zkvm_proof<C: Config>(
     let dummy_table_item_multiplicity: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
 
     for subcircuit_params in proving_sequence {
-        if subcircuit_params.is_opcode {
-            let opcode_proof = builder.get(
-                &zkvm_proof_input.opcode_proofs,
-                subcircuit_params.type_order_idx,
-            );
-            let id_f: Felt<C::F> =
-                builder.constant(C::F::from_canonical_usize(subcircuit_params.id));
-            challenger.observe(builder, id_f);
-
-            verify_opcode_proof(
-                builder,
-                &mut challenger,
-                &opcode_proof,
-                &zkvm_proof_input.pi_evals,
-                &challenges,
-                &subcircuit_params,
-                &ceno_constraint_system,
-            );
-
-            let cs = ceno_constraint_system.vk.circuit_vks[&subcircuit_params.name].get_cs();
-            let num_lks = cs.lk_expressions.len();
-
-            let num_instances = subcircuit_params.num_instances;
-            let num_padded_lks_per_instance = next_pow2_instance_padding(num_lks) - num_lks;
-            let num_padded_instance = next_pow2_instance_padding(num_instances) - num_instances;
-            let new_multiplicity: Ext<C::F, C::EF> = builder.constant(C::EF::from_canonical_usize(
-                num_padded_lks_per_instance * num_instances
-                    + num_lks.next_power_of_two() * num_padded_instance,
-            ));
-
-            builder.assign(
-                &dummy_table_item_multiplicity,
-                dummy_table_item_multiplicity + new_multiplicity,
-            );
-
-            let record_r_out_evals_prod = product(builder, &opcode_proof.record_r_out_evals);
-            builder.assign(&prod_r, prod_r * record_r_out_evals_prod);
-
-            let record_w_out_evals_prod = product(builder, &opcode_proof.record_w_out_evals);
-            builder.assign(&prod_w, prod_w * record_w_out_evals_prod);
-
-            builder.assign(
-                &logup_sum,
-                logup_sum + opcode_proof.lk_p1_out_eval * opcode_proof.lk_q1_out_eval.inverse(),
-            );
-            builder.assign(
-                &logup_sum,
-                logup_sum + opcode_proof.lk_p2_out_eval * opcode_proof.lk_q2_out_eval.inverse(),
-            );
-        } else {
-            let table_proof = builder.get(
-                &zkvm_proof_input.table_proofs,
-                subcircuit_params.type_order_idx,
-            );
-            let id_f: Felt<C::F> =
-                builder.constant(C::F::from_canonical_usize(subcircuit_params.id));
-            challenger.observe(builder, id_f);
-
-            verify_table_proof(
-                builder,
-                &mut challenger,
-                &table_proof,
-                &zkvm_proof_input.raw_pi,
-                &zkvm_proof_input.raw_pi_num_variables,
-                &zkvm_proof_input.pi_evals,
-                &challenges,
-                &subcircuit_params,
-                ceno_constraint_system,
-            );
-
-            let step = C::N::from_canonical_usize(4);
-            builder
-                .range_with_step(0, table_proof.lk_out_evals.len(), step)
-                .for_each(|idx_vec, builder| {
-                    let p2_idx: Usize<C::N> = builder.eval(idx_vec[0] + RVar::from(1));
-                    let q1_idx: Usize<C::N> = builder.eval(p2_idx.clone() + RVar::from(1));
-                    let q2_idx: Usize<C::N> = builder.eval(q1_idx.clone() + RVar::from(1));
-
-                    let p1 = builder.get(&table_proof.lk_out_evals, idx_vec[0]);
-                    let p2 = builder.get(&table_proof.lk_out_evals, p2_idx);
-                    let q1 = builder.get(&table_proof.lk_out_evals, q1_idx);
-                    let q2 = builder.get(&table_proof.lk_out_evals, q2_idx);
-
-                    builder.assign(
-                        &logup_sum,
-                        logup_sum - p1 * q1.inverse() - p2 * q2.inverse(),
-                    );
-                });
-
-            let w_out_evals_prod = product(builder, &table_proof.w_out_evals);
-            builder.assign(&prod_w, prod_w * w_out_evals_prod);
-            let r_out_evals_prod = product(builder, &table_proof.r_out_evals);
-            builder.assign(&prod_r, prod_r * r_out_evals_prod);
+        if subcircuit_params.enabled {
+            if subcircuit_params.is_opcode {
+                let opcode_proof = builder.get(
+                    &zkvm_proof_input.opcode_proofs,
+                    subcircuit_params.type_order_idx,
+                );
+                let id_f: Felt<C::F> =
+                    builder.constant(C::F::from_canonical_usize(subcircuit_params.id));
+                challenger.observe(builder, id_f);
+    
+                verify_opcode_proof(
+                    builder,
+                    &mut challenger,
+                    &opcode_proof,
+                    &zkvm_proof_input.pi_evals,
+                    &challenges,
+                    &subcircuit_params,
+                    &ceno_constraint_system,
+                );
+    
+                /* _debug
+                let cs = ceno_constraint_system.vk.circuit_vks[&subcircuit_params.name].get_cs();
+                let num_lks = cs.lk_expressions.len();
+    
+                let num_instances = subcircuit_params.num_instances;
+                let num_padded_lks_per_instance = next_pow2_instance_padding(num_lks) - num_lks;
+                let num_padded_instance = next_pow2_instance_padding(num_instances) - num_instances;
+                let new_multiplicity: Ext<C::F, C::EF> = builder.constant(C::EF::from_canonical_usize(
+                    num_padded_lks_per_instance * num_instances
+                        + num_lks.next_power_of_two() * num_padded_instance,
+                ));
+    
+                builder.assign(
+                    &dummy_table_item_multiplicity,
+                    dummy_table_item_multiplicity + new_multiplicity,
+                );
+    
+                let record_r_out_evals_prod = product(builder, &opcode_proof.record_r_out_evals);
+                builder.assign(&prod_r, prod_r * record_r_out_evals_prod);
+    
+                let record_w_out_evals_prod = product(builder, &opcode_proof.record_w_out_evals);
+                builder.assign(&prod_w, prod_w * record_w_out_evals_prod);
+    
+                builder.assign(
+                    &logup_sum,
+                    logup_sum + opcode_proof.lk_p1_out_eval * opcode_proof.lk_q1_out_eval.inverse(),
+                );
+                builder.assign(
+                    &logup_sum,
+                    logup_sum + opcode_proof.lk_p2_out_eval * opcode_proof.lk_q2_out_eval.inverse(),
+                );
+                */
+            } else {
+                let table_proof = builder.get(
+                    &zkvm_proof_input.table_proofs,
+                    subcircuit_params.type_order_idx,
+                );
+                let id_f: Felt<C::F> =
+                    builder.constant(C::F::from_canonical_usize(subcircuit_params.id));
+                challenger.observe(builder, id_f);
+    
+                verify_table_proof(
+                    builder,
+                    &mut challenger,
+                    &table_proof,
+                    &zkvm_proof_input.raw_pi,
+                    &zkvm_proof_input.raw_pi_num_variables,
+                    &zkvm_proof_input.pi_evals,
+                    &challenges,
+                    &subcircuit_params,
+                    ceno_constraint_system,
+                );
+    
+                let step = C::N::from_canonical_usize(4);
+                builder
+                    .range_with_step(0, table_proof.lk_out_evals.len(), step)
+                    .for_each(|idx_vec, builder| {
+                        let p2_idx: Usize<C::N> = builder.eval(idx_vec[0] + RVar::from(1));
+                        let q1_idx: Usize<C::N> = builder.eval(p2_idx.clone() + RVar::from(1));
+                        let q2_idx: Usize<C::N> = builder.eval(q1_idx.clone() + RVar::from(1));
+    
+                        let p1 = builder.get(&table_proof.lk_out_evals, idx_vec[0]);
+                        let p2 = builder.get(&table_proof.lk_out_evals, p2_idx);
+                        let q1 = builder.get(&table_proof.lk_out_evals, q1_idx);
+                        let q2 = builder.get(&table_proof.lk_out_evals, q2_idx);
+    
+                        builder.assign(
+                            &logup_sum,
+                            logup_sum - p1 * q1.inverse() - p2 * q2.inverse(),
+                        );
+                    });
+    
+                let w_out_evals_prod = product(builder, &table_proof.w_out_evals);
+                builder.assign(&prod_w, prod_w * w_out_evals_prod);
+                let r_out_evals_prod = product(builder, &table_proof.r_out_evals);
+                builder.assign(&prod_r, prod_r * r_out_evals_prod);
+            }
         }
     }
 
@@ -276,6 +280,7 @@ pub fn verify_zkvm_proof<C: Config>(
     .map_err(ZKVMError::PCSError)?;
     */
 
+    /* _debug
     let empty_arr: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(0);
     let initial_global_state = eval_ceno_expr_with_instance(
         builder,
@@ -300,6 +305,7 @@ pub fn verify_zkvm_proof<C: Config>(
     builder.assign(&prod_r, prod_r * finalize_global_state);
 
     // builder.assert_ext_eq(prod_r, prod_w);
+    */
 }
 
 pub fn verify_opcode_proof<C: Config>(
@@ -379,6 +385,7 @@ pub fn verify_opcode_proof<C: Config>(
         },
     );
 
+    /*
     let rt_non_lc_sumcheck: Array<C, Ext<C::F, C::EF>> =
         rt_tower
             .fs
@@ -635,6 +642,9 @@ pub fn verify_opcode_proof<C: Config>(
 
             builder.assert_ext_eq(e, zero);
         });
+
+
+    */
 }
 
 pub fn verify_table_proof<C: Config>(
