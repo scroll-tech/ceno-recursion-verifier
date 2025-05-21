@@ -113,16 +113,31 @@ pub fn verify_two_adic_pcs<C: Config>(
     // **ATTENTION**: always check shape of user inputs.
     builder.assert_usize_eq(proof.query_proofs.len(), RVar::from(config.num_queries));
     builder.assert_usize_eq(proof.commit_phase_commits.len(), log_max_height);
+    builder.assert_usize_eq(proof.commit_phase_sumcheck_messages.len(), log_max_height);
     let betas: Array<C, Ext<C::F, C::EF>> = builder.array(log_max_height);
 
     // Write the commit phase commitments to the challenger.
-    iter_zip!(builder, proof.commit_phase_commits, betas).for_each(|ptr_vec, builder| {
+    iter_zip!(
+        builder,
+        proof.commit_phase_commits,
+        proof.commit_phase_sumcheck_messages,
+        betas
+    )
+    .for_each(|ptr_vec, builder| {
         let comm_ptr = ptr_vec[0];
-        let beta_ptr = ptr_vec[1];
+        let sumcheck_ptr = ptr_vec[1];
+        let beta_ptr = ptr_vec[2];
+
+        // Write commitment to transcript
         let comm = builder.iter_ptr_get(&proof.commit_phase_commits, comm_ptr);
         challenger.observe_digest(builder, comm);
-        // TODO: write the next-round commit phase sumcheck messages to the transcript
 
+        // Write the next round sumcheck message to transcript
+        let sumcheck_message =
+            builder.iter_ptr_get(&proof.commit_phase_sumcheck_messages, sumcheck_ptr);
+        challenger.observe_slice(builder, sumcheck_message);
+
+        // Squeeze the next challenge
         let sample = challenger.sample_ext(builder);
         builder.iter_ptr_set(&betas, beta_ptr, sample);
     });
