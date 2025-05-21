@@ -1,23 +1,45 @@
+use ff_ext::BabyBearExt4;
 use openvm_native_compiler::prelude::*;
 
 pub use openvm_native_recursion::fri::types::FriConfigVariable as BasefoldConfigVariable;
 use openvm_native_recursion::{
     digest::DigestVariable,
     fri::{types::FriQueryProofVariable, TwoAdicMultiplicativeCosetVariable},
-    hints::{Hintable, InnerFriProof},
+    hints::{Hintable, InnerFriProof, InnerVal},
     types::InnerConfig,
     vars::HintSlice,
 };
+use openvm_stark_sdk::p3_baby_bear::BabyBear;
 
 #[derive(DslVariable, Clone)]
 pub struct BasefoldProofVariable<C: Config> {
     pub commit_phase_commits: Array<C, DigestVariable<C>>,
+    pub commit_phase_sumcheck_messages: Array<C, Array<C, Felt<C::F>>>, // TODO: should change to extension
     pub query_proofs: Array<C, FriQueryProofVariable<C>>,
     pub final_poly: Array<C, Ext<C::F, C::EF>>,
     pub pow_witness: Felt<C::F>,
 }
 
-pub struct InnerBasefoldProof(InnerFriProof);
+pub struct InnerBasefoldProof {
+    inner_fri_proof: InnerFriProof,
+    commit_phase_sumcheck_messages: CommitPhaseSumcheckMessages,
+}
+
+pub struct CommitPhaseSumcheckMessages {
+    commit_phase_sumcheck_messages: Vec<Vec<BabyBear>>,
+}
+
+impl Hintable<InnerConfig> for CommitPhaseSumcheckMessages {
+    type HintVariable = Array<InnerConfig, Array<InnerConfig, Felt<<InnerConfig as Config>::F>>>;
+
+    fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
+        Vec::<Vec<InnerVal>>::read(builder) // TODO: Vec::<Vec<BabyBearExt4>>::read(builder) does not work, so how to switch to ext?
+    }
+
+    fn write(&self) -> Vec<Vec<InnerVal>> {
+        self.commit_phase_sumcheck_messages.write()
+    }
+}
 
 impl Hintable<InnerConfig> for InnerBasefoldProof {
     type HintVariable = BasefoldProofVariable<InnerConfig>;
@@ -25,11 +47,13 @@ impl Hintable<InnerConfig> for InnerBasefoldProof {
     fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
         let proof_variable = InnerFriProof::read(builder);
         let commit_phase_commits = proof_variable.commit_phase_commits;
+        let commit_phase_sumcheck_messages = CommitPhaseSumcheckMessages::read(builder);
         let query_proofs = proof_variable.query_proofs;
         let final_poly = proof_variable.final_poly;
         let pow_witness = proof_variable.pow_witness;
         Self::HintVariable {
             commit_phase_commits,
+            commit_phase_sumcheck_messages,
             query_proofs,
             final_poly,
             pow_witness,
@@ -37,7 +61,10 @@ impl Hintable<InnerConfig> for InnerBasefoldProof {
     }
 
     fn write(&self) -> Vec<Vec<<InnerConfig as Config>::F>> {
-        self.0.write()
+        let mut stream = Vec::new();
+        stream.extend(self.inner_fri_proof.write());
+        stream.extend(self.commit_phase_sumcheck_messages.write());
+        stream
     }
 }
 

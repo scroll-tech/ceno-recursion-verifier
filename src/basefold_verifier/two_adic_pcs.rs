@@ -20,6 +20,11 @@ use openvm_native_recursion::{challenger::ChallengerVariable, digest::DigestVari
 // of order 2^{MAX_TWO_ADICITY + 1}. Currently set to 27 for BabyBear.
 pub const MAX_TWO_ADICITY: usize = 27;
 
+/// TODO: Modify this function to replace FRI by BaseFold verifier
+/// Note: Change as few code as possible. For this purpose:
+/// - Try not to touch most of the existing codes in `verify_two_adic_pcs`.
+///
+
 /// Notes:
 /// 1. FieldMerkleTreeMMCS sorts traces by height in descending order when committing data.
 /// 2. **Required** that `C::F` has two-adicity <= [MAX_TWO_ADICITY]. In particular this implies that all LDE matrices have
@@ -47,7 +52,7 @@ pub fn verify_two_adic_pcs<C: Config>(
     C::F: TwoAdicField,
     C::EF: TwoAdicField,
 {
-    // Currently do not support other final poly len
+    // Currently do not support other final poly len (i.e., do not support early stopping)
     builder.assert_var_eq(RVar::from(config.log_final_poly_len), RVar::zero());
     // The `proof.final_poly` length is in general `2^{log_final_poly_len + log_blowup}`.
     // We require `log_final_poly_len = 0`, so `proof.final_poly` has length `2^log_blowup`.
@@ -55,6 +60,7 @@ pub fn verify_two_adic_pcs<C: Config>(
     builder.assert_usize_eq(proof.final_poly.len(), RVar::from(config.blowup));
     // Constant term of final poly
     let final_poly_ct = builder.get(&proof.final_poly, 0);
+    // TODO: why sending these zero entries in the first place?
     for i in 1..config.blowup {
         let term = builder.get(&proof.final_poly, i);
         builder.assert_ext_eq(term, C::EF::ZERO.cons());
@@ -62,6 +68,8 @@ pub fn verify_two_adic_pcs<C: Config>(
 
     let g = builder.generator();
 
+    // Write the statements to prove to the transcript. More precisely,
+    // for every round, write every opened value in every matrix to the transcript.
     let log_blowup = config.log_blowup;
     iter_zip!(builder, rounds).for_each(|ptr_vec, builder| {
         let round = builder.iter_ptr_get(&rounds, ptr_vec[0]);
@@ -106,15 +114,20 @@ pub fn verify_two_adic_pcs<C: Config>(
     builder.assert_usize_eq(proof.query_proofs.len(), RVar::from(config.num_queries));
     builder.assert_usize_eq(proof.commit_phase_commits.len(), log_max_height);
     let betas: Array<C, Ext<C::F, C::EF>> = builder.array(log_max_height);
+
+    // Write the commit phase commitments to the challenger.
     iter_zip!(builder, proof.commit_phase_commits, betas).for_each(|ptr_vec, builder| {
         let comm_ptr = ptr_vec[0];
         let beta_ptr = ptr_vec[1];
         let comm = builder.iter_ptr_get(&proof.commit_phase_commits, comm_ptr);
         challenger.observe_digest(builder, comm);
+        // TODO: write the next-round commit phase sumcheck messages to the transcript
+
         let sample = challenger.sample_ext(builder);
         builder.iter_ptr_set(&betas, beta_ptr, sample);
     });
 
+    // Write the final polynomial to the challenger
     iter_zip!(builder, proof.final_poly).for_each(|ptr_vec, builder| {
         let final_poly_elem = builder.iter_ptr_get(&proof.final_poly, ptr_vec[0]);
         let final_poly_elem_felts = builder.ext2felt(final_poly_elem);
