@@ -1,7 +1,7 @@
 use crate::tower_verifier::binding::IOPProverMessage;
 use crate::zkvm_verifier::binding::ZKVMProofInput;
 use crate::zkvm_verifier::binding::{
-    E, F, TowerProofInput, ZKVMOpcodeProofInput, ZKVMTableProofInput,
+    TowerProofInput, ZKVMOpcodeProofInput, ZKVMTableProofInput, E, F,
 };
 use crate::zkvm_verifier::verifier::verify_zkvm_proof;
 use eyre::Result;
@@ -9,9 +9,11 @@ use ff_ext::BabyBearExt4;
 use itertools::Itertools;
 use mpcs::BasefoldCommitment;
 use mpcs::{Basefold, BasefoldRSParams};
-use openvm_circuit::arch::{SystemConfig, VmExecutor, instructions::program::Program};
+use openvm_circuit::arch::{instructions::program::Program, SystemConfig, VmExecutor};
 use openvm_native_circuit::{Native, NativeConfig};
-use openvm_native_compiler::{asm::AsmBuilder, conversion::CompilerOptions, conversion::convert_program, asm::AsmCompiler};
+use openvm_native_compiler::{
+    asm::AsmBuilder, asm::AsmCompiler, conversion::convert_program, conversion::CompilerOptions,
+};
 use openvm_native_recursion::hints::Hintable;
 use openvm_stark_backend::config::StarkGenericConfig;
 use openvm_stark_sdk::{
@@ -25,7 +27,7 @@ type SC = BabyBearPoseidon2Config;
 type EF = <SC as StarkGenericConfig>::Challenge;
 
 use ceno_zkvm::{
-    scheme::{ZKVMProof, verifier::ZKVMVerifier},
+    scheme::{verifier::ZKVMVerifier, ZKVMProof},
     structs::ZKVMVerifyingKey,
 };
 
@@ -468,7 +470,9 @@ pub fn test_zkvm_proof_verifier_from_bincode_exports() {
     let asm_code = compiler.code();
     println!("=> asm_code.blocks: {:?}", asm_code.blocks);
     println!("=> asm_code.labels: {:?}", asm_code.labels);
-    let program: Program<p3_monty_31::MontyField31<openvm_stark_sdk::p3_baby_bear::BabyBearParameters>,> = convert_program(asm_code, options);
+    let program: Program<
+        p3_monty_31::MontyField31<openvm_stark_sdk::p3_baby_bear::BabyBearParameters>,
+    > = convert_program(asm_code, options);
 
     return ();
 
@@ -492,14 +496,9 @@ pub fn test_zkvm_proof_verifier_from_bincode_exports() {
     });
     */
 
-    let res = executor.execute_and_then(
-        program,
-        witness_stream,
-        |_, seg| {
-            Ok(seg)
-        },
-        |err| err,
-    ).unwrap();
+    let res = executor
+        .execute_and_then(program, witness_stream, |_, seg| Ok(seg), |err| err)
+        .unwrap();
 
     for (i, seg) in res.iter().enumerate() {
         // println!("=> segment {:?} metrics: {:?}", i, seg.metrics);

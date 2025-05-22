@@ -130,7 +130,7 @@ pub fn iop_verifier_state_verify<C: Config>(
             builder.assign(&round, round + one);
             builder.cycle_tracker_end("IOPVerifierState::verify_round_and_update_state");
         });
-    
+
     builder.cycle_tracker_start("IOPVerifierState::check_and_generate_subclaim");
     // set `expected` to P(r)`
     let expected_len: RVar<_> = builder.eval_expr(polynomials_received.len() + RVar::from(1));
@@ -615,4 +615,50 @@ pub fn verify_tower_proof<C: Config>(
         logup_spec_p_point_n_eval,
         logup_spec_q_point_n_eval,
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::tower_verifier::program::iop_verifier_state_verify;
+    use crate::tower_verifier::program::IOPProverMessageVariable;
+    use openvm_native_circuit::execute_program;
+    use openvm_native_compiler::asm::AsmCompiler;
+    use openvm_native_compiler::asm::{AsmBuilder, AsmConfig};
+    use openvm_native_compiler::conversion::CompilerOptions;
+    use openvm_native_compiler::prelude::{Array, Ext, Felt};
+    use p3_baby_bear::BabyBear;
+    use p3_field::extension::BinomialExtensionField;
+
+    #[test]
+    fn test_simple_sumcheck() {
+        type F = BabyBear;
+        type EF = BinomialExtensionField<BabyBear, 4>;
+        type C = AsmConfig<F, EF>;
+
+        let mut builder = AsmBuilder::<F, EF>::default();
+
+        let out_claim: Ext<F, EF> = builder.uninit();
+        let prover_msgs: Array<C, IOPProverMessageVariable<C>> = builder.dyn_array(2);
+
+        // iop_verifier_state_verify(
+        //     &mut builder,
+        //     &mut DummyChallenger::default(),
+        //     Ext::<F, EF>::default(),
+        //     &Array::<F, IOPProverMessageVariable<F>>::default(),
+        //     Felt::<F>::from_canonical_usize(0),
+        //     Felt::<F>::from_canonical_usize(0),
+        // );
+
+        builder.halt();
+        
+        // execute_program(program, vec![]);
+
+        // get the assembly code
+        let options = CompilerOptions::default();
+        let mut compiler = AsmCompiler::new(options.word_size);
+        compiler.build(builder.operations);
+        let asm_code = compiler.code();
+        println!("asm code");
+        println!("{asm_code}");
+    }
 }
