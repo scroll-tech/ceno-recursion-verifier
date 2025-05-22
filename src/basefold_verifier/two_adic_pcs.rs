@@ -104,6 +104,7 @@ pub fn verify_two_adic_pcs<C: Config>(
             });
         });
     });
+    // TODO: should send the initial sumcheck message before the first squeeze
     let alpha = challenger.sample_ext(builder);
     if builder.flags.static_only {
         builder.ext_reduce_circuit(alpha);
@@ -159,8 +160,11 @@ pub fn verify_two_adic_pcs<C: Config>(
     let one_var: Felt<C::F> = builder.eval(C::F::ONE);
 
     builder.cycle_tracker_start("pre-compute-rounds-context");
+    // Round context: some assistant data needed for verifying consistency in each
+    // round, including powers of alpha, permuted matrix dimensions, etc.
     let rounds_context = compute_rounds_context(builder, &rounds, log_blowup, alpha);
     // Only used in static mode.
+    // Prepare vector (1, alpha, alpha^2, ..., alpha^max_width)
     let alpha_pows = if builder.flags.static_only {
         let max_width = get_max_matrix_width(builder, &rounds);
         let mut ret = Vec::with_capacity(max_width + 1);
@@ -180,6 +184,34 @@ pub fn verify_two_adic_pcs<C: Config>(
     let ro: Array<C, Ext<C::F, C::EF>> = builder.array(MAX_TWO_ADICITY + 1);
     let alpha_pow: Array<C, Ext<C::F, C::EF>> = builder.array(MAX_TWO_ADICITY + 1);
 
+    // TODO: Check the correctness of the sum-check messages.
+    // Compute the new sum for each round, then check the final value is equal to final_poly_ct.
+    // Following is the native verifier code for this step:
+    // 1. check initial claim match with first round sumcheck value
+    // assert_eq!(
+    //     // we need to scale up with scalar for witin_num_vars < max_num_var
+    //     dot_product::<E, _, _>(
+    //         batch_coeffs.iter().copied(),
+    //         point_evals.iter().zip_eq(circuit_meta.iter()).flat_map(
+    //             |((_, evals), CircuitIndexMeta { witin_num_vars, .. })| {
+    //                 evals.iter().copied().map(move |eval| {
+    //                     eval * E::from_u64(1 << (max_num_var - witin_num_vars) as u64)
+    //                 })
+    //             }
+    //         )
+    //     ),
+    //     { sumcheck_messages[0].evaluations[0] + sumcheck_messages[0].evaluations[1] }
+    // );
+    // // 2. check every round of sumcheck match with prev claims
+    // for i in 0..fold_challenges.len() - 1 {
+    //     assert_eq!(
+    //         interpolate_uni_poly(&sumcheck_messages[i].evaluations, fold_challenges[i]),
+    //         { sumcheck_messages[i + 1].evaluations[0] + sumcheck_messages[i + 1].evaluations[1] }
+    //     );
+    // }
+    // // 3. check final evaluation are correct
+
+    // Finally, check the correctness of each query
     iter_zip!(builder, proof.query_proofs).for_each(|ptr_vec, builder| {
         let query_proof = builder.iter_ptr_get(&proof.query_proofs, ptr_vec[0]);
         let index_bits = challenger.sample_bits(builder, log_max_lde_height);
@@ -633,6 +665,7 @@ fn compute_rounds_context<C: Config>(
     const MAX_LOG_WIDTH: usize = 31;
     let pow_of_alpha: Array<C, Ext<_, _>> = builder.array(MAX_LOG_WIDTH);
     if !builder.flags.static_only {
+        // Repeatedly square alpha to get (alpha, alpha^2, alpha^4, ...)
         let current: Ext<_, _> = builder.eval(alpha);
         for i in 0..MAX_LOG_WIDTH {
             builder.set(&pow_of_alpha, i, current);
@@ -643,6 +676,7 @@ fn compute_rounds_context<C: Config>(
     iter_zip!(builder, rounds, ret).for_each(|ptr_vec, builder| {
         let round = builder.iter_ptr_get(rounds, ptr_vec[0]);
         let permutation = round.permutation;
+        // to_perm_index(k) = if static or permutation.is_empty() { k } else { permutation[k] }
         let to_perm_index = |builder: &mut Builder<_>, k: RVar<_>| {
             // Always no permutation in static mode
             if builder.flags.static_only {
@@ -683,6 +717,8 @@ fn compute_rounds_context<C: Config>(
             builder.iter_ptr_set(&ov_ptrs, ptr_vec[1], buf);
 
             if !builder.flags.static_only {
+                // Split width into bits, and compute alpha^width using the
+                // precomputed powers of alpha.
                 let width = width.get_var();
                 // This is dynamic only so safe to cast.
                 let width_f = builder.unsafe_cast_var_to_felt(width);
