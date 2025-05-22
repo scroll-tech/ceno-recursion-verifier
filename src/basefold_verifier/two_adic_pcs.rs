@@ -210,6 +210,29 @@ pub fn verify_two_adic_pcs<C: Config>(
     //     );
     // }
     // // 3. check final evaluation are correct
+    // assert_eq!(
+    //     interpolate_uni_poly(
+    //         &sumcheck_messages[fold_challenges.len() - 1].evaluations,
+    //         fold_challenges[fold_challenges.len() - 1]
+    //     ),
+    //     izip!(final_message, point_evals.iter().map(|(point, _)| point))
+    //         .map(|(final_message, point)| {
+    //             // coeff is the eq polynomial evaluated at the first challenge.len() variables
+    //             let num_vars_evaluated = point.len()
+    //                 - <Spec::EncodingScheme as EncodingScheme<E>>::get_basecode_msg_size_log();
+    //             let coeff = eq_eval(
+    //                 &point[..num_vars_evaluated],
+    //                 &fold_challenges[fold_challenges.len() - num_vars_evaluated..],
+    //             );
+    //             // Compute eq as the partially evaluated eq polynomial
+    //             let eq = build_eq_x_r_vec(&point[num_vars_evaluated..]);
+    //             dot_product(
+    //                 final_message.iter().copied(),
+    //                 eq.into_iter().map(|e| e * coeff),
+    //             )
+    //         })
+    //         .sum()
+    // );
 
     // Finally, check the correctness of each query
     iter_zip!(builder, proof.query_proofs).for_each(|ptr_vec, builder| {
