@@ -626,8 +626,10 @@ mod tests {
     use openvm_native_compiler::asm::{AsmBuilder, AsmConfig};
     use openvm_native_compiler::conversion::CompilerOptions;
     use openvm_native_compiler::prelude::{Array, Ext, Felt};
+    use openvm_native_recursion::challenger::duplex::DuplexChallengerVariable;
     use p3_baby_bear::BabyBear;
     use p3_field::extension::BinomialExtensionField;
+    use p3_field::FieldAlgebra;
 
     #[test]
     fn test_simple_sumcheck() {
@@ -639,18 +641,23 @@ mod tests {
 
         let out_claim: Ext<F, EF> = builder.uninit();
         let prover_msgs: Array<C, IOPProverMessageVariable<C>> = builder.dyn_array(2);
+        let max_num_variables: Felt<F> = builder.constant(F::from_canonical_u32(2));
+        let max_degree: Felt<F> = builder.constant(F::from_canonical_u16(3));
 
-        // iop_verifier_state_verify(
-        //     &mut builder,
-        //     &mut DummyChallenger::default(),
-        //     Ext::<F, EF>::default(),
-        //     &Array::<F, IOPProverMessageVariable<F>>::default(),
-        //     Felt::<F>::from_canonical_usize(0),
-        //     Felt::<F>::from_canonical_usize(0),
-        // );
+        let mut challenger: DuplexChallengerVariable<C> =
+            DuplexChallengerVariable::new(&mut builder);
+
+        iop_verifier_state_verify(
+            &mut builder,
+            &mut challenger,
+            &out_claim,
+            &prover_msgs,
+            max_num_variables,
+            max_degree,
+        );
 
         builder.halt();
-        
+
         // execute_program(program, vec![]);
 
         // get the assembly code
