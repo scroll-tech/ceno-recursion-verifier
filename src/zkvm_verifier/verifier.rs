@@ -158,6 +158,9 @@ pub fn verify_zkvm_proof<C: Config>(
     let dummy_table_item = alpha.clone();
     let dummy_table_item_multiplicity: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
 
+    let mut rt_points: Vec<PointVariable<C>> = vec![];
+    let mut evaluations: Vec<Array<C, Ext<C::F, C::EF>>> = vec![]; // witin + fixed
+
     for subcircuit_params in proving_sequence {
         if subcircuit_params.is_opcode {
             let opcode_proof = builder.get(
@@ -168,7 +171,7 @@ pub fn verify_zkvm_proof<C: Config>(
                 builder.constant(C::F::from_canonical_usize(subcircuit_params.id));
             challenger.observe(builder, id_f);
 
-            verify_opcode_proof(
+            rt_points.push(verify_opcode_proof(
                 builder,
                 &mut challenger,
                 &opcode_proof,
@@ -176,7 +179,8 @@ pub fn verify_zkvm_proof<C: Config>(
                 &challenges,
                 &subcircuit_params,
                 &ceno_constraint_system,
-            );
+            ));
+            evaluations.push(opcode_proof.wits_in_evals);
 
             let cs = ceno_constraint_system.vk.circuit_vks[&subcircuit_params.name].get_cs();
             let num_lks = cs.lk_expressions.len();
@@ -217,7 +221,7 @@ pub fn verify_zkvm_proof<C: Config>(
                 builder.constant(C::F::from_canonical_usize(subcircuit_params.id));
             challenger.observe(builder, id_f);
 
-            verify_table_proof(
+            rt_points.push(verify_table_proof(
                 builder,
                 &mut challenger,
                 &table_proof,
@@ -227,7 +231,12 @@ pub fn verify_zkvm_proof<C: Config>(
                 &challenges,
                 &subcircuit_params,
                 ceno_constraint_system,
-            );
+            ));
+            evaluations.push(table_proof.wits_in_evals);
+
+            if ceno_constraint_system.vk.circuit_vks[&subcircuit_params.name].cs.num_fixed > 0 {
+                evaluations.push(table_proof.fixed_in_evals);
+            }
 
             let step = C::N::from_canonical_usize(4);
             builder
@@ -310,7 +319,7 @@ pub fn verify_opcode_proof<C: Config>(
     challenges: &Array<C, Ext<C::F, C::EF>>,
     subcircuit_params: &SubcircuitParams,
     cs: &ZKVMVerifier<E, Pcs>,
-) {
+) -> PointVariable<C> {
     let cs = &cs.vk.circuit_vks[&subcircuit_params.name].cs;
     let one: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
     let zero: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
@@ -635,6 +644,8 @@ pub fn verify_opcode_proof<C: Config>(
 
             builder.assert_ext_eq(e, zero);
         });
+
+    input_opening_point
 }
 
 pub fn verify_table_proof<C: Config>(
@@ -647,7 +658,7 @@ pub fn verify_table_proof<C: Config>(
     challenges: &Array<C, Ext<C::F, C::EF>>,
     subcircuit_params: &SubcircuitParams,
     cs: &ZKVMVerifier<E, Pcs>,
-) {
+) -> PointVariable<C> {
     let cs = cs.vk.circuit_vks[&subcircuit_params.name].get_cs();
     let tower_proof: &super::binding::TowerProofInputVariable<C> = &table_proof.tower_proof;
 
@@ -903,4 +914,6 @@ pub fn verify_table_proof<C: Config>(
         let expected_evals = builder.get(&in_evals, idx);
         builder.assert_ext_eq(e, expected_evals);
     });
+
+    rt_tower
 }
