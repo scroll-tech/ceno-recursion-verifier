@@ -629,7 +629,11 @@ mod tests {
     use ff_ext::BabyBearExt4;
     use ff_ext::FieldFrom;
     use itertools::Itertools;
+    use openvm_circuit::arch::SystemConfig;
+    use openvm_circuit::arch::VmExecutor;
     use openvm_native_circuit::execute_program;
+    use openvm_native_circuit::Native;
+    use openvm_native_circuit::NativeConfig;
     use openvm_native_compiler::asm::AsmCompiler;
     use openvm_native_compiler::asm::{AsmBuilder, AsmConfig};
     use openvm_native_compiler::conversion::convert_program;
@@ -711,8 +715,24 @@ mod tests {
                 .write(),
         );
 
+        // get execution result
         let program = convert_program(asm_code, options);
-        execute_program(program, input_stream);
+        let system_config = SystemConfig::default()
+            .with_public_values(4)
+            .with_max_segment_len((1 << 25) - 100);
+        let config = NativeConfig::new(system_config, Native);
+        let executor = VmExecutor::<BabyBear, NativeConfig>::new(config);
+
+        let res = executor
+            .execute_and_then(program, input_stream, |_, seg| Ok(seg), |err| err)
+            .unwrap();
+
+        for (i, seg) in res.iter().enumerate() {
+            #[cfg(feature = "bench-metrics")]
+            {
+                println!("=> segment {:?} metrics: {:?}", i, seg.metrics);
+            }
+        }
     }
 
     fn cast_vec<A, B>(mut vec: Vec<A>) -> Vec<B> {
