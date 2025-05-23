@@ -567,6 +567,7 @@ dependencies = [
  "ff_ext",
  "itertools 0.13.0",
  "mpcs",
+ "multilinear_extensions",
  "openvm",
  "openvm-circuit",
  "openvm-native-circuit",
@@ -588,6 +589,8 @@ dependencies = [
  "rand",
  "serde",
  "serde_json",
+ "sumcheck",
+ "transcript",
 ]
 
 [[package]]

@@ -619,30 +619,47 @@ pub fn verify_tower_proof<C: Config>(
 
 #[cfg(test)]
 mod tests {
+    use crate::tower_verifier::binding::IOPProverMessage;
     use crate::tower_verifier::program::iop_verifier_state_verify;
-    use crate::tower_verifier::program::IOPProverMessageVariable;
+    use ceno_mle::mle::DenseMultilinearExtension;
+    use ceno_mle::virtual_poly::ArcMultilinearExtension;
+    use ceno_mle::virtual_polys::VirtualPolynomials;
+    use ceno_sumcheck::structs::IOPProverState;
+    use ceno_transcript::BasicTranscript;
+    use ff_ext::BabyBearExt4;
+    use ff_ext::FieldFrom;
+    use itertools::Itertools;
     use openvm_native_circuit::execute_program;
     use openvm_native_compiler::asm::AsmCompiler;
     use openvm_native_compiler::asm::{AsmBuilder, AsmConfig};
+    use openvm_native_compiler::conversion::convert_program;
     use openvm_native_compiler::conversion::CompilerOptions;
-    use openvm_native_compiler::prelude::{Array, Ext, Felt};
+    use openvm_native_compiler::prelude::Felt;
     use openvm_native_recursion::challenger::duplex::DuplexChallengerVariable;
     use p3_baby_bear::BabyBear;
     use p3_field::extension::BinomialExtensionField;
     use p3_field::FieldAlgebra;
+    use rand::thread_rng;
+
+    use openvm_native_recursion::hints::Hintable;
 
     #[test]
     fn test_simple_sumcheck() {
         type F = BabyBear;
+        type E = BabyBearExt4;
         type EF = BinomialExtensionField<BabyBear, 4>;
         type C = AsmConfig<F, EF>;
 
+        let nv = 2;
+        let degree = 3;
+
         let mut builder = AsmBuilder::<F, EF>::default();
 
-        let out_claim: Ext<F, EF> = builder.uninit();
-        let prover_msgs: Array<C, IOPProverMessageVariable<C>> = builder.dyn_array(2);
-        let max_num_variables: Felt<F> = builder.constant(F::from_canonical_u32(2));
-        let max_degree: Felt<F> = builder.constant(F::from_canonical_u16(3));
+        let out_claim = EF::read(&mut builder);
+        let prover_msgs = Vec::<IOPProverMessage>::read(&mut builder);
+
+        let max_num_variables: Felt<F> = builder.constant(F::from_canonical_u32(nv as u32));
+        let max_degree: Felt<F> = builder.constant(F::from_canonical_u32(degree as u32));
 
         let mut challenger: DuplexChallengerVariable<C> =
             DuplexChallengerVariable::new(&mut builder);
@@ -658,8 +675,6 @@ mod tests {
 
         builder.halt();
 
-        // execute_program(program, vec![]);
-
         // get the assembly code
         let options = CompilerOptions::default();
         let mut compiler = AsmCompiler::new(options.word_size);
@@ -667,5 +682,50 @@ mod tests {
         let asm_code = compiler.code();
         println!("asm code");
         println!("{asm_code}");
+
+        // run sumcheck prover to get sumcheck proof
+        let mut rng = thread_rng();
+        let (mles, expected_sum) =
+            DenseMultilinearExtension::<E>::random_mle_list(nv, degree, &mut rng);
+        let mles: Vec<ArcMultilinearExtension<E>> =
+            mles.into_iter().map(|mle| mle as _).collect_vec();
+        let mut virtual_poly: VirtualPolynomials<'_, E> = VirtualPolynomials::new(1, nv);
+        virtual_poly.add_mle_list(mles.iter().collect_vec(), E::from_v(1));
+
+        let mut transcript = BasicTranscript::new(&[]);
+        let (sumcheck_proof, _) = IOPProverState::prove(virtual_poly, &mut transcript);
+        let mut input_stream = Vec::new();
+
+        // hacky way: convert E to EF but actually they are the same
+        let expected_sum: EF = cast_vec(vec![expected_sum])[0];
+        input_stream.extend(expected_sum.write());
+        input_stream.extend(
+            sumcheck_proof
+                .proofs
+                .into_iter()
+                .map(|msg| {
+                    let evaluations: Vec<EF> = cast_vec(msg.evaluations);
+                    IOPProverMessage { evaluations }
+                })
+                .collect_vec()
+                .write(),
+        );
+
+        let program = convert_program(asm_code, options);
+        execute_program(program, input_stream);
+    }
+
+    fn cast_vec<A, B>(mut vec: Vec<A>) -> Vec<B> {
+        let length = vec.len();
+        let capacity = vec.capacity();
+        let ptr = vec.as_mut_ptr();
+        // Prevent `vec` from dropping its contents
+        std::mem::forget(vec);
+
+        // Convert the pointer to the new type
+        let new_ptr = ptr as *mut B;
+
+        // Create a new vector with the same length and capacity, but different type
+        unsafe { Vec::from_raw_parts(new_ptr, length, capacity) }
     }
 }
