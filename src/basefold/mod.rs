@@ -8,6 +8,40 @@ use mpcs::{Basefold, BasefoldRSParams};
 type E = BabyBearExt4;
 type Pcs = Basefold<E, BasefoldRSParams>;
 
+
+
+// pub struct BasefoldProof<E: ExtensionField>
+// where
+//     E::BaseField: Serialize + DeserializeOwned,
+// {
+//     pub(crate) commits: Vec<Digest<E>>,
+//     pub(crate) final_message: Vec<Vec<E>>,
+//     pub(crate) query_opening_proof: QueryOpeningProofs<E>,
+//     pub(crate) sumcheck_proof: Option<Vec<IOPProverMessage<E>>>,
+//     // vec![witness, fixed], where fixed is optional
+//     pub(crate) trivial_proof: Option<TrivialProof<E>>,
+// }
+
+// pub type Digest<E> = <Poseidon2ExtMerkleMmcs<E> as Mmcs<E>>::Commitment;
+
+
+// pub struct QueryOpeningProof<E: ExtensionField> {
+//     pub witin_base_proof: BatchOpening<
+//         <E as ExtensionField>::BaseField,
+//         <<E as ExtensionField>::BaseField as PoseidonField>::MMCS,
+//     >,
+//     pub fixed_base_proof: Option<
+//         BatchOpening<
+//             <E as ExtensionField>::BaseField,
+//             <<E as ExtensionField>::BaseField as PoseidonField>::MMCS,
+//         >,
+//     >,
+//     #[allow(clippy::type_complexity)]
+//     pub commit_phase_openings: Vec<CommitPhaseProofStep<E, ExtMmcs<E>>>,
+// }
+
+
+
 pub fn basefold_batch_verify<C: Config>(
     builder: &mut Builder<C>,
     challenger: &mut DuplexChallengerVariable<C>,
