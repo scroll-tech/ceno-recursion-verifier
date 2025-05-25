@@ -395,6 +395,72 @@ pub fn parse_zkvm_proof_import(
         serde_json::from_value(serde_json::to_value(zkvm_proof.witin_commit).unwrap()).unwrap();
     let fixed_commit = verifier.vk.fixed_commit.clone();
 
+
+
+
+
+
+
+/*
+// preprocess data into respective group, in particularly, trivials vs non-trivials
+let mut circuit_metas = vec![];
+let mut circuit_trivial_metas = vec![];
+let mut evals_iter = evals.iter().cloned();
+let (trivial_point_evals, point_evals) = izip!(&circuit_num_vars, points).fold(
+    (vec![], vec![]),
+    |(mut trivial_point_evals, mut point_evals), ((circuit_index, num_var), point)| {
+        let (expected_witins_num_poly, expected_fixed_num_poly) =
+            &circuit_num_polys[*circuit_index];
+        let mut circuit_meta = CircuitIndexMeta {
+            witin_num_vars: *num_var,
+            witin_num_polys: *expected_witins_num_poly,
+            ..Default::default()
+        };
+        // NOTE: for evals, we concat witin with fixed to make process easier
+        if *num_var <= Spec::get_basecode_msg_size_log() {
+            trivial_point_evals.push((
+                point.clone(),
+                evals_iter.next().unwrap()[0..*expected_witins_num_poly].to_vec(),
+            ));
+            if *expected_fixed_num_poly > 0 {
+                circuit_meta.fixed_num_vars = *num_var;
+                circuit_meta.fixed_num_polys = *expected_fixed_num_poly;
+                trivial_point_evals.last_mut().unwrap().1.extend(
+                    evals_iter.next().unwrap()[0..*expected_fixed_num_poly].to_vec(),
+                )
+            }
+            circuit_trivial_metas.push(circuit_meta);
+        } else {
+            point_evals.push((
+                point.clone(),
+                evals_iter.next().unwrap()[0..*expected_witins_num_poly].to_vec(),
+            ));
+            if *expected_fixed_num_poly > 0 {
+                circuit_meta.fixed_num_vars = *num_var;
+                circuit_meta.fixed_num_polys = *expected_fixed_num_poly;
+                point_evals.last_mut().unwrap().1.extend(
+                    evals_iter.next().unwrap()[0..*expected_fixed_num_poly].to_vec(),
+                );
+            }
+            circuit_metas.push(circuit_meta);
+        }
+
+        (trivial_point_evals, point_evals)
+    },
+);
+*/
+
+
+
+
+
+
+
+
+
+
+
+
     (
         ZKVMProofInput {
             raw_pi,

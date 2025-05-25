@@ -15,7 +15,7 @@ use openvm_native_compiler_derive::iter_zip;
 use openvm_native_recursion::hints::{Hintable, VecAutoHintable};
 use openvm_stark_sdk::p3_baby_bear::BabyBear;
 use p3_field::{extension::BinomialExtensionField, FieldAlgebra};
-use mpcs::basefold::structure::Basefold;
+use crate::basefold::binding::{BasefoldProofInput};
 
 pub type F = BabyBear;
 pub type E = BinomialExtensionField<F, 4>;
@@ -108,25 +108,6 @@ pub(crate) struct ZKVMProofInput {
     pub fixed_commit: Option<BasefoldCommitment<BabyBearExt4>>,
     pub num_instances: Vec<(usize, usize)>,
     pub fixed_witin_opening_proof: BasefoldProofInput,
-}
-
-pub(crate) struct BasefoldProofInput {
-    // pub commits: Vec<>,
-    pub final_message: Vec<Vec<E>>,
-    pub query_opening_proof: Vec<QueryOpeningProofInput>,
-    pub has_sumcheck_proof: bool,
-    pub sumcheck_proof: Vec<IOPProverMessage>,
-    pub has_trivial_proof: bool,
-    pub trivial_proof: TrivialProofInput,
-}
-
-pub(crate) struct QueryOpeningProofInput {
-
-}
-
-pub(crate) struct TrivialProofInput {
-    values: Vec<Vec<F>>,
-    width: usize,
 }
 
 impl Hintable<InnerConfig> for ZKVMProofInput {

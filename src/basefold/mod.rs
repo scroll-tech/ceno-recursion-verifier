@@ -1,3 +1,4 @@
+pub mod binding;
 use crate::tower_verifier::binding::PointVariable;
 use openvm_native_compiler::prelude::*;
 use openvm_native_recursion::challenger::duplex::DuplexChallengerVariable;
