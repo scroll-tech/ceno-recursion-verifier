@@ -91,6 +91,7 @@ pub struct BasefoldProofVariable<C: Config> {
 
 
 // Trivial Proof
+#[derive(Default)]
 pub struct TrivialProofInput {
     pub rows: usize,
     pub matrices: Vec<Vec<DenseMatrixInput>>,
@@ -320,6 +321,7 @@ pub struct BatchOpeningVariable<C: Config> {
 // Circuit Metas
 #[derive(DslVariable, Clone)]
 pub struct CircuitIndexMetaVariable<C: Config> {
+    pub order_idx: Usize<C::N>,
     pub witin_num_vars: Usize<C::N>,
     pub witin_num_polys: Usize<C::N>,
     pub fixed_num_vars: Usize<C::N>,
@@ -328,6 +330,7 @@ pub struct CircuitIndexMetaVariable<C: Config> {
 
 #[derive(Deserialize)]
 pub struct CircuitIndexMeta {
+    pub order_idx: usize,
     pub witin_num_vars: usize,
     pub witin_num_polys: usize,
     pub fixed_num_vars: usize,
@@ -338,12 +341,14 @@ impl Hintable<InnerConfig> for CircuitIndexMeta {
     type HintVariable = CircuitIndexMetaVariable<InnerConfig>;
 
     fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
+        let order_idx = Usize::Var(usize::read(builder));
         let witin_num_vars = Usize::Var(usize::read(builder));
         let witin_num_polys = Usize::Var(usize::read(builder));
         let fixed_num_vars = Usize::Var(usize::read(builder));
         let fixed_num_polys = Usize::Var(usize::read(builder));
 
         CircuitIndexMetaVariable {
+            order_idx,
             witin_num_vars,
             witin_num_polys,
             fixed_num_vars,
@@ -353,6 +358,9 @@ impl Hintable<InnerConfig> for CircuitIndexMeta {
 
     fn write(&self) -> Vec<Vec<<InnerConfig as Config>::N>> {
         let mut stream = Vec::new();
+        stream.extend(<usize as Hintable<InnerConfig>>::write(
+            &self.order_idx,
+        ));
         stream.extend(<usize as Hintable<InnerConfig>>::write(
             &self.witin_num_vars,
         ));

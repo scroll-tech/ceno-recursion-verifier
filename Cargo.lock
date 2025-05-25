@@ -41,14 +41,14 @@ dependencies = [
 
 [[package]]
 name = "ahash"
-version = "0.8.11"
+version = "0.8.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e89da841a80418a9b391ebaea17f5c112ffaaa96f621d2c285b5174da76b9011"
+checksum = "5a15f179cd60c4584b8a8c596927aadc462e27f2ca70c04e0071964a73ba7a75"
 dependencies = [
  "cfg-if",
  "once_cell",
  "version_check",
- "zerocopy 0.7.35",
+ "zerocopy",
 ]
 
 [[package]]
@@ -122,12 +122,12 @@ dependencies = [
 
 [[package]]
 name = "anstyle-wincon"
-version = "3.0.7"
+version = "3.0.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ca3534e77181a9cc07539ad51f2141fe32f6c3ffd4df76db8ad92346b003ae4e"
+checksum = "6680de5231bd6ee4c6191b8a1325daa282b415391ec9d3a37bd34f2060dc73fa"
 dependencies = [
  "anstyle",
- "once_cell",
+ "once_cell_polyfill",
  "windows-sys",
 ]
 
@@ -334,9 +334,9 @@ checksum = "ace50bade8e6234aa140d9a2f552bbee1db4d353f69b8217bc503490fc1a9f26"
 
 [[package]]
 name = "backtrace"
-version = "0.3.74"
+version = "0.3.75"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8d82cb332cdfaed17ae235a638438ac4d4839913cc2af585c3c6746e8f8bee1a"
+checksum = "6806a6321ec58106fea15becdad98371e28d92ccbc7c8f1b3b6dd724fe8f1002"
 dependencies = [
  "addr2line",
  "cfg-if",
@@ -411,9 +411,9 @@ dependencies = [
 
 [[package]]
 name = "bitflags"
-version = "2.9.0"
+version = "2.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5c8214115b7bf84099f1309324e63141d4c5d7cc26862f97a0a857dbefe165bd"
+checksum = "1b8e56985ec62d17e9c1001dc89c88ecd7dc08e47eba5ec7c29c7b5eeecde967"
 
 [[package]]
 name = "bitvec"
@@ -537,9 +537,9 @@ checksum = "37b2a672a2cb129a2e41c10b1224bb368f9f37a2b16b612598138befd7b37eb5"
 
 [[package]]
 name = "cc"
-version = "1.2.21"
+version = "1.2.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8691782945451c1c383942c4874dbe63814f61cb57ef773cda2972682b7bb3c0"
+checksum = "16595d3be041c03b09d08d0858631facccee9221e579704070e6e9e4915d3bc7"
 dependencies = [
  "shlex",
 ]
@@ -547,7 +547,7 @@ dependencies = [
 [[package]]
 name = "ceno-examples"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=feat%2Fexport_ff_ext#1e677ecf64d5d54f3d93b5ee167ce7811b2dbf36"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=feat%2Fexport_ff_ext#ea8fd863f96f6bbc6bb0e7f4cc8de5b127a37e56"
 dependencies = [
  "glob",
 ]
@@ -591,7 +591,7 @@ dependencies = [
 [[package]]
 name = "ceno_emul"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=feat%2Fexport_ff_ext#1e677ecf64d5d54f3d93b5ee167ce7811b2dbf36"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=feat%2Fexport_ff_ext#ea8fd863f96f6bbc6bb0e7f4cc8de5b127a37e56"
 dependencies = [
  "anyhow",
  "ceno_rt",
@@ -612,7 +612,7 @@ dependencies = [
 [[package]]
 name = "ceno_host"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=feat%2Fexport_ff_ext#1e677ecf64d5d54f3d93b5ee167ce7811b2dbf36"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=feat%2Fexport_ff_ext#ea8fd863f96f6bbc6bb0e7f4cc8de5b127a37e56"
 dependencies = [
  "anyhow",
  "ceno_emul",
@@ -625,7 +625,7 @@ dependencies = [
 [[package]]
 name = "ceno_rt"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=feat%2Fexport_ff_ext#1e677ecf64d5d54f3d93b5ee167ce7811b2dbf36"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=feat%2Fexport_ff_ext#ea8fd863f96f6bbc6bb0e7f4cc8de5b127a37e56"
 dependencies = [
  "getrandom 0.2.16",
  "rkyv",
@@ -634,7 +634,7 @@ dependencies = [
 [[package]]
 name = "ceno_zkvm"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=feat%2Fexport_ff_ext#1e677ecf64d5d54f3d93b5ee167ce7811b2dbf36"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=feat%2Fexport_ff_ext#ea8fd863f96f6bbc6bb0e7f4cc8de5b127a37e56"
 dependencies = [
  "base64",
  "bincode",
@@ -718,9 +718,9 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "4.5.37"
+version = "4.5.38"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eccb054f56cbd38340b380d4a8e69ef1f02f1af43db2f0cc817a4774d80ae071"
+checksum = "ed93b9805f8ba930df42c2590f05453d5ec36cbb85d018868a5b24d31f6ac000"
 dependencies = [
  "clap_builder",
  "clap_derive",
@@ -728,9 +728,9 @@ dependencies = [
 
 [[package]]
 name = "clap_builder"
-version = "4.5.37"
+version = "4.5.38"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "efd9466fac8543255d3b1fcad4762c5e116ffe808c8a3043d4263cd4fd4862a2"
+checksum = "379026ff283facf611b0ea629334361c4211d1b12ee01024eec1591133b04120"
 dependencies = [
  "anstream",
  "anstyle",
@@ -1080,9 +1080,9 @@ checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
 
 [[package]]
 name = "errno"
-version = "0.3.11"
+version = "0.3.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "976dd42dc7e85965fe702eb8164f21f450704bdde31faefd6471dba214cb594e"
+checksum = "cea14ef9355e3beab063703aa9dab15afd25f0667c341310c1e5274bb1d0da18"
 dependencies = [
  "libc",
  "windows-sys",
@@ -1146,7 +1146,7 @@ dependencies = [
 [[package]]
 name = "ff_ext"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=feat%2Fexport_ff_ext#1e677ecf64d5d54f3d93b5ee167ce7811b2dbf36"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=feat%2Fexport_ff_ext#ea8fd863f96f6bbc6bb0e7f4cc8de5b127a37e56"
 dependencies = [
  "p3",
  "rand_core",
@@ -1210,9 +1210,9 @@ dependencies = [
 
 [[package]]
 name = "getrandom"
-version = "0.3.2"
+version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "73fea8450eea4bac3940448fb7ae50d91f034f941199fcd9d909a5a07aa455f0"
+checksum = "26145e563e54f2cadc477553f1ec5ee650b00862f0a58bcd12cbdc5f0ea2d2f4"
 dependencies = [
  "cfg-if",
  "libc",
@@ -1414,9 +1414,9 @@ checksum = "d231dfb89cfffdbc30e7fc41579ed6066ad03abda9e567ccafae602b97ec5024"
 
 [[package]]
 name = "hermit-abi"
-version = "0.5.0"
+version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fbd780fe5cc30f81464441920d82ac8740e2e46b29a6fad543ddd075229ce37e"
+checksum = "f154ce46856750ed433c8649605bf7ed2de3bc35fd9d2a9f30cddd873c80cb08"
 
 [[package]]
 name = "hex"
@@ -1467,7 +1467,7 @@ version = "0.4.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e04d7f318608d35d4b61ddd75cbdaee86b023ebe2bd5a66ee0915f0bf93095a9"
 dependencies = [
- "hermit-abi 0.5.0",
+ "hermit-abi 0.5.1",
  "libc",
  "windows-sys",
 ]
@@ -1570,9 +1570,9 @@ checksum = "d750af042f7ef4f724306de029d18836c26c1765a54a6a3f094cbd23a7267ffa"
 
 [[package]]
 name = "libm"
-version = "0.2.13"
+version = "0.2.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c9627da5196e5d8ed0b0495e61e518847578da83483c37288316d9b2e03a7f72"
+checksum = "f9fbbcab51052fe104eb5e5d351cf728d30a5be1fe14d9be8a3b097481fb97de"
 
 [[package]]
 name = "libredox"
@@ -1681,7 +1681,7 @@ dependencies = [
 [[package]]
 name = "mpcs"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=feat%2Fexport_ff_ext#1e677ecf64d5d54f3d93b5ee167ce7811b2dbf36"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=feat%2Fexport_ff_ext#ea8fd863f96f6bbc6bb0e7f4cc8de5b127a37e56"
 dependencies = [
  "aes",
  "bincode",
@@ -1711,7 +1711,7 @@ dependencies = [
 [[package]]
 name = "multilinear_extensions"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=feat%2Fexport_ff_ext#1e677ecf64d5d54f3d93b5ee167ce7811b2dbf36"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=feat%2Fexport_ff_ext#ea8fd863f96f6bbc6bb0e7f4cc8de5b127a37e56"
 dependencies = [
  "ff_ext",
  "itertools 0.13.0",
@@ -1898,6 +1898,12 @@ name = "once_cell"
 version = "1.21.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "42f5e15c9953c5e4ccceeb2e7382a716482c34515315f7b03532b8b4e8393d2d"
+
+[[package]]
+name = "once_cell_polyfill"
+version = "1.70.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a4895175b425cb1f87721b59f0f286c2092bd4af812243672510e1ac53e2e0ad"
 
 [[package]]
 name = "oorandom"
@@ -2270,7 +2276,7 @@ checksum = "b15813163c1d831bf4a13c3610c05c0d03b39feb07f7e09fa234dac9b15aaf39"
 [[package]]
 name = "p3"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=feat%2Fexport_ff_ext#1e677ecf64d5d54f3d93b5ee167ce7811b2dbf36"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=feat%2Fexport_ff_ext#ea8fd863f96f6bbc6bb0e7f4cc8de5b127a37e56"
 dependencies = [
  "p3-baby-bear 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=20c3cb9)",
  "p3-challenger 0.1.0 (git+https://github.com/scroll-tech/plonky3?rev=20c3cb9)",
@@ -3061,7 +3067,7 @@ checksum = "350e9b48cbc6b0e028b0473b114454c6316e57336ee184ceab6e53f72c178b3e"
 [[package]]
 name = "poseidon"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=feat%2Fexport_ff_ext#1e677ecf64d5d54f3d93b5ee167ce7811b2dbf36"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=feat%2Fexport_ff_ext#ea8fd863f96f6bbc6bb0e7f4cc8de5b127a37e56"
 dependencies = [
  "criterion",
  "ff_ext",
@@ -3076,7 +3082,7 @@ version = "0.2.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "85eae3c4ed2f50dcfe72643da4befc30deadb458a9b590d720cde2f2b1e97da9"
 dependencies = [
- "zerocopy 0.8.25",
+ "zerocopy",
 ]
 
 [[package]]
@@ -3426,9 +3432,9 @@ dependencies = [
 
 [[package]]
 name = "rustversion"
-version = "1.0.20"
+version = "1.0.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eded382c5f5f786b989652c49544c4877d9f015cc22e145a5ea8ea66c2921cd2"
+checksum = "8a0d197bd2c9dc6e53b84da9556a69ba4cdfab8619eb41a8bd1cc2027a0f6b1d"
 
 [[package]]
 name = "ryu"
@@ -3664,7 +3670,7 @@ checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 [[package]]
 name = "sumcheck"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=feat%2Fexport_ff_ext#1e677ecf64d5d54f3d93b5ee167ce7811b2dbf36"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=feat%2Fexport_ff_ext#ea8fd863f96f6bbc6bb0e7f4cc8de5b127a37e56"
 dependencies = [
  "crossbeam-channel",
  "ff_ext",
@@ -3681,7 +3687,7 @@ dependencies = [
 [[package]]
 name = "sumcheck_macro"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=feat%2Fexport_ff_ext#1e677ecf64d5d54f3d93b5ee167ce7811b2dbf36"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=feat%2Fexport_ff_ext#ea8fd863f96f6bbc6bb0e7f4cc8de5b127a37e56"
 dependencies = [
  "itertools 0.13.0",
  "p3",
@@ -3721,12 +3727,12 @@ checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
 
 [[package]]
 name = "tempfile"
-version = "3.19.1"
+version = "3.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7437ac7763b9b123ccf33c338a5cc1bac6f69b45a136c19bdd8a65e3916435bf"
+checksum = "e8a64e3985349f2441a1a9ef0b853f869006c3855f2cda6862a94d26ebb9d6a1"
 dependencies = [
  "fastrand",
- "getrandom 0.3.2",
+ "getrandom 0.3.3",
  "once_cell",
  "rustix",
  "windows-sys",
@@ -3870,7 +3876,7 @@ dependencies = [
  "serde_spanned",
  "toml_datetime",
  "toml_write",
- "winnow 0.7.9",
+ "winnow 0.7.10",
 ]
 
 [[package]]
@@ -3956,7 +3962,7 @@ dependencies = [
 [[package]]
 name = "transcript"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=feat%2Fexport_ff_ext#1e677ecf64d5d54f3d93b5ee167ce7811b2dbf36"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=feat%2Fexport_ff_ext#ea8fd863f96f6bbc6bb0e7f4cc8de5b127a37e56"
 dependencies = [
  "crossbeam-channel",
  "ff_ext",
@@ -4018,9 +4024,13 @@ checksum = "06abde3611657adf66d383f00b093d7faecc7fa57071cce2578660c9f1010821"
 
 [[package]]
 name = "uuid"
-version = "1.16.0"
+version = "1.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "458f7a779bf54acc9f347480ac654f68407d3aab21269a6e3c9f922acd9e2da9"
+checksum = "3cf4199d1e5d15ddd86a694e4d0dffa9c323ce759fea589f00fef9d81cc1931d"
+dependencies = [
+ "js-sys",
+ "wasm-bindgen",
+]
 
 [[package]]
 name = "valuable"
@@ -4130,7 +4140,7 @@ dependencies = [
 [[package]]
 name = "whir"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=feat%2Fexport_ff_ext#1e677ecf64d5d54f3d93b5ee167ce7811b2dbf36"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=feat%2Fexport_ff_ext#ea8fd863f96f6bbc6bb0e7f4cc8de5b127a37e56"
 dependencies = [
  "bincode",
  "blake2",
@@ -4276,9 +4286,9 @@ dependencies = [
 
 [[package]]
 name = "winnow"
-version = "0.7.9"
+version = "0.7.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d9fb597c990f03753e08d3c29efbfcf2019a003b4bf4ba19225c158e1549f0f3"
+checksum = "c06928c8748d81b05c9be96aad92e1b6ff01833332f281e8cfca3be4b35fc9ec"
 dependencies = [
  "memchr",
 ]
@@ -4295,7 +4305,7 @@ dependencies = [
 [[package]]
 name = "witness"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=feat%2Fexport_ff_ext#1e677ecf64d5d54f3d93b5ee167ce7811b2dbf36"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=feat%2Fexport_ff_ext#ea8fd863f96f6bbc6bb0e7f4cc8de5b127a37e56"
 dependencies = [
  "ff_ext",
  "multilinear_extensions",
@@ -4316,31 +4326,11 @@ dependencies = [
 
 [[package]]
 name = "zerocopy"
-version = "0.7.35"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1b9b4fd18abc82b8136838da5d50bae7bdea537c574d8dc1a34ed098d6c166f0"
-dependencies = [
- "zerocopy-derive 0.7.35",
-]
-
-[[package]]
-name = "zerocopy"
 version = "0.8.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a1702d9583232ddb9174e01bb7c15a2ab8fb1bc6f227aa1233858c351a3ba0cb"
 dependencies = [
- "zerocopy-derive 0.8.25",
-]
-
-[[package]]
-name = "zerocopy-derive"
-version = "0.7.35"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fa4f8080344d4671fb4e831a13ad1e68092748387dfc4f55e356242fae12ce3e"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.101",
+ "zerocopy-derive",
 ]
 
 [[package]]

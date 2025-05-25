@@ -10,14 +10,18 @@ use mpcs::BasefoldCommitment;
 use mpcs::{Basefold, BasefoldRSParams};
 use openvm_circuit::arch::{instructions::program::Program, SystemConfig, VmExecutor};
 use openvm_native_circuit::{Native, NativeConfig};
+use openvm_native_compiler::ir::DIGEST_SIZE;
 use openvm_native_compiler::{asm::AsmBuilder, conversion::CompilerOptions};
 use openvm_native_recursion::hints::Hintable;
 use openvm_stark_backend::config::StarkGenericConfig;
 use openvm_stark_sdk::{
     config::baby_bear_poseidon2::BabyBearPoseidon2Config, p3_baby_bear::BabyBear,
 };
+use p3_matrix::dense::DenseMatrix;
 use std::collections::HashMap;
 use std::fs::File;
+use crate::basefold::binding::{BasefoldProofInput, BatchOpening, CommitPhaseProofStep, DenseMatrixInput, Hash, QueryOpeningProof, TrivialProofInput, CircuitIndexMeta};
+const BASECODE_MSG_SIZE_LOG: usize = 7;
 
 type SC = BabyBearPoseidon2Config;
 type EF = <SC as StarkGenericConfig>::Challenge;
@@ -396,70 +400,201 @@ pub fn parse_zkvm_proof_import(
     let fixed_commit = verifier.vk.fixed_commit.clone();
 
 
+    let commits = zkvm_proof.fixed_witin_opening_proof.commits.iter().map(|c| {
+        serde_json::from_value(serde_json::to_value(c).unwrap()).unwrap()
+    }).collect::<Vec<Hash>>();
 
+    let final_message = zkvm_proof.fixed_witin_opening_proof.final_message.iter().map(|m| {
+        m.iter().map(|e| {
+            let v_e: E =
+                serde_json::from_value(serde_json::to_value(e.clone()).unwrap()).unwrap();
+            v_e            
+        }).collect::<Vec<E>>()
+    }).collect::<Vec<Vec<E>>>();
 
+     let query_opening_proofs: Vec<QueryOpeningProof> = zkvm_proof.fixed_witin_opening_proof.query_opening_proof.iter().map(|q| {
+        // pub struct QueryOpeningProof<E: ExtensionField> {
+        //     pub witin_base_proof: BatchOpening<
+        //         <E as ExtensionField>::BaseField,
+        //         <<E as ExtensionField>::BaseField as PoseidonField>::MMCS,
+        //     >,
+        //     pub fixed_base_proof: Option<
+        //         BatchOpening<
+        //             <E as ExtensionField>::BaseField,
+        //             <<E as ExtensionField>::BaseField as PoseidonField>::MMCS,
+        //         >,
+        //     >,
+        //     #[allow(clippy::type_complexity)]
+        //     pub commit_phase_openings: Vec<CommitPhaseProofStep<E, ExtMmcs<E>>>,
+        // }
 
+        // pub struct BatchOpening<Val: Field, InputMmcs: Mmcs<Val>> {
+        //     pub opened_values: Vec<Vec<Val>>,
+        //     pub opening_proof: <InputMmcs as Mmcs<Val>>::Proof,
+        // }
+        // pub struct CommitPhaseProofStep<F: Field, M: Mmcs<F>> {
+        //     /// The opening of the commit phase codeword at the sibling location.
+        //     // This may change to Vec<FC::Challenge> if the library is generalized to support other FRI
+        //     // folding arities besides 2, meaning that there can be multiple siblings.
+        //     pub sibling_value: F,
+        
+        //     pub opening_proof: M::Proof,
+        // }
 
-
-/*
-// preprocess data into respective group, in particularly, trivials vs non-trivials
-let mut circuit_metas = vec![];
-let mut circuit_trivial_metas = vec![];
-let mut evals_iter = evals.iter().cloned();
-let (trivial_point_evals, point_evals) = izip!(&circuit_num_vars, points).fold(
-    (vec![], vec![]),
-    |(mut trivial_point_evals, mut point_evals), ((circuit_index, num_var), point)| {
-        let (expected_witins_num_poly, expected_fixed_num_poly) =
-            &circuit_num_polys[*circuit_index];
-        let mut circuit_meta = CircuitIndexMeta {
-            witin_num_vars: *num_var,
-            witin_num_polys: *expected_witins_num_poly,
-            ..Default::default()
+        let witin_base_proof = BatchOpening {
+            opened_values: q.witin_base_proof.opened_values.iter().map(|row| {
+                row.iter().map(|f| {
+                    let f_v: F =
+                        serde_json::from_value(serde_json::to_value(f.clone()).unwrap()).unwrap();
+                    f_v
+                })
+                .collect::<Vec<F>>()
+            }).collect::<Vec<Vec<F>>>(),
+            opening_proof: q.witin_base_proof.opening_proof.iter().map(|p| {
+                let mut p_f: [F; DIGEST_SIZE] = [F::default(); DIGEST_SIZE];
+                for (idx, f) in p.iter().enumerate() {
+                    let f_v: F = serde_json::from_value(serde_json::to_value(f.clone()).unwrap()).unwrap();
+                    p_f[idx] = f_v;
+                }
+                p_f
+            }).collect::<Vec<[F; DIGEST_SIZE]>>()
         };
+
+        let fixed_base_proof = if q.fixed_base_proof.is_some() {
+            Some(BatchOpening {
+                opened_values: q.fixed_base_proof.as_ref().unwrap().opened_values.iter().map(|row| {
+                    row.iter().map(|f| {
+                        let f_v: F =
+                            serde_json::from_value(serde_json::to_value(f.clone()).unwrap()).unwrap();
+                        f_v
+                    })
+                    .collect::<Vec<F>>()
+                }).collect::<Vec<Vec<F>>>(),
+                opening_proof: q.fixed_base_proof.as_ref().unwrap().opening_proof.iter().map(|p| {
+                    let mut p_f: [F; DIGEST_SIZE] = [F::default(); DIGEST_SIZE];
+                    for (idx, f) in p.iter().enumerate() {
+                        let f_v: F = serde_json::from_value(serde_json::to_value(f.clone()).unwrap()).unwrap();
+                        p_f[idx] = f_v;
+                    }
+                    p_f
+                }).collect::<Vec<[F; DIGEST_SIZE]>>()
+            })
+        } else {
+            None
+        };
+
+        let commit_phase_openings = q.commit_phase_openings.iter().map(|cpo| {
+            let f_e: E = serde_json::from_value(serde_json::to_value(cpo.sibling_value.clone()).unwrap()).unwrap();
+
+            let opening_proof = cpo.opening_proof.iter().map(|p| {
+                let mut p_f: [F; DIGEST_SIZE] = [F::default(); DIGEST_SIZE];
+                for (idx, f) in p.iter().enumerate() {
+                    let f_v: F = serde_json::from_value(serde_json::to_value(f.clone()).unwrap()).unwrap();
+                    p_f[idx] = f_v;
+                }
+                p_f
+            })
+            .collect::<Vec<[F; DIGEST_SIZE]>>();
+            
+            CommitPhaseProofStep {
+                sibling_value: f_e,
+                opening_proof,
+            }
+        })
+        .collect::<Vec<CommitPhaseProofStep>>();
+
+        QueryOpeningProof { 
+            witin_base_proof, 
+            fixed_base_proof, 
+            commit_phase_openings, 
+        }
+    })
+    .collect::<Vec<QueryOpeningProof>>();
+
+    let sumcheck_proof_is_some = zkvm_proof.fixed_witin_opening_proof.sumcheck_proof.is_some();
+    let sumcheck_proof: Vec<IOPProverMessage> = if sumcheck_proof_is_some {
+        zkvm_proof.fixed_witin_opening_proof.sumcheck_proof.unwrap().iter().map(|p| {
+            let evaluations = p.evaluations.iter().map(|e| {
+                let v_e: E = serde_json::from_value(serde_json::to_value(e.clone()).unwrap()).unwrap();
+                v_e
+            }).collect::<Vec<E>>();
+            IOPProverMessage { evaluations }
+        }).collect::<Vec<IOPProverMessage>>()
+    } else {
+        vec![]
+    };
+
+    let trivial_proof_is_some = zkvm_proof.fixed_witin_opening_proof.trivial_proof.is_some();
+    let trivial_proof = if trivial_proof_is_some {
+        let matrices = zkvm_proof.fixed_witin_opening_proof.trivial_proof.unwrap().iter().map(|row| {
+            row.iter().map(|mtx| {
+                let values: Vec<Vec<F>> = mtx.values.chunks(mtx.width).map(|chunk| {
+                    let mut v: Vec<F> = Vec::with_capacity(chunk.len());
+
+                    chunk.iter().for_each(|f| {
+                        let v_f: F = serde_json::from_value(serde_json::to_value(f.clone()).unwrap()).unwrap();
+                        v.push(v_f);
+                    });
+
+                    v
+                }).collect::<Vec<Vec<F>>>();
+
+                DenseMatrixInput { values }
+            })
+            .collect::<Vec<DenseMatrixInput>>()
+        })
+        .collect::<Vec<Vec<DenseMatrixInput>>>();
+
+        TrivialProofInput {
+            rows: matrices.len(),
+            matrices,
+        }
+    } else {
+        TrivialProofInput::default()
+    };
+
+    // preprocess data into respective group, in particularly, trivials vs non-trivials
+    let mut circuit_metas = vec![];
+    let mut circuit_trivial_metas = vec![];
+
+    for (idx, &(circuit_index, num_var)) in zkvm_proof.num_instances.iter().enumerate() {
+        let (expected_witins_num_poly, expected_fixed_num_poly) =
+            &verifier.vk.circuit_num_polys[circuit_index];
+        let mut circuit_meta = CircuitIndexMeta {
+            order_idx: idx,
+            witin_num_vars: num_var,
+            witin_num_polys: *expected_witins_num_poly,
+            fixed_num_vars: 0,
+            fixed_num_polys: 0,
+        };
+
         // NOTE: for evals, we concat witin with fixed to make process easier
-        if *num_var <= Spec::get_basecode_msg_size_log() {
-            trivial_point_evals.push((
-                point.clone(),
-                evals_iter.next().unwrap()[0..*expected_witins_num_poly].to_vec(),
-            ));
+        if num_var <= BASECODE_MSG_SIZE_LOG {
             if *expected_fixed_num_poly > 0 {
-                circuit_meta.fixed_num_vars = *num_var;
+                circuit_meta.fixed_num_vars = num_var;
                 circuit_meta.fixed_num_polys = *expected_fixed_num_poly;
-                trivial_point_evals.last_mut().unwrap().1.extend(
-                    evals_iter.next().unwrap()[0..*expected_fixed_num_poly].to_vec(),
-                )
             }
             circuit_trivial_metas.push(circuit_meta);
         } else {
-            point_evals.push((
-                point.clone(),
-                evals_iter.next().unwrap()[0..*expected_witins_num_poly].to_vec(),
-            ));
             if *expected_fixed_num_poly > 0 {
-                circuit_meta.fixed_num_vars = *num_var;
+                circuit_meta.fixed_num_vars = num_var;
                 circuit_meta.fixed_num_polys = *expected_fixed_num_poly;
-                point_evals.last_mut().unwrap().1.extend(
-                    evals_iter.next().unwrap()[0..*expected_fixed_num_poly].to_vec(),
-                );
             }
             circuit_metas.push(circuit_meta);
         }
+    }
 
-        (trivial_point_evals, point_evals)
-    },
-);
-*/
-
-
-
-
-
-
-
-
-
-
-
+    let fixed_witin_opening_proof = BasefoldProofInput {
+        commits,
+        final_message,
+        query_opening_proofs,
+        sumcheck_proof_is_some,
+        sumcheck_proof,
+        trivial_proof_is_some,
+        trivial_proof,
+        circuit_metas,
+        circuit_trivial_metas,
+    };
 
     (
         ZKVMProofInput {
@@ -470,6 +605,7 @@ let (trivial_point_evals, point_evals) = izip!(&circuit_num_vars, points).fold(
             witin_commit,
             fixed_commit,
             num_instances: zkvm_proof.num_instances.clone(),
+            fixed_witin_opening_proof,
         },
         proving_sequence,
     )
