@@ -413,34 +413,6 @@ pub fn parse_zkvm_proof_import(
     }).collect::<Vec<Vec<E>>>();
 
      let query_opening_proofs: Vec<QueryOpeningProof> = zkvm_proof.fixed_witin_opening_proof.query_opening_proof.iter().map(|q| {
-        // pub struct QueryOpeningProof<E: ExtensionField> {
-        //     pub witin_base_proof: BatchOpening<
-        //         <E as ExtensionField>::BaseField,
-        //         <<E as ExtensionField>::BaseField as PoseidonField>::MMCS,
-        //     >,
-        //     pub fixed_base_proof: Option<
-        //         BatchOpening<
-        //             <E as ExtensionField>::BaseField,
-        //             <<E as ExtensionField>::BaseField as PoseidonField>::MMCS,
-        //         >,
-        //     >,
-        //     #[allow(clippy::type_complexity)]
-        //     pub commit_phase_openings: Vec<CommitPhaseProofStep<E, ExtMmcs<E>>>,
-        // }
-
-        // pub struct BatchOpening<Val: Field, InputMmcs: Mmcs<Val>> {
-        //     pub opened_values: Vec<Vec<Val>>,
-        //     pub opening_proof: <InputMmcs as Mmcs<Val>>::Proof,
-        // }
-        // pub struct CommitPhaseProofStep<F: Field, M: Mmcs<F>> {
-        //     /// The opening of the commit phase codeword at the sibling location.
-        //     // This may change to Vec<FC::Challenge> if the library is generalized to support other FRI
-        //     // folding arities besides 2, meaning that there can be multiple siblings.
-        //     pub sibling_value: F,
-        
-        //     pub opening_proof: M::Proof,
-        // }
-
         let witin_base_proof = BatchOpening {
             opened_values: q.witin_base_proof.opened_values.iter().map(|row| {
                 row.iter().map(|f| {
@@ -673,6 +645,7 @@ pub fn test_zkvm_proof_verifier_from_bincode_exports() {
     ).unwrap();
 
     for (i, seg) in res.iter().enumerate() {
-        println!("=> segment {:?} metrics: {:?}", i, seg.metrics);
+        // _debug
+        // println!("=> segment {:?} metrics: {:?}", i, seg.metrics);
     }
 }

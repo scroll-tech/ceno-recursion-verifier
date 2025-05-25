@@ -15,7 +15,7 @@ use openvm_native_compiler_derive::iter_zip;
 use openvm_native_recursion::hints::{Hintable, VecAutoHintable};
 use openvm_stark_sdk::p3_baby_bear::BabyBear;
 use p3_field::{extension::BinomialExtensionField, FieldAlgebra};
-use crate::basefold::binding::{BasefoldProofInput};
+use crate::basefold::binding::{BasefoldProofInput, BasefoldProofVariable};
 
 pub type F = BabyBear;
 pub type E = BinomialExtensionField<F, 4>;
@@ -38,6 +38,7 @@ pub struct ZKVMProofInputVariable<C: Config> {
     pub fixed_commit_trivial_commits: Array<C, Array<C, Felt<C::F>>>,
     pub fixed_commit_log2_max_codeword_size: Felt<C::F>,
     pub num_instances: Array<C, Array<C, Felt<C::F>>>,
+    pub fixed_witin_opening_proof: BasefoldProofVariable<C>,
 }
 
 #[derive(DslVariable, Clone)]
@@ -130,6 +131,7 @@ impl Hintable<InnerConfig> for ZKVMProofInput {
         let fixed_commit_log2_max_codeword_size = F::read(builder);
 
         let num_instances = Vec::<Vec<F>>::read(builder);
+        let fixed_witin_opening_proof = BasefoldProofInput::read(builder);
 
         ZKVMProofInputVariable {
             raw_pi,
@@ -145,6 +147,7 @@ impl Hintable<InnerConfig> for ZKVMProofInput {
             fixed_commit_trivial_commits,
             fixed_commit_log2_max_codeword_size,
             num_instances,
+            fixed_witin_opening_proof,
         }
     }
 
@@ -228,6 +231,7 @@ impl Hintable<InnerConfig> for ZKVMProofInput {
             ]);
         }
         stream.extend(num_instances_vec.write());
+        stream.extend(self.fixed_witin_opening_proof.write());
 
         stream
     }

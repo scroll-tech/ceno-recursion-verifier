@@ -114,7 +114,7 @@ impl Hintable<InnerConfig> for TrivialProofInput {
         let mut stream = Vec::new();
 
         stream.extend(<usize as Hintable<InnerConfig>>::write(&self.rows));
-        &self.matrices.iter().for_each(|m| {
+        self.matrices.iter().for_each(|m| {
             stream.extend(m.write());
         });
 
@@ -166,7 +166,7 @@ impl Hintable<InnerConfig> for Hash {
     type HintVariable = HashVariable<InnerConfig>;
 
     fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
-        let value = builder.uninit_fixed_array(DIGEST_ELEMS);
+        let value = builder.dyn_array(DIGEST_ELEMS);
         for i in 0..DIGEST_ELEMS {
             let tmp = F::read(builder);
             builder.set(&value, i, tmp);
