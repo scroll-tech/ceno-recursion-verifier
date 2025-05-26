@@ -103,19 +103,16 @@ pub fn iop_verifier_state_verify<C: Config>(
     challenger.observe(builder, max_num_variables);
     challenger.observe(builder, max_degree);
 
-    let one: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
-    let round: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
-    let polynomials_received: Array<C, Array<C, Ext<C::F, C::EF>>> =
-        builder.dyn_array(max_num_variables_usize.clone());
+    let round: Var<C::N> = Var::eval(builder, C::N::ONE);
     let challenges: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(max_num_variables_usize.clone());
 
     builder
         .range(0, max_num_variables_usize.clone())
         .for_each(|i_vec, builder| {
+            builder.cycle_tracker_start("IOPVerifierState::verify_round_and_update_state");
             let i = i_vec[0];
             let prover_msg = builder.get(&prover_messages, i);
 
-            builder.cycle_tracker_start("IOPVerifierState::verify_round_and_update_state");
             iter_zip!(builder, prover_msg.evaluations).for_each(|ptr_vec, builder| {
                 let e = builder.iter_ptr_get(&prover_msg.evaluations, ptr_vec[0]);
                 let e_felts = builder.ext2felt(e);
@@ -126,44 +123,42 @@ pub fn iop_verifier_state_verify<C: Config>(
             let challenge = challenger.sample_ext(builder);
 
             builder.set(&challenges, i, challenge);
-            builder.set(&polynomials_received, i, prover_msg.evaluations);
-            builder.assign(&round, round + one);
+            builder.assign(&round, round + C::N::ONE);
             builder.cycle_tracker_end("IOPVerifierState::verify_round_and_update_state");
         });
 
     builder.cycle_tracker_start("IOPVerifierState::check_and_generate_subclaim");
     // set `expected` to P(r)`
-    let expected_len: RVar<_> = builder.eval_expr(polynomials_received.len() + RVar::from(1));
+    let expected_len: RVar<_> = builder.eval_expr(max_num_variables_usize.clone() + RVar::from(1));
     let expected_vec: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(expected_len.clone());
     builder.set(&expected_vec, 0, out_claim.clone());
 
     let truncated_expected_vec = expected_vec.slice(builder, 1, expected_len);
-    iter_zip!(
-        builder,
-        polynomials_received,
-        challenges,
-        truncated_expected_vec
-    )
-    .for_each(|idx_vec, builder| {
-        let poly_ptr = idx_vec[0];
-        let c_ptr = idx_vec[1];
+    iter_zip!(builder, prover_messages, challenges, truncated_expected_vec).for_each(
+        |idx_vec, builder| {
+            builder.cycle_tracker_start("interpolate_uni_poly");
+            let poly_ptr = idx_vec[0];
+            let c_ptr = idx_vec[1];
 
-        let evaluations = builder.iter_ptr_get(&polynomials_received, poly_ptr);
-        let c = builder.iter_ptr_get(&challenges, c_ptr);
+            let msg = builder.iter_ptr_get(&prover_messages, poly_ptr);
+            let c = builder.iter_ptr_get(&challenges, c_ptr);
 
-        let expected_ptr = idx_vec[2];
-        let expected = interpolate_uni_poly(builder, &evaluations, c);
+            let expected_ptr = idx_vec[2];
+            // evaluate p(r) from evaluations of p(x) on { 0, 1, ..., max_deg } using barycentric interpolation
+            let expected = interpolate_uni_poly(builder, &msg.evaluations, c);
 
-        builder.iter_ptr_set(&truncated_expected_vec, expected_ptr, expected);
-    });
+            builder.iter_ptr_set(&truncated_expected_vec, expected_ptr, expected);
+            builder.cycle_tracker_end("interpolate_uni_poly");
+        },
+    );
 
     // l-append asserted_sum to the first position of the expected vector
-    iter_zip!(builder, polynomials_received, expected_vec).for_each(|idx_vec, builder| {
-        let evaluations = builder.iter_ptr_get(&polynomials_received, idx_vec[0]);
+    iter_zip!(builder, prover_messages, expected_vec).for_each(|idx_vec, builder| {
+        let msg = builder.iter_ptr_get(&prover_messages, idx_vec[0]);
         let expected = builder.iter_ptr_get(&expected_vec, idx_vec[1]);
 
-        let e1 = builder.get(&evaluations, 0);
-        let e2 = builder.get(&evaluations, 1);
+        let e1 = builder.get(&msg.evaluations, 0);
+        let e2 = builder.get(&msg.evaluations, 1);
         let target: Ext<<C as Config>::F, <C as Config>::EF> = builder.eval(e1 + e2);
 
         builder.assert_ext_eq(expected, target);
@@ -718,7 +713,8 @@ mod tests {
         let program = convert_program(asm_code, options);
         let system_config = SystemConfig::default()
             .with_public_values(4)
-            .with_max_segment_len((1 << 25) - 100);
+            .with_max_segment_len((1 << 25) - 100)
+            .with_profiling();
         let config = NativeConfig::new(system_config, Native);
         let executor = VmExecutor::<BabyBear, NativeConfig>::new(config);
 
@@ -729,7 +725,23 @@ mod tests {
         for (i, seg) in res.iter().enumerate() {
             #[cfg(feature = "bench-metrics")]
             {
-                println!("=> segment {:?} metrics: {:?}", i, seg.metrics);
+                println!(
+                    "=> segment {} metrics.cycle_count: {:?}",
+                    i, seg.metrics.cycle_count
+                );
+                for (insn, count) in seg.metrics.counts.iter() {
+                    println!("insn: {:?}, count: {:?}", insn, count);
+                }
+                println!(
+                    "=> segment {} #(insns): {}",
+                    i,
+                    seg.metrics
+                        .counts
+                        .values()
+                        .copied()
+                        .into_iter()
+                        .sum::<usize>()
+                );
             }
         }
     }
