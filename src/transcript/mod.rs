@@ -35,7 +35,7 @@ mod tests {
     #[test]
     fn test_sample_ext() {
         type F = BabyBear;
-        type E = BabyBearExt4;
+        type _E = BabyBearExt4;
         type EF = BinomialExtensionField<BabyBear, 4>;
         type C = AsmConfig<F, EF>;
 

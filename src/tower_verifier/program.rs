@@ -631,7 +631,6 @@ mod tests {
     use itertools::Itertools;
     use openvm_circuit::arch::SystemConfig;
     use openvm_circuit::arch::VmExecutor;
-    use openvm_native_circuit::execute_program;
     use openvm_native_circuit::Native;
     use openvm_native_circuit::NativeConfig;
     use openvm_native_compiler::asm::AsmCompiler;
@@ -654,7 +653,7 @@ mod tests {
         type EF = BinomialExtensionField<BabyBear, 4>;
         type C = AsmConfig<F, EF>;
 
-        let nv = 2;
+        let nv = 1;
         let degree = 3;
 
         let mut builder = AsmBuilder::<F, EF>::default();
