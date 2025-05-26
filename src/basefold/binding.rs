@@ -5,7 +5,7 @@ use p3_field::extension::BinomialExtensionField;
 use p3_field::FieldAlgebra;
 use serde::Deserialize;
 
-use crate::tower_verifier::binding::{IOPProverMessage, IOPProverMessageVariable};
+use crate::tower_verifier::binding::{IOPProverMessage, IOPProverMessageVariable, Point, PointVariable};
 
 pub type F = BabyBear;
 pub type E = BinomialExtensionField<F, 4>;
@@ -23,7 +23,8 @@ pub struct BasefoldProofInput {
     pub trivial_proof_is_some: bool,
     pub trivial_proof: TrivialProofInput,
     pub circuit_metas: Vec<CircuitIndexMeta>,
-    pub circuit_trivial_metas: Vec<CircuitIndexMeta>,
+    pub metas_count: usize,
+    pub trivial_metas_count: usize,
 }
 impl Hintable<InnerConfig> for BasefoldProofInput {
     type HintVariable = BasefoldProofVariable<InnerConfig>;
@@ -37,7 +38,8 @@ impl Hintable<InnerConfig> for BasefoldProofInput {
         let trivial_proof_is_some = Usize::Var(usize::read(builder));
         let trivial_proof = TrivialProofInput::read(builder);
         let circuit_metas = Vec::<CircuitIndexMeta>::read(builder);
-        let circuit_trivial_metas = Vec::<CircuitIndexMeta>::read(builder);
+        let metas_count = Usize::Var(usize::read(builder));
+        let trivial_metas_count = Usize::Var(usize::read(builder));
 
         BasefoldProofVariable { 
             commits, 
@@ -48,7 +50,8 @@ impl Hintable<InnerConfig> for BasefoldProofInput {
             trivial_proof_is_some, 
             trivial_proof, 
             circuit_metas, 
-            circuit_trivial_metas 
+            metas_count,
+            trivial_metas_count,
         }
     }
 
@@ -71,7 +74,8 @@ impl Hintable<InnerConfig> for BasefoldProofInput {
         }
         stream.extend(self.trivial_proof.write());
         stream.extend(self.circuit_metas.write());
-        stream.extend(self.circuit_trivial_metas.write());
+        stream.extend(<usize as Hintable<InnerConfig>>::write(&self.metas_count));
+        stream.extend(<usize as Hintable<InnerConfig>>::write(&self.trivial_metas_count));
 
         stream
     }
@@ -86,7 +90,8 @@ pub struct BasefoldProofVariable<C: Config> {
     pub trivial_proof_is_some: Usize<C::N>, // None <==> 0, Some(_) <==> 1
     pub trivial_proof: TrivialProofVariable<C>,
     pub circuit_metas: Array<C, CircuitIndexMetaVariable<C>>,
-    pub circuit_trivial_metas: Array<C, CircuitIndexMetaVariable<C>>,
+    pub metas_count: Usize<C::N>,
+    pub trivial_metas_count: Usize<C::N>,
 }
 
 
@@ -322,6 +327,7 @@ pub struct BatchOpeningVariable<C: Config> {
 #[derive(DslVariable, Clone)]
 pub struct CircuitIndexMetaVariable<C: Config> {
     pub order_idx: Usize<C::N>,
+    pub is_trivial: Usize<C::N>,
     pub witin_num_vars: Usize<C::N>,
     pub witin_num_polys: Usize<C::N>,
     pub fixed_num_vars: Usize<C::N>,
@@ -331,6 +337,7 @@ pub struct CircuitIndexMetaVariable<C: Config> {
 #[derive(Deserialize)]
 pub struct CircuitIndexMeta {
     pub order_idx: usize,
+    pub is_trivial: bool,
     pub witin_num_vars: usize,
     pub witin_num_polys: usize,
     pub fixed_num_vars: usize,
@@ -342,6 +349,7 @@ impl Hintable<InnerConfig> for CircuitIndexMeta {
 
     fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
         let order_idx = Usize::Var(usize::read(builder));
+        let is_trivial = Usize::Var(usize::read(builder));
         let witin_num_vars = Usize::Var(usize::read(builder));
         let witin_num_polys = Usize::Var(usize::read(builder));
         let fixed_num_vars = Usize::Var(usize::read(builder));
@@ -349,6 +357,7 @@ impl Hintable<InnerConfig> for CircuitIndexMeta {
 
         CircuitIndexMetaVariable {
             order_idx,
+            is_trivial,
             witin_num_vars,
             witin_num_polys,
             fixed_num_vars,
@@ -361,6 +370,13 @@ impl Hintable<InnerConfig> for CircuitIndexMeta {
         stream.extend(<usize as Hintable<InnerConfig>>::write(
             &self.order_idx,
         ));
+
+        if self.is_trivial {
+            stream.extend(<usize as Hintable<InnerConfig>>::write(&1));
+        } else {
+            stream.extend(<usize as Hintable<InnerConfig>>::write(&0));
+        }
+
         stream.extend(<usize as Hintable<InnerConfig>>::write(
             &self.witin_num_vars,
         ));
@@ -378,6 +394,38 @@ impl Hintable<InnerConfig> for CircuitIndexMeta {
 }
 impl VecAutoHintable for CircuitIndexMeta {}
 
+
+// Point and Evals
+pub struct PointAndEvals {
+    pub point: Point,
+    pub evals: Vec<E>,
+}
+impl Hintable<InnerConfig> for PointAndEvals {
+    type HintVariable = PointAndEvalsVariable<InnerConfig>;
+
+    fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
+        let point = Point::read(builder);
+        let evals = Vec::<E>::read(builder);
+        PointAndEvalsVariable {
+            point,
+            evals,
+        }
+    }
+
+    fn write(&self) -> Vec<Vec<<InnerConfig as Config>::N>> {
+        let mut stream = Vec::new();
+        stream.extend(self.point.write());
+        stream.extend(self.evals.write());
+        stream
+    }
+}
+impl VecAutoHintable for PointAndEvals {}
+
+#[derive(DslVariable, Clone)]
+pub struct PointAndEvalsVariable<C: Config> {
+    pub point: PointVariable<C>,
+    pub evals: Array<C, Ext<C::F, C::EF>>,
+}
 
 /*
 #[derive(Deserialize)]

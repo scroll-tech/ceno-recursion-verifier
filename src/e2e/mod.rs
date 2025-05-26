@@ -527,13 +527,15 @@ pub fn parse_zkvm_proof_import(
 
     // preprocess data into respective group, in particularly, trivials vs non-trivials
     let mut circuit_metas = vec![];
-    let mut circuit_trivial_metas = vec![];
+    let mut trivial_metas_count: usize = 0;
+    let mut metas_count: usize = 0;
 
     for (idx, &(circuit_index, num_var)) in zkvm_proof.num_instances.iter().enumerate() {
         let (expected_witins_num_poly, expected_fixed_num_poly) =
             &verifier.vk.circuit_num_polys[circuit_index];
         let mut circuit_meta = CircuitIndexMeta {
             order_idx: idx,
+            is_trivial: false,
             witin_num_vars: num_var,
             witin_num_polys: *expected_witins_num_poly,
             fixed_num_vars: 0,
@@ -542,17 +544,20 @@ pub fn parse_zkvm_proof_import(
 
         // NOTE: for evals, we concat witin with fixed to make process easier
         if num_var <= BASECODE_MSG_SIZE_LOG {
+            circuit_meta.is_trivial = true;
             if *expected_fixed_num_poly > 0 {
                 circuit_meta.fixed_num_vars = num_var;
                 circuit_meta.fixed_num_polys = *expected_fixed_num_poly;
             }
-            circuit_trivial_metas.push(circuit_meta);
+            circuit_metas.push(circuit_meta);
+            trivial_metas_count += 1;
         } else {
             if *expected_fixed_num_poly > 0 {
                 circuit_meta.fixed_num_vars = num_var;
                 circuit_meta.fixed_num_polys = *expected_fixed_num_poly;
             }
             circuit_metas.push(circuit_meta);
+            metas_count += 1;
         }
     }
 
@@ -565,7 +570,8 @@ pub fn parse_zkvm_proof_import(
         trivial_proof_is_some,
         trivial_proof,
         circuit_metas,
-        circuit_trivial_metas,
+        metas_count,
+        trivial_metas_count,
     };
 
     (
