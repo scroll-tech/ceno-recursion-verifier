@@ -228,6 +228,7 @@ impl Hintable<InnerConfig> for ZKVMProofInput {
             num_instances_vec.push(vec![
                 F::from_canonical_usize(*circuit_size),
                 F::from_canonical_usize(*num_var),
+                F::from_canonical_usize(next_pow2_instance_padding(*num_var).ilog2() as usize),
             ]);
         }
         stream.extend(num_instances_vec.write());

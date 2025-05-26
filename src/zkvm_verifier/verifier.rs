@@ -27,6 +27,7 @@ use openvm_native_compiler_derive::iter_zip;
 use openvm_native_recursion::challenger::{
     duplex::DuplexChallengerVariable, CanObserveVariable, FeltChallenger,
 };
+use crate::basefold::basefold_batch_verify;
 use p3_field::FieldAlgebra;
 
 type E = BabyBearExt4;
@@ -269,21 +270,18 @@ pub fn verify_zkvm_proof<C: Config>(
         logup_sum - dummy_table_item_multiplicity * dummy_table_item.inverse(),
     );
 
-    /* TODO: Basefold e2e
-    // verify mpcs
-    PCS::batch_verify(
-        &self.vk.vp,
-        &vm_proof.num_instances,
-        &rt_points,
-        self.vk.fixed_commit.as_ref(),
-        &vm_proof.witin_commit,
-        &evaluations,
-        &vm_proof.fixed_witin_opening_proof,
-        &self.vk.circuit_num_polys,
-        &mut transcript,
-    )
-    .map_err(ZKVMError::PCSError)?;
-    */
+    basefold_batch_verify(
+        builder,
+        &mut challenger,
+        zkvm_proof_input.num_instances,
+        rt_points,
+        zkvm_proof_input.fixed_commit,
+        zkvm_proof_input.witin_commit,
+        evaluations,
+        &ceno_constraint_system.vk.circuit_num_polys,
+        zkvm_proof_input.fixed_witin_opening_proof,
+        ceno_constraint_system,
+    );
 
     let empty_arr: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(0);
     let initial_global_state = eval_ceno_expr_with_instance(

@@ -1,6 +1,8 @@
 pub mod binding;
 use crate::tower_verifier::binding::PointVariable;
+use binding::BasefoldProofVariable;
 use openvm_native_compiler::prelude::*;
+use openvm_native_compiler_derive::iter_zip;
 use openvm_native_recursion::challenger::duplex::DuplexChallengerVariable;
 use ceno_zkvm::scheme::verifier::ZKVMVerifier;
 use ff_ext::BabyBearExt4;
@@ -8,40 +10,6 @@ use mpcs::{Basefold, BasefoldRSParams};
 
 type E = BabyBearExt4;
 type Pcs = Basefold<E, BasefoldRSParams>;
-
-
-
-// pub struct BasefoldProof<E: ExtensionField>
-// where
-//     E::BaseField: Serialize + DeserializeOwned,
-// {
-//     pub(crate) commits: Vec<Digest<E>>,
-//     pub(crate) final_message: Vec<Vec<E>>,
-//     pub(crate) query_opening_proof: QueryOpeningProofs<E>,
-//     pub(crate) sumcheck_proof: Option<Vec<IOPProverMessage<E>>>,
-//     // vec![witness, fixed], where fixed is optional
-//     pub(crate) trivial_proof: Option<TrivialProof<E>>,
-// }
-
-// pub type Digest<E> = <Poseidon2ExtMerkleMmcs<E> as Mmcs<E>>::Commitment;
-
-
-// pub struct QueryOpeningProof<E: ExtensionField> {
-//     pub witin_base_proof: BatchOpening<
-//         <E as ExtensionField>::BaseField,
-//         <<E as ExtensionField>::BaseField as PoseidonField>::MMCS,
-//     >,
-//     pub fixed_base_proof: Option<
-//         BatchOpening<
-//             <E as ExtensionField>::BaseField,
-//             <<E as ExtensionField>::BaseField as PoseidonField>::MMCS,
-//         >,
-//     >,
-//     #[allow(clippy::type_complexity)]
-//     pub commit_phase_openings: Vec<CommitPhaseProofStep<E, ExtMmcs<E>>>,
-// }
-
-
 
 pub fn basefold_batch_verify<C: Config>(
     builder: &mut Builder<C>,
@@ -51,27 +19,32 @@ pub fn basefold_batch_verify<C: Config>(
     fixed_commit: Array<C, Felt<C::F>>,
     witin_commit: Array<C, Felt<C::F>>,
     evaluations: Vec<Array<C, Ext<C::F, C::EF>>>,
-    circuit_num_polys: Vec<(usize, usize)>,
+    circuit_num_polys: &Vec<(usize, usize)>,
+    fixed_witin_opening_proof: BasefoldProofVariable<C>,
     cs: &ZKVMVerifier<E, Pcs>,
 ) {
+    builder.assert_usize_eq(num_instances.len(), Usize::from(rt_points.len()));
 
+    let points: Array<C, PointVariable<C>> = builder.dyn_array(rt_points.len());
+    for (idx, pt) in rt_points.into_iter().enumerate() {
+        builder.set(&points, idx, pt);
+    }
+    let evals: Array<C, Array<C, Ext<C::F, C::EF>>> = builder.dyn_array(evaluations.len());
+    for (idx, es) in evaluations.into_iter().enumerate() {
+        builder.set(&evals, idx, es);
+    }
+    
+    iter_zip!(builder, num_instances, points).for_each(|ptr_vec, builder| {
+        let circuit_params = builder.iter_ptr_get(&num_instances, ptr_vec[0]);
+        let point = builder.iter_ptr_get(&points, ptr_vec[1]);
+        let circuit_num_var_f = builder.get(&circuit_params, 2);
+        let circuit_num_var = Usize::from(builder.cast_felt_to_var(circuit_num_var_f.clone()));
+        builder.assert_usize_eq(circuit_num_var, point.fs.len());
+    });
+
+    // let trivial_point_evals = builder.dyn_array(fixed_witin_opening_proof.circuit_trivial_metas.len());
+    // let point_evals = builder.dyn_array(fixed_witin_opening_proof.circuit_metas.len());
 }
-
-
-// verify mpcs
-// PCS::batch_verify(
-// DONE    &self.vk.vp,
-// DONE    &vm_proof.num_instances,
-// DONE     &rt_points, 
-// DONE    self.vk.fixed_commit.as_ref(),
-// DONE    &vm_proof.witin_commit,
-// DONE     &evaluations,
-//     &vm_proof.fixed_witin_opening_proof,
-// DONE    &self.vk.circuit_num_polys,
-// DONE    &mut transcript,
-// )
-// .map_err(ZKVMError::PCSError)?;
-
 
 // fn batch_verify(
 //     vp: &Self::VerifierParam,
@@ -85,23 +58,6 @@ pub fn basefold_batch_verify<C: Config>(
 //     transcript: &mut impl Transcript<E>,
 // ) -> Result<(), Error> {
 //     let mmcs = poseidon2_merkle_tree::<E>();
-
-//     assert_eq!(num_instances.len(), points.len());
-
-//     let circuit_num_vars = num_instances
-//         .iter()
-//         .map(|(index, num_instance)| {
-//             (
-//                 *index,
-//                 next_pow2_instance_padding(*num_instance).ilog2() as usize,
-//             )
-//         })
-//         .collect_vec();
-
-//     assert!(
-//         izip!(&circuit_num_vars, points)
-//             .all(|((_, circuit_num_var), point)| point.len() == *circuit_num_var)
-//     );
 
 //     // preprocess data into respective group, in particularly, trivials vs non-trivials
 //     let mut circuit_metas = vec![];
