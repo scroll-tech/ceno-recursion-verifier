@@ -21,6 +21,7 @@ pub(crate) fn interpolate_uni_poly<C: Config>(
     p_i: &Array<C, Ext<C::F, C::EF>>,
     eval_at: Ext<C::F, C::EF>,
 ) -> Ext<C::F, C::EF> {
+
     let len = p_i.len();
     let evals: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(len.clone());
     let prod: Ext<C::F, C::EF> = builder.eval(eval_at);
@@ -168,6 +169,45 @@ pub fn iop_verifier_state_verify<C: Config>(
     builder.cycle_tracker_end("IOPVerifierState::check_and_generate_subclaim");
 
     (challenges, expected)
+}
+
+#[cfg(test)]
+pub(crate) fn interpolate_uni_poly_with_weights<C: Config>(
+    builder: &mut Builder<C>,
+    p_i: &Array<C, Ext<C::F, C::EF>>,
+    eval_at: Ext<C::F, C::EF>,
+    weights: Array<C, Ext<C::F, C::EF>>,
+) -> Ext<C::F, C::EF> {
+    // \prod_i (eval_at - i)
+    let num_points = p_i.len().get_var();
+
+    let one: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
+    let zero: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
+    let mut iter_i: Ext<C::F, C::EF> = builder.eval(zero + zero); // 0 + 0 to take advantage of AddE
+    let prod: Ext<C::F, C::EF> = builder.eval(one + zero); // 1 + 0 to take advantage of AddE
+    builder.range(0, num_points).for_each(|_, builder| {
+        builder.assign(&prod, prod * (eval_at - iter_i));
+        builder.assign(&iter_i, iter_i + one);
+    });
+
+    iter_i = builder.eval(zero + zero); // reset to 0
+    let result = zero; // take ownership
+    iter_zip!(builder, p_i, weights).for_each(|ptr_vec, builder| {
+        let pi_ptr = ptr_vec[0];
+        let w_ptr = ptr_vec[1];
+
+        let p_i_val = builder.iter_ptr_get(p_i, pi_ptr);
+        let weight = builder.iter_ptr_get(&weights, w_ptr);
+
+        // weight_i = \prod_{j!=i} 1/(i-j)
+        // \sum_{i=0}^len p_i * weight_i * prod / (eval_at-i)
+        let e: Ext<C::F, C::EF> = builder.eval(eval_at - iter_i);
+        let term = p_i_val * weight * prod / e; // TODO: how to handle e = 0
+        builder.assign(&iter_i, iter_i + one);
+        builder.assign(&result, result + term);
+    });
+
+    result
 }
 
 pub fn verify_tower_proof<C: Config>(
@@ -615,6 +655,7 @@ pub fn verify_tower_proof<C: Config>(
 #[cfg(test)]
 mod tests {
     use crate::tower_verifier::binding::IOPProverMessage;
+    use crate::tower_verifier::program::interpolate_uni_poly_with_weights;
     use crate::tower_verifier::program::iop_verifier_state_verify;
     use ceno_mle::mle::DenseMultilinearExtension;
     use ceno_mle::virtual_poly::ArcMultilinearExtension;
@@ -632,14 +673,95 @@ mod tests {
     use openvm_native_compiler::asm::{AsmBuilder, AsmConfig};
     use openvm_native_compiler::conversion::convert_program;
     use openvm_native_compiler::conversion::CompilerOptions;
+    use openvm_native_compiler::ir::Array;
+    use openvm_native_compiler::ir::Ext;
     use openvm_native_compiler::prelude::Felt;
     use openvm_native_recursion::challenger::duplex::DuplexChallengerVariable;
     use p3_baby_bear::BabyBear;
     use p3_field::extension::BinomialExtensionField;
+    use p3_field::Field;
     use p3_field::FieldAlgebra;
     use rand::thread_rng;
 
     use openvm_native_recursion::hints::Hintable;
+
+    #[test]
+    fn test_barycentric_eval() {
+        type F = BabyBear;
+        type E = BabyBearExt4;
+        type EF = BinomialExtensionField<BabyBear, 4>;
+        type C = AsmConfig<F, EF>;
+
+        let mut builder = AsmBuilder::<F, EF>::default();
+
+        let deg = 3;
+        // p(x) = x^3 + x^2 + x + 1
+        let p_i: Array<C, Ext<F, EF>> = builder.dyn_array(deg + 1);
+        let eval_p_x = |x: usize| x.pow(3) + x.pow(2) + x + 1;
+        for i in 0..=deg {
+            let px = eval_p_x(i);
+            let px: Ext<F, EF> = builder.constant(EF::from_canonical_u32(px as u32));
+            builder.set(&p_i, i, px);
+        }
+
+        let r = 5;
+        let eval_at: Ext<F, EF> = builder.constant(EF::from_canonical_u32(r as u32));
+
+        let points = (0..=deg)
+            .into_iter()
+            .map(|i| EF::from_canonical_u32(i as u32))
+            .collect_vec();
+        let weights = points
+            .iter()
+            .enumerate()
+            .map(|(j, point_j)| {
+                points
+                    .iter()
+                    .enumerate()
+                    .filter(|&(i, _)| (i != j))
+                    .map(|(_, point_i)| *point_j - *point_i)
+                    .reduce(|acc, value| acc * value)
+                    .unwrap_or(EF::ONE)
+                    .inverse()
+            })
+            .collect::<Vec<_>>();
+
+        let weight_array: Array<C, Ext<F, EF>> = builder.dyn_array(4);
+        weights.into_iter().enumerate().for_each(|(i, w)| {
+            let w: Ext<F, EF> = builder.constant(w);
+            builder.set(&weight_array, i, w);
+        });
+
+        builder.cycle_tracker_start("interpolate_uni_poly_with_weights");
+        let res = interpolate_uni_poly_with_weights(&mut builder, &p_i, eval_at, weight_array);
+        builder.cycle_tracker_end("interpolate_uni_poly_with_weights");
+        let expected_res: Ext<F, EF> = builder.constant(EF::from_canonical_u32(eval_p_x(r) as u32));
+        builder.assert_ext_eq(res, expected_res);
+        builder.halt();
+
+        let options = CompilerOptions::default();
+        let mut compiler = AsmCompiler::new(options.word_size);
+        compiler.build(builder.operations);
+        let asm_code = compiler.code();
+        println!("asm code");
+        println!("{}", asm_code);
+        let program = convert_program(asm_code, options);
+        let system_config = SystemConfig::default()
+            .with_public_values(4)
+            .with_max_segment_len((1 << 22) - 100)
+            .with_profiling();
+        let config = NativeConfig::new(system_config, Native);
+        let executor = VmExecutor::<BabyBear, NativeConfig>::new(config);
+
+        let res = executor
+            .execute_and_then(program, vec![], |_, seg| Ok(seg), |err| err)
+            .unwrap();
+
+        #[cfg(feature = "bench-metrics")]
+        {
+            println!("cyclces: {}", res[0].metrics.cycle_count);
+        }
+    }
 
     #[test]
     fn test_simple_sumcheck() {
@@ -648,7 +770,7 @@ mod tests {
         type EF = BinomialExtensionField<BabyBear, 4>;
         type C = AsmConfig<F, EF>;
 
-        let nv = 1;
+        let nv = 5;
         let degree = 3;
 
         let mut builder = AsmBuilder::<F, EF>::default();
