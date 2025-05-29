@@ -1,6 +1,6 @@
 pub mod binding;
-use crate::{arithmetics::{gen_alpha_pows, join, max_usize_arr}, tower_verifier::binding::PointVariable, transcript::transcript_observe_label};
-use binding::{BasefoldProofVariable, PointAndEvalsVariable};
+use crate::{arithmetics::{evaluate_at_point, gen_alpha_pows, join, max_usize_arr}, tower_verifier::binding::PointVariable, transcript::transcript_observe_label};
+use binding::{BasefoldProofVariable, CircuitIndexMetaVariable, PointAndEvalsVariable};
 use openvm_native_compiler::prelude::*;
 use openvm_native_compiler_derive::iter_zip;
 use openvm_native_recursion::challenger::{
@@ -23,7 +23,11 @@ pub fn basefold_batch_verify<C: Config>(
     num_instances: Array<C, Array<C, Felt<C::F>>>,
     rt_points: Vec<PointVariable<C>>,
     fixed_commit: Array<C, Felt<C::F>>,
+    fixed_commit_log2_max_codeword_size: Felt<C::F>,
+    fixed_commit_trivial_commits: Array<C, Array<C, Felt<C::F>>>,
     witin_commit: Array<C, Felt<C::F>>,
+    witin_commit_log2_max_codeword_size: Felt<C::F>,
+    witin_commit_trivial_commits: Array<C, Array<C, Felt<C::F>>>,
     evaluations: Vec<Array<C, Ext<C::F, C::EF>>>,
     circuit_num_polys: &Vec<(usize, usize)>,
     fixed_witin_opening_proof: BasefoldProofVariable<C>,
@@ -102,84 +106,91 @@ pub fn basefold_batch_verify<C: Config>(
     });
 
     // check trivial proofs
+    builder.if_ne(fixed_witin_opening_proof.trivial_metas_count.clone(), Usize::from(0)).then(|builder| {
+        builder.assert_usize_eq(fixed_witin_opening_proof.trivial_metas_count.clone(), fixed_witin_opening_proof.trivial_proof.matrices.len());
+        builder.assert_usize_eq(fixed_witin_opening_proof.trivial_proof.matrices.len(), fixed_commit_trivial_commits.len());
 
-//     let mmcs = poseidon2_merkle_tree::<E>();
-//     
-//     if !circuit_trivial_metas.is_empty() {
-//         let mut trivial_fixed_commit = fixed_comms
-//             .as_ref()
-//             .map(|fc| fc.trivial_commits.iter().cloned())
-//             .unwrap_or_default();
-//         assert!(proof.trivial_proof.is_some());
-//         assert!(
-//             [
-//                 circuit_trivial_metas.len(),
-//                 proof.trivial_proof.as_ref().unwrap().len(),
-//                 witin_comms.trivial_commits.len()
-//             ]
-//             .iter()
-//             .all_equal()
-//         );
+        // 1. check mmcs verify opening
+        // 2. check mle.evaluate(point) == evals
+        let trivial_idx: Usize<C::N> = Usize::from(0);
+        let circuit_trivial_metas: Array<C, CircuitIndexMetaVariable<C>> = builder.dyn_array(fixed_witin_opening_proof.trivial_metas_count.clone());
+        iter_zip!(builder, fixed_witin_opening_proof.circuit_metas).for_each(|ptr_vec, builder| {
+            let metas = builder.iter_ptr_get(&fixed_witin_opening_proof.circuit_metas, ptr_vec[0]);
+            builder.if_eq(metas.is_trivial.clone(), Usize::from(1)).then(|builder| {
+                builder.set(&circuit_trivial_metas, trivial_idx.clone(), metas.clone());
+                builder.assign(&trivial_idx, trivial_idx.clone() + Usize::from(1));
+            });
+        });
 
-//         // 1. check mmcs verify opening
-//         // 2. check mle.evaluate(point) == evals
-//         circuit_trivial_metas
-//             .iter()
-//             .zip_eq(proof.trivial_proof.as_ref().unwrap())
-//             .zip_eq(&trivial_point_evals)
-//             .zip_eq(&witin_comms.trivial_commits)
-//             .try_for_each(
-//                 |(
-//                     (
-//                         (
-//                             CircuitIndexMeta {
-//                                 fixed_num_polys, ..
-//                             },
-//                             proof,
-//                         ),
-//                         (point, witin_fixed_evals),
-//                     ),
-//                     witin_commit,
-//                 )| {
-//                     let witin_rmm = proof[0].clone();
-//                     let (commit, _) = mmcs.commit_matrix(witin_rmm.clone());
-//                     if commit != *witin_commit {
-//                         Err(Error::MerkleRootMismatch)?;
-//                     }
-//                     let mut mles = RowMajorMatrix::new_by_inner_matrix(
-//                         witin_rmm,
-//                         InstancePaddingStrategy::Default,
-//                     )
-//                     .to_mles();
+        iter_zip!(
+            builder, 
+            circuit_trivial_metas, 
+            fixed_witin_opening_proof.trivial_proof.matrices, 
+            trivial_point_evals, 
+            witin_commit_trivial_commits
+        ).for_each(|ptr_vec, builder| {
+            let metas = builder.iter_ptr_get(&circuit_trivial_metas, ptr_vec[0]);
+            let proof = builder.iter_ptr_get(&fixed_witin_opening_proof.trivial_proof.matrices, ptr_vec[1]);
+            let point_and_evals = builder.iter_ptr_get(&trivial_point_evals, ptr_vec[2]);
+            let point = point_and_evals.point;
+            let witin_fixed_evals = point_and_evals.evals;
+            let witin_commit = builder.iter_ptr_get(&witin_commit_trivial_commits, ptr_vec[3]);
 
-//                     if *fixed_num_polys > 0 {
-//                         let fixed_rmm = proof[1].clone();
-//                         let fixed_commit =
-//                             trivial_fixed_commit.next().expect("proof must exist");
-//                         // NOTE rmm clone here is ok since trivial proof is relatively small
-//                         let (commit, _) = mmcs.commit_matrix(fixed_rmm.clone());
-//                         if commit != fixed_commit {
-//                             Err(Error::MerkleRootMismatch)?;
-//                         }
-//                         mles.extend(
-//                             RowMajorMatrix::new_by_inner_matrix(
-//                                 fixed_rmm,
-//                                 InstancePaddingStrategy::Default,
-//                             )
-//                             .to_mles(),
-//                         );
-//                     }
+            let witin_rmm = builder.get(&proof, 0);
 
-//                     mles.iter()
-//                         .zip_eq(witin_fixed_evals)
-//                         .all(|(mle, eval)| mle.evaluate(point) == *eval)
-//                         .then_some(())
-//                         .ok_or_else(|| {
-//                             Error::PointEvalMismatch("trivial point eval mismatch".to_string())
-//                         })
-//                 },
-//             )?;
-//     }
+            let rows = witin_rmm.values.len();
+            let cols = builder.get(&witin_rmm.values, 0).len();
+
+            let mles: Array<C, Array<C, Ext<C::F, C::EF>>> = builder.dyn_array(cols.clone());
+            builder.range(0, cols.clone()).for_each(|col_idx_vec, builder| {
+                let values: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(rows.clone());
+                builder.range(0, rows.clone()).for_each(|row_idx_vec, builder| {
+                    let row = builder.get(&witin_rmm.values, row_idx_vec[0]);
+                    let f = builder.get(&row, col_idx_vec[0]);
+                    let e = builder.felts2ext(&[f]);
+                    builder.set(&values, row_idx_vec[0], e);
+                });
+                builder.set(&mles, col_idx_vec[0], values);
+            });
+
+            let witin_evals_slice = witin_fixed_evals.slice(builder, 0, mles.len());
+            iter_zip!(builder, mles, witin_evals_slice).for_each(|ptr_vec, builder| {
+                let mle = builder.iter_ptr_get(&mles, ptr_vec[0]);
+                let eval = builder.iter_ptr_get(&witin_evals_slice, ptr_vec[1]);
+
+                let expected = evaluate_at_point(builder, &mle, &point.fs);
+                builder.assert_ext_eq(expected, eval);
+            });
+
+            builder.if_ne(metas.fixed_num_polys.clone(), Usize::from(0)).then(|builder| {
+                let fixed_rmm = builder.get(&proof, 1);
+
+                let rows = fixed_rmm.values.len();
+                let cols = builder.get(&fixed_rmm.values, 0).len();
+
+                let fixed_mles: Array<C, Array<C, Ext<C::F, C::EF>>> = builder.dyn_array(cols.clone());
+                builder.range(0, cols.clone()).for_each(|col_idx_vec, builder| {
+                    let values: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(rows.clone());
+                    builder.range(0, rows.clone()).for_each(|row_idx_vec, builder| {
+                        let row = builder.get(&fixed_rmm.values, row_idx_vec[0]);
+                        let f = builder.get(&row, col_idx_vec[0]);
+                        let e = builder.felts2ext(&[f]);
+                        builder.set(&values, row_idx_vec[0], e);
+                    });
+                    builder.set(&fixed_mles, col_idx_vec[0], values);
+                });
+
+                let witin_evals_slice = witin_fixed_evals.slice(builder, mles.len(), witin_fixed_evals.len());
+                iter_zip!(builder, fixed_mles, witin_evals_slice).for_each(|ptr_vec, builder| {
+                    let mle = builder.iter_ptr_get(&mles, ptr_vec[0]);
+                    let eval = builder.iter_ptr_get(&witin_evals_slice, ptr_vec[1]);
+
+                    let expected = evaluate_at_point(builder, &mle, &point.fs);
+                    builder.assert_ext_eq(expected, eval);
+                });
+            });
+        });
+    });
 
     // verify non trivial proof
     let total_num_polys: Usize<C::N> = Usize::from(0);
