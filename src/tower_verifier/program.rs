@@ -94,20 +94,8 @@ pub(crate) fn interpolate_uni_poly_with_weights<C: Config>(
     interpolation_weights: &Array<C, Array<C, Ext<C::F, C::EF>>>,
 ) -> Ext<C::F, C::EF> {
     // \prod_i (eval_at - i)
-    let weights = builder.get(interpolation_weights, 2);
-    builder.if_eq(p_i.len(), Usize::from(2)).then(|builder| {
-        let deg1_weights = builder.get(interpolation_weights, 0);
-        builder.assign(&weights, deg1_weights);
-    });
-    builder.if_eq(p_i.len(), Usize::from(3)).then(|builder| {
-        let deg2_weights = builder.get(interpolation_weights, 1);
-        builder.assign(&weights, deg2_weights);
-    });
-    builder.if_eq(p_i.len(), Usize::from(5)).then(|builder| {
-        let deg4_weights = builder.get(interpolation_weights, 3);
-        builder.assign(&weights, deg4_weights);
-    });
-
+    let weights_idx: Usize<C::N> = builder.eval(p_i.len() - Usize::from(2));
+    let weights = builder.get(interpolation_weights, weights_idx);
     let num_points = p_i.len().get_var();
 
     let one: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
