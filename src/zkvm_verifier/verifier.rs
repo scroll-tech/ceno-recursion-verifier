@@ -159,8 +159,8 @@ pub fn verify_zkvm_proof<C: Config>(
     let dummy_table_item_multiplicity: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
 
     // Construct interpolation weights
-    // _debug: DEG = 4
-    let points: Vec<C::EF> = (0..=4)
+    // _debug: DEG = 3
+    let points: Vec<C::EF> = (0..=3)
         .into_iter()
         .map(|i| C::EF::from_canonical_u32(i as u32))
         .collect();
