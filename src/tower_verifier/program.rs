@@ -91,10 +91,23 @@ pub(crate) fn interpolate_uni_poly_with_weights<C: Config>(
     builder: &mut Builder<C>,
     p_i: &Array<C, Ext<C::F, C::EF>>,
     eval_at: Ext<C::F, C::EF>,
-    weights: &Array<C, Ext<C::F, C::EF>>,
+    interpolation_weights: &Array<C, Array<C, Ext<C::F, C::EF>>>,
 ) -> Ext<C::F, C::EF> {
-    builder.print_v(p_i.len().get_var());
     // \prod_i (eval_at - i)
+    let weights = builder.get(interpolation_weights, 2);
+    builder.if_eq(p_i.len(), Usize::from(2)).then(|builder| {
+        let deg1_weights = builder.get(interpolation_weights, 0);
+        builder.assign(&weights, deg1_weights);
+    });
+    builder.if_eq(p_i.len(), Usize::from(3)).then(|builder| {
+        let deg2_weights = builder.get(interpolation_weights, 1);
+        builder.assign(&weights, deg2_weights);
+    });
+    builder.if_eq(p_i.len(), Usize::from(5)).then(|builder| {
+        let deg4_weights = builder.get(interpolation_weights, 3);
+        builder.assign(&weights, deg4_weights);
+    });
+
     let num_points = p_i.len().get_var();
 
     let one: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
@@ -133,7 +146,7 @@ pub fn iop_verifier_state_verify<C: Config>(
     prover_messages: &Array<C, IOPProverMessageVariable<C>>,
     max_num_variables: Felt<C::F>,
     max_degree: Felt<C::F>,
-    interpolation_weights: &Array<C, Ext<C::F, C::EF>>,
+    interpolation_weights: &Array<C, Array<C, Ext<C::F, C::EF>>>,
 ) -> (
     Array<C, Ext<<C as Config>::F, <C as Config>::EF>>,
     Ext<<C as Config>::F, <C as Config>::EF>,
@@ -221,7 +234,7 @@ pub fn verify_tower_proof<C: Config>(
     builder: &mut Builder<C>,
     challenger: &mut impl ChallengerVariable<C>,
     tower_verifier_input: TowerVerifierInputVariable<C>,
-    interpolation_weights: &Array<C, Ext<C::F, C::EF>>,
+    interpolation_weights: &Array<C, Array<C, Ext<C::F, C::EF>>>,
 ) -> (
     PointVariable<C>,
     Array<C, PointAndEvalVariable<C>>,
