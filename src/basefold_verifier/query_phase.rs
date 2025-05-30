@@ -272,7 +272,7 @@ impl Hintable<InnerConfig> for QueryPhaseVerifierInput {
 #[derive(DslVariable, Clone)]
 pub struct QueryPhaseVerifierInputVariable<C: Config> {
     pub max_num_var: Usize<C::N>,
-    pub indices: Array<C, Var<C::N>>,
+    pub indices: Array<C, Array<C, Var<C::N>>>,
     pub vp: RSCodeVerifierParametersVariable<C>,
     pub final_message: Array<C, Array<C, Ext<C::F, C::EF>>>,
     pub batch_coeffs: Array<C, Ext<C::F, C::EF>>,
@@ -395,7 +395,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
             let mmcs_verifier_input = MmcsVerifierInputVariable {
                 commit: input.witin_comm.commit.clone(),
                 dimensions: witin_dimensions,
-                index: idx,
+                index_bits: idx,
                 opened_values: witin_opened_values.clone(),
                 proof: witin_opening_proof,
             };
@@ -449,7 +449,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                     let mmcs_verifier_input = MmcsVerifierInputVariable {
                         commit: input.fixed_comm.commit.clone(),
                         dimensions: fixed_dimensions.clone(),
-                        index: new_idx,
+                        index_bits: new_idx,
                         opened_values: fixed_opened_values.clone(),
                         proof: fixed_opening_proof,
                     };
@@ -642,7 +642,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                     let ext_mmcs_verifier_input = ExtMmcsVerifierInputVariable {
                         commit: pi_comm.clone(),
                         dimensions,
-                        index: idx.clone(),
+                        index_bits: idx.clone(),
                         opened_values,
                         proof,
                     };

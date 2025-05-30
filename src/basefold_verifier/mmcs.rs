@@ -50,7 +50,7 @@ impl Hintable<InnerConfig> for MmcsVerifierInput {
         MmcsVerifierInputVariable {
             commit,
             dimensions,
-            index,
+            index_bits: index,
             opened_values,
             proof,
         }
@@ -79,7 +79,7 @@ pub type MmcsProofVariable<C> = Array<C, Array<C, Felt<<C as Config>::F>>>;
 pub struct MmcsVerifierInputVariable<C: Config> {
     pub commit: MmcsCommitmentVariable<C>,
     pub dimensions: Array<C, Usize<C::N>>,
-    pub index: Var<C::N>,
+    pub index_bits: Array<C, Var<C::N>>,
     pub opened_values: Array<C, Array<C, Felt<C::F>>>,
     pub proof: MmcsProofVariable<C>,
 }
@@ -96,8 +96,8 @@ pub(crate) fn mmcs_verify_batch<C: Config>(
     builder.verify_batch_felt(
         &dimensions,
         &input.opened_values,
-        input.proof_id,
-        input.index_bits,
+        &input.proof_id,
+        &input.index_bits,
         &input.commit.value,
     );
 
@@ -256,7 +256,7 @@ pub(crate) fn mmcs_verify_batch<C: Config>(
                         });
                 });
         });
-    builder.assert_var_eq(reassembled_index, input.index);
+    builder.assert_var_eq(reassembled_index, input.index_bits);
     builder.range(0, DIGEST_ELEMS).for_each(|i_vec, builder| {
         let i = i_vec[0];
         let next_input = builder.get(&input.commit.value, i);

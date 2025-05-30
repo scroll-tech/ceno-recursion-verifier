@@ -40,7 +40,7 @@ impl Hintable<InnerConfig> for ExtMmcsVerifierInput {
         ExtMmcsVerifierInputVariable {
             commit,
             dimensions,
-            index,
+            index_bits: index,
             opened_values,
             proof,
         }
@@ -67,7 +67,7 @@ impl Hintable<InnerConfig> for ExtMmcsVerifierInput {
 pub struct ExtMmcsVerifierInputVariable<C: Config> {
     pub commit: MmcsCommitmentVariable<C>,
     pub dimensions: Array<C, DimensionsVariable<C>>,
-    pub index: Var<C::N>,
+    pub index_bits: Array<C, Var<C::N>>,
     pub opened_values: Array<C, Array<C, Ext<C::F, C::EF>>>,
     pub proof: MmcsProofVariable<C>,
 }
@@ -141,7 +141,7 @@ pub(crate) fn ext_mmcs_verify_batch<C: Config>(
     let input = MmcsVerifierInputVariable {
         commit: input.commit,
         dimensions: base_dimensions,
-        index: input.index,
+        index_bits: input.index_bits,
         opened_values: opened_base_values,
         proof: input.proof,
     };
