@@ -3,7 +3,7 @@
 use std::marker::PhantomData;
 
 use openvm_native_compiler::{asm::AsmConfig, prelude::*};
-use openvm_native_recursion::hints::Hintable;
+use openvm_native_recursion::{hints::Hintable, vars::HintSlice};
 use openvm_stark_sdk::p3_baby_bear::BabyBear;
 use p3_field::extension::BinomialExtensionField;
 use p3_field::FieldAlgebra;
@@ -81,7 +81,7 @@ pub struct MmcsVerifierInputVariable<C: Config> {
     pub dimensions: Array<C, Usize<C::N>>,
     pub index_bits: Array<C, Var<C::N>>,
     pub opened_values: Array<C, Array<C, Felt<C::F>>>,
-    pub proof: MmcsProofVariable<C>,
+    pub proof: HintSlice<C>,
 }
 
 pub(crate) fn mmcs_verify_batch<C: Config>(
@@ -96,7 +96,7 @@ pub(crate) fn mmcs_verify_batch<C: Config>(
     builder.verify_batch_felt(
         &dimensions,
         &input.opened_values,
-        &input.proof_id,
+        input.proof.id.get_var(),
         &input.index_bits,
         &input.commit.value,
     );

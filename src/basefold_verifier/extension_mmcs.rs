@@ -1,5 +1,5 @@
 use openvm_native_compiler::{asm::AsmConfig, prelude::*};
-use openvm_native_recursion::hints::Hintable;
+use openvm_native_recursion::{hints::Hintable, vars::HintSlice};
 use openvm_stark_sdk::p3_baby_bear::BabyBear;
 use p3_field::extension::BinomialExtensionField;
 use p3_field::FieldExtensionAlgebra;
@@ -69,7 +69,7 @@ pub struct ExtMmcsVerifierInputVariable<C: Config> {
     pub dimensions: Array<C, DimensionsVariable<C>>,
     pub index_bits: Array<C, Var<C::N>>,
     pub opened_values: Array<C, Array<C, Ext<C::F, C::EF>>>,
-    pub proof: MmcsProofVariable<C>,
+    pub proof: HintSlice<C>,
 }
 
 pub(crate) fn ext_mmcs_verify_batch<C: Config>(
@@ -133,7 +133,7 @@ pub(crate) fn ext_mmcs_verify_batch<C: Config>(
     builder.verify_batch_ext(
         &dimensions,
         &input.opened_values,
-        &input.proof_id,
+        &input.proof.id.get_var(),
         &input.index_bits,
         &input.commit.value,
     );
