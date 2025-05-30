@@ -6,9 +6,8 @@ use openvm_native_compiler::{asm::AsmConfig, prelude::*};
 use openvm_native_recursion::{hints::Hintable, vars::HintSlice};
 use openvm_stark_sdk::p3_baby_bear::BabyBear;
 use p3_field::extension::BinomialExtensionField;
-use p3_field::FieldAlgebra;
 
-use super::{hash::*, structs::*, utils::*};
+use super::{hash::*, structs::*};
 
 pub type F = BabyBear;
 pub type E = BinomialExtensionField<F, DIMENSIONS>;
@@ -42,15 +41,17 @@ impl Hintable<InnerConfig> for MmcsVerifierInput {
 
     fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
         let commit = MmcsCommitment::read(builder);
-        let dimensions = Vec::<Dimensions>::read(builder);
-        let index = usize::read(builder);
+        let dimensions = Vec::<usize>::read(builder);
+        let index_bits = Vec::<usize>::read(builder);
         let opened_values = Vec::<Vec<F>>::read(builder);
-        let proof = Vec::<Vec<F>>::read(builder);
+        let length = Usize::from(builder.hint_var());
+        let id = Usize::from(builder.hint_load());
+        let proof = HintSlice { length, id };
 
         MmcsVerifierInputVariable {
             commit,
             dimensions,
-            index_bits: index,
+            index_bits,
             opened_values,
             proof,
         }
@@ -78,7 +79,7 @@ pub type MmcsProofVariable<C> = Array<C, Array<C, Felt<<C as Config>::F>>>;
 #[derive(DslVariable, Clone)]
 pub struct MmcsVerifierInputVariable<C: Config> {
     pub commit: MmcsCommitmentVariable<C>,
-    pub dimensions: Array<C, Usize<C::N>>,
+    pub dimensions: Array<C, Var<C::N>>,
     pub index_bits: Array<C, Var<C::N>>,
     pub opened_values: Array<C, Array<C, Felt<C::F>>>,
     pub proof: HintSlice<C>,
@@ -86,7 +87,6 @@ pub struct MmcsVerifierInputVariable<C: Config> {
 
 pub(crate) fn mmcs_verify_batch<C: Config>(
     builder: &mut Builder<C>,
-    _mmcs: MerkleTreeMmcsVariable<C>, // self
     input: MmcsVerifierInputVariable<C>,
 ) {
     let dimensions = match input.dimensions {
@@ -100,169 +100,6 @@ pub(crate) fn mmcs_verify_batch<C: Config>(
         &input.index_bits,
         &input.commit.value,
     );
-
-    // Check that the openings have the correct shape.
-    let num_dims = input.dimensions.len();
-    // Assert dimensions is not empty
-    builder.assert_nonzero(&num_dims);
-    builder.assert_usize_eq(num_dims.clone(), input.opened_values.len());
-
-    // TODO: Disabled for now since TwoAdicFriPcs and CirclePcs currently pass 0 for width.
-
-    // TODO: Disabled for now, CirclePcs sometimes passes a height that's off by 1 bit.
-    // Nondeterministically supplies max_height
-    let max_height = builder.hint_var();
-    builder
-        .range(0, input.dimensions.len())
-        .for_each(|i_vec, builder| {
-            let i = i_vec[0];
-            let next_height = builder.get(&input.dimensions, i).height;
-            let max_height_plus_one: Var<C::N> = builder.eval(max_height + Usize::from(1));
-            builder.assert_less_than_slow_small_rhs(next_height, max_height_plus_one);
-        });
-
-    // Verify correspondence between log_h and h
-    let log_max_height = builder.hint_var();
-    let log_max_height_minus_1: Var<C::N> = builder.eval(log_max_height - Usize::from(1));
-    let purported_max_height_lower_bound: Var<C::N> = pow_2(builder, log_max_height_minus_1);
-    let two: Var<C::N> = builder.constant(C::N::TWO);
-    let purported_max_height_upper_bound: Var<C::N> =
-        builder.eval(purported_max_height_lower_bound * two);
-    builder.assert_less_than_slow_small_rhs(purported_max_height_lower_bound, max_height);
-    builder.assert_less_than_slow_small_rhs(max_height, purported_max_height_upper_bound);
-    builder.assert_usize_eq(input.proof.len(), log_max_height);
-
-    // Sort input.dimensions by height, returns
-    // 1. height_order: after sorting by decreasing height, the original index of each entry
-    // 2. num_unique_height: number of different heights
-    // 3. count_per_unique_height: for each unique height, number of dimensions of that height
-    let (height_order, num_unique_height, count_per_unique_height) =
-        sort_with_count(builder, &input.dimensions, |d: DimensionsVariable<C>| {
-            d.height
-        });
-
-    // First padded_height
-    let first_order = builder.get(&height_order, 0);
-    let first_height = builder.get(&input.dimensions, first_order).height;
-    let curr_height_padded = next_power_of_two(builder, first_height);
-
-    // Construct root through hashing
-    let root_dims_count: Var<C::N> = builder.get(&count_per_unique_height, 0);
-    let root_values = builder.dyn_array(root_dims_count);
-    builder
-        .range(0, root_dims_count)
-        .for_each(|i_vec, builder| {
-            let i = i_vec[0];
-            let index = builder.get(&height_order, i);
-            let tmp = builder.get(&input.opened_values, index);
-            builder.set_value(&root_values, i, tmp);
-        });
-    let root = hash_iter_slices(builder, root_values);
-
-    // Index_pow and reassembled_index for bit split
-    let index_pow: Var<C::N> = builder.eval(Usize::from(1));
-    let reassembled_index: Var<C::N> = builder.eval(Usize::from(0));
-    // next_height is the height of the next dim to be incorporated into root
-    let next_unique_height_index: Var<C::N> = builder.eval(Usize::from(1));
-    let cumul_dims_count: Var<C::N> = builder.eval(root_dims_count);
-    let next_height_padded: Var<C::N> = builder.eval(Usize::from(0));
-    builder
-        .if_ne(num_unique_height, Usize::from(1))
-        .then(|builder| {
-            let next_height = builder.get(&input.dimensions, cumul_dims_count).height;
-            let tmp_next_height_padded = next_power_of_two(builder, next_height);
-            builder.assign(&next_height_padded, tmp_next_height_padded);
-        });
-    builder
-        .range(0, input.proof.len())
-        .for_each(|i_vec, builder| {
-            let i = i_vec[0];
-            let sibling = builder.get(&input.proof, i);
-            let two_var: Var<C::N> = builder.eval(Usize::from(2)); // XXX: is there a better way to do this?
-                                                                   // Supply the next index bit as hint, assert that it is a bit
-            let next_index_bit = builder.hint_var();
-            builder.assert_var_eq(next_index_bit, next_index_bit * next_index_bit);
-            builder.assign(
-                &reassembled_index,
-                reassembled_index + index_pow * next_index_bit,
-            );
-            builder.assign(&index_pow, index_pow * two_var);
-
-            // left, right
-            let compress_elem = builder.dyn_array(2);
-            builder
-                .if_eq(next_index_bit, Usize::from(0))
-                .then(|builder| {
-                    // root, sibling
-                    builder.set_value(&compress_elem, 0, root.clone());
-                    builder.set_value(&compress_elem, 0, sibling.clone());
-                });
-            builder
-                .if_ne(next_index_bit, Usize::from(0))
-                .then(|builder| {
-                    // sibling, root
-                    builder.set_value(&compress_elem, 0, sibling.clone());
-                    builder.set_value(&compress_elem, 0, root.clone());
-                });
-            let new_root = compress(builder, compress_elem);
-            builder.assign(&root, new_root);
-
-            // curr_height_padded >>= 1 given curr_height_padded is a power of two
-            // Nondeterministically supply next_curr_height_padded
-            let next_curr_height_padded = builder.hint_var();
-            builder.assert_var_eq(next_curr_height_padded * two_var, curr_height_padded);
-            builder.assign(&curr_height_padded, next_curr_height_padded);
-
-            // determine whether next_height matches curr_height
-            builder
-                .if_eq(curr_height_padded, next_height_padded)
-                .then(|builder| {
-                    // hash opened_values of all dims of next_height to root
-                    let root_dims_count =
-                        builder.get(&count_per_unique_height, next_unique_height_index);
-                    let root_size: Var<C::N> = builder.eval(root_dims_count + Usize::from(1));
-                    let root_values = builder.dyn_array(root_size);
-                    builder.set_value(&root_values, 0, root.clone());
-                    builder
-                        .range(0, root_dims_count)
-                        .for_each(|i_vec, builder| {
-                            let i = i_vec[0];
-                            let index = builder.get(&height_order, i);
-                            let tmp = builder.get(&input.opened_values, index);
-                            let j = builder.eval_expr(i + RVar::from(1));
-                            builder.set_value(&root_values, j, tmp);
-                        });
-                    let new_root = hash_iter_slices(builder, root_values);
-                    builder.assign(&root, new_root);
-
-                    // Update parameters
-                    builder.assign(&cumul_dims_count, cumul_dims_count + root_dims_count);
-                    builder.assign(
-                        &next_unique_height_index,
-                        next_unique_height_index + Usize::from(1),
-                    );
-                    builder
-                        .if_eq(next_unique_height_index, num_unique_height)
-                        .then(|builder| {
-                            builder.assign(&next_height_padded, Usize::from(0));
-                        });
-                    builder
-                        .if_ne(next_unique_height_index, num_unique_height)
-                        .then(|builder| {
-                            let next_height =
-                                builder.get(&input.dimensions, cumul_dims_count).height;
-                            let next_tmp_height_padded = next_power_of_two(builder, next_height);
-                            builder.assign(&next_height_padded, next_tmp_height_padded);
-                        });
-                });
-        });
-    builder.assert_var_eq(reassembled_index, input.index_bits);
-    builder.range(0, DIGEST_ELEMS).for_each(|i_vec, builder| {
-        let i = i_vec[0];
-        let next_input = builder.get(&input.commit.value, i);
-        let next_root = builder.get(&root, i);
-        builder.assert_felt_eq(next_input, next_root);
-    });
 }
 
 pub mod tests {
@@ -290,9 +127,8 @@ pub mod tests {
         let mut builder = AsmBuilder::<F, EF>::default();
 
         // Witness inputs
-        let mmcs_self = Default::default();
         let mmcs_input = MmcsVerifierInput::read(&mut builder);
-        mmcs_verify_batch(&mut builder, mmcs_self, mmcs_input);
+        mmcs_verify_batch(&mut builder, mmcs_input);
         builder.halt();
 
         // Pass in witness stream

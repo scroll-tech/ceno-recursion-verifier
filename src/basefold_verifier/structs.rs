@@ -99,13 +99,10 @@ impl VecAutoHintable for Dimensions {}
 pub fn get_base_codeword_dimensions<C: Config>(
     builder: &mut Builder<C>,
     circuit_meta_map: Array<C, CircuitIndexMetaVariable<C>>,
-) -> (
-    Array<C, DimensionsVariable<C>>,
-    Array<C, DimensionsVariable<C>>,
-) {
+) -> (Array<C, Var<C::N>>, Array<C, Var<C::N>>) {
     let dim_len = circuit_meta_map.len();
-    let wit_dim: Array<C, DimensionsVariable<C>> = builder.dyn_array(dim_len.clone());
-    let fixed_dim: Array<C, DimensionsVariable<C>> = builder.dyn_array(dim_len.clone());
+    let wit_dim: Array<C, Var<C::N>> = builder.dyn_array(dim_len.clone());
+    let fixed_dim: Array<C, Var<C::N>> = builder.dyn_array(dim_len.clone());
 
     builder.range(0, dim_len).for_each(|i_vec, builder| {
         let i = i_vec[0];
@@ -115,32 +112,30 @@ pub fn get_base_codeword_dimensions<C: Config>(
         let fixed_num_vars = tmp.fixed_num_vars;
         let fixed_num_polys = tmp.fixed_num_polys;
         // wit_dim
-        let width = builder.eval(witin_num_polys * Usize::from(2));
+        // let width = builder.eval(witin_num_polys * Usize::from(2));
         let height_exp = builder.eval(witin_num_vars + get_rate_log::<C>() - Usize::from(1));
         let height = pow_2(builder, height_exp);
-        let next_wit: DimensionsVariable<C> = DimensionsVariable {
-            width,
-            height,
-        };
-        builder.set_value(&wit_dim, i, next_wit);
-        
+        // let next_wit: DimensionsVariable<C> = DimensionsVariable { width, height };
+        // Only keep the height because the width is not needed in the mmcs batch
+        // verify instruction
+        builder.set_value(&wit_dim, i, height);
+
         // fixed_dim
         // XXX: since fixed_num_vars is usize, fixed_num_vars > 0 is equivalent to fixed_num_vars != 0
-        builder.if_ne(fixed_num_vars.clone(), Usize::from(0)).then(|builder| {
-            let width = builder.eval(fixed_num_polys.clone() * Usize::from(2));
-            let height_exp = builder.eval(fixed_num_vars.clone() + get_rate_log::<C>() - Usize::from(1));
-            // XXX: more efficient pow implementation
-            let height = pow_2(builder, height_exp);
-            let next_fixed: DimensionsVariable<C> = DimensionsVariable {
-                width,
-                height,
-            };
-            builder.set_value(&fixed_dim, i, next_fixed);
-        });
+        builder
+            .if_ne(fixed_num_vars.clone(), Usize::from(0))
+            .then(|builder| {
+                // let width = builder.eval(fixed_num_polys.clone() * Usize::from(2));
+                let height_exp =
+                    builder.eval(fixed_num_vars.clone() + get_rate_log::<C>() - Usize::from(1));
+                // XXX: more efficient pow implementation
+                let height = pow_2(builder, height_exp);
+                // let next_fixed: DimensionsVariable<C> = DimensionsVariable { width, height };
+                builder.set_value(&fixed_dim, i, height);
+            });
     });
     (wit_dim, fixed_dim)
 }
-
 
 pub mod tests {
     use openvm_circuit::arch::{instructions::program::Program, SystemConfig, VmExecutor};
@@ -150,8 +145,7 @@ pub mod tests {
     use openvm_native_recursion::hints::Hintable;
     use openvm_stark_backend::config::StarkGenericConfig;
     use openvm_stark_sdk::{
-        config::baby_bear_poseidon2::BabyBearPoseidon2Config,
-        p3_baby_bear::BabyBear,
+        config::baby_bear_poseidon2::BabyBearPoseidon2Config, p3_baby_bear::BabyBear,
     };
     use p3_field::extension::BinomialExtensionField;
     type SC = BabyBearPoseidon2Config;
@@ -171,12 +165,14 @@ pub mod tests {
         // Witness inputs
         let map_len = Usize::Var(usize::read(&mut builder));
         let circuit_meta_map = builder.dyn_array(map_len.clone());
-        builder.range(0, map_len.clone()).for_each(|i_vec, builder| {
-            let i = i_vec[0];
-            let next_meta = CircuitIndexMeta::read(builder);
-            builder.set(&circuit_meta_map, i, next_meta);
-        });
-    
+        builder
+            .range(0, map_len.clone())
+            .for_each(|i_vec, builder| {
+                let i = i_vec[0];
+                let next_meta = CircuitIndexMeta::read(builder);
+                builder.set(&circuit_meta_map, i, next_meta);
+            });
+
         let (wit_dim, fixed_dim) = get_base_codeword_dimensions(&mut builder, circuit_meta_map);
         builder.range(0, map_len).for_each(|i_vec, builder| {
             let i = i_vec[0];
@@ -184,14 +180,14 @@ pub mod tests {
             let fixed = builder.get(&fixed_dim, i);
             let i_val: Var<_> = builder.eval(i);
             builder.print_v(i_val);
-            let ww_val: Var<_> = builder.eval(wit.width);
-            let wh_val: Var<_> = builder.eval(wit.height);
-            let fw_val: Var<_> = builder.eval(fixed.width);
-            let fh_val: Var<_> = builder.eval(fixed.height);
-            builder.print_v(ww_val);
-            builder.print_v(wh_val);
-            builder.print_v(fw_val);
-            builder.print_v(fh_val);
+            // let ww_val: Var<_> = builder.eval(wit.width);
+            // let wh_val: Var<_> = builder.eval(wit.height);
+            // let fw_val: Var<_> = builder.eval(fixed.width);
+            // let fh_val: Var<_> = builder.eval(fixed.height);
+            // builder.print_v(ww_val);
+            builder.print_v(wit);
+            // builder.print_v(fw_val);
+            builder.print_v(fixed);
         });
         builder.halt();
 

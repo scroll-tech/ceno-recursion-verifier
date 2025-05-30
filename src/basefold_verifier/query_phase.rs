@@ -1,7 +1,10 @@
 // Note: check all XXX comments!
 
 use openvm_native_compiler::{asm::AsmConfig, prelude::*};
-use openvm_native_recursion::hints::{Hintable, VecAutoHintable};
+use openvm_native_recursion::{
+    hints::{Hintable, VecAutoHintable},
+    vars::HintSlice,
+};
 use openvm_stark_sdk::p3_baby_bear::BabyBear;
 use p3_field::extension::BinomialExtensionField;
 use p3_field::FieldAlgebra;
@@ -28,7 +31,10 @@ impl Hintable<InnerConfig> for BatchOpening {
 
     fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
         let opened_values = Vec::<Vec<F>>::read(builder);
-        let opening_proof = Vec::<Vec<F>>::read(builder);
+        let length = Usize::from(builder.hint_var());
+        let id = Usize::from(builder.hint_load());
+        let opening_proof = HintSlice { length, id };
+
         BatchOpeningVariable {
             opened_values,
             opening_proof,
@@ -52,7 +58,7 @@ impl Hintable<InnerConfig> for BatchOpening {
 #[derive(DslVariable, Clone)]
 pub struct BatchOpeningVariable<C: Config> {
     pub opened_values: Array<C, Array<C, Felt<C::F>>>,
-    pub opening_proof: MmcsProofVariable<C>,
+    pub opening_proof: HintSlice<C>,
 }
 
 #[derive(Deserialize)]
@@ -66,7 +72,10 @@ impl Hintable<InnerConfig> for CommitPhaseProofStep {
 
     fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
         let sibling_value = E::read(builder);
-        let opening_proof = Vec::<Vec<F>>::read(builder);
+        let length = Usize::from(builder.hint_var());
+        let id = Usize::from(builder.hint_load());
+        let opening_proof = HintSlice { length, id };
+
         CommitPhaseProofStepVariable {
             sibling_value,
             opening_proof,
@@ -91,7 +100,7 @@ impl VecAutoHintable for CommitPhaseProofStep {}
 #[derive(DslVariable, Clone)]
 pub struct CommitPhaseProofStepVariable<C: Config> {
     pub sibling_value: Ext<C::F, C::EF>,
-    pub opening_proof: MmcsProofVariable<C>,
+    pub opening_proof: HintSlice<C>,
 }
 
 #[derive(Deserialize)]
@@ -272,7 +281,7 @@ impl Hintable<InnerConfig> for QueryPhaseVerifierInput {
 #[derive(DslVariable, Clone)]
 pub struct QueryPhaseVerifierInputVariable<C: Config> {
     pub max_num_var: Usize<C::N>,
-    pub indices: Array<C, Array<C, Var<C::N>>>,
+    pub indices: Array<C, Var<C::N>>,
     pub vp: RSCodeVerifierParametersVariable<C>,
     pub final_message: Array<C, Array<C, Ext<C::F, C::EF>>>,
     pub batch_coeffs: Array<C, Ext<C::F, C::EF>>,
@@ -395,11 +404,11 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
             let mmcs_verifier_input = MmcsVerifierInputVariable {
                 commit: input.witin_comm.commit.clone(),
                 dimensions: witin_dimensions,
-                index_bits: idx,
+                index_bits: idx_bits.clone(), // TODO: double check, should be new idx bits here
                 opened_values: witin_opened_values.clone(),
                 proof: witin_opening_proof,
             };
-            mmcs_verify_batch(builder, mmcs.clone(), mmcs_verifier_input);
+            mmcs_verify_batch(builder, mmcs_verifier_input);
 
             // verify fixed
             let fixed_commit_leafs = builder.dyn_array(0);
@@ -449,11 +458,11 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                     let mmcs_verifier_input = MmcsVerifierInputVariable {
                         commit: input.fixed_comm.commit.clone(),
                         dimensions: fixed_dimensions.clone(),
-                        index_bits: new_idx,
+                        index_bits: idx_bits.clone(), // TODO: should be new idx_bits
                         opened_values: fixed_opened_values.clone(),
                         proof: fixed_opening_proof,
                     };
-                    mmcs_verify_batch(builder, mmcs.clone(), mmcs_verifier_input);
+                    mmcs_verify_batch(builder, mmcs_verifier_input);
                     builder.assign(&fixed_commit_leafs, fixed_opened_values);
                 });
 
@@ -628,25 +637,18 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                     let n_d_i = pow_2(builder, n_d_i_log);
                     // mmcs_ext.verify_batch
                     let dimensions = builder.uninit_fixed_array(1);
-                    let two = builder.eval(Usize::from(2));
-                    builder.set_value(
-                        &dimensions,
-                        0,
-                        DimensionsVariable {
-                            width: two,
-                            height: n_d_i.clone(),
-                        },
-                    );
+                    // let two: Var<_> = builder.eval(Usize::from(2));
+                    builder.set_value(&dimensions, 0, n_d_i.clone());
                     let opened_values = builder.uninit_fixed_array(1);
                     builder.set_value(&opened_values, 0, leafs.clone());
                     let ext_mmcs_verifier_input = ExtMmcsVerifierInputVariable {
                         commit: pi_comm.clone(),
                         dimensions,
-                        index_bits: idx.clone(),
+                        index_bits: idx_bits.clone(), // TODO: new idx bits?
                         opened_values,
                         proof,
                     };
-                    ext_mmcs_verify_batch::<C>(builder, mmcs_ext.clone(), ext_mmcs_verifier_input);
+                    ext_mmcs_verify_batch::<C>(builder, ext_mmcs_verifier_input);
 
                     let coeffs =
                         verifier_folding_coeffs_level(builder, &input.vp, n_d_i_log.clone());
