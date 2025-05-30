@@ -8,7 +8,7 @@ use openvm_stark_sdk::p3_baby_bear::BabyBear;
 use p3_field::extension::BinomialExtensionField;
 use p3_field::FieldAlgebra;
 
-use super::{structs::*, utils::*, hash::*};
+use super::{hash::*, structs::*, utils::*};
 
 pub type F = BabyBear;
 pub type E = BinomialExtensionField<F, DIMENSIONS>;
@@ -44,8 +44,8 @@ impl Hintable<InnerConfig> for MmcsVerifierInput {
         let commit = MmcsCommitment::read(builder);
         let dimensions = Vec::<Dimensions>::read(builder);
         let index = usize::read(builder);
-        let opened_values = Vec::<Vec::<F>>::read(builder);
-        let proof = Vec::<Vec::<F>>::read(builder);
+        let opened_values = Vec::<Vec<F>>::read(builder);
+        let proof = Vec::<Vec<F>>::read(builder);
 
         MmcsVerifierInputVariable {
             commit,
@@ -62,7 +62,13 @@ impl Hintable<InnerConfig> for MmcsVerifierInput {
         stream.extend(self.dimensions.write());
         stream.extend(<usize as Hintable<InnerConfig>>::write(&self.index));
         stream.extend(self.opened_values.write());
-        stream.extend(self.proof.iter().map(|p| p.to_vec()).collect::<Vec<_>>().write());
+        stream.extend(
+            self.proof
+                .iter()
+                .map(|p| p.to_vec())
+                .collect::<Vec<_>>()
+                .write(),
+        );
         stream
     }
 }
@@ -72,7 +78,7 @@ pub type MmcsProofVariable<C> = Array<C, Array<C, Felt<<C as Config>::F>>>;
 #[derive(DslVariable, Clone)]
 pub struct MmcsVerifierInputVariable<C: Config> {
     pub commit: MmcsCommitmentVariable<C>,
-    pub dimensions: Array<C, DimensionsVariable<C>>,
+    pub dimensions: Array<C, Usize<C::N>>,
     pub index: Var<C::N>,
     pub opened_values: Array<C, Array<C, Felt<C::F>>>,
     pub proof: MmcsProofVariable<C>,
@@ -83,6 +89,18 @@ pub(crate) fn mmcs_verify_batch<C: Config>(
     _mmcs: MerkleTreeMmcsVariable<C>, // self
     input: MmcsVerifierInputVariable<C>,
 ) {
+    let dimensions = match input.dimensions {
+        Array::Dyn(ptr, len) => Array::Dyn(ptr, len.clone()),
+        _ => panic!("Expected a dynamic array of felts"),
+    };
+    builder.verify_batch_felt(
+        &dimensions,
+        &input.opened_values,
+        input.proof_id,
+        input.index_bits,
+        &input.commit.value,
+    );
+
     // Check that the openings have the correct shape.
     let num_dims = input.dimensions.len();
     // Assert dimensions is not empty
@@ -94,19 +112,22 @@ pub(crate) fn mmcs_verify_batch<C: Config>(
     // TODO: Disabled for now, CirclePcs sometimes passes a height that's off by 1 bit.
     // Nondeterministically supplies max_height
     let max_height = builder.hint_var();
-    builder.range(0, input.dimensions.len()).for_each(|i_vec, builder| {
-        let i = i_vec[0];
-        let next_height = builder.get(&input.dimensions, i).height;
-        let max_height_plus_one: Var<C::N> = builder.eval(max_height + Usize::from(1));
-        builder.assert_less_than_slow_small_rhs(next_height, max_height_plus_one);
-    });
+    builder
+        .range(0, input.dimensions.len())
+        .for_each(|i_vec, builder| {
+            let i = i_vec[0];
+            let next_height = builder.get(&input.dimensions, i).height;
+            let max_height_plus_one: Var<C::N> = builder.eval(max_height + Usize::from(1));
+            builder.assert_less_than_slow_small_rhs(next_height, max_height_plus_one);
+        });
 
     // Verify correspondence between log_h and h
     let log_max_height = builder.hint_var();
     let log_max_height_minus_1: Var<C::N> = builder.eval(log_max_height - Usize::from(1));
     let purported_max_height_lower_bound: Var<C::N> = pow_2(builder, log_max_height_minus_1);
     let two: Var<C::N> = builder.constant(C::N::TWO);
-    let purported_max_height_upper_bound: Var<C::N> = builder.eval(purported_max_height_lower_bound * two);
+    let purported_max_height_upper_bound: Var<C::N> =
+        builder.eval(purported_max_height_lower_bound * two);
     builder.assert_less_than_slow_small_rhs(purported_max_height_lower_bound, max_height);
     builder.assert_less_than_slow_small_rhs(max_height, purported_max_height_upper_bound);
     builder.assert_usize_eq(input.proof.len(), log_max_height);
@@ -115,15 +136,10 @@ pub(crate) fn mmcs_verify_batch<C: Config>(
     // 1. height_order: after sorting by decreasing height, the original index of each entry
     // 2. num_unique_height: number of different heights
     // 3. count_per_unique_height: for each unique height, number of dimensions of that height
-    let (
-        height_order, 
-        num_unique_height, 
-        count_per_unique_height
-    ) = sort_with_count(
-        builder,
-        &input.dimensions,
-        |d: DimensionsVariable<C>| d.height,
-    );
+    let (height_order, num_unique_height, count_per_unique_height) =
+        sort_with_count(builder, &input.dimensions, |d: DimensionsVariable<C>| {
+            d.height
+        });
 
     // First padded_height
     let first_order = builder.get(&height_order, 0);
@@ -133,12 +149,14 @@ pub(crate) fn mmcs_verify_batch<C: Config>(
     // Construct root through hashing
     let root_dims_count: Var<C::N> = builder.get(&count_per_unique_height, 0);
     let root_values = builder.dyn_array(root_dims_count);
-    builder.range(0, root_dims_count).for_each(|i_vec, builder| {
-        let i = i_vec[0];
-        let index = builder.get(&height_order, i);
-        let tmp = builder.get(&input.opened_values, index);
-        builder.set_value(&root_values, i, tmp);
-    });
+    builder
+        .range(0, root_dims_count)
+        .for_each(|i_vec, builder| {
+            let i = i_vec[0];
+            let index = builder.get(&height_order, i);
+            let tmp = builder.get(&input.opened_values, index);
+            builder.set_value(&root_values, i, tmp);
+        });
     let root = hash_iter_slices(builder, root_values);
 
     // Index_pow and reassembled_index for bit split
@@ -148,72 +166,96 @@ pub(crate) fn mmcs_verify_batch<C: Config>(
     let next_unique_height_index: Var<C::N> = builder.eval(Usize::from(1));
     let cumul_dims_count: Var<C::N> = builder.eval(root_dims_count);
     let next_height_padded: Var<C::N> = builder.eval(Usize::from(0));
-    builder.if_ne(num_unique_height, Usize::from(1)).then(|builder| {
-        let next_height = builder.get(&input.dimensions, cumul_dims_count).height;
-        let tmp_next_height_padded = next_power_of_two(builder, next_height);
-        builder.assign(&next_height_padded, tmp_next_height_padded);
-    });
-    builder.range(0, input.proof.len()).for_each(|i_vec, builder| {
-        let i = i_vec[0];
-        let sibling = builder.get(&input.proof, i);
-        let two_var: Var<C::N> = builder.eval(Usize::from(2)); // XXX: is there a better way to do this?
-        // Supply the next index bit as hint, assert that it is a bit
-        let next_index_bit = builder.hint_var();
-        builder.assert_var_eq(next_index_bit, next_index_bit * next_index_bit);
-        builder.assign(&reassembled_index, reassembled_index + index_pow * next_index_bit);
-        builder.assign(&index_pow, index_pow * two_var);
-
-        // left, right
-        let compress_elem = builder.dyn_array(2);
-        builder.if_eq(next_index_bit, Usize::from(0)).then(|builder| {
-            // root, sibling
-            builder.set_value(&compress_elem, 0, root.clone());
-            builder.set_value(&compress_elem, 0, sibling.clone());
+    builder
+        .if_ne(num_unique_height, Usize::from(1))
+        .then(|builder| {
+            let next_height = builder.get(&input.dimensions, cumul_dims_count).height;
+            let tmp_next_height_padded = next_power_of_two(builder, next_height);
+            builder.assign(&next_height_padded, tmp_next_height_padded);
         });
-        builder.if_ne(next_index_bit, Usize::from(0)).then(|builder| {
-            // sibling, root
-            builder.set_value(&compress_elem, 0, sibling.clone());
-            builder.set_value(&compress_elem, 0, root.clone());
-        });
-        let new_root = compress(builder, compress_elem);
-        builder.assign(&root, new_root);
+    builder
+        .range(0, input.proof.len())
+        .for_each(|i_vec, builder| {
+            let i = i_vec[0];
+            let sibling = builder.get(&input.proof, i);
+            let two_var: Var<C::N> = builder.eval(Usize::from(2)); // XXX: is there a better way to do this?
+                                                                   // Supply the next index bit as hint, assert that it is a bit
+            let next_index_bit = builder.hint_var();
+            builder.assert_var_eq(next_index_bit, next_index_bit * next_index_bit);
+            builder.assign(
+                &reassembled_index,
+                reassembled_index + index_pow * next_index_bit,
+            );
+            builder.assign(&index_pow, index_pow * two_var);
 
-        // curr_height_padded >>= 1 given curr_height_padded is a power of two
-        // Nondeterministically supply next_curr_height_padded
-        let next_curr_height_padded = builder.hint_var();
-        builder.assert_var_eq(next_curr_height_padded * two_var, curr_height_padded);
-        builder.assign(&curr_height_padded, next_curr_height_padded);
-
-        // determine whether next_height matches curr_height
-        builder.if_eq(curr_height_padded, next_height_padded).then(|builder| {
-            // hash opened_values of all dims of next_height to root
-            let root_dims_count = builder.get(&count_per_unique_height, next_unique_height_index);
-            let root_size: Var<C::N> = builder.eval(root_dims_count + Usize::from(1));
-            let root_values = builder.dyn_array(root_size);
-            builder.set_value(&root_values, 0, root.clone());
-            builder.range(0, root_dims_count).for_each(|i_vec, builder| {
-                let i = i_vec[0];
-                let index = builder.get(&height_order, i);
-                let tmp = builder.get(&input.opened_values, index);
-                let j = builder.eval_expr(i + RVar::from(1));
-                builder.set_value(&root_values, j, tmp);
-            });
-            let new_root = hash_iter_slices(builder, root_values);
+            // left, right
+            let compress_elem = builder.dyn_array(2);
+            builder
+                .if_eq(next_index_bit, Usize::from(0))
+                .then(|builder| {
+                    // root, sibling
+                    builder.set_value(&compress_elem, 0, root.clone());
+                    builder.set_value(&compress_elem, 0, sibling.clone());
+                });
+            builder
+                .if_ne(next_index_bit, Usize::from(0))
+                .then(|builder| {
+                    // sibling, root
+                    builder.set_value(&compress_elem, 0, sibling.clone());
+                    builder.set_value(&compress_elem, 0, root.clone());
+                });
+            let new_root = compress(builder, compress_elem);
             builder.assign(&root, new_root);
 
-            // Update parameters
-            builder.assign(&cumul_dims_count, cumul_dims_count + root_dims_count);
-            builder.assign(&next_unique_height_index, next_unique_height_index + Usize::from(1));
-            builder.if_eq(next_unique_height_index, num_unique_height).then(|builder| {
-                builder.assign(&next_height_padded, Usize::from(0));
-            });
-            builder.if_ne(next_unique_height_index, num_unique_height).then(|builder| {
-                let next_height = builder.get(&input.dimensions, cumul_dims_count).height;
-                let next_tmp_height_padded = next_power_of_two(builder, next_height);
-                builder.assign(&next_height_padded, next_tmp_height_padded);
-            });
+            // curr_height_padded >>= 1 given curr_height_padded is a power of two
+            // Nondeterministically supply next_curr_height_padded
+            let next_curr_height_padded = builder.hint_var();
+            builder.assert_var_eq(next_curr_height_padded * two_var, curr_height_padded);
+            builder.assign(&curr_height_padded, next_curr_height_padded);
+
+            // determine whether next_height matches curr_height
+            builder
+                .if_eq(curr_height_padded, next_height_padded)
+                .then(|builder| {
+                    // hash opened_values of all dims of next_height to root
+                    let root_dims_count =
+                        builder.get(&count_per_unique_height, next_unique_height_index);
+                    let root_size: Var<C::N> = builder.eval(root_dims_count + Usize::from(1));
+                    let root_values = builder.dyn_array(root_size);
+                    builder.set_value(&root_values, 0, root.clone());
+                    builder
+                        .range(0, root_dims_count)
+                        .for_each(|i_vec, builder| {
+                            let i = i_vec[0];
+                            let index = builder.get(&height_order, i);
+                            let tmp = builder.get(&input.opened_values, index);
+                            let j = builder.eval_expr(i + RVar::from(1));
+                            builder.set_value(&root_values, j, tmp);
+                        });
+                    let new_root = hash_iter_slices(builder, root_values);
+                    builder.assign(&root, new_root);
+
+                    // Update parameters
+                    builder.assign(&cumul_dims_count, cumul_dims_count + root_dims_count);
+                    builder.assign(
+                        &next_unique_height_index,
+                        next_unique_height_index + Usize::from(1),
+                    );
+                    builder
+                        .if_eq(next_unique_height_index, num_unique_height)
+                        .then(|builder| {
+                            builder.assign(&next_height_padded, Usize::from(0));
+                        });
+                    builder
+                        .if_ne(next_unique_height_index, num_unique_height)
+                        .then(|builder| {
+                            let next_height =
+                                builder.get(&input.dimensions, cumul_dims_count).height;
+                            let next_tmp_height_padded = next_power_of_two(builder, next_height);
+                            builder.assign(&next_height_padded, next_tmp_height_padded);
+                        });
+                });
         });
-    });
     builder.assert_var_eq(reassembled_index, input.index);
     builder.range(0, DIGEST_ELEMS).for_each(|i_vec, builder| {
         let i = i_vec[0];
@@ -230,8 +272,7 @@ pub mod tests {
     use openvm_native_recursion::hints::Hintable;
     use openvm_stark_backend::config::StarkGenericConfig;
     use openvm_stark_sdk::{
-        config::baby_bear_poseidon2::BabyBearPoseidon2Config,
-        p3_baby_bear::BabyBear,
+        config::baby_bear_poseidon2::BabyBearPoseidon2Config, p3_baby_bear::BabyBear,
     };
     use p3_field::{extension::BinomialExtensionField, FieldAlgebra};
     type SC = BabyBearPoseidon2Config;
@@ -241,7 +282,7 @@ pub mod tests {
     type EF = <SC as StarkGenericConfig>::Challenge;
     use crate::basefold_verifier::structs::Dimensions;
 
-    use super::{mmcs_verify_batch, MmcsCommitment, InnerConfig, MmcsVerifierInput};
+    use super::{mmcs_verify_batch, InnerConfig, MmcsCommitment, MmcsVerifierInput};
 
     #[allow(dead_code)]
     pub fn build_mmcs_verify_batch() -> (Program<BabyBear>, Vec<Vec<BabyBear>>) {
@@ -269,27 +310,126 @@ pub mod tests {
                 f(1773915204),
                 f(380281369),
                 f(383365269),
-            ]
+            ],
         };
         let dimensions = vec![
-            Dimensions { width: 8, height: 1 },
-            Dimensions { width: 8, height: 1 },
-            Dimensions { width: 8, height: 70 },
+            Dimensions {
+                width: 8,
+                height: 1,
+            },
+            Dimensions {
+                width: 8,
+                height: 1,
+            },
+            Dimensions {
+                width: 8,
+                height: 70,
+            },
         ];
         let index = 6;
         let opened_values = vec![
-            vec![f(774319227), f(1631186743), f(254325873), f(504149682), f(239740532), f(1126519109), f(1044404585), f(1274764277)],
-            vec![f(1486505160), f(631183960), f(329388712), f(1934479253), f(115532954), f(1978455077), f(66346996), f(821157541)],
-            vec![f(149196326), f(1186650877), f(1970038391), f(1893286029), f(1249658956), f(1618951617), f(419030634), f(1967997848)],
+            vec![
+                f(774319227),
+                f(1631186743),
+                f(254325873),
+                f(504149682),
+                f(239740532),
+                f(1126519109),
+                f(1044404585),
+                f(1274764277),
+            ],
+            vec![
+                f(1486505160),
+                f(631183960),
+                f(329388712),
+                f(1934479253),
+                f(115532954),
+                f(1978455077),
+                f(66346996),
+                f(821157541),
+            ],
+            vec![
+                f(149196326),
+                f(1186650877),
+                f(1970038391),
+                f(1893286029),
+                f(1249658956),
+                f(1618951617),
+                f(419030634),
+                f(1967997848),
+            ],
         ];
         let proof = vec![
-            [f(845920358), f(1201648213), f(1087654550), f(264553580), f(633209321), f(877945079), f(1674449089), f(1062812099)],
-            [f(5498027), f(1901489519), f(179361222), f(41261871), f(1546446894), f(266690586), f(1882928070), f(844710372)],
-            [f(721245096), f(388358486), f(1443363461), f(1349470697), f(253624794), f(1359455861), f(237485093), f(1955099141)],
-            [f(1816731864), f(402719753), f(1972161922), f(693018227), f(1617207065), f(1848150948), f(360933015), f(669793414)],
-            [f(1746479395), f(457185725), f(1263857148), f(328668702), f(1743038915), f(582282833), f(927410326), f(376217274)],
-            [f(1146845382), f(1117439420), f(1622226137), f(1449227765), f(138752938), f(1251889563), f(1266915653), f(267248408)],
-            [f(1992750195), f(1604624754), f(1748646393), f(1777984113), f(861317745), f(564150089), f(1371546358), f(460033967)],
+            [
+                f(845920358),
+                f(1201648213),
+                f(1087654550),
+                f(264553580),
+                f(633209321),
+                f(877945079),
+                f(1674449089),
+                f(1062812099),
+            ],
+            [
+                f(5498027),
+                f(1901489519),
+                f(179361222),
+                f(41261871),
+                f(1546446894),
+                f(266690586),
+                f(1882928070),
+                f(844710372),
+            ],
+            [
+                f(721245096),
+                f(388358486),
+                f(1443363461),
+                f(1349470697),
+                f(253624794),
+                f(1359455861),
+                f(237485093),
+                f(1955099141),
+            ],
+            [
+                f(1816731864),
+                f(402719753),
+                f(1972161922),
+                f(693018227),
+                f(1617207065),
+                f(1848150948),
+                f(360933015),
+                f(669793414),
+            ],
+            [
+                f(1746479395),
+                f(457185725),
+                f(1263857148),
+                f(328668702),
+                f(1743038915),
+                f(582282833),
+                f(927410326),
+                f(376217274),
+            ],
+            [
+                f(1146845382),
+                f(1117439420),
+                f(1622226137),
+                f(1449227765),
+                f(138752938),
+                f(1251889563),
+                f(1266915653),
+                f(267248408),
+            ],
+            [
+                f(1992750195),
+                f(1604624754),
+                f(1748646393),
+                f(1777984113),
+                f(861317745),
+                f(564150089),
+                f(1371546358),
+                f(460033967),
+            ],
         ];
         let mmcs_input = MmcsVerifierInput {
             commit,
@@ -314,179 +454,323 @@ pub mod tests {
         // curr_height_log
         witness_stream.extend(<usize as Hintable<InnerConfig>>::write(&6));
         // root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(1782972889)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(1782972889),
+        ));
         // root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(279434715)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(279434715),
+        ));
         // root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(1209301918)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(1209301918),
+        ));
         // root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(1853868602)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(1853868602),
+        ));
         // root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(883945353)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(883945353),
+        ));
         // root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(368353728)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(368353728),
+        ));
         // root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(1699837443)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(1699837443),
+        ));
         // root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(908962698)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(908962698),
+        ));
         // next_height_log
         witness_stream.extend(<usize as Hintable<InnerConfig>>::write(&0));
         // next_bit
         witness_stream.extend(<usize as Hintable<InnerConfig>>::write(&0));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(271352274)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(271352274),
+        ));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(1918158485)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(1918158485),
+        ));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(1538604111)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(1538604111),
+        ));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(1122013445)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(1122013445),
+        ));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(1844193149)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(1844193149),
+        ));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(501326061)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(501326061),
+        ));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(1508959271)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(1508959271),
+        ));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(1549189152)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(1549189152),
+        ));
         // next_curr_height_padded
         witness_stream.extend(<usize as Hintable<InnerConfig>>::write(&64));
         // next_bit
         witness_stream.extend(<usize as Hintable<InnerConfig>>::write(&1));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(222162520)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(222162520),
+        ));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(785634830)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(785634830),
+        ));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(1461778378)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(1461778378),
+        ));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(836284568)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(836284568),
+        ));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(1141654637)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(1141654637),
+        ));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(1339589042)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(1339589042),
+        ));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(1081824021)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(1081824021),
+        ));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(698316542)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(698316542),
+        ));
         // next_curr_height_padded
         witness_stream.extend(<usize as Hintable<InnerConfig>>::write(&32));
         // next_bit
         witness_stream.extend(<usize as Hintable<InnerConfig>>::write(&1));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(567517164)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(567517164),
+        ));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(915833994)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(915833994),
+        ));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(621327606)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(621327606),
+        ));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(476128789)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(476128789),
+        ));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(1976747536)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(1976747536),
+        ));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(1385950652)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(1385950652),
+        ));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(1416073024)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(1416073024),
+        ));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(862764478)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(862764478),
+        ));
         // next_curr_height_padded
         witness_stream.extend(<usize as Hintable<InnerConfig>>::write(&16));
         // next_bit
         witness_stream.extend(<usize as Hintable<InnerConfig>>::write(&0));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(822965313)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(822965313),
+        ));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(1036402058)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(1036402058),
+        ));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(117603799)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(117603799),
+        ));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(1087591966)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(1087591966),
+        ));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(443405499)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(443405499),
+        ));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(1334745091)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(1334745091),
+        ));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(901165815)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(901165815),
+        ));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(1187124281)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(1187124281),
+        ));
         // next_curr_height_padded
         witness_stream.extend(<usize as Hintable<InnerConfig>>::write(&8));
         // next_bit
         witness_stream.extend(<usize as Hintable<InnerConfig>>::write(&0));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(875508647)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(875508647),
+        ));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(1313410483)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(1313410483),
+        ));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(355713834)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(355713834),
+        ));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(1976667383)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(1976667383),
+        ));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(1804021525)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(1804021525),
+        ));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(294385081)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(294385081),
+        ));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(669164730)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(669164730),
+        ));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(1187763617)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(1187763617),
+        ));
         // next_curr_height_padded
         witness_stream.extend(<usize as Hintable<InnerConfig>>::write(&4));
         // next_bit
         witness_stream.extend(<usize as Hintable<InnerConfig>>::write(&0));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(1992024140)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(1992024140),
+        ));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(439080849)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(439080849),
+        ));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(1032272714)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(1032272714),
+        ));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(1304584689)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(1304584689),
+        ));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(1795447062)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(1795447062),
+        ));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(859522945)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(859522945),
+        ));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(1661892383)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(1661892383),
+        ));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(1980559722)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(1980559722),
+        ));
         // next_curr_height_padded
         witness_stream.extend(<usize as Hintable<InnerConfig>>::write(&2));
         // next_bit
         witness_stream.extend(<usize as Hintable<InnerConfig>>::write(&0));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(1121119596)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(1121119596),
+        ));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(369487248)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(369487248),
+        ));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(834451573)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(834451573),
+        ));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(1120744826)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(1120744826),
+        ));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(758930984)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(758930984),
+        ));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(632316631)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(632316631),
+        ));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(1593276657)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(1593276657),
+        ));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(507031465)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(507031465),
+        ));
         // next_curr_height_padded
         witness_stream.extend(<usize as Hintable<InnerConfig>>::write(&1));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(1715944678)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(1715944678),
+        ));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(1204294900)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(1204294900),
+        ));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(59582177)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(59582177),
+        ));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(320945505)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(320945505),
+        ));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(1470843790)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(1470843790),
+        ));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(1773915204)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(1773915204),
+        ));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(380281369)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(380281369),
+        ));
         // new_root
-        witness_stream.extend(<F as Hintable<InnerConfig>>::write(&F::from_canonical_usize(383365269)));
+        witness_stream.extend(<F as Hintable<InnerConfig>>::write(
+            &F::from_canonical_usize(383365269),
+        ));
 
         // PROGRAM
         let program: Program<
