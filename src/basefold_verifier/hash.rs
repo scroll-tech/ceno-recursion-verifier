@@ -30,7 +30,7 @@ impl Hintable<InnerConfig> for Hash {
     type HintVariable = HashVariable<InnerConfig>;
 
     fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
-        let value = builder.uninit_fixed_array(DIGEST_ELEMS);
+        let value = builder.dyn_array(DIGEST_ELEMS);
         for i in 0..DIGEST_ELEMS {
             let tmp = F::read(builder);
             builder.set(&value, i, tmp);
@@ -71,4 +71,31 @@ pub fn compress<C: Config>(
 ) -> Array<C, Felt<C::F>> {
     // XXX: verify hash
     builder.hint_felts_fixed(DIGEST_ELEMS)
+}
+
+#[cfg(test)]
+mod tests {
+    use openvm_native_compiler::asm::AsmBuilder;
+    use openvm_native_compiler_derive::iter_zip;
+    use openvm_stark_backend::config::StarkGenericConfig;
+    use openvm_stark_sdk::config::baby_bear_poseidon2::BabyBearPoseidon2Config;
+    type SC = BabyBearPoseidon2Config;
+    type F = BabyBear;
+    type E = BinomialExtensionField<F, 4>;
+    type EF = <SC as StarkGenericConfig>::Challenge;
+
+    use crate::basefold_verifier::basefold::HashDigest;
+
+    use super::*;
+    #[test]
+    fn test_read_to_hash_variable() {
+        let mut builder = AsmBuilder::<F, EF>::default();
+
+        let hint = HashDigest::read(&mut builder);
+        println!(" hint: {:?}", hint.value);
+        let dst: HashVariable<_> = builder.uninit();
+        println!(" dst: {:?}", dst.value);
+        // builder.set(&arr, 0, hint);
+        builder.assign(&dst, hint);
+    }
 }
