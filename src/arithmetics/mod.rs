@@ -1,24 +1,53 @@
 use crate::tower_verifier::binding::PointAndEvalVariable;
-use ark_ff::Field;
+use crate::zkvm_verifier::binding::ZKVMOpcodeProofInputVariable;
 use ceno_zkvm::expression::{Expression, Fixed, Instance};
 use ceno_zkvm::structs::{ChallengeId, WitnessId};
 use ff_ext::ExtensionField;
 use ff_ext::{BabyBearExt4, SmallField};
-use openvm_native_compiler::asm::AsmConfig;
 use openvm_native_compiler::prelude::*;
 use openvm_native_compiler_derive::iter_zip;
-use openvm_native_recursion::{
-    challenger::ChallengerVariable,
-    hints::{InnerChallenge, InnerVal},
-};
-use openvm_stark_sdk::p3_baby_bear::BabyBear;
+use openvm_native_recursion::challenger::ChallengerVariable;
 use p3_field::{FieldAlgebra, FieldExtensionAlgebra};
-
-type InnerConfig = AsmConfig<InnerVal, InnerChallenge>;
-const NUM_FANIN: usize = 2;
-const MAX_DEGREE: usize = 3;
 type E = BabyBearExt4;
-type F = BabyBear;
+
+pub fn _print_ext_arr<C: Config>(builder: &mut Builder<C>, arr: &Array<C, Ext<C::F, C::EF>>) {
+    iter_zip!(builder, arr).for_each(|ptr_vec, builder| {
+        let e = builder.iter_ptr_get(arr, ptr_vec[0]);
+        builder.print_e(e);
+    });
+}
+
+pub fn _print_felt_arr<C: Config>(builder: &mut Builder<C>, arr: &Array<C, Felt<C::F>>) {
+    iter_zip!(builder, arr).for_each(|ptr_vec, builder| {
+        let f = builder.iter_ptr_get(arr, ptr_vec[0]);
+        builder.print_f(f);
+    });
+}
+
+pub fn _print_usize_arr<C: Config>(builder: &mut Builder<C>, arr: &Array<C, Usize<C::N>>) {
+    iter_zip!(builder, arr).for_each(|ptr_vec, builder| {
+        let n = builder.iter_ptr_get(arr, ptr_vec[0]);
+        builder.print_v(n.get_var());
+    });
+}
+
+pub fn is_smaller_than<C: Config>(
+    builder: &mut Builder<C>,
+    left: RVar<C::N>,
+    right: RVar<C::N>,
+) -> RVar<C::N> {
+    let res: Felt<C::F> = builder.constant(C::F::ZERO);
+    let one: Felt<C::F> = builder.constant(C::F::ONE);
+
+    builder.range(0, right).for_each(|idx_vec, builder| {
+        builder.if_eq(left, idx_vec[0]).then(|builder| {
+            builder.assign(&res, res + one);
+        });
+    });
+    let v = builder.cast_felt_to_var(res);
+
+    RVar::from(v)
+}
 
 pub fn evaluate_at_point<C: Config>(
     builder: &mut Builder<C>,
@@ -34,57 +63,16 @@ pub fn evaluate_at_point<C: Config>(
     builder.eval(r * (right - left) + left)
 }
 
-pub fn evaluate_felt_poly<C: Config>(
-    builder: &mut Builder<C>,
-    evals: &Array<C, Felt<C::F>>,
-    point: &Array<C, Ext<C::F, C::EF>>,
-    num_variables: Var<C::N>,
-) -> Ext<C::F, C::EF> {
-    builder.assert_var_eq(point.len(), num_variables);
-
-    let curr_num_vars: Var<C::N> = num_variables.clone();
-    let evals_ext: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(evals.len());
-    iter_zip!(builder, evals, evals_ext).for_each(|ptr_vec, builder| {
-        let f = builder.iter_ptr_get(&evals, ptr_vec[0]);
-        let e = builder.felts2ext(&[f]);
-        builder.iter_ptr_set(&evals_ext, ptr_vec[1], e);
-    });
-
-    iter_zip!(builder, point).for_each(|ptr_vec, builder| {
-        let pt = builder.iter_ptr_get(&point, ptr_vec[0]);
-        let new_num_vars: Var<C::N> = builder.eval(curr_num_vars - Var::<C::N>::new(1));
-        let new_evals_ext_len = pow_of_2_var(builder, new_num_vars);
-        let new_evals_ext: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(new_evals_ext_len);
-
-        builder.range(0, new_evals_ext.len()).for_each(|idx_vec, builder| {
-            let left_idx: Usize<C::N> = builder.eval(idx_vec[0] * Usize::from(2));
-            let right_idx: Usize<C::N> = builder.eval(idx_vec[0] * Usize::from(2) + Usize::from(1));
-            let left = builder.get(&evals_ext, left_idx);
-            let right = builder.get(&evals_ext, right_idx);
-
-            let e: Ext<C::F, C::EF> = builder.eval(pt * (right - left) + left);
-            builder.set(&new_evals_ext, idx_vec[0], e);
-        });
-
-        builder.assign(&evals_ext, new_evals_ext);
-        builder.assign(&curr_num_vars, new_num_vars);
-    });
-
-    builder.get(&evals_ext, 0)
-}
-
 pub fn dot_product<C: Config>(
     builder: &mut Builder<C>,
     a: &Array<C, Ext<C::F, C::EF>>,
     b: &Array<C, Ext<C::F, C::EF>>,
 ) -> Ext<<C as Config>::F, <C as Config>::EF> {
-    let acc: Ext<C::F, C::EF> = builder.eval(C::F::ZERO);
+    let acc: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
 
-    iter_zip!(builder, a, b).for_each(|idx_vec, builder| {
-        let ptr_a = idx_vec[0];
-        let ptr_b = idx_vec[1];
-        let v_a = builder.iter_ptr_get(&a, ptr_a);
-        let v_b = builder.iter_ptr_get(&b, ptr_b);
+    iter_zip!(builder, a, b).for_each(|ptr_vec, builder| {
+        let v_a = builder.iter_ptr_get(&a, ptr_vec[0]);
+        let v_b = builder.iter_ptr_get(&b, ptr_vec[1]);
         builder.assign(&acc, acc + v_a * v_b);
     });
 
@@ -109,12 +97,12 @@ pub fn dot_product_pt_n_eval<C: Config>(
     acc
 }
 
-pub fn reverse<C: Config>(
+pub fn reverse<C: Config, T: MemVariable<C>>(
     builder: &mut Builder<C>,
-    arr: &Array<C, Ext<C::F, C::EF>>,
-) -> Array<C, Ext<C::F, C::EF>> {
+    arr: &Array<C, T>,
+) -> Array<C, T> {
     let len = arr.len();
-    let res: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(len.clone());
+    let res: Array<C, T> = builder.dyn_array(len.clone());
     builder.range(0, len.clone()).for_each(|i_vec, builder| {
         let i = i_vec[0];
         let rev_i: RVar<_> = builder.eval_expr(len.clone() - i - RVar::from(1));
@@ -126,13 +114,13 @@ pub fn reverse<C: Config>(
     res
 }
 
-pub fn concat<C: Config>(
+pub fn concat<C: Config, T: MemVariable<C>>(
     builder: &mut Builder<C>,
-    a: &Array<C, Ext<C::F, C::EF>>,
-    b: &Array<C, Ext<C::F, C::EF>>,
-) -> Array<C, Ext<C::F, C::EF>> {
+    a: &Array<C, T>,
+    b: &Array<C, T>,
+) -> Array<C, T> {
     let res_len: Usize<C::N> = builder.eval(a.len() + b.len());
-    let res: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(res_len);
+    let res: Array<C, T> = builder.dyn_array(res_len);
 
     builder.range(0, a.len()).for_each(|idx_vec, builder| {
         let a_v = builder.get(&a, idx_vec[0]);
@@ -147,31 +135,12 @@ pub fn concat<C: Config>(
     res
 }
 
-pub fn gen_idx_arr<C: Config>(builder: &mut Builder<C>, len: Usize<C::N>) -> Array<C, Var<C::N>> {
-    let one = Usize::from(1);
-    let res: Array<C, Var<C::N>> = builder.dyn_array(len.clone());
-
-    let el: Var<C::N> = Var::<C::N>::new(0);
-    builder.range(0, len).for_each(|idx_vec, builder| {
-        builder.set(&res, idx_vec[0], el.clone());
-        builder.assign(&el, el.clone() + one.clone());
-    });
-
-    res
-}
-
-pub fn reverse_idx_arr<C: Config>(
-    builder: &mut Builder<C>,
-    arr: &Array<C, Usize<C::N>>,
-) -> Array<C, Usize<C::N>> {
-    let len = arr.len();
+pub fn gen_idx_arr<C: Config>(builder: &mut Builder<C>, len: Usize<C::N>) -> Array<C, Usize<C::N>> {
     let res: Array<C, Usize<C::N>> = builder.dyn_array(len.clone());
-    builder.range(0, len.clone()).for_each(|i_vec, builder| {
-        let i = i_vec[0];
-        let rev_i: RVar<_> = builder.eval_expr(len.clone() - i - RVar::from(1));
 
-        let el = builder.get(arr, i);
-        builder.set(&res, rev_i, el);
+    builder.range(0, len).for_each(|idx_vec, builder| {
+        let u: Usize<C::N> = builder.eval(idx_vec[0]);
+        builder.set(&res, idx_vec[0], u);
     });
 
     res
@@ -182,14 +151,7 @@ pub fn eq_eval<C: Config>(
     x: &Array<C, Ext<C::F, C::EF>>,
     y: &Array<C, Ext<C::F, C::EF>>,
 ) -> Ext<C::F, C::EF> {
-    eq_eval_with_index::<C>(
-        builder,
-        x,
-        y,
-        Usize::from(0),
-        Usize::from(0),
-        x.len(),
-    )
+    eq_eval_with_index::<C>(builder, x, y, Usize::from(0), Usize::from(0), x.len())
 }
 
 // Evaluate eq polynomial.
@@ -277,7 +239,7 @@ pub fn join<C: Config>(
 pub fn gen_alpha_pows<C: Config>(
     builder: &mut Builder<C>,
     challenger: &mut impl ChallengerVariable<C>,
-    alpha_len: Var<<C as Config>::N>,
+    alpha_len: Usize<<C as Config>::N>,
 ) -> Array<C, Ext<C::F, C::EF>> {
     let alpha = challenger.sample_ext(builder);
 
@@ -300,166 +262,116 @@ pub fn gen_alpha_pows<C: Config>(
 ///         = \sum_{\mathbf{b}=0}^{max_idx} \prod_{i=0}^{n-1} (x_i y_i b_i + (1 - x_i)(1 - y_i)(1 - b_i))
 pub fn eq_eval_less_or_equal_than<C: Config>(
     builder: &mut Builder<C>,
-    challenger: &mut impl ChallengerVariable<C>,
-    max_idx: Var<C::N>,
+    _challenger: &mut impl ChallengerVariable<C>,
+    opcode_proof: &ZKVMOpcodeProofInputVariable<C>,
     a: &Array<C, Ext<C::F, C::EF>>,
     b: &Array<C, Ext<C::F, C::EF>>,
 ) -> Ext<C::F, C::EF> {
-    let one = builder.constant(C::EF::ONE);
+    let eq_bit_decomp: Array<C, Felt<C::F>> = opcode_proof
+        .num_instances_minus_one_bit_decomposition
+        .slice(builder, 0, b.len());
 
-    // Compute running product of ( x_i y_i + (1 - x_i)(1 - y_i) )_{0 <= i <= n}
-    let running_product_len = b.len();
-    builder.assign(
-        &running_product_len,
-        running_product_len.clone() + Usize::from(1),
-    );
-    let idx_arr = gen_idx_arr(builder, running_product_len.clone());
-    let running_product: Array<C, Ext<C::F, C::EF>> =
-        builder.dyn_array(running_product_len.clone());
+    let one_ext: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
+    let rp_len = builder.eval_expr(RVar::from(b.len()) + RVar::from(1));
+    let running_product: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(rp_len);
+    builder.set(&running_product, 0, one_ext);
 
-    builder.set(&running_product, 0, one);
-    let running_product_iter_slice = running_product.slice(builder, 1, running_product_len.clone());
-
-    iter_zip!(builder, idx_arr, running_product_iter_slice).for_each(|ptr_vec, builder| {
-        let idx = builder.iter_ptr_get(&idx_arr, ptr_vec[0]);
-        let prev = builder.get(&running_product, idx.clone());
-        let ai = builder.get(&a, idx.clone());
-        let bi = builder.get(&b, idx.clone());
-        // let x: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
-        let x: Ext<C::F, C::EF> = builder.eval(prev * (ai * bi + (one - ai) * (one - bi)));
-        // builder.assign(&x, prev * (ai * bi + (one - ai) * (one - bi)));
-        builder.iter_ptr_set(&running_product_iter_slice, ptr_vec[1], x);
+    builder.range(0, b.len()).for_each(|idx_vec, builder| {
+        let a_i = builder.get(a, idx_vec[0]);
+        let b_i = builder.get(b, idx_vec[0]);
+        let v = builder.get(&running_product, idx_vec[0]);
+        let next_v: Ext<C::F, C::EF> =
+            builder.eval(v * (a_i * b_i + (one_ext - a_i) * (one_ext - b_i)));
+        let next_idx = builder.eval_expr(idx_vec[0] + RVar::from(1));
+        builder.set(&running_product, next_idx, next_v);
     });
 
-    // _debug
-    // let running_product2: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(running_product_len.clone());
-    // builder.set(&running_product2, b.len(), one);
-    // let idx_arr = gen_idx_arr(builder, running_product_len.clone());
-    // let idx_arr_rev = reverse_idx_arr(builder, &idx_arr);
-    // // let max_idx_bits = builder.num2bits_v_circuit(max_idx, b.len());
+    let running_product2: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(rp_len);
+    builder.set(&running_product2, b.len(), one_ext);
 
-    // iter_zip!(builder, idx_arr_rev).for_each(|ptr_vec, builder| {
-    //     let idx = builder.iter_ptr_get(&idx_arr_rev, ptr_vec[0]);
-    //     idx.value();
-    // });
+    let eq_bit_decomp_rev = reverse(builder, &eq_bit_decomp);
+    let idx_arr = gen_idx_arr(builder, b.len());
+    let idx_arr_rev = reverse(builder, &idx_arr);
+    builder.assert_usize_eq(eq_bit_decomp_rev.len(), idx_arr_rev.len());
 
-    // _debug
-    // let running_product2 = {
-    //     let mut running_product = vec![E::ZERO; b.len() + 1];
-    //     running_product[b.len()] = E::ONE;
-    //     for i in (0..b.len()).rev() {
-    //         let bit = E::from_u64(((max_idx >> i) & 1) as u64);
-    //         running_product[i] = running_product[i + 1]
-    //             * (a[i] * b[i] * bit + (E::ONE - a[i]) * (E::ONE - b[i]) * (E::ONE - bit));
-    //     }
-    //     running_product
-    // };
+    iter_zip!(builder, idx_arr_rev, eq_bit_decomp_rev).for_each(|ptr_vec, builder| {
+        let i = builder.iter_ptr_get(&idx_arr_rev, ptr_vec[0]);
+        let bit = builder.iter_ptr_get(&eq_bit_decomp_rev, ptr_vec[1]);
+        let bit_ext = builder.ext_from_base_slice(&[bit]);
+        let last_idx = builder.eval_expr(i.clone() + RVar::from(1));
 
-    // // Here is an example of how this works:
-    // // Suppose max_idx = (110101)_2
-    // // Then ans = eq(a, b)
-    // //          - eq(11011, a[1..6], b[1..6])eq(a[0..1], b[0..1])
-    // //          - eq(111, a[3..6], b[3..6])eq(a[0..3], b[0..3])
-    // let mut ans = running_product[b.len()];
-    // for i in 0..b.len() {
-    //     let bit = (max_idx >> i) & 1;
-    //     if bit == 1 {
-    //         continue;
-    //     }
-    //     ans -= running_product[i] * running_product2[i + 1] * a[i] * b[i];
-    // }
-    // for v in a.iter().skip(b.len()) {
-    //     ans *= E::ONE - *v;
-    // }
-    // ans
+        let v = builder.get(&running_product2, last_idx);
+        let a_i = builder.get(a, i.clone());
+        let b_i = builder.get(b, i.clone());
 
-    one
+        let next_v: Ext<C::F, C::EF> = builder.eval(
+            v * (a_i * b_i * bit_ext + (one_ext - a_i) * (one_ext - b_i) * (one_ext - bit_ext)),
+        );
+        builder.set(&running_product2, i, next_v);
+    });
+
+    // Here is an example of how this works:
+    // Suppose max_idx = (110101)_2
+    // Then ans = eq(a, b)
+    //          - eq(11011, a[1..6], b[1..6])eq(a[0..1], b[0..1])
+    //          - eq(111, a[3..6], b[3..6])eq(a[0..3], b[0..3])
+    let ans = builder.get(&running_product, b.len());
+    builder.range(0, b.len()).for_each(|idx_vec, builder| {
+        let bit = builder.get(&eq_bit_decomp, idx_vec[0]);
+        let bit_rvar = RVar::from(builder.cast_felt_to_var(bit));
+
+        builder.if_ne(bit_rvar, RVar::from(1)).then(|builder| {
+            let next_idx = builder.eval_expr(idx_vec[0] + RVar::from(1));
+            let v1 = builder.get(&running_product, idx_vec[0]);
+            let v2 = builder.get(&running_product2, next_idx);
+            let a_i = builder.get(a, idx_vec[0]);
+            let b_i = builder.get(b, idx_vec[0]);
+
+            builder.assign(&ans, ans - v1 * v2 * a_i * b_i);
+        });
+    });
+
+    let a_remainder_arr: Array<C, Ext<C::F, C::EF>> = a.slice(builder, b.len(), a.len());
+    iter_zip!(builder, a_remainder_arr).for_each(|ptr_vec, builder| {
+        let a = builder.iter_ptr_get(&a_remainder_arr, ptr_vec[0]);
+        builder.assign(&ans, ans * (one_ext - a));
+    });
+
+    ans
 }
 
-/// This function build the eq(x, r) polynomial for any given r, and output the
-/// evaluation of eq(x, r) in its vector form.
-///
-/// Evaluate
-///      eq(x,y) = \prod_i=1^num_var (x_i * y_i + (1-x_i)*(1-y_i))
-/// over r, which is
-///      eq(x,y) = \prod_i=1^num_var (x_i * r_i + (1-x_i)*(1-r_i))
 pub fn build_eq_x_r_vec_sequential<C: Config>(
     builder: &mut Builder<C>,
     r: &Array<C, Ext<C::F, C::EF>>,
 ) -> Array<C, Ext<C::F, C::EF>> {
-    // we build eq(x,r) from its evaluations
-    // we want to evaluate eq(x,r) over x \in {0, 1}^num_vars
-    // for example, with num_vars = 4, x is a binary vector of 4, then
-    //  0 0 0 0 -> (1-r0)   * (1-r1)    * (1-r2)    * (1-r3)
-    //  1 0 0 0 -> r0       * (1-r1)    * (1-r2)    * (1-r3)
-    //  0 1 0 0 -> (1-r0)   * r1        * (1-r2)    * (1-r3)
-    //  1 1 0 0 -> r0       * r1        * (1-r2)    * (1-r3)
-    //  ....
-    //  1 1 1 1 -> r0       * r1        * r2        * r3
-    // we will need 2^num_var evaluations
-
-    let evals_len: Felt<C::F> = builder.constant(C::F::ONE);
-    let evals_len = builder.exp_power_of_2_v::<Felt<C::F>>(evals_len, r.len());
-    let evals_len = builder.cast_felt_to_var(evals_len);
-
+    let evals_len = pow_of_2(builder, RVar::from(r.len()));
     let evals: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(evals_len);
+    let one: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
+    builder.set(&evals, 0, one);
 
-    // _debug
-    // build_eq_x_r_helper_sequential(r, &mut evals, E::ONE);
-    // unsafe { std::mem::transmute(evals) }
+    let r_rev = reverse(builder, r);
+    builder.range(0, r_rev.len()).for_each(|idx_vec, builder| {
+        let r = builder.get(&r_rev, idx_vec[0]);
+        let next_size = Usize::Var(pow_of_2(builder, idx_vec[0]).variable());
+        let idx_arr = gen_idx_arr(builder, next_size);
+        let idx_arr_rev = reverse(builder, &idx_arr);
+
+        iter_zip!(builder, idx_arr_rev).for_each(|ptr_vec, builder| {
+            let index = builder.iter_ptr_get(&idx_arr_rev, ptr_vec[0]);
+            let prev_val = builder.get(&evals, index.clone());
+            let tmp: Ext<C::F, C::EF> = builder.eval(r * prev_val);
+
+            let left_i: Usize<C::N> = builder.eval(index.clone() * Usize::from(2) + Usize::from(1));
+            let right_i: Usize<C::N> = builder.eval(index.clone() * Usize::from(2));
+
+            builder.set(&evals, left_i, tmp);
+            let right_v: Ext<C::F, C::EF> = builder.eval(prev_val - tmp);
+            builder.set(&evals, right_i, right_v);
+        });
+    });
+
     evals
 }
-
-pub fn build_eq_x_r_vec_sequential_with_offset<C: Config>(
-    builder: &mut Builder<C>,
-    r: &Array<C, Ext<C::F, C::EF>>,
-    offset: Usize<C::N>,
-) -> Array<C, Ext<C::F, C::EF>> {
-    // we build eq(x,r) from its evaluations
-    // we want to evaluate eq(x,r) over x \in {0, 1}^num_vars
-    // for example, with num_vars = 4, x is a binary vector of 4, then
-    //  0 0 0 0 -> (1-r0)   * (1-r1)    * (1-r2)    * (1-r3)
-    //  1 0 0 0 -> r0       * (1-r1)    * (1-r2)    * (1-r3)
-    //  0 1 0 0 -> (1-r0)   * r1        * (1-r2)    * (1-r3)
-    //  1 1 0 0 -> r0       * r1        * (1-r2)    * (1-r3)
-    //  ....
-    //  1 1 1 1 -> r0       * r1        * r2        * r3
-    // we will need 2^num_var evaluations
-
-    let r_len: Var<C::N> = builder.eval(r.len() - offset);
-    let evals_len: Felt<C::F> = builder.constant(C::F::ONE);
-    let evals_len = builder.exp_power_of_2_v::<Felt<C::F>>(evals_len, r_len);
-    let evals_len = builder.cast_felt_to_var(evals_len);
-
-    let evals: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(evals_len);
-
-    // _debug
-    // build_eq_x_r_helper_sequential_offset(r, &mut evals, E::ONE);
-    // unsafe { std::mem::transmute(evals) }
-    evals
-}
-
-// _debug
-// /// A helper function to build eq(x, r)*init via dynamic programing tricks.
-// /// This function takes 2^num_var iterations, and per iteration with 1 multiplication.
-// fn build_eq_x_r_helper_sequential<E: ExtensionField>(r: &[E], buf: &mut [MaybeUninit<E>], init: E) {
-//     buf[0] = MaybeUninit::new(init);
-
-//     for (i, r) in r.iter().rev().enumerate() {
-//         let next_size = 1 << (i + 1);
-//         // suppose at the previous step we processed buf [0..size]
-//         // for the current step we are populating new buf[0..2*size]
-//         // for j travese 0..size
-//         // buf[2*j + 1] = r * buf[j]
-//         // buf[2*j] = (1 - r) * buf[j]
-//         (0..next_size).step_by(2).rev().for_each(|index| {
-//             let prev_val = unsafe { buf[index >> 1].assume_init() };
-//             let tmp = *r * prev_val;
-//             buf[index + 1] = MaybeUninit::new(tmp);
-//             buf[index] = MaybeUninit::new(prev_val - tmp);
-//         });
-//     }
-// }
 
 pub fn ceil_log2(x: usize) -> usize {
     assert!(x > 0, "ceil_log2: x must be positive");
@@ -468,15 +380,15 @@ pub fn ceil_log2(x: usize) -> usize {
     usize_bits - (x - 1).leading_zeros() as usize
 }
 
-pub fn pow_of_2_var<C: Config>(builder: &mut Builder<C>, log_n: Var<C::N>) -> Var<C::N> {
-    let res = Var::<C::N>::new(1);
-    let two = Var::<C::N>::new(2);
-
+pub fn pow_of_2<C: Config>(builder: &mut Builder<C>, log_n: RVar<C::N>) -> RVar<C::N> {
+    let res: Felt<C::F> = builder.constant(C::F::ONE);
+    let two: Felt<C::F> = builder.constant(C::F::TWO);
     builder.range(0, log_n).for_each(|_idx_vec, builder| {
         builder.assign(&res, res * two);
     });
 
-    res
+    let v = builder.cast_felt_to_var(res);
+    RVar::from(v)
 }
 
 /// get next power of 2 instance with minimal size 2
@@ -490,15 +402,12 @@ pub fn ext_pow<C: Config>(
     exponent: usize,
 ) -> Ext<C::F, C::EF> {
     let res = builder.constant(C::EF::ONE);
-    let mut exp = exponent.clone();
 
-    while exp > 0 {
-        if exp & 1 == 1 {
+    builder
+        .range(0, Usize::from(exponent))
+        .for_each(|_, builder| {
             builder.assign(&res, res * base);
-        }
-        builder.assign(&res, res * res);
-        exp >>= 1;
-    }
+        });
 
     res
 }
@@ -515,10 +424,22 @@ pub fn eval_ceno_expr_with_instance<C: Config>(
     evaluate_ceno_expr::<C, Ext<C::F, C::EF>>(
         builder,
         expr,
-        &|builder, f: &Fixed| builder.get(fixed, f.0),
-        &|builder, witness_id: WitnessId| builder.get(witnesses, witness_id as usize),
-        &|builder, witness_id, _, _, _| builder.get(structural_witnesses, witness_id as usize),
-        &|builder, i| builder.get(instance, i.0),
+        &|builder, f: &Fixed| {
+            let res = builder.get(fixed, f.0);
+            res
+        },
+        &|builder, witness_id: WitnessId| {
+            let res = builder.get(witnesses, witness_id as usize);
+            res
+        },
+        &|builder, witness_id, _, _, _| {
+            let res = builder.get(structural_witnesses, witness_id as usize);
+            res
+        },
+        &|builder, i| {
+            let res = builder.get(instance, i.0);
+            res
+        },
         &|builder, scalar| {
             let res: Ext<C::F, C::EF> =
                 builder.constant(C::EF::from_canonical_u32(scalar.to_canonical_u64() as u32));
@@ -531,7 +452,7 @@ pub fn eval_ceno_expr_with_instance<C: Config>(
             let scalar_base_slice = scalar
                 .as_bases()
                 .iter()
-                .map(|b| C::F::from_canonical_u32(b.to_canonical_u64() as u32))
+                .map(|b| C::F::from_canonical_u64(b.to_canonical_u64()))
                 .collect::<Vec<C::F>>();
             let scalar_ext: Ext<C::F, C::EF> =
                 builder.constant(C::EF::from_base_slice(&scalar_base_slice));
@@ -539,16 +460,27 @@ pub fn eval_ceno_expr_with_instance<C: Config>(
             let offset_base_slice = offset
                 .as_bases()
                 .iter()
-                .map(|b| C::F::from_canonical_u32(b.to_canonical_u64() as u32))
+                .map(|b| C::F::from_canonical_u64(b.to_canonical_u64()))
                 .collect::<Vec<C::F>>();
             let offset_ext: Ext<C::F, C::EF> =
                 builder.constant(C::EF::from_base_slice(&offset_base_slice));
 
-            builder.eval(challenge_exp * scalar_ext + offset_ext)
+            let res = builder.eval(challenge_exp * scalar_ext + offset_ext);
+
+            res
         },
-        &|builder, a, b| builder.eval(a + b),
-        &|builder, a, b| builder.eval(a * b),
-        &|builder, x, a, b| builder.eval(a * x + b),
+        &|builder, a, b| {
+            let res = builder.eval(a + b);
+            res
+        },
+        &|builder, a, b| {
+            let res = builder.eval(a * b);
+            res
+        },
+        &|builder, x, a, b| {
+            let res = builder.eval(a * x + b);
+            res
+        },
     )
 }
 
@@ -683,9 +615,15 @@ pub fn evaluate_ceno_expr<C: Config, T>(
 /// on r = [r0, r1, r2, ...rn] succintly
 /// a, b, is constant
 /// the result M(r0, r1,... rn) = r0 + r1 * 2 + r2 * 2^2 + .... rn * 2^n
-pub fn eval_wellform_address_vec<C: Config>(builder: &mut Builder<C>, offset: u64, scaled: u64, r: &Array<C, Ext<C::F, C::EF>>) -> Ext<C::F, C::EF> {
-    let offset: Ext<C::F, C::EF> = builder.constant(C::EF::from_canonical_u32(offset as u32));
-    let scaled: Ext<C::F, C::EF> = builder.constant(C::EF::from_canonical_u32(scaled as u32));
+pub fn eval_wellform_address_vec<C: Config>(
+    builder: &mut Builder<C>,
+    offset: u32,
+    scaled: u32,
+    r: &Array<C, Ext<C::F, C::EF>>,
+    descending: bool,
+) -> Ext<C::F, C::EF> {
+    let offset: Ext<C::F, C::EF> = builder.constant(C::EF::from_canonical_u32(offset));
+    let scaled: Ext<C::F, C::EF> = builder.constant(C::EF::from_canonical_u32(scaled));
 
     let r_sum: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
     let two: Ext<C::F, C::EF> = builder.constant(C::EF::TWO);
@@ -696,8 +634,46 @@ pub fn eval_wellform_address_vec<C: Config>(builder: &mut Builder<C>, offset: u6
         builder.assign(&r_sum, r_sum + x * state);
         builder.assign(&state, state * two);
     });
+    let shift: Ext<C::F, C::EF> = builder.eval(scaled * r_sum);
 
-    let res: Ext<C::F, C::EF> = builder.eval(offset + scaled * r_sum);
+    if descending {
+        let zero: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
+        builder.assign(&shift, zero - shift);
+    }
+
+    let res: Ext<C::F, C::EF> = builder.eval(offset + shift);
 
     res
+}
+
+pub fn max_usize_vec<C: Config>(builder: &mut Builder<C>, vec: Vec<Usize<C::N>>) -> Usize<C::N> {
+    assert!(vec.len() > 0);
+
+    let res = vec[0].clone();
+    vec.iter().skip(1).for_each(|n| {
+        let is_less = is_smaller_than(builder, RVar::from(res.clone()), RVar::from(n.clone()));
+        builder.if_eq(is_less, Usize::from(1)).then(|builder| {
+            builder.assign(&res, n.clone());
+        });
+    });
+
+    res
+}
+
+pub fn max_usize_arr<C: Config>(
+    builder: &mut Builder<C>,
+    arr: &Array<C, Usize<C::N>>,
+) -> Usize<C::N> {
+    let max_var = builder.get(&arr, 0).get_var();
+
+    builder.range(0, arr.len()).for_each(|idx_vec, builder| {
+        let n = RVar::from(builder.get(&arr, idx_vec[0]).clone());
+
+        let is_less = is_smaller_than(builder, RVar::from(max_var), n);
+        builder.if_eq(is_less, Usize::from(1)).then(|builder| {
+            builder.assign(&max_var, n.variable());
+        });
+    });
+
+    Usize::from(max_var)
 }

@@ -1,21 +1,15 @@
 use openvm_native_compiler::{
     asm::AsmConfig,
-    ir::{Array, Builder, Config, Felt},
+    ir::{Array, Builder, Config},
     prelude::*,
 };
 use openvm_native_compiler_derive::iter_zip;
-use openvm_native_recursion::{
-    challenger::ChallengerVariable,
-    hints::{Hintable, InnerChallenge, InnerVal, VecAutoHintable},
-};
+use openvm_native_recursion::hints::{Hintable, VecAutoHintable};
 pub type F = BabyBear;
 pub type E = BinomialExtensionField<F, 4>;
 pub type InnerConfig = AsmConfig<F, E>;
 
-use openvm_stark_sdk::{
-    config::baby_bear_poseidon2::BabyBearPoseidon2Config,
-    p3_baby_bear::{BabyBear, Poseidon2BabyBear},
-};
+use openvm_stark_sdk::p3_baby_bear::BabyBear;
 use p3_field::extension::BinomialExtensionField;
 use serde::Deserialize;
 
@@ -39,14 +33,14 @@ pub struct IOPProverMessageVariable<C: Config> {
 pub struct TowerVerifierInputVariable<C: Config> {
     pub prod_out_evals: Array<C, Array<C, Ext<C::F, C::EF>>>,
     pub logup_out_evals: Array<C, Array<C, Ext<C::F, C::EF>>>,
-    pub num_variables: Array<C, Var<C::N>>,
+    pub num_variables: Array<C, Usize<C::N>>,
     pub num_fanin: Usize<C::N>,
 
     // TowerProofVariable
     pub num_proofs: Usize<C::N>,
     pub num_prod_specs: Usize<C::N>,
     pub num_logup_specs: Usize<C::N>,
-    pub max_num_variables: Var<C::N>,
+    pub max_num_variables: Usize<C::N>,
 
     pub proofs: Array<C, Array<C, IOPProverMessageVariable<C>>>,
     pub prod_specs_eval: Array<C, Array<C, Array<C, Ext<C::F, C::EF>>>>,
@@ -130,7 +124,7 @@ pub struct TowerVerifierInput {
     pub num_proofs: usize,
     pub num_prod_specs: usize,
     pub num_logup_specs: usize,
-    pub max_num_variables: usize,
+    pub _max_num_variables: usize,
 
     pub proofs: Vec<Vec<IOPProverMessage>>,
     pub prod_specs_eval: Vec<Vec<Vec<E>>>,
@@ -155,7 +149,7 @@ impl Hintable<InnerConfig> for TowerVerifierInput {
         let num_proofs = Usize::Var(usize::read(builder));
         let num_prod_specs = Usize::Var(usize::read(builder));
         let num_logup_specs = Usize::Var(usize::read(builder));
-        let max_num_variables = usize::read(builder);
+        let max_num_variables = Usize::Var(usize::read(builder));
 
         let proofs = builder.dyn_array(num_proofs.clone());
         let prod_specs_eval = builder.dyn_array(num_prod_specs.clone());

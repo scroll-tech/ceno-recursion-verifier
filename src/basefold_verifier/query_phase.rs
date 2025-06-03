@@ -804,7 +804,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_mmcs_verify_batch() {
+    fn test_verify_query_phase_batch() {
         let (program, witness) = build_batch_verifier_query_phase();
 
         let system_config = SystemConfig::default()
