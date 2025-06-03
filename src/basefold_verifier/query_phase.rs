@@ -12,7 +12,9 @@ use serde::Deserialize;
 
 use super::{basefold::*, extension_mmcs::*, mmcs::*, rs::*, structs::*, utils::*};
 use crate::{
-    arithmetics::{build_eq_x_r_vec_sequential_with_offset, eq_eval_with_index},
+    arithmetics::{
+        build_eq_x_r_vec_sequential, build_eq_x_r_vec_sequential_with_offset, eq_eval_with_index,
+    },
     tower_verifier::{binding::*, program::interpolate_uni_poly},
 };
 
@@ -698,7 +700,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
             let i = i_vec[0];
             let evals = builder.get(&input.sumcheck_messages, i).evaluations;
             let challenge = builder.get(&input.fold_challenges, i);
-            let left = interpolate_uni_poly(builder, evals, challenge);
+            let left = interpolate_uni_poly(builder, &evals, challenge);
             let i_plus_one = builder.eval_expr(i + Usize::from(1));
             let next_evals = builder
                 .get(&input.sumcheck_messages, i_plus_one)
@@ -714,7 +716,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
         .get(&input.sumcheck_messages, fold_len_minus_one.clone())
         .evaluations;
     let final_challenge = builder.get(&input.fold_challenges, fold_len_minus_one.clone());
-    let left = interpolate_uni_poly(builder, final_evals, final_challenge);
+    let left = interpolate_uni_poly(builder, &final_evals, final_challenge);
     let right: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
     builder
         .range(0, input.final_message.len())

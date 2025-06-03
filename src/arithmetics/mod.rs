@@ -373,6 +373,34 @@ pub fn build_eq_x_r_vec_sequential<C: Config>(
     evals
 }
 
+pub fn build_eq_x_r_vec_sequential_with_offset<C: Config>(
+    builder: &mut Builder<C>,
+    r: &Array<C, Ext<C::F, C::EF>>,
+    offset: Usize<C::N>,
+) -> Array<C, Ext<C::F, C::EF>> {
+    // we build eq(x,r) from its evaluations
+    // we want to evaluate eq(x,r) over x \in {0, 1}^num_vars
+    // for example, with num_vars = 4, x is a binary vector of 4, then
+    //  0 0 0 0 -> (1-r0)   * (1-r1)    * (1-r2)    * (1-r3)
+    //  1 0 0 0 -> r0       * (1-r1)    * (1-r2)    * (1-r3)
+    //  0 1 0 0 -> (1-r0)   * r1        * (1-r2)    * (1-r3)
+    //  1 1 0 0 -> r0       * r1        * (1-r2)    * (1-r3)
+    //  ....
+    //  1 1 1 1 -> r0       * r1        * r2        * r3
+    // we will need 2^num_var evaluations
+
+    let r_len: Var<C::N> = builder.eval(r.len() - offset);
+    let evals_len: Felt<C::F> = builder.constant(C::F::ONE);
+    let evals_len = builder.exp_power_of_2_v::<Felt<C::F>>(evals_len, r_len);
+    let evals_len = builder.cast_felt_to_var(evals_len);
+
+    let evals: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(evals_len);
+    // _debug
+    // build_eq_x_r_helper_sequential_offset(r, &mut evals, E::ONE);
+    // unsafe { std::mem::transmute(evals) }
+    evals
+}
+
 pub fn ceil_log2(x: usize) -> usize {
     assert!(x > 0, "ceil_log2: x must be positive");
     // Calculate the number of bits in usize
