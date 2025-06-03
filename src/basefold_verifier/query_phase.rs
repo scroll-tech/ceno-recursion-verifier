@@ -638,7 +638,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                     builder.assign(&n_d_i_log, n_d_i_log - Usize::from(1));
                     let n_d_i = pow_2(builder, n_d_i_log);
                     // mmcs_ext.verify_batch
-                    let dimensions = builder.uninit_fixed_array(1);
+                    let dimensions = builder.dyn_array(1);
                     // let two: Var<_> = builder.eval(Usize::from(2));
                     builder.set_value(&dimensions, 0, n_d_i.clone());
                     let opened_values = builder.uninit_fixed_array(1);
