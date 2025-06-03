@@ -27,7 +27,7 @@ use openvm_native_compiler_derive::iter_zip;
 use openvm_native_recursion::challenger::{
     duplex::DuplexChallengerVariable, CanObserveVariable, FeltChallenger,
 };
-use p3_field::FieldAlgebra;
+use p3_field::{Field, FieldAlgebra};
 
 type E = BabyBearExt4;
 type Pcs = Basefold<E, BasefoldRSParams>;
@@ -158,6 +158,37 @@ pub fn verify_zkvm_proof<C: Config>(
     let dummy_table_item = alpha.clone();
     let dummy_table_item_multiplicity: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
 
+    // Construct interpolation weights
+    let interpolation_weights: Array<C, Array<C, Ext<C::F, C::EF>>> = builder.dyn_array(4);
+    for deg in 1..=4usize {
+        let points: Vec<C::EF> = (0..=deg)
+            .into_iter()
+            .map(|i| C::EF::from_canonical_u32(i as u32))
+            .collect();
+        let weights = points
+            .iter()
+            .enumerate()
+            .map(|(j, point_j)| {
+                points
+                    .iter()
+                    .enumerate()
+                    .filter(|&(i, _)| (i != j))
+                    .map(|(_, point_i)| *point_j - *point_i)
+                    .reduce(|acc, value| acc * value)
+                    .unwrap_or(C::EF::ONE)
+                    .inverse()
+            })
+            .collect::<Vec<_>>();
+
+        let weight_array: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(4);
+        weights.into_iter().enumerate().for_each(|(i, w)| {
+            let w: Ext<C::F, C::EF> = builder.constant(w);
+            builder.set(&weight_array, i, w);
+        });
+
+        builder.set(&interpolation_weights, deg - 1, weight_array);
+    }
+
     for subcircuit_params in proving_sequence {
         if subcircuit_params.is_opcode {
             let opcode_proof = builder.get(
@@ -176,6 +207,7 @@ pub fn verify_zkvm_proof<C: Config>(
                 &challenges,
                 &subcircuit_params,
                 &ceno_constraint_system,
+                &interpolation_weights,
             );
 
             let cs = ceno_constraint_system.vk.circuit_vks[&subcircuit_params.name].get_cs();
@@ -227,6 +259,7 @@ pub fn verify_zkvm_proof<C: Config>(
                 &challenges,
                 &subcircuit_params,
                 ceno_constraint_system,
+                &interpolation_weights,
             );
 
             let step = C::N::from_canonical_usize(4);
@@ -259,6 +292,22 @@ pub fn verify_zkvm_proof<C: Config>(
         &logup_sum,
         logup_sum - dummy_table_item_multiplicity * dummy_table_item.inverse(),
     );
+
+    /* TODO: Basefold e2e
+    // verify mpcs
+    PCS::batch_verify(
+        &self.vk.vp,
+        &vm_proof.num_instances,
+        &rt_points,
+        self.vk.fixed_commit.as_ref(),
+        &vm_proof.witin_commit,
+        &evaluations,
+        &vm_proof.fixed_witin_opening_proof,
+        &self.vk.circuit_num_polys,
+        &mut transcript,
+    )
+    .map_err(ZKVMError::PCSError)?;
+    */
 
     let empty_arr: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(0);
     let initial_global_state = eval_ceno_expr_with_instance(
@@ -294,6 +343,7 @@ pub fn verify_opcode_proof<C: Config>(
     challenges: &Array<C, Ext<C::F, C::EF>>,
     subcircuit_params: &SubcircuitParams,
     cs: &ZKVMVerifier<E, Pcs>,
+    interpolation_weights: &Array<C, Array<C, Ext<C::F, C::EF>>>,
 ) {
     let cs = &cs.vk.circuit_vks[&subcircuit_params.name].cs;
     let one: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
@@ -361,7 +411,9 @@ pub fn verify_opcode_proof<C: Config>(
             prod_specs_eval: tower_proof.prod_specs_eval.clone(),
             logup_specs_eval: tower_proof.logup_specs_eval.clone(),
         },
+        &interpolation_weights
     );
+
     let rt_non_lc_sumcheck: Array<C, Ext<C::F, C::EF>> =
         rt_tower
             .fs
@@ -424,6 +476,7 @@ pub fn verify_opcode_proof<C: Config>(
         &opcode_proof.main_sel_sumcheck_proofs,
         log2_num_instances_f,
         main_sel_subclaim_max_degree,
+        interpolation_weights,
     );
 
     let input_opening_point = PointVariable {
@@ -618,16 +671,6 @@ pub fn verify_opcode_proof<C: Config>(
 
             builder.assert_ext_eq(e, zero);
         });
-
-    // TODO:
-    // PCS::simple_batch_verify(
-    //     vp,
-    //     &proof.wits_commit,
-    //     &input_opening_point,
-    //     &proof.wits_in_evals,
-    //     &proof.wits_opening_proof,
-    //     transcript,
-    // )
 }
 
 pub fn verify_table_proof<C: Config>(
@@ -640,9 +683,10 @@ pub fn verify_table_proof<C: Config>(
     challenges: &Array<C, Ext<C::F, C::EF>>,
     subcircuit_params: &SubcircuitParams,
     cs: &ZKVMVerifier<E, Pcs>,
+    interpolation_weights: &Array<C, Array<C, Ext<C::F, C::EF>>>,
 ) {
     let cs = cs.vk.circuit_vks[&subcircuit_params.name].get_cs();
-    let tower_proof = &table_proof.tower_proof;
+    let tower_proof: &super::binding::TowerProofInputVariable<C> = &table_proof.tower_proof;
 
     let r_expected_rounds: Array<C, Usize<C::N>> =
         builder.dyn_array(cs.r_table_expressions.len() * 2);
@@ -768,6 +812,7 @@ pub fn verify_table_proof<C: Config>(
                 prod_specs_eval: tower_proof.prod_specs_eval.clone(),
                 logup_specs_eval: tower_proof.logup_specs_eval.clone(),
             },
+            &interpolation_weights,
         );
 
     builder.assert_usize_eq(
@@ -896,45 +941,4 @@ pub fn verify_table_proof<C: Config>(
         let expected_evals = builder.get(&in_evals, idx);
         builder.assert_ext_eq(e, expected_evals);
     });
-
-    // // assume public io is tiny vector, so we evaluate it directly without PCS
-    // for &Instance(idx) in cs.instance_name_map.keys() {
-    //     let poly = builder.get(&raw_pi, idx);
-    //     let poly_num_variables = builder.get(raw_pi_num_variables, idx);
-    //     let pts = input_opening_point.slice(builder, 0, poly_num_variables.clone());
-    //     let eval: Ext<C::F, C::EF> = evaluate_felt_poly(builder, &poly, &pts, poly_num_variables);
-
-    //     let expected_eval = builder.get(pi_evals, idx);
-    //     builder.assert_ext_eq(eval, expected_eval);
-    // }
-
-    // TODO: PCS
-    // // do optional check of fixed_commitment openings by vk
-    // if circuit_vk.fixed_commit.is_some() {
-    // let Some(fixed_opening_proof) = &proof.fixed_opening_proof else {
-    //     return Err(ZKVMError::VerifyError(
-    //         "fixed openning proof shoudn't be none".into(),
-    //     ));
-    // };
-
-    // PCS::simple_batch_verify(
-    //     vp,
-    //     circuit_vk.fixed_commit.as_ref().unwrap(),
-    //     &input_opening_point,
-    //     &proof.fixed_in_evals,
-    //     fixed_opening_proof,
-    //     transcript,
-    // )
-    // .map_err(ZKVMError::PCSError)?;
-    // }
-
-    // TODO: PCS
-    // PCS::simple_batch_verify(
-    //     vp,
-    //     &proof.wits_commit,
-    //     &input_opening_point,
-    //     &proof.wits_in_evals,
-    //     &proof.wits_opening_proof,
-    //     transcript,
-    // )
 }
