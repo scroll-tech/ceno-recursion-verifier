@@ -92,10 +92,7 @@ mod tests {
         let mut builder = AsmBuilder::<F, EF>::default();
 
         let hint = HashDigest::read(&mut builder);
-        println!(" hint: {:?}", hint.value);
         let dst: HashVariable<_> = builder.uninit();
-        println!(" dst: {:?}", dst.value);
-        // builder.set(&arr, 0, hint);
         builder.assign(&dst, hint);
     }
 }

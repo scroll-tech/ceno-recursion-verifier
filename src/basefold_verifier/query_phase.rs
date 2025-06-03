@@ -677,6 +677,8 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
             // we need to scale up with scalar for witin_num_vars < max_num_var
             let scale_log = builder.eval(input.max_num_var.clone() - witin_num_vars);
             let scale = pow_2(builder, scale_log);
+            // Transform scale into a field element
+            let scale = builder.unsafe_cast_var_to_felt(scale);
             builder.range(0, evals.len()).for_each(|j_vec, builder| {
                 let j = j_vec[0];
                 let eval = builder.get(&evals, j);

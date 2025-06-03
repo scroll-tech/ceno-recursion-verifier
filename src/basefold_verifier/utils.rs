@@ -2,11 +2,7 @@ use openvm_native_compiler::ir::*;
 use p3_field::FieldAlgebra;
 
 // XXX: more efficient pow implementation
-pub fn pow<C: Config>(
-    builder: &mut Builder<C>,
-    base: Var<C::N>,
-    exponent: Var<C::N>,
-) -> Var<C::N> {
+pub fn pow<C: Config>(builder: &mut Builder<C>, base: Var<C::N>, exponent: Var<C::N>) -> Var<C::N> {
     let value: Var<C::N> = builder.constant(C::N::ONE);
     builder.range(0, exponent).for_each(|_, builder| {
         builder.assign(&value, value * base);
@@ -14,19 +10,13 @@ pub fn pow<C: Config>(
     value
 }
 
-pub fn pow_2<C: Config>(
-    builder: &mut Builder<C>,
-    exponent: Var<C::N>,
-) -> Var<C::N> {
+pub fn pow_2<C: Config>(builder: &mut Builder<C>, exponent: Var<C::N>) -> Var<C::N> {
     let two: Var<C::N> = builder.constant(C::N::from_canonical_usize(2));
     pow(builder, two, exponent)
 }
 
 // XXX: Equally outrageously inefficient
-pub fn next_power_of_two<C: Config>(
-    builder: &mut Builder<C>,
-    value: Var<C::N>,
-) -> Var<C::N> {
+pub fn next_power_of_two<C: Config>(builder: &mut Builder<C>, value: Var<C::N>) -> Var<C::N> {
     // Non-deterministically supply the exponent n such that
     // 2^n < v <= 2^{n+1}
     // Ignore if v == 1
@@ -50,17 +40,11 @@ pub fn dot_product<C: Config, F>(
     builder: &mut Builder<C>,
     li: &Array<C, Ext<C::F, C::EF>>,
     ri: &Array<C, F>,
-) -> Ext<C::F, C::EF> 
-where F: openvm_native_compiler::ir::MemVariable<C> + 'static
+) -> Ext<C::F, C::EF>
+where
+    F: openvm_native_compiler::ir::MemVariable<C> + 'static,
 {
-    dot_product_with_index::<C, F>(
-        builder,
-        li,
-        ri,
-        Usize::from(0),
-        Usize::from(0),
-        li.len(),
-    )
+    dot_product_with_index::<C, F>(builder, li, ri, Usize::from(0), Usize::from(0), li.len())
 }
 
 // Generic dot product of li[llo..llo+len] * ri[rlo..rlo+len]
@@ -71,8 +55,9 @@ pub fn dot_product_with_index<C: Config, F>(
     llo: Usize<C::N>,
     rlo: Usize<C::N>,
     len: Usize<C::N>,
-) -> Ext<C::F, C::EF> 
-    where F: openvm_native_compiler::ir::MemVariable<C> + 'static
+) -> Ext<C::F, C::EF>
+where
+    F: openvm_native_compiler::ir::MemVariable<C> + 'static,
 {
     let ret: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
 
@@ -114,9 +99,11 @@ pub fn sort_with_count<C: Config, E, N, Ind>(
     list: &Array<C, E>,
     ind: Ind, // Convert loaded out entries into comparable ones
 ) -> (Array<C, Var<C::N>>, Var<C::N>, Array<C, Var<C::N>>)
-    where E: openvm_native_compiler::ir::MemVariable<C>,
-        N: Into<SymbolicVar<<C as openvm_native_compiler::ir::Config>::N>> + openvm_native_compiler::ir::Variable<C>,
-        Ind: Fn(E) -> N 
+where
+    E: openvm_native_compiler::ir::MemVariable<C>,
+    N: Into<SymbolicVar<<C as openvm_native_compiler::ir::Config>::N>>
+        + openvm_native_compiler::ir::Variable<C>,
+    Ind: Fn(E) -> N,
 {
     let len = list.len();
     // Nondeterministically supplies:
@@ -146,7 +133,7 @@ pub fn sort_with_count<C: Config, E, N, Ind>(
     builder.set(&entries_sort_surjective, next_order, one.clone());
     builder.set_value(&entries_order, 0, next_order);
     let last_entry = ind(builder.get(&list, next_order));
-    
+
     let last_unique_entry_index: Var<C::N> = builder.eval(Usize::from(0));
     let last_count_per_unique_entry: Var<C::N> = builder.eval(Usize::from(1));
     builder.range(1, len).for_each(|i_vec, builder| {
@@ -158,27 +145,48 @@ pub fn sort_with_count<C: Config, E, N, Ind>(
         builder.set(&entries_sort_surjective, next_order, one.clone());
         // Check entries
         let next_entry = ind(builder.get(&list, next_order));
-        builder.if_eq(last_entry.clone(), next_entry.clone()).then(|builder| {
-            // next_entry == last_entry
-            builder.assign(&last_count_per_unique_entry, last_count_per_unique_entry + Usize::from(1));
-        });
-        builder.if_ne(last_entry.clone(), next_entry.clone()).then(|builder| {
-            // next_entry < last_entry
-            builder.assert_less_than_slow_small_rhs(next_entry.clone(), last_entry.clone());
-            
-            // Update count_per_unique_entry
-            builder.set(&count_per_unique_entry, last_unique_entry_index, last_count_per_unique_entry);
-            builder.assign(&last_entry, next_entry.clone());
-            builder.assign(&last_unique_entry_index, last_unique_entry_index + Usize::from(1));
-            builder.assign(&last_count_per_unique_entry, Usize::from(1));
-        });
+        builder
+            .if_eq(last_entry.clone(), next_entry.clone())
+            .then(|builder| {
+                // next_entry == last_entry
+                builder.assign(
+                    &last_count_per_unique_entry,
+                    last_count_per_unique_entry + Usize::from(1),
+                );
+            });
+        builder
+            .if_ne(last_entry.clone(), next_entry.clone())
+            .then(|builder| {
+                // next_entry < last_entry
+                builder.assert_less_than_slow_small_rhs(next_entry.clone(), last_entry.clone());
+
+                // Update count_per_unique_entry
+                builder.set(
+                    &count_per_unique_entry,
+                    last_unique_entry_index,
+                    last_count_per_unique_entry,
+                );
+                builder.assign(&last_entry, next_entry.clone());
+                builder.assign(
+                    &last_unique_entry_index,
+                    last_unique_entry_index + Usize::from(1),
+                );
+                builder.assign(&last_count_per_unique_entry, Usize::from(1));
+            });
 
         builder.set_value(&entries_order, i, next_order);
     });
 
     // Final check on num_unique_entries and count_per_unique_entry
-    builder.set(&count_per_unique_entry, last_unique_entry_index, last_count_per_unique_entry);
-    builder.assign(&last_unique_entry_index, last_unique_entry_index + Usize::from(1));
+    builder.set(
+        &count_per_unique_entry,
+        last_unique_entry_index,
+        last_count_per_unique_entry,
+    );
+    builder.assign(
+        &last_unique_entry_index,
+        last_unique_entry_index + Usize::from(1),
+    );
     builder.assert_var_eq(last_unique_entry_index, num_unique_entries);
 
     (entries_order, num_unique_entries, count_per_unique_entry)
@@ -196,7 +204,7 @@ pub fn codeword_fold_with_challenge<C: Config>(
     // recover left & right codeword via (lo, hi) = ((left + right) / 2, (left - right) / 2x)
     let lo: Ext<C::F, C::EF> = builder.eval((left + right) * inv_2);
     let hi: Ext<C::F, C::EF> = builder.eval((left - right) * coeff); // e.g. coeff = (2 * dit_butterfly)^(-1) in rs code
-    // we do fold on (lo, hi) to get folded = (1-r) * lo + r * hi (with lo, hi are two codewords), as it match perfectly with raw message in lagrange domain fixed variable
+                                                                     // we do fold on (lo, hi) to get folded = (1-r) * lo + r * hi (with lo, hi are two codewords), as it match perfectly with raw message in lagrange domain fixed variable
     let ret: Ext<C::F, C::EF> = builder.eval(lo + challenge * (hi - lo));
     ret
 }
