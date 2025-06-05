@@ -4,12 +4,20 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-openvm = { git = "https://github.com/openvm-org/openvm.git", default-features = false, tag = "v1.0.0" }
-openvm-circuit = { git = "https://github.com/openvm-org/openvm.git", default-features = false, tag = "v1.0.0", features = ["bench-metrics"] }
-openvm-native-circuit = { git = "https://github.com/openvm-org/openvm.git", default-features = false, tag = "v1.0.0" }
-openvm-native-compiler = { git = "https://github.com/openvm-org/openvm.git", default-features = false, tag = "v1.0.0" }
-openvm-native-compiler-derive = { git = "https://github.com/openvm-org/openvm.git", default-features = false, tag = "v1.0.0" }
-openvm-native-recursion = { git = "https://github.com/openvm-org/openvm.git", default-features = false, tag = "v1.0.0" }
+# openvm = { git = "https://github.com/openvm-org/openvm.git", default-features = false, tag = "v1.0.0" }
+# openvm-circuit = { git = "https://github.com/openvm-org/openvm.git", default-features = false, tag = "v1.0.0", features = ["bench-metrics"] }
+# openvm-native-circuit = { git = "https://github.com/openvm-org/openvm.git", default-features = false, tag = "v1.0.0" }
+# openvm-native-compiler = { git = "https://github.com/openvm-org/openvm.git", default-features = false, tag = "v1.0.0" }
+# openvm-native-compiler-derive = { git = "https://github.com/openvm-org/openvm.git", default-features = false, tag = "v1.0.0" }
+# openvm-native-recursion = { git = "https://github.com/openvm-org/openvm.git", default-features = false, tag = "v1.0.0" }
+
+openvm = { git = "https://github.com/darth-cy/openvm.git", branch = "feat/native_multi_observe" }
+openvm-circuit = { git = "https://github.com/darth-cy/openvm.git", branch = "feat/native_multi_observe", features = ["bench-metrics"] }
+openvm-native-circuit = { git = "https://github.com/darth-cy/openvm.git", branch = "feat/native_multi_observe" }
+openvm-native-compiler = { git = "https://github.com/darth-cy/openvm.git", branch = "feat/native_multi_observe" }
+openvm-native-compiler-derive = { git = "https://github.com/darth-cy/openvm.git", branch = "feat/native_multi_observe" }
+openvm-native-recursion = { git = "https://github.com/darth-cy/openvm.git", branch = "feat/native_multi_observe" }
+
 openvm-stark-backend = { git = "https://github.com/openvm-org/stark-backend.git", tag = "v1.0.0", default-features = false }
 openvm-stark-sdk = { git = "https://github.com/openvm-org/stark-backend.git", tag = "v1.0.0", default-features = false }
 

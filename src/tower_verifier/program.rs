@@ -163,8 +163,8 @@ pub fn iop_verifier_state_verify<C: Config>(
             unsafe {
                 let prover_msg_felts = exts_to_felts(builder, &prover_msg.evaluations);
                 // _debug
-                // challenger.observe_slice(builder, prover_msg_felts);
-                challenger_multi_observe(builder, challenger, &prover_msg_felts); 
+                challenger.observe_slice(builder, prover_msg_felts);
+                // challenger_multi_observe(builder, challenger, &prover_msg_felts); 
             }
             
             /* _debug: safe conversion
