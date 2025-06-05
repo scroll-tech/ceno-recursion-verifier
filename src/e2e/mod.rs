@@ -450,6 +450,10 @@ pub fn test_zkvm_proof_verifier_from_bincode_exports() {
         p3_monty_31::MontyField31<openvm_stark_sdk::p3_baby_bear::BabyBearParameters>,
     > =builder.compile_isa_with_options(CompilerOptions::default().with_cycle_tracker());
 
+
+    // println!("=> asm_code.blocks: {:?}", asm_code.blocks);
+    // println!("=> asm_code.labels: {:?}", asm_code.labels);
+
     let mut system_config = SystemConfig::default()
         .with_public_values(4)
         .with_max_segment_len((1 << 25) - 100);

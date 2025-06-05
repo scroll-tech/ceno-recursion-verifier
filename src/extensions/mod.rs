@@ -1,3 +1,4 @@
+use crate::arithmetics::{challenger_multi_observe, exts_to_felts, print_felt_arr};
 use crate::tower_verifier::binding::IOPProverMessage;
 use crate::zkvm_verifier::binding::ZKVMProofInput;
 use crate::zkvm_verifier::binding::{
@@ -11,13 +12,16 @@ use mpcs::{Basefold, BasefoldRSParams};
 use openvm_circuit::arch::{instructions::program::Program, SystemConfig, VmExecutor};
 use openvm_native_circuit::{Native, NativeConfig};
 use openvm_native_compiler::{asm::AsmBuilder, conversion::CompilerOptions};
+use openvm_native_recursion::challenger::CanSampleVariable;
 use openvm_native_recursion::hints::Hintable;
 use openvm_stark_backend::config::StarkGenericConfig;
 use openvm_stark_sdk::{
     config::baby_bear_poseidon2::BabyBearPoseidon2Config, p3_baby_bear::BabyBear,
 };
+use openvm_native_compiler::conversion::convert_program;
 use std::collections::HashMap;
 use std::fs::File;
+use std::marker::PhantomData;
 use crate::e2e::SubcircuitParams;
 use crate::tower_verifier::program::verify_tower_proof;
 use crate::transcript::transcript_observe_label;
@@ -42,7 +46,7 @@ use openvm_native_compiler_derive::iter_zip;
 use openvm_native_recursion::challenger::{
     duplex::DuplexChallengerVariable, CanObserveVariable, FeltChallenger,
 };
-use p3_field::{Field, FieldAlgebra};
+use p3_field::{Field, FieldAlgebra, FieldExtensionAlgebra};
 
 type Pcs = Basefold<E, BasefoldRSParams>;
 const NUM_FANIN: usize = 2;
@@ -67,13 +71,11 @@ pub fn test_native_multi_observe() {
     > = Vec::new();
 
     // Compile program
-    let program: Program<
-        p3_monty_31::MontyField31<openvm_stark_sdk::p3_baby_bear::BabyBearParameters>,
-    > = builder.compile_isa_with_options(CompilerOptions::default().with_cycle_tracker());
-
-    println!("=> program instructions:");
-    println!("=> {:?}", program.instructions_and_debug_infos);
-    println!();
+    let options = CompilerOptions::default().with_cycle_tracker();
+    let mut compiler = AsmCompiler::new(options.word_size);
+    compiler.build(builder.operations);
+    let asm_code = compiler.code();
+    let program = convert_program(asm_code, options);
 
     let mut system_config = SystemConfig::default()
         .with_public_values(4)
@@ -103,20 +105,36 @@ pub fn test_native_multi_observe() {
 fn vm_program<C: Config>(
     builder: &mut Builder<C>,
 ) {
-    let mut challenger = DuplexChallengerVariable::new(builder);
-    let arr: Array<C, Felt<C::F>> = builder.dyn_array(20);
-    builder.range(0, arr.len()).for_each(|idx_vec, builder| {
-        builder.if_eq(idx_vec[0], RVar::from(5)).then_or_else(|builder| {
-            let val: Felt<C::F> = builder.constant(C::F::ZERO);
-            builder.set(&arr, idx_vec[0], val);
-        }, |builder| {
-            let val: Felt<C::F> = builder.constant(C::F::TWO);
-            builder.set(&arr, idx_vec[0], val);
-        });
-    });
+    let e1: Ext<C::F, C::EF> = builder.constant(C::EF::GENERATOR.exp_power_of_2(16));
+    let e2: Ext<C::F, C::EF> = builder.constant(C::EF::GENERATOR.exp_power_of_2(32));
+    let e3: Ext<C::F, C::EF> = builder.constant(C::EF::GENERATOR.exp_power_of_2(64));
+    let e4: Ext<C::F, C::EF> = builder.constant(C::EF::GENERATOR.exp_power_of_2(128));
+    let e5: Ext<C::F, C::EF> = builder.constant(C::EF::GENERATOR.exp_power_of_2(256));
+    let len: usize = 5;
 
-    builder.range(0, arr.len()).for_each(|idx_vec, builder| {
-        let val = builder.get(&arr, idx_vec[0]);
-        challenger.observe(builder, val);
-    });   
+    let e_arr: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(len);
+    builder.set(&e_arr, 0, e1);
+    builder.set(&e_arr, 1, e2);
+    builder.set(&e_arr, 2, e3);
+    builder.set(&e_arr, 3, e4);
+    builder.set(&e_arr, 4, e5);
+
+    unsafe {
+        let mut c1 = DuplexChallengerVariable::new(builder);
+        let mut c2 = DuplexChallengerVariable::new(builder);
+
+        let f_arr1 = exts_to_felts(builder, &e_arr); 
+        let f_arr2 = f_arr1.clone();
+
+        challenger_multi_observe(builder, &mut c1, &f_arr1); 
+        let test_e1 = c1.sample(builder);
+
+        c2.observe_slice(builder, f_arr2);
+        let test_e2 = c2.sample(builder);
+
+        builder.print_f(test_e1);
+        builder.print_f(test_e2);
+
+        // builder.assert_felt_eq(test_e1, test_e2);
+    }
 }

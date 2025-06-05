@@ -2,13 +2,15 @@ use super::binding::{
     IOPProverMessageVariable, PointAndEvalVariable, PointVariable, TowerVerifierInputVariable,
 };
 use crate::arithmetics::{
-    dot_product, dot_product_pt_n_eval, eq_eval, evaluate_at_point, gen_alpha_pows,
-    is_smaller_than, join, product, reverse,
+    dot_product, dot_product_pt_n_eval, eq_eval, evaluate_at_point, exts_to_felts, gen_alpha_pows, is_smaller_than, join, product, reverse, challenger_multi_observe
 };
 use crate::transcript::transcript_observe_label;
 use openvm_native_compiler::prelude::*;
 use openvm_native_compiler_derive::iter_zip;
 use openvm_native_recursion::challenger::ChallengerVariable;
+use openvm_native_recursion::challenger::{
+    duplex::DuplexChallengerVariable, CanObserveVariable, FeltChallenger,
+};
 use p3_field::FieldAlgebra;
 
 // Interpolate a uni-variate degree-`p_i.len()-1` polynomial and evaluate this
@@ -129,7 +131,7 @@ pub(crate) fn interpolate_uni_poly_with_weights<C: Config>(
 
 pub fn iop_verifier_state_verify<C: Config>(
     builder: &mut Builder<C>,
-    challenger: &mut impl ChallengerVariable<C>,
+    challenger: &mut DuplexChallengerVariable<C>,
     out_claim: &Ext<C::F, C::EF>,
     prover_messages: &Array<C, IOPProverMessageVariable<C>>,
     max_num_variables: Felt<C::F>,
@@ -146,8 +148,8 @@ pub fn iop_verifier_state_verify<C: Config>(
 
     let one: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
     let round: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
-    let polynomials_received: Array<C, Array<C, Ext<C::F, C::EF>>> =
-        builder.dyn_array(max_num_variables_usize.clone());
+    // let polynomials_received: Array<C, Array<C, Ext<C::F, C::EF>>> =
+    //     builder.dyn_array(max_num_variables_usize.clone());
     let challenges: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(max_num_variables_usize.clone());
 
     builder
@@ -157,31 +159,41 @@ pub fn iop_verifier_state_verify<C: Config>(
             let prover_msg = builder.get(&prover_messages, i);
 
             builder.cycle_tracker_start("IOPVerifierState::verify_round_and_update_state");
+
+            unsafe {
+                let prover_msg_felts = exts_to_felts(builder, &prover_msg.evaluations);
+                // _debug
+                // challenger.observe_slice(builder, prover_msg_felts);
+                challenger_multi_observe(builder, challenger, &prover_msg_felts); 
+            }
+            
+            /* _debug: safe conversion
             iter_zip!(builder, prover_msg.evaluations).for_each(|ptr_vec, builder| {
                 let e = builder.iter_ptr_get(&prover_msg.evaluations, ptr_vec[0]);
                 let e_felts = builder.ext2felt(e);
                 challenger.observe_slice(builder, e_felts);
             });
+            */
 
             transcript_observe_label(builder, challenger, b"Internal round");
             let challenge = challenger.sample_ext(builder);
 
             builder.set(&challenges, i, challenge);
-            builder.set(&polynomials_received, i, prover_msg.evaluations);
+            // builder.set(&polynomials_received, i, prover_msg.evaluations);
             builder.assign(&round, round + one);
             builder.cycle_tracker_end("IOPVerifierState::verify_round_and_update_state");
         });
     
     builder.cycle_tracker_start("IOPVerifierState::check_and_generate_subclaim");
     // set `expected` to P(r)`
-    let expected_len: RVar<_> = builder.eval_expr(polynomials_received.len() + RVar::from(1));
+    let expected_len: RVar<_> = builder.eval_expr(max_num_variables_usize.clone() + RVar::from(1));
     let expected_vec: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(expected_len.clone());
     builder.set(&expected_vec, 0, out_claim.clone());
 
     let truncated_expected_vec = expected_vec.slice(builder, 1, expected_len);
     iter_zip!(
         builder,
-        polynomials_received,
+        prover_messages,
         challenges,
         truncated_expected_vec
     )
@@ -189,24 +201,24 @@ pub fn iop_verifier_state_verify<C: Config>(
         let poly_ptr = idx_vec[0];
         let c_ptr = idx_vec[1];
 
-        let evaluations = builder.iter_ptr_get(&polynomials_received, poly_ptr);
+        let msg = builder.iter_ptr_get(&prover_messages, poly_ptr);
         let c = builder.iter_ptr_get(&challenges, c_ptr);
 
         let expected_ptr = idx_vec[2];
         // _debug
-        // let expected = interpolate_uni_poly(builder, &evaluations, c);
-        let expected = interpolate_uni_poly_with_weights(builder, &evaluations, c, interpolation_weights);
+        // let expected = interpolate_uni_poly(builder, &msg, c);
+        let expected = interpolate_uni_poly_with_weights(builder, &msg.evaluations, c, interpolation_weights);
 
         builder.iter_ptr_set(&truncated_expected_vec, expected_ptr, expected);
     });
 
     // l-append asserted_sum to the first position of the expected vector
-    iter_zip!(builder, polynomials_received, expected_vec).for_each(|idx_vec, builder| {
-        let evaluations = builder.iter_ptr_get(&polynomials_received, idx_vec[0]);
+    iter_zip!(builder, prover_messages, expected_vec).for_each(|idx_vec, builder| {
+        let msg = builder.iter_ptr_get(&prover_messages, idx_vec[0]);
         let expected = builder.iter_ptr_get(&expected_vec, idx_vec[1]);
 
-        let e1 = builder.get(&evaluations, 0);
-        let e2 = builder.get(&evaluations, 1);
+        let e1 = builder.get(&msg.evaluations, 0);
+        let e2 = builder.get(&msg.evaluations, 1);
         let target: Ext<<C as Config>::F, <C as Config>::EF> = builder.eval(e1 + e2);
 
         builder.assert_ext_eq(expected, target);
@@ -220,7 +232,7 @@ pub fn iop_verifier_state_verify<C: Config>(
 
 pub fn verify_tower_proof<C: Config>(
     builder: &mut Builder<C>,
-    challenger: &mut impl ChallengerVariable<C>,
+    challenger: &mut DuplexChallengerVariable<C>,
     tower_verifier_input: TowerVerifierInputVariable<C>,
     interpolation_weights: &Array<C, Array<C, Ext<C::F, C::EF>>>,
 ) -> (

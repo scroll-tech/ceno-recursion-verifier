@@ -8,7 +8,11 @@ use openvm_native_compiler::prelude::*;
 use openvm_native_compiler_derive::iter_zip;
 use openvm_native_recursion::challenger::ChallengerVariable;
 use p3_field::{FieldAlgebra, FieldExtensionAlgebra};
+use openvm_native_recursion::challenger::{
+    duplex::DuplexChallengerVariable, CanObserveVariable, FeltChallenger,
+};
 type E = BabyBearExt4;
+const HASH_RATE: usize = 8;
 
 pub fn _print_ext_arr<C: Config>(builder: &mut Builder<C>, arr: &Array<C, Ext<C::F, C::EF>>) {
     iter_zip!(builder, arr).for_each(|ptr_vec, builder| {
@@ -17,7 +21,7 @@ pub fn _print_ext_arr<C: Config>(builder: &mut Builder<C>, arr: &Array<C, Ext<C:
     });
 }
 
-pub fn _print_felt_arr<C: Config>(builder: &mut Builder<C>, arr: &Array<C, Felt<C::F>>) {
+pub fn print_felt_arr<C: Config>(builder: &mut Builder<C>, arr: &Array<C, Felt<C::F>>) {
     iter_zip!(builder, arr).for_each(|ptr_vec, builder| {
         let f = builder.iter_ptr_get(arr, ptr_vec[0]);
         builder.print_f(f);
@@ -30,6 +34,169 @@ pub fn _print_usize_arr<C: Config>(builder: &mut Builder<C>, arr: &Array<C, Usiz
         builder.print_v(n.get_var());
     });
 }
+
+pub unsafe fn exts_to_felts<C: Config>(builder: &mut Builder<C>, exts: &Array<C, Ext<C::F, C::EF>>) -> Array<C, Felt<C::F>> {
+    let f_len: Usize<C::N> = builder.eval(exts.len() * Usize::from(C::EF::D));
+    let f_arr: Array<C, Felt<C::F>> = Array::Dyn(exts.ptr(), f_len);
+    f_arr
+}
+
+pub fn usize_less_than<C: Config>(
+    builder: &mut Builder<C>, 
+    num: &Usize<C::N>, 
+    ceil: &Usize<C::N>
+) -> Usize<C::N> {
+    let prd: Usize<C::N> = Usize::Var(Var::uninit(builder));
+    builder.assign(&prd, Usize::from(1));
+
+    builder.range(0, ceil.clone()).for_each(|idx_vec, builder| {
+        builder.assign(&prd, prd.clone() * (num.clone() - idx_vec[0]));
+    });
+
+    prd // 0 <==> TRUE; All else FALSE;
+}
+
+// pub fn calculate_permutations<C: Config>(
+//     builder: &mut Builder<C>,
+//     fs_len: Usize<C::N>,
+// ) -> (Usize<C::N>, Usize<C::N>) {
+//     // let permutations: Usize<C::N> = Usize::Var(Var::uninit(builder));
+//     // let leftover_size: Usize<C::N> = Usize::Var(Var::uninit(builder));
+
+
+//     // let is_incomplete_buffer = usize_less_than(builder, &fs_len, &Usize::from(HASH_RATE));
+//     // builder.if_eq(is_incomplete_buffer, Usize::from(0)).then_or_else(|builder| {
+//     //     builder.print_debug(999);
+//     //     builder.print_v(fs_len.get_var());
+//     //     // builder.assign(&permutations, Usize::from(0));
+//     //     // builder.assign(&leftover_size, fs_len.clone());
+//     // }, |builder| {
+//     //     builder.assign(&fs_len, fs_len.clone() - Usize::from(HASH_RATE));
+//     //     builder.print_v(fs_len.get_var());
+//     //     let (sub_permutations, sub_leftover_size) = calculate_permutations(builder, fs_len.clone());
+//     //     // builder.assign(&permutations, sub_permutations + Usize::from(1));
+//     //     // builder.assign(&leftover_size, sub_leftover_size);
+//     // });
+
+//     // (permutations, leftover_size)
+// }
+
+
+pub fn challenger_multi_observe<C: Config>(
+    builder: &mut Builder<C>,
+    challenger: &mut DuplexChallengerVariable<C>,
+    arr: &Array<C, Felt<C::F>>
+) {
+    builder.if_ne(arr.len(), Usize::from(0)).then(|builder| {
+        let fs_len: Usize<C::N> = builder.eval(arr.len());
+        let r0_buffer_size: Usize<C::N> = builder.eval(challenger.io_full_ptr.address - challenger.input_ptr.address);
+        
+        let is_less_than_buffer_size = usize_less_than(builder, &fs_len, &r0_buffer_size);
+        builder.if_eq(is_less_than_buffer_size, Usize::from(0)).then_or_else(|builder| {
+            builder.range(0, arr.len()).for_each(|idx_vec, builder| {
+                let val = builder.get(&arr, idx_vec[0]);
+                builder.iter_ptr_set(&challenger.sponge_state, challenger.input_ptr.address.into(), val);
+                builder.assign(&challenger.input_ptr, challenger.input_ptr + C::N::ONE);
+            });
+            builder.assign(&challenger.output_ptr, challenger.io_empty_ptr);
+        }, |builder| {
+            builder.assign(&fs_len, fs_len.clone() - r0_buffer_size.clone());
+            let permutations: Usize<C::N> = Usize::Var(Var::uninit(builder));
+            builder.assign(&permutations, Usize::from(0));
+
+            let buffer_count: Usize<C::N> = Usize::Var(Var::uninit(builder));
+            builder.assign(&buffer_count, Usize::from(0));
+            builder.range(0, fs_len.clone()).for_each(|_idx_vec, builder| {
+                builder.assign(&buffer_count, buffer_count.clone() + Usize::from(1));
+
+                builder.if_eq(buffer_count.clone(), Usize::from(HASH_RATE)).then(|builder| {
+                    builder.assign(&permutations, permutations.clone() + Usize::from(1));
+                    builder.assign(&buffer_count, Usize::from(0));
+                });
+            });
+            let leftover_size: Usize<C::N> = builder.eval(fs_len.clone() - permutations.clone() * Usize::from(HASH_RATE));
+
+            // Fill buffer0
+            let start: Usize<C::N> = Usize::Var(Var::uninit(builder));
+            builder.assign(&start, Usize::from(0));
+            builder.range(start.clone(), r0_buffer_size.clone()).for_each(|idx_vec, builder| {
+                let val = builder.get(arr, idx_vec[0]);
+                builder.iter_ptr_set(&challenger.sponge_state, challenger.input_ptr.address.into(), val);
+                builder.assign(&challenger.input_ptr, challenger.input_ptr + C::N::ONE);
+            });
+            builder.assign(&challenger.input_ptr, challenger.io_empty_ptr);
+            builder.poseidon2_permute_mut(&challenger.sponge_state);
+
+            // Full buffer permutations
+            builder.assign(&start, r0_buffer_size.clone());
+            builder.range(0, permutations).for_each(|_, builder| {
+                for i in 0..HASH_RATE {
+                    let idx: Usize<C::N> = builder.eval(start.clone() + Usize::from(i));
+                    let val = builder.get(arr, idx);
+                    builder.iter_ptr_set(&challenger.sponge_state, challenger.input_ptr.address.into(), val);
+                    builder.assign(&challenger.input_ptr, challenger.input_ptr + C::N::ONE);
+                }
+                builder.assign(&challenger.input_ptr, challenger.io_empty_ptr);
+                builder.poseidon2_permute_mut(&challenger.sponge_state);
+
+                builder.assign(&start, start.clone() + Usize::from(HASH_RATE));
+            });
+            builder.assign(&challenger.output_ptr, challenger.io_full_ptr);
+
+            // Leftover elements
+            builder.if_ne(leftover_size.clone(), Usize::from(0)).then(|builder| {
+                builder.range(0, leftover_size.clone()).for_each(|idx_vec, builder| {
+                    let idx: Usize<C::N> = builder.eval(start.clone() + idx_vec[0]);
+                    let val = builder.get(&arr, idx);
+                    builder.set(&challenger.sponge_state, idx_vec[0], val);
+                });
+
+                builder.assign(&challenger.output_ptr, challenger.io_empty_ptr);
+            });
+        });
+    });
+}
+
+
+// pub fn duplexing(&self, builder: &mut Builder<C>) {
+//     builder.assign(&self.input_ptr, self.io_empty_ptr);
+
+//     builder.poseidon2_permute_mut(&self.sponge_state);
+
+//     builder.assign(&self.output_ptr, self.io_full_ptr);
+// }
+
+// fn observe(&self, builder: &mut Builder<C>, value: Felt<C::F>) {
+//     builder.assign(&self.output_ptr, self.io_empty_ptr);
+
+//     builder.iter_ptr_set(&self.sponge_state, self.input_ptr.address.into(), value);
+//     builder.assign(&self.input_ptr, self.input_ptr + C::N::ONE);
+
+//     builder
+//         .if_eq(self.input_ptr.address, self.io_full_ptr.address)
+//         .then(|builder| {
+//             self.duplexing(builder);
+//         })
+// }
+
+// fn sample(&self, builder: &mut Builder<C>) -> Felt<C::F> {
+//     builder
+//         .if_ne(self.input_ptr.address, self.io_empty_ptr.address)
+//         .then_or_else(
+//             |builder| {
+//                 self.duplexing(builder);
+//             },
+//             |builder| {
+//                 builder
+//                     .if_eq(self.output_ptr.address, self.io_empty_ptr.address)
+//                     .then(|builder| {
+//                         self.duplexing(builder);
+//                     });
+//             },
+//         );
+//     builder.assign(&self.output_ptr, self.output_ptr - C::N::ONE);
+//     builder.iter_ptr_get(&self.sponge_state, self.output_ptr.address.into())
+// }
 
 pub fn is_smaller_than<C: Config>(
     builder: &mut Builder<C>,
@@ -226,7 +393,7 @@ pub fn join<C: Config>(
 // Generate alpha power challenges
 pub fn gen_alpha_pows<C: Config>(
     builder: &mut Builder<C>,
-    challenger: &mut impl ChallengerVariable<C>,
+    challenger: &mut DuplexChallengerVariable<C>,
     alpha_len: Usize<<C as Config>::N>,
 ) -> Array<C, Ext<C::F, C::EF>> {
     let alpha = challenger.sample_ext(builder);
@@ -250,7 +417,7 @@ pub fn gen_alpha_pows<C: Config>(
 ///         = \sum_{\mathbf{b}=0}^{max_idx} \prod_{i=0}^{n-1} (x_i y_i b_i + (1 - x_i)(1 - y_i)(1 - b_i))
 pub fn eq_eval_less_or_equal_than<C: Config>(
     builder: &mut Builder<C>,
-    _challenger: &mut impl ChallengerVariable<C>,
+    _challenger: &mut DuplexChallengerVariable<C>,
     opcode_proof: &ZKVMOpcodeProofInputVariable<C>,
     a: &Array<C, Ext<C::F, C::EF>>,
     b: &Array<C, Ext<C::F, C::EF>>,
