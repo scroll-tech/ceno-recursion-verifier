@@ -56,32 +56,6 @@ pub fn usize_less_than<C: Config>(
     prd // 0 <==> TRUE; All else FALSE;
 }
 
-// pub fn calculate_permutations<C: Config>(
-//     builder: &mut Builder<C>,
-//     fs_len: Usize<C::N>,
-// ) -> (Usize<C::N>, Usize<C::N>) {
-//     // let permutations: Usize<C::N> = Usize::Var(Var::uninit(builder));
-//     // let leftover_size: Usize<C::N> = Usize::Var(Var::uninit(builder));
-
-
-//     // let is_incomplete_buffer = usize_less_than(builder, &fs_len, &Usize::from(HASH_RATE));
-//     // builder.if_eq(is_incomplete_buffer, Usize::from(0)).then_or_else(|builder| {
-//     //     builder.print_debug(999);
-//     //     builder.print_v(fs_len.get_var());
-//     //     // builder.assign(&permutations, Usize::from(0));
-//     //     // builder.assign(&leftover_size, fs_len.clone());
-//     // }, |builder| {
-//     //     builder.assign(&fs_len, fs_len.clone() - Usize::from(HASH_RATE));
-//     //     builder.print_v(fs_len.get_var());
-//     //     let (sub_permutations, sub_leftover_size) = calculate_permutations(builder, fs_len.clone());
-//     //     // builder.assign(&permutations, sub_permutations + Usize::from(1));
-//     //     // builder.assign(&leftover_size, sub_leftover_size);
-//     // });
-
-//     // (permutations, leftover_size)
-// }
-
-
 pub fn challenger_multi_observe<C: Config>(
     builder: &mut Builder<C>,
     challenger: &mut DuplexChallengerVariable<C>,
