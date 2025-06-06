@@ -13,24 +13,11 @@ pub type F = BabyBear;
 pub type E = BinomialExtensionField<F, DIMENSIONS>;
 pub type InnerConfig = AsmConfig<F, E>;
 
-// XXX: Fill in MerkleTreeMmcs
-pub struct MerkleTreeMmcs {
-    pub hash: (),
-    pub compress: (),
-}
-
-#[derive(Default, Clone)]
-pub struct MerkleTreeMmcsVariable<C: Config> {
-    pub hash: (),
-    pub compress: (),
-    _phantom: PhantomData<C>,
-}
-
 pub type MmcsCommitment = Hash;
 pub type MmcsProof = Vec<[F; DIGEST_ELEMS]>;
 pub struct MmcsVerifierInput {
     pub commit: MmcsCommitment,
-    pub dimensions: Vec<Dimensions>,
+    pub dimensions: Vec<usize>,
     pub index: usize,
     pub opened_values: Vec<Vec<F>>,
     pub proof: MmcsProof,
@@ -59,9 +46,16 @@ impl Hintable<InnerConfig> for MmcsVerifierInput {
 
     fn write(&self) -> Vec<Vec<<InnerConfig as Config>::N>> {
         let mut stream = Vec::new();
+        // Split index into bits
         stream.extend(self.commit.write());
         stream.extend(self.dimensions.write());
-        stream.extend(<usize as Hintable<InnerConfig>>::write(&self.index));
+        let mut index_bits = Vec::new();
+        let mut index = self.index;
+        while index > 0 {
+            index_bits.push(index % 2);
+            index /= 2;
+        }
+        stream.extend(<Vec<usize> as Hintable<InnerConfig>>::write(&index_bits));
         stream.extend(self.opened_values.write());
         stream.extend(
             self.proof
@@ -75,7 +69,7 @@ impl Hintable<InnerConfig> for MmcsVerifierInput {
 }
 
 pub type MmcsCommitmentVariable<C> = HashVariable<C>;
-pub type MmcsProofVariable<C> = Array<C, Array<C, Felt<<C as Config>::F>>>;
+
 #[derive(DslVariable, Clone)]
 pub struct MmcsVerifierInputVariable<C: Config> {
     pub commit: MmcsCommitmentVariable<C>,
@@ -148,20 +142,21 @@ pub mod tests {
                 f(383365269),
             ],
         };
-        let dimensions = vec![
-            Dimensions {
-                width: 8,
-                height: 1,
-            },
-            Dimensions {
-                width: 8,
-                height: 1,
-            },
-            Dimensions {
-                width: 8,
-                height: 70,
-            },
-        ];
+        // let dimensions = vec![
+        //     Dimensions {
+        //         width: 8,
+        //         height: 1,
+        //     },
+        //     Dimensions {
+        //         width: 8,
+        //         height: 1,
+        //     },
+        //     Dimensions {
+        //         width: 8,
+        //         height: 70,
+        //     },
+        // ];
+        let dimensions = vec![1, 1, 70];
         let index = 6;
         let opened_values = vec![
             vec![

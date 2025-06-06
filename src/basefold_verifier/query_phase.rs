@@ -330,9 +330,6 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
         width: builder.eval(Usize::from(1)),
     };
     let final_codeword = encode_small(builder, input.vp.clone(), final_rmm);
-    // XXX: we might need to add generics to MMCS to account for different field types
-    let mmcs_ext: ExtensionMmcsVariable<C> = Default::default();
-    let mmcs: MerkleTreeMmcsVariable<C> = Default::default();
     // can't use witin_comm.log2_max_codeword_size since it's untrusted
     let log2_witin_max_codeword_size: Var<C::N> =
         builder.eval(input.max_num_var.clone() + get_rate_log::<C>());

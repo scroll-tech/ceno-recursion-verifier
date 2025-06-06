@@ -9,18 +9,9 @@ pub type F = BabyBear;
 pub type E = BinomialExtensionField<F, DIMENSIONS>;
 pub type InnerConfig = AsmConfig<F, E>;
 
-pub struct ExtensionMmcs {
-    pub inner: MerkleTreeMmcs,
-}
-
-#[derive(Default, Clone)]
-pub struct ExtensionMmcsVariable<C: Config> {
-    pub inner: MerkleTreeMmcsVariable<C>,
-}
-
 pub struct ExtMmcsVerifierInput {
     pub commit: MmcsCommitment,
-    pub dimensions: Vec<Dimensions>,
+    pub dimensions: Vec<usize>,
     pub index: usize,
     pub opened_values: Vec<Vec<E>>,
     pub proof: MmcsProof,
