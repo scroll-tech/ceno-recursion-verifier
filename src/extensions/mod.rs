@@ -121,28 +121,7 @@ fn vm_program<C: Config>(
 
     unsafe {
         let mut c1 = DuplexChallengerVariable::new(builder);
-        // let mut c2 = DuplexChallengerVariable::new(builder);
-
         let f_arr1 = exts_to_felts(builder, &e_arr); 
-        // let f_arr2 = f_arr1.clone();
-
-        // builder.print_debug(101);
-        // print_felt_arr(builder, &f_arr1);
-
-        challenger_multi_observe(builder, &mut c1, &f_arr1); 
-        // let test_e1 = c1.sample(builder);
-
-        // builder.print_debug(101);
-        // print_felt_arr(builder, &f_arr2);
-
-        // c2.observe_slice(builder, f_arr2);
-        // let test_e2 = c2.sample(builder);
-
-
-        // builder.print_debug(101);
-        // builder.print_f(test_e1);
-        // builder.print_f(test_e2);
-
-        // builder.assert_felt_eq(test_e1, test_e2);
+        challenger_multi_observe(builder, &mut c1, &f_arr1);
     }
 }
