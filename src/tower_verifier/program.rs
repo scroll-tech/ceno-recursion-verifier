@@ -148,8 +148,6 @@ pub fn iop_verifier_state_verify<C: Config>(
 
     let one: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
     let round: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
-    // let polynomials_received: Array<C, Array<C, Ext<C::F, C::EF>>> =
-    //     builder.dyn_array(max_num_variables_usize.clone());
     let challenges: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(max_num_variables_usize.clone());
 
     builder
@@ -162,24 +160,13 @@ pub fn iop_verifier_state_verify<C: Config>(
 
             unsafe {
                 let prover_msg_felts = exts_to_felts(builder, &prover_msg.evaluations);
-                // _debug
-                challenger.observe_slice(builder, prover_msg_felts);
-                // challenger_multi_observe(builder, challenger, &prover_msg_felts); 
+                challenger_multi_observe(builder, challenger, &prover_msg_felts); 
             }
-            
-            /* _debug: safe conversion
-            iter_zip!(builder, prover_msg.evaluations).for_each(|ptr_vec, builder| {
-                let e = builder.iter_ptr_get(&prover_msg.evaluations, ptr_vec[0]);
-                let e_felts = builder.ext2felt(e);
-                challenger.observe_slice(builder, e_felts);
-            });
-            */
 
             transcript_observe_label(builder, challenger, b"Internal round");
             let challenge = challenger.sample_ext(builder);
 
             builder.set(&challenges, i, challenge);
-            // builder.set(&polynomials_received, i, prover_msg.evaluations);
             builder.assign(&round, round + one);
             builder.cycle_tracker_end("IOPVerifierState::verify_round_and_update_state");
         });
