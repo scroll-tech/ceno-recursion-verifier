@@ -120,8 +120,8 @@ fn vm_program<C: Config>(
     builder.set(&e_arr, 4, e5);
 
     unsafe {
-        let mut c1 = DuplexChallengerVariable::new(builder);
+        let c1 = DuplexChallengerVariable::new(builder);
         let f_arr1 = exts_to_felts(builder, &e_arr); 
-        challenger_multi_observe(builder, &mut c1, &f_arr1);
+        builder.poseidon2_multi_observe(&c1.sponge_state, c1.input_ptr, c1.io_full_ptr, &f_arr1);
     }
 }
