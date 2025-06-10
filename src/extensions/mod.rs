@@ -123,5 +123,20 @@ fn vm_program<C: Config>(
         let mut c1 = DuplexChallengerVariable::new(builder);
         let f_arr1 = exts_to_felts(builder, &e_arr); 
         challenger_multi_observe(builder, &mut c1, &f_arr1);
+
+
+        let mut c1 = DuplexChallengerVariable::new(builder);
+        let mut c2 = DuplexChallengerVariable::new(builder);
+
+        let f_arr1 = exts_to_felts(builder, &e_arr); 
+        let f_arr2 = f_arr1.clone();
+
+        challenger_multi_observe(builder, &mut c1, &f_arr1); 
+        let test_e1 = c1.sample(builder);
+
+        c2.observe_slice(builder, f_arr2);
+        let test_e2 = c2.sample(builder);
+
+        builder.assert_felt_eq(test_e1, test_e2);
     }
 }
