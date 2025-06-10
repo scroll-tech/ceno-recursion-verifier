@@ -46,28 +46,11 @@ pub fn challenger_multi_observe<C: Config>(
     challenger: &mut DuplexChallengerVariable<C>,
     arr: &Array<C, Felt<C::F>>
 ) {
-    builder.if_ne(arr.len(), Usize::from(0)).then(|builder| {
+    let pos = builder.poseidon2_multi_observe(&challenger.sponge_state, challenger.input_ptr, challenger.io_full_ptr, &arr);
+    builder.if_ne(pos, Usize::from(0)).then_or_else(|builder| {
         builder.assign(&challenger.output_ptr, challenger.io_empty_ptr);
-
-        builder.range(0, arr.len()).for_each(|idx_vec, builder| {
-            let val = builder.get(arr, idx_vec[0]);
-
-            builder.iter_ptr_set(&challenger.sponge_state, challenger.input_ptr.address.into(), val);
-            builder.assign(&challenger.input_ptr, challenger.input_ptr + C::N::ONE);
-
-            builder
-                .if_eq(challenger.input_ptr.address, challenger.io_full_ptr.address)
-                .then(|builder| {
-                    builder.assign(&challenger.input_ptr, challenger.io_empty_ptr);
-                    builder.poseidon2_permute_mut(&challenger.sponge_state);
-                });
-        });
-
-        builder.if_ne(challenger.input_ptr.address, challenger.io_empty_ptr.address).then_or_else(|builder| {
-            builder.assign(&challenger.output_ptr, challenger.io_empty_ptr);
-        }, |builder| {
-            builder.assign(&challenger.output_ptr, challenger.io_full_ptr);
-        });
+    }, |builder| {
+        builder.assign(&challenger.output_ptr, challenger.io_full_ptr);
     });
 }
 

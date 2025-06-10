@@ -12,7 +12,7 @@ use mpcs::{Basefold, BasefoldRSParams};
 use openvm_circuit::arch::{instructions::program::Program, SystemConfig, VmExecutor};
 use openvm_native_circuit::{Native, NativeConfig};
 use openvm_native_compiler::{asm::AsmBuilder, conversion::CompilerOptions};
-use openvm_native_recursion::challenger::CanSampleVariable;
+use openvm_native_recursion::challenger::{self, CanSampleVariable};
 use openvm_native_recursion::hints::Hintable;
 use openvm_stark_backend::config::StarkGenericConfig;
 use openvm_stark_sdk::{
@@ -120,8 +120,8 @@ fn vm_program<C: Config>(
     builder.set(&e_arr, 4, e5);
 
     unsafe {
-        let c1 = DuplexChallengerVariable::new(builder);
+        let mut c1 = DuplexChallengerVariable::new(builder);
         let f_arr1 = exts_to_felts(builder, &e_arr); 
-        builder.poseidon2_multi_observe(&c1.sponge_state, c1.input_ptr, c1.io_full_ptr, &f_arr1);
+        challenger_multi_observe(builder, &mut c1, &f_arr1);
     }
 }
