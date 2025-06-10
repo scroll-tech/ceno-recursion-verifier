@@ -567,10 +567,10 @@ dependencies = [
  "itertools 0.13.0",
  "mpcs",
  "openvm",
- "openvm-circuit",
+ "openvm-circuit 1.0.0",
  "openvm-native-circuit",
- "openvm-native-compiler",
- "openvm-native-compiler-derive",
+ "openvm-native-compiler 1.0.0",
+ "openvm-native-compiler-derive 1.0.0",
  "openvm-native-recursion",
  "openvm-stark-backend",
  "openvm-stark-sdk",
@@ -1912,9 +1912,9 @@ source = "git+https://github.com/openvm-org/openvm.git?tag=v1.0.0#f41640c37bc546
 dependencies = [
  "bytemuck",
  "num-bigint 0.4.6",
- "openvm-custom-insn",
- "openvm-platform",
- "openvm-rv32im-guest",
+ "openvm-custom-insn 0.1.0 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0)",
+ "openvm-platform 1.0.0",
+ "openvm-rv32im-guest 1.0.0",
  "serde",
 ]
 
@@ -1933,11 +1933,41 @@ dependencies = [
  "getset",
  "itertools 0.14.0",
  "metrics",
- "openvm-circuit-derive",
- "openvm-circuit-primitives",
- "openvm-circuit-primitives-derive",
- "openvm-instructions",
- "openvm-poseidon2-air",
+ "openvm-circuit-derive 1.0.0",
+ "openvm-circuit-primitives 1.0.0",
+ "openvm-circuit-primitives-derive 1.0.0",
+ "openvm-instructions 1.0.0",
+ "openvm-poseidon2-air 1.0.0",
+ "openvm-stark-backend",
+ "p3-baby-bear 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "rand",
+ "rustc-hash",
+ "serde",
+ "serde-big-array",
+ "static_assertions",
+ "thiserror",
+ "tracing",
+]
+
+[[package]]
+name = "openvm-circuit"
+version = "1.1.0"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=ceno-recursion#a1658f54c1b603da496c059baba85462a07958f8"
+dependencies = [
+ "backtrace",
+ "cfg-if",
+ "derivative",
+ "derive-new 0.6.0",
+ "derive_more 1.0.0",
+ "enum_dispatch",
+ "eyre",
+ "getset",
+ "itertools 0.14.0",
+ "openvm-circuit-derive 1.1.0",
+ "openvm-circuit-primitives 1.1.0",
+ "openvm-circuit-primitives-derive 1.1.0",
+ "openvm-instructions 1.1.0",
+ "openvm-poseidon2-air 1.1.0",
  "openvm-stark-backend",
  "p3-baby-bear 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
  "rand",
@@ -1960,6 +1990,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "openvm-circuit-derive"
+version = "1.1.0"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=ceno-recursion#a1658f54c1b603da496c059baba85462a07958f8"
+dependencies = [
+ "itertools 0.14.0",
+ "quote",
+ "syn 2.0.101",
+]
+
+[[package]]
 name = "openvm-circuit-primitives"
 version = "1.0.0"
 source = "git+https://github.com/openvm-org/openvm.git?tag=v1.0.0#f41640c37bc5468a0775a38098053fe37ea3538a"
@@ -1968,7 +2008,22 @@ dependencies = [
  "itertools 0.14.0",
  "num-bigint 0.4.6",
  "num-traits",
- "openvm-circuit-primitives-derive",
+ "openvm-circuit-primitives-derive 1.0.0",
+ "openvm-stark-backend",
+ "rand",
+ "tracing",
+]
+
+[[package]]
+name = "openvm-circuit-primitives"
+version = "1.1.0"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=ceno-recursion#a1658f54c1b603da496c059baba85462a07958f8"
+dependencies = [
+ "derive-new 0.6.0",
+ "itertools 0.14.0",
+ "num-bigint 0.4.6",
+ "num-traits",
+ "openvm-circuit-primitives-derive 1.1.0",
  "openvm-stark-backend",
  "rand",
  "tracing",
@@ -1978,6 +2033,16 @@ dependencies = [
 name = "openvm-circuit-primitives-derive"
 version = "1.0.0"
 source = "git+https://github.com/openvm-org/openvm.git?tag=v1.0.0#f41640c37bc5468a0775a38098053fe37ea3538a"
+dependencies = [
+ "itertools 0.14.0",
+ "quote",
+ "syn 2.0.101",
+]
+
+[[package]]
+name = "openvm-circuit-primitives-derive"
+version = "1.1.0"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=ceno-recursion#a1658f54c1b603da496c059baba85462a07958f8"
 dependencies = [
  "itertools 0.14.0",
  "quote",
@@ -1995,6 +2060,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "openvm-custom-insn"
+version = "0.1.0"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=ceno-recursion#a1658f54c1b603da496c059baba85462a07958f8"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.101",
+]
+
+[[package]]
 name = "openvm-instructions"
 version = "1.0.0"
 source = "git+https://github.com/openvm-org/openvm.git?tag=v1.0.0#f41640c37bc5468a0775a38098053fe37ea3538a"
@@ -2004,7 +2079,24 @@ dependencies = [
  "itertools 0.14.0",
  "num-bigint 0.4.6",
  "num-traits",
- "openvm-instructions-derive",
+ "openvm-instructions-derive 1.0.0",
+ "openvm-stark-backend",
+ "serde",
+ "strum",
+ "strum_macros",
+]
+
+[[package]]
+name = "openvm-instructions"
+version = "1.1.0"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=ceno-recursion#a1658f54c1b603da496c059baba85462a07958f8"
+dependencies = [
+ "backtrace",
+ "derive-new 0.6.0",
+ "itertools 0.14.0",
+ "num-bigint 0.4.6",
+ "num-traits",
+ "openvm-instructions-derive 1.1.0",
  "openvm-stark-backend",
  "serde",
  "strum",
@@ -2021,21 +2113,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "openvm-instructions-derive"
+version = "1.1.0"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=ceno-recursion#a1658f54c1b603da496c059baba85462a07958f8"
+dependencies = [
+ "quote",
+ "syn 2.0.101",
+]
+
+[[package]]
 name = "openvm-native-circuit"
-version = "1.0.0"
-source = "git+https://github.com/openvm-org/openvm.git?tag=v1.0.0#f41640c37bc5468a0775a38098053fe37ea3538a"
+version = "1.1.0"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=ceno-recursion#a1658f54c1b603da496c059baba85462a07958f8"
 dependencies = [
  "derive-new 0.6.0",
  "derive_more 1.0.0",
  "eyre",
  "itertools 0.14.0",
- "openvm-circuit",
- "openvm-circuit-derive",
- "openvm-circuit-primitives",
- "openvm-circuit-primitives-derive",
- "openvm-instructions",
- "openvm-native-compiler",
- "openvm-poseidon2-air",
+ "openvm-circuit 1.1.0",
+ "openvm-circuit-derive 1.1.0",
+ "openvm-circuit-primitives 1.1.0",
+ "openvm-circuit-primitives-derive 1.1.0",
+ "openvm-instructions 1.1.0",
+ "openvm-native-compiler 1.1.0",
+ "openvm-poseidon2-air 1.1.0",
  "openvm-rv32im-circuit",
  "openvm-stark-backend",
  "openvm-stark-sdk",
@@ -2056,11 +2157,33 @@ dependencies = [
  "itertools 0.14.0",
  "num-bigint 0.4.6",
  "num-integer",
- "openvm-circuit",
- "openvm-instructions",
- "openvm-instructions-derive",
- "openvm-native-compiler-derive",
- "openvm-rv32im-transpiler",
+ "openvm-circuit 1.0.0",
+ "openvm-instructions 1.0.0",
+ "openvm-instructions-derive 1.0.0",
+ "openvm-native-compiler-derive 1.0.0",
+ "openvm-rv32im-transpiler 1.0.0",
+ "openvm-stark-backend",
+ "openvm-stark-sdk",
+ "serde",
+ "strum",
+ "strum_macros",
+ "zkhash",
+]
+
+[[package]]
+name = "openvm-native-compiler"
+version = "1.1.0"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=ceno-recursion#a1658f54c1b603da496c059baba85462a07958f8"
+dependencies = [
+ "backtrace",
+ "itertools 0.14.0",
+ "num-bigint 0.4.6",
+ "num-integer",
+ "openvm-circuit 1.1.0",
+ "openvm-instructions 1.1.0",
+ "openvm-instructions-derive 1.1.0",
+ "openvm-native-compiler-derive 1.1.0",
+ "openvm-rv32im-transpiler 1.1.0",
  "openvm-stark-backend",
  "openvm-stark-sdk",
  "serde",
@@ -2079,17 +2202,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "openvm-native-compiler-derive"
+version = "1.1.0"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=ceno-recursion#a1658f54c1b603da496c059baba85462a07958f8"
+dependencies = [
+ "quote",
+ "syn 2.0.101",
+]
+
+[[package]]
 name = "openvm-native-recursion"
-version = "1.0.0"
-source = "git+https://github.com/openvm-org/openvm.git?tag=v1.0.0#f41640c37bc5468a0775a38098053fe37ea3538a"
+version = "1.1.0"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=ceno-recursion#a1658f54c1b603da496c059baba85462a07958f8"
 dependencies = [
  "cfg-if",
  "itertools 0.14.0",
  "lazy_static",
- "openvm-circuit",
+ "openvm-circuit 1.1.0",
  "openvm-native-circuit",
- "openvm-native-compiler",
- "openvm-native-compiler-derive",
+ "openvm-native-compiler 1.1.0",
+ "openvm-native-compiler-derive 1.1.0",
  "openvm-stark-backend",
  "openvm-stark-sdk",
  "p3-dft 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
@@ -2109,8 +2241,17 @@ source = "git+https://github.com/openvm-org/openvm.git?tag=v1.0.0#f41640c37bc546
 dependencies = [
  "getrandom 0.2.16",
  "libm",
- "openvm-custom-insn",
- "openvm-rv32im-guest",
+ "openvm-custom-insn 0.1.0 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0)",
+ "openvm-rv32im-guest 1.0.0",
+]
+
+[[package]]
+name = "openvm-platform"
+version = "1.1.0"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=ceno-recursion#a1658f54c1b603da496c059baba85462a07958f8"
+dependencies = [
+ "openvm-custom-insn 0.1.0 (git+https://github.com/scroll-tech/openvm.git?branch=ceno-recursion)",
+ "openvm-rv32im-guest 1.1.0",
 ]
 
 [[package]]
@@ -2131,21 +2272,38 @@ dependencies = [
 ]
 
 [[package]]
+name = "openvm-poseidon2-air"
+version = "1.1.0"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=ceno-recursion#a1658f54c1b603da496c059baba85462a07958f8"
+dependencies = [
+ "derivative",
+ "lazy_static",
+ "openvm-stark-backend",
+ "openvm-stark-sdk",
+ "p3-monty-31 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-poseidon2 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "p3-poseidon2-air",
+ "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/Plonky3.git?rev=1ba4e5c)",
+ "rand",
+ "zkhash",
+]
+
+[[package]]
 name = "openvm-rv32im-circuit"
-version = "1.0.0"
-source = "git+https://github.com/openvm-org/openvm.git?tag=v1.0.0#f41640c37bc5468a0775a38098053fe37ea3538a"
+version = "1.1.0"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=ceno-recursion#a1658f54c1b603da496c059baba85462a07958f8"
 dependencies = [
  "derive-new 0.6.0",
  "derive_more 1.0.0",
  "eyre",
  "num-bigint 0.4.6",
  "num-integer",
- "openvm-circuit",
- "openvm-circuit-derive",
- "openvm-circuit-primitives",
- "openvm-circuit-primitives-derive",
- "openvm-instructions",
- "openvm-rv32im-transpiler",
+ "openvm-circuit 1.1.0",
+ "openvm-circuit-derive 1.1.0",
+ "openvm-circuit-primitives 1.1.0",
+ "openvm-circuit-primitives-derive 1.1.0",
+ "openvm-instructions 1.1.0",
+ "openvm-rv32im-transpiler 1.1.0",
  "openvm-stark-backend",
  "rand",
  "serde",
@@ -2158,7 +2316,16 @@ name = "openvm-rv32im-guest"
 version = "1.0.0"
 source = "git+https://github.com/openvm-org/openvm.git?tag=v1.0.0#f41640c37bc5468a0775a38098053fe37ea3538a"
 dependencies = [
- "openvm-custom-insn",
+ "openvm-custom-insn 0.1.0 (git+https://github.com/openvm-org/openvm.git?tag=v1.0.0)",
+ "strum_macros",
+]
+
+[[package]]
+name = "openvm-rv32im-guest"
+version = "1.1.0"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=ceno-recursion#a1658f54c1b603da496c059baba85462a07958f8"
+dependencies = [
+ "openvm-custom-insn 0.1.0 (git+https://github.com/scroll-tech/openvm.git?branch=ceno-recursion)",
  "strum_macros",
 ]
 
@@ -2167,11 +2334,27 @@ name = "openvm-rv32im-transpiler"
 version = "1.0.0"
 source = "git+https://github.com/openvm-org/openvm.git?tag=v1.0.0#f41640c37bc5468a0775a38098053fe37ea3538a"
 dependencies = [
- "openvm-instructions",
- "openvm-instructions-derive",
- "openvm-rv32im-guest",
+ "openvm-instructions 1.0.0",
+ "openvm-instructions-derive 1.0.0",
+ "openvm-rv32im-guest 1.0.0",
  "openvm-stark-backend",
- "openvm-transpiler",
+ "openvm-transpiler 1.0.0",
+ "rrs-lib",
+ "serde",
+ "strum",
+ "tracing",
+]
+
+[[package]]
+name = "openvm-rv32im-transpiler"
+version = "1.1.0"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=ceno-recursion#a1658f54c1b603da496c059baba85462a07958f8"
+dependencies = [
+ "openvm-instructions 1.1.0",
+ "openvm-instructions-derive 1.1.0",
+ "openvm-rv32im-guest 1.1.0",
+ "openvm-stark-backend",
+ "openvm-transpiler 1.1.0",
  "rrs-lib",
  "serde",
  "strum",
@@ -2245,8 +2428,22 @@ source = "git+https://github.com/openvm-org/openvm.git?tag=v1.0.0#f41640c37bc546
 dependencies = [
  "elf",
  "eyre",
- "openvm-instructions",
- "openvm-platform",
+ "openvm-instructions 1.0.0",
+ "openvm-platform 1.0.0",
+ "openvm-stark-backend",
+ "rrs-lib",
+ "thiserror",
+]
+
+[[package]]
+name = "openvm-transpiler"
+version = "1.1.0"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=ceno-recursion#a1658f54c1b603da496c059baba85462a07958f8"
+dependencies = [
+ "elf",
+ "eyre",
+ "openvm-instructions 1.1.0",
+ "openvm-platform 1.1.0",
  "openvm-stark-backend",
  "rrs-lib",
  "thiserror",
@@ -4399,13 +4596,3 @@ dependencies = [
  "sha3",
  "subtle",
 ]
-
-[[patch.unused]]
-name = "openvm-native-circuit"
-version = "1.1.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=ceno-recursion#03827f1f69b19c51f440af0b6944f77ce61e7390"
-
-[[patch.unused]]
-name = "openvm-native-recursion"
-version = "1.1.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=ceno-recursion#03827f1f69b19c51f440af0b6944f77ce61e7390"
