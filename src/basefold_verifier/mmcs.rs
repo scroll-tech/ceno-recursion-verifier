@@ -57,10 +57,13 @@ impl Hintable<InnerConfig> for MmcsVerifierInput {
         }
         stream.extend(<Vec<usize> as Hintable<InnerConfig>>::write(&index_bits));
         stream.extend(self.opened_values.write());
+        stream.extend(<usize as Hintable<InnerConfig>>::write(
+            &(self.proof.len() * 8),
+        ));
         stream.extend(
             self.proof
                 .iter()
-                .map(|p| p.to_vec())
+                .flat_map(|p| p.iter().copied())
                 .collect::<Vec<_>>()
                 .write(),
         );
