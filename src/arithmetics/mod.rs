@@ -46,9 +46,9 @@ pub fn challenger_multi_observe<C: Config>(
     challenger: &mut DuplexChallengerVariable<C>,
     arr: &Array<C, Felt<C::F>>
 ) {
-    let input_ptr = builder.poseidon2_multi_observe(&challenger.sponge_state, challenger.input_ptr, challenger.io_full_ptr, &arr);
-    builder.assign(&challenger.input_ptr, challenger.io_empty_ptr + input_ptr.clone());
-    builder.if_ne(input_ptr, Usize::from(0)).then_or_else(|builder| {
+    let next_input_ptr = builder.poseidon2_multi_observe(&challenger.sponge_state, challenger.input_ptr, &arr);
+    builder.assign(&challenger.input_ptr, challenger.io_empty_ptr + next_input_ptr.clone());
+    builder.if_ne(next_input_ptr, Usize::from(0)).then_or_else(|builder| {
         builder.assign(&challenger.output_ptr, challenger.io_empty_ptr);
     }, |builder| {
         builder.assign(&challenger.output_ptr, challenger.io_full_ptr);
