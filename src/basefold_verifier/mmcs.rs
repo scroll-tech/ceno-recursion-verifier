@@ -118,7 +118,7 @@ pub mod tests {
     use super::{mmcs_verify_batch, InnerConfig, MmcsCommitment, MmcsVerifierInput};
 
     /// The witness in this test is produced by:
-    /// https://github.com/Jiangkm3/Plonky3
+    /// https://github.com/Jiangkm3/Plonky3 branch cyte/mmcs-poseidon2-constants
     /// cargo test --package p3-merkle-tree --lib -- mmcs::tests::size_gaps --exact --show-output
     #[allow(dead_code)]
     pub fn build_mmcs_verify_batch() -> (Program<BabyBear>, Vec<Vec<BabyBear>>) {
