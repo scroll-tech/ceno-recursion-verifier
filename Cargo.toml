@@ -20,6 +20,7 @@ bincode = "1"
 
 # Plonky3
 p3-air = { git = "https://github.com/Plonky3/Plonky3.git", rev = "1ba4e5c" }
+p3-baby-bear = { git = "https://github.com/Plonky3/Plonky3.git", rev = "1ba4e5c" }
 p3-field = { git = "https://github.com/Plonky3/Plonky3.git", rev = "1ba4e5c" }
 p3-commit = { git = "https://github.com/Plonky3/Plonky3.git", rev = "1ba4e5c" }
 p3-matrix = { git = "https://github.com/Plonky3/Plonky3.git", rev = "1ba4e5c" }
@@ -36,9 +37,15 @@ ark-poly = "0.5"
 ark-serialize = "0.5"
 
 # Ceno
+ceno_mle = { git = "https://github.com/scroll-tech/ceno.git", branch = "feat/export_ff_ext", package = "multilinear_extensions" }
+ceno_sumcheck = { git = "https://github.com/scroll-tech/ceno.git", branch = "feat/export_ff_ext", package = "sumcheck" }
+ceno_transcript = { git = "https://github.com/scroll-tech/ceno.git", branch = "feat/export_ff_ext", package = "transcript" }
 ceno_zkvm = { git = "https://github.com/scroll-tech/ceno.git", branch = "feat/export_ff_ext" }
 ceno_emul = { git = "https://github.com/scroll-tech/ceno.git", branch = "feat/export_ff_ext" }
 mpcs = { git = "https://github.com/scroll-tech/ceno.git", branch = "feat/export_ff_ext" }
 ff_ext = { git = "https://github.com/scroll-tech/ceno.git", branch = "feat/export_ff_ext" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+
+[features]
+bench-metrics = ["openvm-circuit/bench-metrics"]
