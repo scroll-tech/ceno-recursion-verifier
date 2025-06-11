@@ -10,7 +10,11 @@ use mpcs::BasefoldCommitment;
 use mpcs::{Basefold, BasefoldRSParams};
 use openvm_circuit::arch::{instructions::program::Program, SystemConfig, VmExecutor};
 use openvm_native_circuit::{Native, NativeConfig};
-use openvm_native_compiler::{asm::AsmBuilder, conversion::CompilerOptions};
+use openvm_native_compiler::{
+    asm::AsmBuilder, 
+    conversion::{CompilerOptions, convert_program}, 
+    prelude::AsmCompiler
+};
 use openvm_native_recursion::hints::Hintable;
 use openvm_stark_backend::config::StarkGenericConfig;
 use openvm_stark_sdk::{
@@ -446,10 +450,19 @@ pub fn test_zkvm_proof_verifier_from_bincode_exports() {
     witness_stream.extend(zkvm_proof_input.write());
 
     // Compile program
-    let program: Program<
-        p3_monty_31::MontyField31<openvm_stark_sdk::p3_baby_bear::BabyBearParameters>,
-    > =builder.compile_isa_with_options(CompilerOptions::default().with_cycle_tracker());
+    let options = CompilerOptions::default().with_cycle_tracker();
+    let mut compiler = AsmCompiler::new(options.word_size);
+    compiler.build(builder.operations);
+    let asm_code = compiler.code();
 
+    // _debug: print out assembly
+    /* 
+    println!("=> AssemblyCode:");
+    println!("{asm_code}");
+    return ();
+    */
+
+    let program: Program<p3_monty_31::MontyField31<openvm_stark_sdk::p3_baby_bear::BabyBearParameters>,> = convert_program(asm_code, options);
 
     // println!("=> asm_code.blocks: {:?}", asm_code.blocks);
     // println!("=> asm_code.labels: {:?}", asm_code.labels);
@@ -461,9 +474,6 @@ pub fn test_zkvm_proof_verifier_from_bincode_exports() {
     let config = NativeConfig::new(system_config, Native);
 
     let executor = VmExecutor::<BabyBear, NativeConfig>::new(config);
-    
-    // Alternative execution
-    // executor.execute(program, witness_stream).unwrap();
 
     let res = executor.execute_and_then(
         program,

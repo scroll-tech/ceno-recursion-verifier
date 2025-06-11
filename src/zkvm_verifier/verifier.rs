@@ -1,6 +1,7 @@
 use super::binding::{
     ZKVMOpcodeProofInputVariable, ZKVMProofInputVariable, ZKVMTableProofInputVariable,
 };
+use crate::arithmetics::challenger_multi_observe;
 use crate::e2e::SubcircuitParams;
 use crate::tower_verifier::program::verify_tower_proof;
 use crate::transcript::transcript_observe_label;
@@ -83,10 +84,8 @@ pub fn verify_zkvm_proof<C: Config>(
 
     iter_zip!(builder, zkvm_proof_input.raw_pi).for_each(|ptr_vec, builder| {
         let v = builder.iter_ptr_get(&zkvm_proof_input.raw_pi, ptr_vec[0]);
-        iter_zip!(builder, v).for_each(|inner_ptr_vec, builder| {
-            let f = builder.iter_ptr_get(&v, inner_ptr_vec[0]);
-            challenger.observe(builder, f);
-        })
+
+        challenger_multi_observe(builder, &mut challenger, &v);
     });
 
     iter_zip!(builder, zkvm_proof_input.raw_pi, zkvm_proof_input.pi_evals).for_each(
@@ -102,18 +101,13 @@ pub fn verify_zkvm_proof<C: Config>(
         },
     );
 
-    iter_zip!(builder, zkvm_proof_input.fixed_commit).for_each(|ptr_vec, builder| {
-        let f = builder.iter_ptr_get(&zkvm_proof_input.fixed_commit, ptr_vec[0]);
-        challenger.observe(builder, f);
-    });
+    challenger_multi_observe(builder, &mut challenger, &zkvm_proof_input.fixed_commit);
+
     iter_zip!(builder, zkvm_proof_input.fixed_commit_trivial_commits).for_each(
         |ptr_vec, builder| {
             let trivial_cmt =
                 builder.iter_ptr_get(&zkvm_proof_input.fixed_commit_trivial_commits, ptr_vec[0]);
-            iter_zip!(builder, trivial_cmt).for_each(|t_ptr_vec, builder| {
-                let f = builder.iter_ptr_get(&trivial_cmt, t_ptr_vec[0]);
-                challenger.observe(builder, f);
-            });
+            challenger_multi_observe(builder, &mut challenger, &trivial_cmt);
         },
     );
     challenger.observe(
@@ -129,18 +123,13 @@ pub fn verify_zkvm_proof<C: Config>(
         challenger.observe(builder, num_var);
     });
 
-    iter_zip!(builder, zkvm_proof_input.witin_commit).for_each(|ptr_vec, builder| {
-        let f = builder.iter_ptr_get(&zkvm_proof_input.witin_commit, ptr_vec[0]);
-        challenger.observe(builder, f);
-    });
+    challenger_multi_observe(builder, &mut challenger, &zkvm_proof_input.witin_commit);
+
     iter_zip!(builder, zkvm_proof_input.witin_commit_trivial_commits).for_each(
         |ptr_vec, builder| {
             let trivial_cmt =
                 builder.iter_ptr_get(&zkvm_proof_input.witin_commit_trivial_commits, ptr_vec[0]);
-            iter_zip!(builder, trivial_cmt).for_each(|t_ptr_vec, builder| {
-                let f = builder.iter_ptr_get(&trivial_cmt, t_ptr_vec[0]);
-                challenger.observe(builder, f);
-            });
+            challenger_multi_observe(builder, &mut challenger, &trivial_cmt);
         },
     );
     challenger.observe(
