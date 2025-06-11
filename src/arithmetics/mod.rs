@@ -36,6 +36,7 @@ pub fn _print_usize_arr<C: Config>(builder: &mut Builder<C>, arr: &Array<C, Usiz
 }
 
 pub unsafe fn exts_to_felts<C: Config>(builder: &mut Builder<C>, exts: &Array<C, Ext<C::F, C::EF>>) -> Array<C, Felt<C::F>> {
+    assert!(matches!(exts, Array::Dyn(_, _)), "Expected dynamic array of Exts");
     let f_len: Usize<C::N> = builder.eval(exts.len() * Usize::from(C::EF::D));
     let f_arr: Array<C, Felt<C::F>> = Array::Dyn(exts.ptr(), f_len);
     f_arr
