@@ -51,22 +51,21 @@ impl Hintable<InnerConfig> for MmcsVerifierInput {
         stream.extend(self.dimensions.write());
         let mut index_bits = Vec::new();
         let mut index = self.index;
-        while index > 0 {
+        for _ in 0..self.proof.len() {
             index_bits.push(index % 2);
             index /= 2;
         }
+        index_bits.reverse(); // Index bits is big endian ?
         stream.extend(<Vec<usize> as Hintable<InnerConfig>>::write(&index_bits));
         stream.extend(self.opened_values.write());
-        stream.extend(<usize as Hintable<InnerConfig>>::write(
-            &(self.proof.len() * 8),
-        ));
+        stream.extend(<usize as Hintable<InnerConfig>>::write(&(self.proof.len()))); // According to openvm extensions/native/recursion/src/fri/hints.rs
         stream.extend(
             self.proof
                 .iter()
                 .flat_map(|p| p.iter().copied())
                 .collect::<Vec<_>>()
                 .write(),
-        );
+        ); // According to openvm extensions/native/recursion/src/fri/hints.rs
         stream
     }
 }
