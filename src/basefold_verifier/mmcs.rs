@@ -147,7 +147,7 @@ pub mod tests {
                 f(122995307),
             ],
         };
-        let dimensions = vec![7, 1, 1];
+        let dimensions = vec![7, 1, 1]; // The dimensions are logarithmic of the heights
         let index = 6;
         let opened_values = vec![
             vec![
