@@ -121,11 +121,6 @@ fn vm_program<C: Config>(
 
     unsafe {
         let mut c1 = DuplexChallengerVariable::new(builder);
-        let f_arr1 = exts_to_felts(builder, &e_arr); 
-        challenger_multi_observe(builder, &mut c1, &f_arr1);
-
-
-        let mut c1 = DuplexChallengerVariable::new(builder);
         let mut c2 = DuplexChallengerVariable::new(builder);
 
         let f_arr1 = exts_to_felts(builder, &e_arr); 
