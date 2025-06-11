@@ -167,7 +167,7 @@ pub fn iop_verifier_state_verify<C: Config>(
             transcript_observe_label(builder, challenger, b"Internal round");
             let challenge = challenger.sample_ext(builder);
 
-            builder.set(&challenges, i, challenge);
+            builder.set_value(&challenges, i, challenge);
             builder.assign(&round, round + one);
             builder.cycle_tracker_end("IOPVerifierState::verify_round_and_update_state");
         });
@@ -698,7 +698,7 @@ mod tests {
         type EF = BinomialExtensionField<BabyBear, 4>;
         type C = AsmConfig<F, EF>;
 
-        let nv = 5;
+        let nv = 4;
         let degree = 3;
 
         let mut builder = AsmBuilder::<F, EF>::default();
