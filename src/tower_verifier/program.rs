@@ -151,26 +151,32 @@ pub fn iop_verifier_state_verify<C: Config>(
     let round: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
     let challenges: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(max_num_variables_usize.clone());
 
+    builder.cycle_tracker_start("IOPVerifierState::verify_round_and_update_state");
     builder
         .range(0, max_num_variables_usize.clone())
         .for_each(|i_vec, builder| {
             let i = i_vec[0];
             let prover_msg = builder.get(&prover_messages, i);
 
-            builder.cycle_tracker_start("IOPVerifierState::verify_round_and_update_state");
-
+            builder.cycle_tracker_start("multi_observe");
             unsafe {
                 let prover_msg_felts = exts_to_felts(builder, &prover_msg.evaluations);
                 challenger_multi_observe(builder, challenger, &prover_msg_felts);
             }
+            builder.cycle_tracker_end("multi_observe");
 
+            builder.cycle_tracker_start("observe round");
             transcript_observe_label(builder, challenger, b"Internal round");
+            builder.cycle_tracker_end("observe round");
+
+            builder.cycle_tracker_start("sample_ext");
             let challenge = challenger.sample_ext(builder);
+            builder.cycle_tracker_end("sample_ext");
 
             builder.set_value(&challenges, i, challenge);
             builder.assign(&round, round + one);
-            builder.cycle_tracker_end("IOPVerifierState::verify_round_and_update_state");
         });
+    builder.cycle_tracker_end("IOPVerifierState::verify_round_and_update_state");
 
     builder.cycle_tracker_start("IOPVerifierState::check_and_generate_subclaim");
     // set `expected` to P(r)`
@@ -190,12 +196,14 @@ pub fn iop_verifier_state_verify<C: Config>(
             let expected_ptr = idx_vec[2];
             // _debug
             // let expected = interpolate_uni_poly(builder, &msg, c);
+            builder.cycle_tracker_start("extrapolate_uni_poly");
             let expected = interpolate_uni_poly_with_weights(
                 builder,
                 &msg.evaluations,
                 c,
                 interpolation_weights,
             );
+            builder.cycle_tracker_end("extrapolate_uni_poly");
 
             builder.iter_ptr_set(&truncated_expected_vec, expected_ptr, expected);
         },
@@ -684,6 +692,7 @@ mod tests {
     use openvm_native_compiler::ir::Ext;
     use openvm_native_compiler::prelude::Felt;
     use openvm_native_recursion::challenger::duplex::DuplexChallengerVariable;
+    use openvm_stark_sdk::config::setup_tracing_with_log_level;
     use p3_baby_bear::BabyBear;
     use p3_field::Field;
     use p3_field::extension::BinomialExtensionField;
@@ -697,6 +706,8 @@ mod tests {
         type E = BabyBearExt4;
         type EF = BinomialExtensionField<BabyBear, 4>;
         type C = AsmConfig<F, EF>;
+
+        setup_tracing_with_log_level(tracing::Level::WARN);
 
         let nv = 4;
         let degree = 3;
@@ -755,7 +766,7 @@ mod tests {
         builder.halt();
 
         // get the assembly code
-        let options = CompilerOptions::default();
+        let options = CompilerOptions::default().with_cycle_tracker();
         let mut compiler = AsmCompiler::new(options.word_size);
         compiler.build(builder.operations);
         let asm_code = compiler.code();
