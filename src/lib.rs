@@ -6,3 +6,4 @@ pub mod zkvm_verifier;
 
 #[allow(dead_code)]
 mod e2e;
+mod extensions;

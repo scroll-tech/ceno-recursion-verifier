@@ -8,7 +8,11 @@ use openvm_native_compiler::prelude::*;
 use openvm_native_compiler_derive::iter_zip;
 use openvm_native_recursion::challenger::ChallengerVariable;
 use p3_field::{FieldAlgebra, FieldExtensionAlgebra};
+use openvm_native_recursion::challenger::{
+    duplex::DuplexChallengerVariable, CanObserveVariable, FeltChallenger,
+};
 type E = BabyBearExt4;
+const HASH_RATE: usize = 8;
 
 pub fn _print_ext_arr<C: Config>(builder: &mut Builder<C>, arr: &Array<C, Ext<C::F, C::EF>>) {
     iter_zip!(builder, arr).for_each(|ptr_vec, builder| {
@@ -17,7 +21,7 @@ pub fn _print_ext_arr<C: Config>(builder: &mut Builder<C>, arr: &Array<C, Ext<C:
     });
 }
 
-pub fn _print_felt_arr<C: Config>(builder: &mut Builder<C>, arr: &Array<C, Felt<C::F>>) {
+pub fn print_felt_arr<C: Config>(builder: &mut Builder<C>, arr: &Array<C, Felt<C::F>>) {
     iter_zip!(builder, arr).for_each(|ptr_vec, builder| {
         let f = builder.iter_ptr_get(arr, ptr_vec[0]);
         builder.print_f(f);
@@ -28,6 +32,26 @@ pub fn _print_usize_arr<C: Config>(builder: &mut Builder<C>, arr: &Array<C, Usiz
     iter_zip!(builder, arr).for_each(|ptr_vec, builder| {
         let n = builder.iter_ptr_get(arr, ptr_vec[0]);
         builder.print_v(n.get_var());
+    });
+}
+
+pub unsafe fn exts_to_felts<C: Config>(builder: &mut Builder<C>, exts: &Array<C, Ext<C::F, C::EF>>) -> Array<C, Felt<C::F>> {
+    let f_len: Usize<C::N> = builder.eval(exts.len() * Usize::from(C::EF::D));
+    let f_arr: Array<C, Felt<C::F>> = Array::Dyn(exts.ptr(), f_len);
+    f_arr
+}
+
+pub fn challenger_multi_observe<C: Config>(
+    builder: &mut Builder<C>,
+    challenger: &mut DuplexChallengerVariable<C>,
+    arr: &Array<C, Felt<C::F>>
+) {
+    let next_input_ptr = builder.poseidon2_multi_observe(&challenger.sponge_state, challenger.input_ptr, &arr);
+    builder.assign(&challenger.input_ptr, challenger.io_empty_ptr + next_input_ptr.clone());
+    builder.if_ne(next_input_ptr, Usize::from(0)).then_or_else(|builder| {
+        builder.assign(&challenger.output_ptr, challenger.io_empty_ptr);
+    }, |builder| {
+        builder.assign(&challenger.output_ptr, challenger.io_full_ptr);
     });
 }
 
@@ -226,7 +250,7 @@ pub fn join<C: Config>(
 // Generate alpha power challenges
 pub fn gen_alpha_pows<C: Config>(
     builder: &mut Builder<C>,
-    challenger: &mut impl ChallengerVariable<C>,
+    challenger: &mut DuplexChallengerVariable<C>,
     alpha_len: Usize<<C as Config>::N>,
 ) -> Array<C, Ext<C::F, C::EF>> {
     let alpha = challenger.sample_ext(builder);
@@ -250,7 +274,7 @@ pub fn gen_alpha_pows<C: Config>(
 ///         = \sum_{\mathbf{b}=0}^{max_idx} \prod_{i=0}^{n-1} (x_i y_i b_i + (1 - x_i)(1 - y_i)(1 - b_i))
 pub fn eq_eval_less_or_equal_than<C: Config>(
     builder: &mut Builder<C>,
-    _challenger: &mut impl ChallengerVariable<C>,
+    _challenger: &mut DuplexChallengerVariable<C>,
     opcode_proof: &ZKVMOpcodeProofInputVariable<C>,
     a: &Array<C, Ext<C::F, C::EF>>,
     b: &Array<C, Ext<C::F, C::EF>>,

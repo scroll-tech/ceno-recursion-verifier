@@ -3,3 +3,4 @@ Cargo.lock
 vm_run_output.log
 *.bin
 .DS_Store
+*.log
