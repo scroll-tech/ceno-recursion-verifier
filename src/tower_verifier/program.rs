@@ -4,6 +4,7 @@ use super::binding::{
 use crate::arithmetics::{
     challenger_multi_observe, dot_product, dot_product_pt_n_eval, eq_eval, evaluate_at_point,
     exts_to_felts, gen_alpha_pows, is_smaller_than, join, product, reverse,
+    extrapolate_uni_poly_deg_1, extrapolate_uni_poly_deg_2, extrapolate_uni_poly_deg_3, extrapolate_uni_poly_deg_4,
 };
 use crate::transcript::transcript_observe_label;
 use openvm_native_compiler::prelude::*;
@@ -130,6 +131,37 @@ pub(crate) fn interpolate_uni_poly_with_weights<C: Config>(
     result
 }
 
+pub(crate) fn interpolate_uni_poly_inline<C: Config>(
+    builder: &mut Builder<C>,
+    p_i: &Array<C, Ext<C::F, C::EF>>,
+    eval_at: Ext<C::F, C::EF>,
+) -> Ext<C::F, C::EF> {
+let res: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
+    builder.if_eq(p_i.len(), Usize::from(2)).then_or_else(|builder| {
+        let ext = extrapolate_uni_poly_deg_1(builder, p_i, eval_at);
+        builder.assign(&res, ext);
+    }, |builder| {
+        builder.if_eq(p_i.len(), Usize::from(3)).then_or_else(|builder| {
+            let ext = extrapolate_uni_poly_deg_2(builder, p_i, eval_at);
+            builder.assign(&res, ext);
+        }, |builder| {
+            builder.if_eq(p_i.len(), Usize::from(4)).then_or_else(|builder| {
+                let ext = extrapolate_uni_poly_deg_3(builder, p_i, eval_at);
+                builder.assign(&res, ext);
+            }, |builder| {
+                builder.if_eq(p_i.len(), Usize::from(5)).then_or_else(|builder| {
+                    let ext = extrapolate_uni_poly_deg_4(builder, p_i, eval_at);
+                    builder.assign(&res, ext);
+                }, |builder| {
+                    builder.error();
+                });
+            });
+        });
+    });
+
+    res
+}
+
 pub fn iop_verifier_state_verify<C: Config>(
     builder: &mut Builder<C>,
     challenger: &mut DuplexChallengerVariable<C>,
@@ -137,7 +169,6 @@ pub fn iop_verifier_state_verify<C: Config>(
     prover_messages: &Array<C, IOPProverMessageVariable<C>>,
     max_num_variables: Felt<C::F>,
     max_degree: Felt<C::F>,
-    interpolation_weights: &Array<C, Array<C, Ext<C::F, C::EF>>>,
 ) -> (
     Array<C, Ext<<C as Config>::F, <C as Config>::EF>>,
     Ext<<C as Config>::F, <C as Config>::EF>,
@@ -188,15 +219,11 @@ pub fn iop_verifier_state_verify<C: Config>(
             let c = builder.iter_ptr_get(&challenges, c_ptr);
 
             let expected_ptr = idx_vec[2];
-            // _debug
-            // let expected = interpolate_uni_poly(builder, &msg, c);
-            let expected = interpolate_uni_poly_with_weights(
+            let expected = interpolate_uni_poly_inline(
                 builder,
                 &msg.evaluations,
                 c,
-                interpolation_weights,
             );
-
             builder.iter_ptr_set(&truncated_expected_vec, expected_ptr, expected);
         },
     );
@@ -223,7 +250,6 @@ pub fn verify_tower_proof<C: Config>(
     builder: &mut Builder<C>,
     challenger: &mut DuplexChallengerVariable<C>,
     tower_verifier_input: TowerVerifierInputVariable<C>,
-    interpolation_weights: &Array<C, Array<C, Ext<C::F, C::EF>>>,
 ) -> (
     PointVariable<C>,
     Array<C, PointAndEvalVariable<C>>,
@@ -409,7 +435,6 @@ pub fn verify_tower_proof<C: Config>(
                 &prover_messages,
                 max_num_variables,
                 max_degree,
-                interpolation_weights,
             );
 
             let expected_evaluation: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
@@ -749,7 +774,6 @@ mod tests {
             &prover_msgs,
             max_num_variables,
             max_degree,
-            &interpolation_weights,
         );
 
         builder.halt();
