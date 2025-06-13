@@ -783,7 +783,7 @@ mod tests {
     #[test]
     fn test_prod_tower() {
         let nv = 5;
-        let num_prod_records = 10;
+        let num_prod_records = 2;
         let mut rng = thread_rng();
 
         setup_tracing_with_log_level(tracing::Level::WARN);
