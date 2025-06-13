@@ -10,6 +10,39 @@ pub fn pow<C: Config>(builder: &mut Builder<C>, base: Var<C::N>, exponent: Var<C
     value
 }
 
+// XXX: more efficient pow implementation
+pub fn pow_felt<C: Config>(
+    builder: &mut Builder<C>,
+    base: Felt<C::F>,
+    exponent: Var<C::N>,
+) -> Felt<C::F> {
+    let value: Felt<C::F> = builder.constant(C::F::ONE);
+    builder.range(0, exponent).for_each(|_, builder| {
+        builder.assign(&value, value * base);
+    });
+    value
+}
+
+// XXX: more efficient pow implementation
+pub fn pow_felt_bits<C: Config>(
+    builder: &mut Builder<C>,
+    base: Felt<C::F>,
+    exponent_bits: &Array<C, Var<C::N>>, // In small endian
+    exponent_len: Usize<C::N>,
+) -> Felt<C::F> {
+    let value: Felt<C::F> = builder.constant(C::F::ONE);
+    let repeated_squared: Felt<C::F> = base;
+    builder.range(0, exponent_len).for_each(|ptr, builder| {
+        let ptr = ptr[0];
+        let bit = builder.get(exponent_bits, ptr);
+        builder.if_eq(bit, C::N::ONE).then(|builder| {
+            builder.assign(&value, value * repeated_squared);
+        });
+        builder.assign(&repeated_squared, repeated_squared * repeated_squared);
+    });
+    value
+}
+
 pub fn pow_2<C: Config>(builder: &mut Builder<C>, exponent: Var<C::N>) -> Var<C::N> {
     let two: Var<C::N> = builder.constant(C::N::from_canonical_usize(2));
     pow(builder, two, exponent)
@@ -203,8 +236,11 @@ pub fn codeword_fold_with_challenge<C: Config>(
     // original (left, right) = (lo + hi*x, lo - hi*x), lo, hi are codeword, but after times x it's not codeword
     // recover left & right codeword via (lo, hi) = ((left + right) / 2, (left - right) / 2x)
     let lo: Ext<C::F, C::EF> = builder.eval((left + right) * inv_2);
-    let hi: Ext<C::F, C::EF> = builder.eval((left - right) * coeff); // e.g. coeff = (2 * dit_butterfly)^(-1) in rs code
-                                                                     // we do fold on (lo, hi) to get folded = (1-r) * lo + r * hi (with lo, hi are two codewords), as it match perfectly with raw message in lagrange domain fixed variable
+    let hi: Ext<C::F, C::EF> = builder.eval((left - right) * coeff);
+    // e.g. coeff = (2 * dit_butterfly)^(-1) in rs code
+    // we do fold on (lo, hi) to get folded = (1-r) * lo + r * hi
+    // (with lo, hi are two codewords), as it match perfectly with raw message in
+    // lagrange domain fixed variable
     let ret: Ext<C::F, C::EF> = builder.eval(lo + challenge * (hi - lo));
     ret
 }

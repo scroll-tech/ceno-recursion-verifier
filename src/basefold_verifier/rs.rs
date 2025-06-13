@@ -6,9 +6,11 @@ use openvm_native_compiler::{asm::AsmConfig, prelude::*};
 use openvm_native_recursion::hints::Hintable;
 use openvm_stark_sdk::p3_baby_bear::BabyBear;
 use p3_field::extension::BinomialExtensionField;
+use p3_field::FieldAlgebra;
 use serde::Deserialize;
 
 use super::structs::*;
+use super::utils::{pow_felt, pow_felt_bits};
 
 pub type F = BabyBear;
 pub type E = BinomialExtensionField<F, DIMENSIONS>;
@@ -101,10 +103,19 @@ pub fn get_basecode_msg_size_log<C: Config>() -> Usize<C::N> {
 
 pub fn verifier_folding_coeffs_level<C: Config>(
     builder: &mut Builder<C>,
-    pp: &RSCodeVerifierParametersVariable<C>,
+    two_adic_generators: &Array<C, Felt<C::F>>,
     level: Var<C::N>,
-) -> Array<C, Felt<C::F>> {
-    builder.get(&pp.t_inv_halves, level)
+    index_bits: &Array<C, Var<C::N>>, // In big endian
+    two_inv: Felt<C::F>,
+) -> Felt<C::F> {
+    let level_plus_one = builder.eval::<Var<C::N>, _>(level + C::N::ONE);
+    let g = builder.get(two_adic_generators, level_plus_one);
+    let g_inv = builder.hint_felt();
+    builder.assert_eq::<Felt<C::F>>(g_inv * g, C::F::from_canonical_usize(1));
+
+    let g_inv_index = pow_felt_bits(builder, g_inv, index_bits, level.into());
+
+    builder.eval(g_inv_index * two_inv)
 }
 
 /// The DIT FFT algorithm.
@@ -172,7 +183,6 @@ impl<C: Config> Radix2DitVariable<C> {
 
 #[derive(Deserialize)]
 pub struct RSCodeVerifierParameters {
-    pub dft: Radix2Dit,
     pub t_inv_halves: Vec<Vec<F>>,
     pub full_message_size_log: usize,
 }
@@ -181,12 +191,10 @@ impl Hintable<InnerConfig> for RSCodeVerifierParameters {
     type HintVariable = RSCodeVerifierParametersVariable<InnerConfig>;
 
     fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
-        let dft = Radix2Dit::read(builder);
         let t_inv_halves = Vec::<Vec<F>>::read(builder);
         let full_message_size_log = Usize::Var(usize::read(builder));
 
         RSCodeVerifierParametersVariable {
-            dft,
             t_inv_halves,
             full_message_size_log,
         }
@@ -194,7 +202,6 @@ impl Hintable<InnerConfig> for RSCodeVerifierParameters {
 
     fn write(&self) -> Vec<Vec<<InnerConfig as Config>::N>> {
         let mut stream = Vec::new();
-        stream.extend(self.dft.write());
         stream.extend(self.t_inv_halves.write());
         stream.extend(<usize as Hintable<InnerConfig>>::write(
             &self.full_message_size_log,
@@ -205,7 +212,6 @@ impl Hintable<InnerConfig> for RSCodeVerifierParameters {
 
 #[derive(DslVariable, Clone)]
 pub struct RSCodeVerifierParametersVariable<C: Config> {
-    pub dft: Radix2DitVariable<C>,
     pub t_inv_halves: Array<C, Array<C, Felt<C::F>>>,
     pub full_message_size_log: Usize<C::N>,
 }
@@ -234,7 +240,6 @@ pub(crate) fn encode_small<C: Config>(
 /// by the expansion rate.
 pub(crate) fn encode_small<C: Config>(
     builder: &mut Builder<C>,
-    _vp: RSCodeVerifierParametersVariable<C>,
     rmm: RowMajorMatrixVariable<C>, // Assumed to have only one row and one column
 ) -> RowMajorMatrixVariable<C> {
     // XXX: nondeterministically supply the results for now

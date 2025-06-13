@@ -308,6 +308,19 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
         inv_2 * C::F::from_canonical_usize(2),
         C::F::from_canonical_usize(1),
     );
+    let two_adic_generators: Array<C, Felt<C::F>> = builder.uninit_fixed_array(28);
+    for (index, val) in [
+        0x1usize, 0x78000000, 0x67055c21, 0x5ee99486, 0xbb4c4e4, 0x2d4cc4da, 0x669d6090,
+        0x17b56c64, 0x67456167, 0x688442f9, 0x145e952d, 0x4fe61226, 0x4c734715, 0x11c33e2a,
+        0x62c3d2b1, 0x77cad399, 0x54c131f4, 0x4cabd6a6, 0x5cf5713f, 0x3e9430e8, 0xba067a3,
+        0x18adc27d, 0x21fd55bc, 0x4b859b3d, 0x3bd57996, 0x4483d85a, 0x3a26eef8, 0x1a427a41,
+    ]
+    .iter()
+    .enumerate()
+    {
+        let generator = builder.constant(C::F::from_canonical_usize(*val));
+        builder.set_value(&two_adic_generators, index, generator);
+    }
 
     // encode_small
     let final_rmm_values_len = builder.get(&input.final_message, 0).len();
@@ -329,7 +342,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
         values: final_rmm_values,
         width: builder.eval(Usize::from(1)),
     };
-    let final_codeword = encode_small(builder, input.vp.clone(), final_rmm);
+    let final_codeword = encode_small(builder, final_rmm);
     // can't use witin_comm.log2_max_codeword_size since it's untrusted
     let log2_witin_max_codeword_size: Var<C::N> =
         builder.eval(input.max_num_var.clone() + get_rate_log::<C>());
@@ -403,7 +416,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
             let mmcs_verifier_input = MmcsVerifierInputVariable {
                 commit: input.witin_comm.commit.clone(),
                 dimensions: witin_dimensions,
-                index_bits: idx_bits.clone(), // TODO: double check, should be new idx bits here
+                index_bits: idx_bits.clone(), // TODO: double check, should be new idx bits here ?
                 opened_values: witin_opened_values.clone(),
                 proof: witin_opening_proof,
             };
@@ -544,8 +557,13 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                     let hi = builder.get(&base_codeword_hi, index.clone());
                     let level: Var<C::N> =
                         builder.eval(cur_num_var + get_rate_log::<C>() - Usize::from(1));
-                    let coeffs = verifier_folding_coeffs_level(builder, &input.vp, level);
-                    let coeff = builder.get(&coeffs, idx);
+                    let coeff = verifier_folding_coeffs_level(
+                        builder,
+                        &two_adic_generators,
+                        level,
+                        &idx_bits,
+                        inv_2,
+                    );
                     let fold = codeword_fold_with_challenge::<C>(builder, lo, hi, r, coeff, inv_2);
                     builder.assign(&folded, folded + fold);
                 });
@@ -649,9 +667,13 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                     };
                     ext_mmcs_verify_batch::<C>(builder, ext_mmcs_verifier_input);
 
-                    let coeffs =
-                        verifier_folding_coeffs_level(builder, &input.vp, n_d_i_log.clone());
-                    let coeff = builder.get(&coeffs, idx.clone());
+                    let coeff = verifier_folding_coeffs_level(
+                        builder,
+                        &two_adic_generators,
+                        n_d_i_log.clone(),
+                        &idx_bits,
+                        inv_2,
+                    );
                     let left = builder.get(&leafs, 0);
                     let right = builder.get(&leafs, 1);
                     let new_folded =
