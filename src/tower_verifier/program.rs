@@ -8,7 +8,6 @@ use crate::arithmetics::{
 use crate::transcript::transcript_observe_label;
 use openvm_native_compiler::prelude::*;
 use openvm_native_compiler_derive::iter_zip;
-use openvm_native_recursion::challenger::ChallengerVariable;
 use openvm_native_recursion::challenger::{
     duplex::DuplexChallengerVariable, CanObserveVariable, FeltChallenger,
 };
@@ -19,77 +18,6 @@ use p3_field::FieldAlgebra;
 //
 //   \sum_{i=0}^len p_i * (\prod_{j!=i} (eval_at - j)/(i-j) )
 //
-pub(crate) fn interpolate_uni_poly<C: Config>(
-    builder: &mut Builder<C>,
-    p_i: &Array<C, Ext<C::F, C::EF>>,
-    eval_at: Ext<C::F, C::EF>,
-) -> Ext<C::F, C::EF> {
-    let len = p_i.len();
-    let evals: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(len.clone());
-    let prod: Ext<C::F, C::EF> = builder.eval(eval_at);
-
-    builder.set(&evals, 0, eval_at);
-
-    // `prod = \prod_{j} (eval_at - j)`
-    let e: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
-    let one: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
-    builder.range(1, len.clone()).for_each(|i_vec, builder| {
-        let i = i_vec[0];
-        let tmp: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
-        builder.assign(&tmp, eval_at - e);
-        builder.set(&evals, i, tmp);
-        builder.assign(&prod, prod * tmp);
-        builder.assign(&e, e + one);
-    });
-
-    let denom_up: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
-    let i: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
-    builder.assign(&i, i + one);
-    builder.range(2, len.clone()).for_each(|_i_vec, builder| {
-        builder.assign(&denom_up, denom_up * i);
-        builder.assign(&i, i + one);
-    });
-    let denom_down: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
-
-    let idx_vec_len: RVar<C::N> = builder.eval_expr(len.clone() - RVar::from(1));
-    let idx_vec: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(idx_vec_len);
-    let idx_val: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
-    builder.range(0, idx_vec.len()).for_each(|i_vec, builder| {
-        builder.set(&idx_vec, i_vec[0], idx_val);
-        builder.assign(&idx_val, idx_val + one);
-    });
-    let idx_rev = reverse(builder, &idx_vec);
-    let res = builder.constant(C::EF::ZERO);
-
-    let len_f = idx_val.clone();
-    let neg_one: Ext<C::F, C::EF> = builder.constant(C::EF::NEG_ONE);
-    let evals_rev = reverse(builder, &evals);
-    let p_i_rev = reverse(builder, &p_i);
-
-    let mut idx_pos: RVar<C::N> = builder.eval_expr(len.clone() - RVar::from(1));
-    iter_zip!(builder, idx_rev, evals_rev, p_i_rev).for_each(|ptr_vec, builder| {
-        let idx = builder.iter_ptr_get(&idx_rev, ptr_vec[0]);
-        let eval = builder.iter_ptr_get(&evals_rev, ptr_vec[1]);
-        let up_eval_inv: Ext<C::F, C::EF> = builder.eval(denom_up * eval);
-        builder.assign(&up_eval_inv, up_eval_inv.inverse());
-        let p = builder.iter_ptr_get(&p_i_rev, ptr_vec[2]);
-
-        builder.assign(&res, res + p * prod * denom_down * up_eval_inv);
-        builder.assign(&denom_up, denom_up * (len_f - idx) * neg_one);
-        builder.assign(&denom_down, denom_down * idx);
-
-        idx_pos = builder.eval_expr(idx_pos - RVar::from(1));
-    });
-
-    let p_i_0 = builder.get(&p_i, 0);
-    let eval_0 = builder.get(&evals, 0);
-    let up_eval_inv: Ext<C::F, C::EF> = builder.eval(denom_up * eval_0);
-    builder.assign(&up_eval_inv, up_eval_inv.inverse());
-    builder.assign(&res, res + p_i_0 * prod * denom_down * up_eval_inv);
-
-    res
-}
-
 pub(crate) fn interpolate_uni_poly_with_weights<C: Config>(
     builder: &mut Builder<C>,
     p_i: &Array<C, Ext<C::F, C::EF>>,
@@ -194,8 +122,6 @@ pub fn iop_verifier_state_verify<C: Config>(
             let c = builder.iter_ptr_get(&challenges, c_ptr);
 
             let expected_ptr = idx_vec[2];
-            // _debug
-            // let expected = interpolate_uni_poly(builder, &msg, c);
             builder.cycle_tracker_start("extrapolate_uni_poly");
             let expected = interpolate_uni_poly_with_weights(
                 builder,
@@ -278,6 +204,7 @@ pub fn verify_tower_proof<C: Config>(
     // out_j[rt] := (logup_p{j}[rt])
     // out_j[rt] := (logup_q{j}[rt])
     let log2_num_fanin = 1usize;
+    builder.cycle_tracker_start("initial sum");
     let initial_rt: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(RVar::from(log2_num_fanin));
     transcript_observe_label(builder, challenger, b"product_sum");
     builder
@@ -382,6 +309,8 @@ pub fn verify_tower_proof<C: Config>(
     let initial_claim: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
     builder.assign(&initial_claim, prod_sub_sum + logup_sub_sum);
 
+    builder.cycle_tracker_end("initial sum");
+
     let curr_pt = initial_rt.clone();
     let curr_eval = initial_claim.clone();
     let op_range: RVar<C::N> =
@@ -410,6 +339,7 @@ pub fn verify_tower_proof<C: Config>(
 
             let max_degree = builder.constant(C::F::from_canonical_usize(3));
 
+            builder.cycle_tracker_start("sumcheck verify");
             let (sub_rt, sub_e) = iop_verifier_state_verify(
                 builder,
                 challenger,
@@ -419,7 +349,9 @@ pub fn verify_tower_proof<C: Config>(
                 max_degree,
                 interpolation_weights,
             );
+            builder.cycle_tracker_end("sumcheck verify");
 
+            builder.cycle_tracker_start("check expected evaluation");
             let expected_evaluation: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
             builder
                 .range(0, num_prod_spec.clone())
@@ -496,7 +428,9 @@ pub fn verify_tower_proof<C: Config>(
                 });
 
             builder.assert_ext_eq(expected_evaluation, sub_e);
+            builder.cycle_tracker_end("check expected evaluation");
 
+            builder.cycle_tracker_start("derive next layer's expected sum");
             // derive single eval
             // rt' = r_merge || rt
             // r_merge.len() == ceil_log2(num_product_fanin)
@@ -652,6 +586,8 @@ pub fn verify_tower_proof<C: Config>(
             builder.assign(&curr_eval, next_prod_spec_evals + next_logup_spec_evals);
             builder.assign(&round, round + C::F::ONE);
 
+            builder.cycle_tracker_end("derive next layer's expected sum");
+
             next_rt = PointAndEvalVariable {
                 point: PointVariable {
                     fs: rt_prime.clone(),
@@ -671,14 +607,20 @@ pub fn verify_tower_proof<C: Config>(
 #[cfg(test)]
 mod tests {
     use crate::tower_verifier::binding::IOPProverMessage;
+    use crate::tower_verifier::binding::TowerVerifierInput;
     use crate::tower_verifier::program::iop_verifier_state_verify;
-    use ceno_mle::mle::DenseMultilinearExtension;
+    use crate::tower_verifier::program::verify_tower_proof;
+    use ceno_mle::mle::{DenseMultilinearExtension, IntoMLE, MultilinearExtension};
     use ceno_mle::virtual_poly::ArcMultilinearExtension;
     use ceno_mle::virtual_polys::VirtualPolynomials;
     use ceno_sumcheck::structs::IOPProverState;
     use ceno_transcript::BasicTranscript;
+    use ceno_zkvm::scheme::constants::NUM_FANIN;
+    use ceno_zkvm::scheme::utils::infer_tower_product_witness;
+    use ceno_zkvm::structs::TowerProver;
     use ff_ext::BabyBearExt4;
     use ff_ext::FieldFrom;
+    use ff_ext::FromUniformBytes;
     use itertools::Itertools;
     use openvm_circuit::arch::SystemConfig;
     use openvm_circuit::arch::VmExecutor;
@@ -692,21 +634,21 @@ mod tests {
     use openvm_native_compiler::ir::Ext;
     use openvm_native_compiler::prelude::Felt;
     use openvm_native_recursion::challenger::duplex::DuplexChallengerVariable;
+    use openvm_native_recursion::hints::Hintable;
     use openvm_stark_sdk::config::setup_tracing_with_log_level;
     use p3_baby_bear::BabyBear;
-    use p3_field::Field;
     use p3_field::extension::BinomialExtensionField;
+    use p3_field::Field;
     use p3_field::FieldAlgebra;
-    use openvm_native_recursion::hints::Hintable;
     use rand::thread_rng;
+
+    type F = BabyBear;
+    type E = BabyBearExt4;
+    type EF = BinomialExtensionField<BabyBear, 4>;
+    type C = AsmConfig<F, EF>;
 
     #[test]
     fn test_simple_sumcheck() {
-        type F = BabyBear;
-        type E = BabyBearExt4;
-        type EF = BinomialExtensionField<BabyBear, 4>;
-        type C = AsmConfig<F, EF>;
-
         setup_tracing_with_log_level(tracing::Level::WARN);
 
         let nv = 4;
@@ -836,6 +778,151 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn test_prod_tower() {
+        let nv = 5;
+        let num_prod_records = 10;
+        let mut rng = thread_rng();
+
+        setup_tracing_with_log_level(tracing::Level::WARN);
+
+        let records: Vec<DenseMultilinearExtension<E>> = (0..num_prod_records)
+            .map(|_| {
+                DenseMultilinearExtension::from_evaluations_ext_vec(
+                    nv,
+                    E::random_vec(1 << nv, &mut rng),
+                )
+            })
+            .collect_vec();
+
+        let prod_specs = records
+            .into_iter()
+            .map(|record| {
+                let (first, second) = record
+                    .get_ext_field_vec()
+                    .split_at(record.evaluations().len() / 2);
+                let last_layer: Vec<ArcMultilinearExtension<E>> = vec![
+                    first.to_vec().into_mle().into(),
+                    second.to_vec().into_mle().into(),
+                ];
+                assert_eq!(last_layer.len(), NUM_FANIN);
+                ceno_zkvm::structs::TowerProverSpec {
+                    witness: infer_tower_product_witness(nv, last_layer, NUM_FANIN),
+                }
+            })
+            .collect_vec();
+
+        let prod_out_evals = prod_specs
+            .iter()
+            .map(|spec| {
+                spec.witness[0]
+                    .iter()
+                    .map(|mle| cast_vec(mle.get_ext_field_vec().to_vec())[0])
+                    .collect_vec()
+            })
+            .collect_vec();
+        let mut transcript = BasicTranscript::new(&[]);
+        let (_, tower_proof) =
+            TowerProver::create_proof(prod_specs, vec![], NUM_FANIN, &mut transcript);
+
+        // build program
+        let mut builder = AsmBuilder::<F, EF>::default();
+
+        let mut challenger: DuplexChallengerVariable<C> =
+            DuplexChallengerVariable::new(&mut builder);
+
+        // construct extrapolation weights
+        let interpolation_weights: Array<C, Array<C, Ext<F, EF>>> = builder.dyn_array(4);
+        for deg in 1..=4usize {
+            let points: Vec<EF> = (0..=deg)
+                .into_iter()
+                .map(|i| EF::from_canonical_u32(i as u32))
+                .collect();
+            let weights = points
+                .iter()
+                .enumerate()
+                .map(|(j, point_j)| {
+                    points
+                        .iter()
+                        .enumerate()
+                        .filter(|&(i, _)| (i != j))
+                        .map(|(_, point_i)| *point_j - *point_i)
+                        .reduce(|acc, value| acc * value)
+                        .unwrap_or(EF::ONE)
+                        .inverse()
+                })
+                .collect::<Vec<_>>();
+
+            let weight_array: Array<C, Ext<F, EF>> = builder.dyn_array(4);
+            weights.into_iter().enumerate().for_each(|(i, w)| {
+                let w: Ext<F, EF> = builder.constant(w);
+                builder.set(&weight_array, i, w);
+            });
+
+            builder.set(&interpolation_weights, deg - 1, weight_array);
+        }
+
+        assert_eq!(tower_proof.proofs.len(), nv - 1);
+        let tower_verifier_input_var = TowerVerifierInput::read(&mut builder);
+        let tower_verifier_input = TowerVerifierInput {
+            prod_out_evals,
+            logup_out_evals: vec![],
+            num_variables: vec![nv; num_prod_records],
+            num_fanin: NUM_FANIN,
+            num_proofs: nv - 1,
+            num_prod_specs: num_prod_records,
+            num_logup_specs: 0,
+            _max_num_variables: nv,
+            proofs: tower_proof
+                .proofs
+                .iter()
+                .map(|layer| {
+                    layer
+                        .iter()
+                        .map(|round| IOPProverMessage {
+                            evaluations: cast_vec(round.evaluations.clone()),
+                        })
+                        .collect_vec()
+                })
+                .collect_vec(),
+            prod_specs_eval: tower_proof
+                .prod_specs_eval
+                .iter()
+                .map(|spec| {
+                    spec.iter()
+                        .map(|layer| cast_vec(layer.clone()))
+                        .collect_vec()
+                })
+                .collect_vec(),
+            logup_specs_eval: vec![],
+        };
+        verify_tower_proof(
+            &mut builder,
+            &mut challenger,
+            tower_verifier_input_var,
+            &interpolation_weights,
+        );
+
+        builder.halt();
+
+        // prepare input
+        let mut input_stream = Vec::new();
+        input_stream.extend(tower_verifier_input.write());
+
+        // get the assembly code
+        let options = CompilerOptions::default().with_cycle_tracker();
+        let program = builder.compile_isa_with_options(options);
+        let system_config = SystemConfig::default()
+            .with_public_values(4)
+            .with_max_segment_len((1 << 25) - 100)
+            .with_profiling();
+        let config = NativeConfig::new(system_config, Native);
+        let executor = VmExecutor::<BabyBear, NativeConfig>::new(config);
+        executor
+            .execute_and_then(program, input_stream, |_, seg| Ok(seg), |err| err)
+            .unwrap();
     }
 
     fn cast_vec<A, B>(mut vec: Vec<A>) -> Vec<B> {
