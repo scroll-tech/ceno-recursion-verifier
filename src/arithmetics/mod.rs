@@ -50,9 +50,9 @@ pub fn challenger_multi_observe<C: Config>(
     let input_ptr = builder.poseidon2_multi_observe(&challenger.sponge_state, challenger.input_ptr, challenger.io_full_ptr, &arr);
     builder.assign(&challenger.input_ptr, challenger.io_empty_ptr + input_ptr.clone());
     builder.if_ne(input_ptr, Usize::from(0)).then_or_else(|builder| {
-        builder.assign(&challenger.output_ptr, challenger.io_empty_ptr);
+            builder.assign(&challenger.output_ptr, challenger.io_empty_ptr);
     }, |builder| {
-        builder.assign(&challenger.output_ptr, challenger.io_full_ptr);
+            builder.assign(&challenger.output_ptr, challenger.io_full_ptr);
     });
 }
 
@@ -99,24 +99,6 @@ pub fn dot_product<C: Config>(
         let v_a = builder.iter_ptr_get(&a, ptr_vec[0]);
         let v_b = builder.iter_ptr_get(&b, ptr_vec[1]);
         builder.assign(&acc, acc + v_a * v_b);
-    });
-
-    acc
-}
-
-pub fn dot_product_pt_n_eval<C: Config>(
-    builder: &mut Builder<C>,
-    pt_and_eval: &Array<C, PointAndEvalVariable<C>>,
-    b: &Array<C, Ext<C::F, C::EF>>,
-) -> Ext<<C as Config>::F, <C as Config>::EF> {
-    let acc: Ext<C::F, C::EF> = builder.eval(C::F::ZERO);
-
-    iter_zip!(builder, pt_and_eval, b).for_each(|idx_vec, builder| {
-        let ptr_a = idx_vec[0];
-        let ptr_b = idx_vec[1];
-        let v_a = builder.iter_ptr_get(&pt_and_eval, ptr_a);
-        let v_b = builder.iter_ptr_get(&b, ptr_b);
-        builder.assign(&acc, acc + v_a.eval * v_b);
     });
 
     acc
@@ -193,16 +175,18 @@ pub fn eq_eval<C: Config>(
     builder: &mut Builder<C>,
     x: &Array<C, Ext<C::F, C::EF>>,
     y: &Array<C, Ext<C::F, C::EF>>,
+    one: Ext<C::F, C::EF>,
+    zero: Ext<C::F, C::EF>,
 ) -> Ext<C::F, C::EF> {
-    let acc: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
+    let acc: Ext<C::F, C::EF> = builder.eval(zero + one); // simple trick to use AddE
 
     iter_zip!(builder, x, y).for_each(|idx_vec, builder| {
         let ptr_x = idx_vec[0];
         let ptr_y = idx_vec[1];
         let v_x = builder.iter_ptr_get(&x, ptr_x);
         let v_y = builder.iter_ptr_get(&y, ptr_y);
+        // x*y + (1-x)*(1-y)
         let xi_yi: Ext<C::F, C::EF> = builder.eval(v_x * v_y);
-        let one: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
         let new_acc: Ext<C::F, C::EF> = builder.eval(acc * (xi_yi + xi_yi - v_x - v_y + one));
         builder.assign(&acc, new_acc);
     });
