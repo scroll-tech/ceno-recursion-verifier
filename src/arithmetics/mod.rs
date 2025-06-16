@@ -122,6 +122,23 @@ pub fn dot_product_pt_n_eval<C: Config>(
     acc
 }
 
+pub fn fixed_dot_product<C: Config>(
+    builder: &mut Builder<C>,
+    a: &[Ext<C::F, C::EF>],
+    b: &Array<C, Ext<C::F, C::EF>>,
+    zero: Ext<C::F, C::EF>,
+) -> Ext<<C as Config>::F, <C as Config>::EF> {
+    // simple trick to prefer AddE(1 cycle) than AddEI(4 cycles)
+    let acc: Ext<C::F, C::EF> = builder.eval(zero + zero);
+
+    for (i, va) in a.iter().enumerate() {
+        let vb = builder.get(b, i);
+        builder.assign(&acc, acc + *va * vb);
+    }
+
+    acc
+}
+
 pub fn reverse<C: Config, T: MemVariable<C>>(
     builder: &mut Builder<C>,
     arr: &Array<C, T>,

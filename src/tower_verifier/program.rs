@@ -2,8 +2,7 @@ use super::binding::{
     IOPProverMessageVariable, PointAndEvalVariable, PointVariable, TowerVerifierInputVariable,
 };
 use crate::arithmetics::{
-    challenger_multi_observe, dot_product, dot_product_pt_n_eval, eq_eval, evaluate_at_point,
-    exts_to_felts, gen_alpha_pows, is_smaller_than, join, product, reverse,
+    challenger_multi_observe, dot_product, dot_product_pt_n_eval, eq_eval, evaluate_at_point, exts_to_felts, fixed_dot_product, gen_alpha_pows, is_smaller_than, join, product, reverse
 };
 use crate::transcript::transcript_observe_label;
 use openvm_native_compiler::prelude::*;
@@ -435,18 +434,20 @@ pub fn verify_tower_proof<C: Config>(
             // rt' = r_merge || rt
             // r_merge.len() == ceil_log2(num_product_fanin)
             transcript_observe_label(builder, challenger, b"merge");
+            let one: Ext<<C as Config>::F, <C as Config>::EF> = builder.constant(C::EF::ONE);
+            let zero: Ext<<C as Config>::F, <C as Config>::EF> = builder.constant(C::EF::ZERO);
+
+            builder.cycle_tracker_start("derive rt_prime");
             let r_merge = challenger.sample_ext(builder);
 
-            let coeffs: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(num_fanin);
-            let one: Ext<<C as Config>::F, <C as Config>::EF> = builder.constant(C::EF::ONE);
             let c1: Ext<<C as Config>::F, <C as Config>::EF> = builder.eval(one - r_merge.clone());
             let c2: Ext<<C as Config>::F, <C as Config>::EF> = builder.eval(r_merge.clone());
-            builder.set(&coeffs, 0, c1);
-            builder.set(&coeffs, 1, c2);
+            let coeffs = vec![c1, c2];
 
             let r_merge_arr = builder.dyn_array(RVar::from(1));
             builder.set(&r_merge_arr, 0, r_merge);
             let rt_prime = join(builder, &sub_rt, &r_merge_arr);
+            builder.cycle_tracker_end("derive rt_prime");
 
             // generate next round challenge
             let next_alpha_len: Usize<C::N> = builder
@@ -472,7 +473,7 @@ pub fn verify_tower_proof<C: Config>(
                         let prod_slice =
                             builder.get(&tower_verifier_input.prod_specs_eval, spec_index);
                         let prod_round_slice = builder.get(&prod_slice, round_var);
-                        let evals = dot_product(builder, &prod_round_slice, &coeffs);
+                        let evals = fixed_dot_product(builder, &coeffs, &prod_round_slice, zero);
 
                         builder.set(
                             &prod_spec_point_n_eval,
@@ -532,15 +533,13 @@ pub fn verify_tower_proof<C: Config>(
                         let p2 = builder.get(&prod_round_slice, 1);
                         let q1 = builder.get(&prod_round_slice, 2);
                         let q2 = builder.get(&prod_round_slice, 3);
-                        let c1 = builder.get(&coeffs, 0);
-                        let c2 = builder.get(&coeffs, 1);
 
                         let p_eval: Ext<<C as Config>::F, <C as Config>::EF> =
                             builder.constant(C::EF::ZERO);
                         let q_eval: Ext<<C as Config>::F, <C as Config>::EF> =
                             builder.constant(C::EF::ZERO);
-                        builder.assign(&p_eval, p1 * c1 + p2 * c2);
-                        builder.assign(&q_eval, q1 * c1 + q2 * c2);
+                        builder.assign(&p_eval, p1 * coeffs[0] + p2 * coeffs[1]);
+                        builder.assign(&q_eval, q1 * coeffs[0] + q2 * coeffs[1]);
 
                         builder.set(
                             &logup_spec_p_point_n_eval,
