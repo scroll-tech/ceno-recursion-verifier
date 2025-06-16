@@ -398,14 +398,12 @@ pub fn verify_tower_proof<C: Config>(
                     builder.cycle_tracker_end("accumulate expected eval for prod specs");
                 });
 
-            builder.cycle_tracker_start("cleanup");
             let num_variables_len = tower_verifier_input.num_variables.len();
             let logup_num_variables_slice = tower_verifier_input.num_variables.slice(
                 builder,
                 num_prod_spec.clone(),
                 num_variables_len.clone(),
             );
-            builder.cycle_tracker_end("cleanup");
 
             builder
                 .range(0, num_logup_spec.clone())
