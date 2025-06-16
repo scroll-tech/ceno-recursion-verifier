@@ -104,24 +104,6 @@ pub fn dot_product<C: Config>(
     acc
 }
 
-pub fn dot_product_pt_n_eval<C: Config>(
-    builder: &mut Builder<C>,
-    pt_and_eval: &Array<C, PointAndEvalVariable<C>>,
-    b: &Array<C, Ext<C::F, C::EF>>,
-) -> Ext<<C as Config>::F, <C as Config>::EF> {
-    let acc: Ext<C::F, C::EF> = builder.eval(C::F::ZERO);
-
-    iter_zip!(builder, pt_and_eval, b).for_each(|idx_vec, builder| {
-        let ptr_a = idx_vec[0];
-        let ptr_b = idx_vec[1];
-        let v_a = builder.iter_ptr_get(&pt_and_eval, ptr_a);
-        let v_b = builder.iter_ptr_get(&b, ptr_b);
-        builder.assign(&acc, acc + v_a.eval * v_b);
-    });
-
-    acc
-}
-
 pub fn fixed_dot_product<C: Config>(
     builder: &mut Builder<C>,
     a: &[Ext<C::F, C::EF>],

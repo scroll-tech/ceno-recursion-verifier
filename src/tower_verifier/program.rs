@@ -2,8 +2,8 @@ use super::binding::{
     IOPProverMessageVariable, PointAndEvalVariable, PointVariable, TowerVerifierInputVariable,
 };
 use crate::arithmetics::{
-    challenger_multi_observe, dot_product, dot_product_pt_n_eval, eq_eval, evaluate_at_point,
-    extend, exts_to_felts, fixed_dot_product, gen_alpha_pows, is_smaller_than, product, reverse,
+    challenger_multi_observe, eq_eval, evaluate_at_point,
+    extend, exts_to_felts, fixed_dot_product, is_smaller_than, product, reverse,
 };
 use crate::transcript::transcript_observe_label;
 use openvm_native_compiler::prelude::*;
