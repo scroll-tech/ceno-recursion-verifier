@@ -2,7 +2,8 @@ use super::binding::{
     IOPProverMessageVariable, PointAndEvalVariable, PointVariable, TowerVerifierInputVariable,
 };
 use crate::arithmetics::{
-    challenger_multi_observe, dot_product, dot_product_pt_n_eval, eq_eval, evaluate_at_point, exts_to_felts, fixed_dot_product, gen_alpha_pows, is_smaller_than, join, product, reverse
+    challenger_multi_observe, dot_product, dot_product_pt_n_eval, eq_eval, evaluate_at_point,
+    extend, exts_to_felts, fixed_dot_product, gen_alpha_pows, is_smaller_than, product, reverse,
 };
 use crate::transcript::transcript_observe_label;
 use openvm_native_compiler::prelude::*;
@@ -444,9 +445,7 @@ pub fn verify_tower_proof<C: Config>(
             let c2: Ext<<C as Config>::F, <C as Config>::EF> = builder.eval(r_merge.clone());
             let coeffs = vec![c1, c2];
 
-            let r_merge_arr = builder.dyn_array(RVar::from(1));
-            builder.set(&r_merge_arr, 0, r_merge);
-            let rt_prime = join(builder, &sub_rt, &r_merge_arr);
+            let rt_prime = extend(builder, &sub_rt, &r_merge);
             builder.cycle_tracker_end("derive rt_prime");
 
             // generate next round challenge

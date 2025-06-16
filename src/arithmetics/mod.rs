@@ -238,29 +238,21 @@ pub fn sum<C: Config>(
     acc
 }
 
-// Join two arrays
-pub fn join<C: Config>(
+// Extend an array by one element
+pub fn extend<C: Config>(
     builder: &mut Builder<C>,
-    a: &Array<C, Ext<C::F, C::EF>>,
-    b: &Array<C, Ext<C::F, C::EF>>,
+    arr: &Array<C, Ext<C::F, C::EF>>,
+    elem: &Ext<C::F, C::EF>,
 ) -> Array<C, Ext<C::F, C::EF>> {
-    let a_len = a.len();
-    let b_len = b.len();
-    let out_len = builder.eval_expr(a_len.clone() + b_len.clone());
-    let out = builder.dyn_array(out_len);
+    let new_len: Var<C::N> = builder.eval(arr.len() + C::N::ONE);
+    let out = builder.dyn_array(new_len);
 
-    builder.range(0, a_len.clone()).for_each(|i_vec, builder| {
+    builder.range(0, arr.len()).for_each(|i_vec, builder| {
         let i = i_vec[0];
-        let a_val = builder.get(a, i);
-        builder.set(&out, i, a_val);
+        let val = builder.get(arr, i);
+        builder.set_value(&out, i, val);
     });
-
-    builder.range(0, b_len).for_each(|i_vec, builder| {
-        let b_i = i_vec[0];
-        let i = builder.eval_expr(b_i + a_len.clone());
-        let b_val = builder.get(b, b_i);
-        builder.set(&out, i, b_val);
-    });
+    builder.set_value(&out, arr.len(), elem.clone());
 
     out
 }
