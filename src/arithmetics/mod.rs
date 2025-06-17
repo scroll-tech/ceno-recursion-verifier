@@ -703,14 +703,11 @@ impl<C: Config> UniPolyExtrapolator<C> {
         let four: Ext<C::F, C::EF> = builder.constant(C::EF::from_canonical_u32(4));
         let six: Ext<C::F, C::EF> = builder.constant(C::EF::from_canonical_u32(6));
         let twenty_four: Ext<C::F, C::EF> = builder.constant(C::EF::from_canonical_u32(24));
-
         let neg_one: Ext<C::F, C::EF> = builder.eval(zero - one);
         let two_inverse: Ext<C::F, C::EF> = builder.eval(two.inverse());
         let neg_two_inverse: Ext<C::F, C::EF> = builder.eval(zero - two_inverse);
-
         let six_inverse: Ext<C::F, C::EF> = builder.eval(six.inverse());
         let neg_six_inverse: Ext<C::F, C::EF> = builder.eval(zero - six_inverse);
-
         let four_inverse: Ext<C::F, C::EF> = builder.eval(four.inverse());
         let twenty_four_inverse: Ext<C::F, C::EF> = builder.eval(twenty_four.inverse());
 
@@ -731,6 +728,7 @@ impl<C: Config> UniPolyExtrapolator<C> {
             ]
         }
     }
+
     pub fn extrapolate_uni_poly(&mut self, builder: &mut Builder<C>, p_i: &Array<C, Ext<C::F, C::EF>>, eval_at: Ext<C::F, C::EF>) -> Ext<C::F, C::EF> {
         let res: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
 
