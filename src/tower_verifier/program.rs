@@ -5,6 +5,7 @@ use crate::arithmetics::{
     challenger_multi_observe, eq_eval, evaluate_at_point,
     extend, exts_to_felts, fixed_dot_product, is_smaller_than, product, reverse,
 };
+use crate::tower_verifier::binding::F;
 use crate::transcript::transcript_observe_label;
 use openvm_native_compiler::prelude::*;
 use openvm_native_compiler_derive::iter_zip;
@@ -196,8 +197,16 @@ pub fn verify_tower_proof<C: Config>(
         builder.assert_usize_eq(evals.len(), RVar::from(4));
     });
 
-    let alpha_len: Usize<C::N> =
-        builder.eval(num_prod_spec.clone() + num_logup_spec.clone() + num_logup_spec.clone());
+    let num_specs: Var<C::N> = builder.eval(num_prod_spec.get_var() + num_logup_spec.get_var());
+    let var_zero: Var<C::N> = builder.constant(C::N::ZERO);
+    let var_one: Var<C::N> = builder.constant(C::N::ONE);
+    let should_skip: Array<C, Var<C::N>> = builder.dyn_array(num_specs);
+    builder.range(0, num_specs).for_each(|i_vec, builder| {
+        let i = i_vec[0];
+
+        // all specs should not be skipped initially
+        builder.set_value(&should_skip, i, var_zero.clone());
+    });
 
     transcript_observe_label(builder, challenger, b"combine subset evals");
     let alpha = challenger.sample_ext(builder);
@@ -216,7 +225,7 @@ pub fn verify_tower_proof<C: Config>(
         .for_each(|idx_vec, builder| {
             let idx = idx_vec[0];
             let c = challenger.sample_ext(builder);
-            builder.set(&initial_rt, idx, c);
+            builder.set_value(&initial_rt, idx, c);
         });
 
     let prod_spec_point_n_eval: Array<C, PointAndEvalVariable<C>> =
@@ -376,18 +385,24 @@ pub fn verify_tower_proof<C: Config>(
                 .for_each(|i_vec, builder| {
                     builder.cycle_tracker_start("accumulate expected eval for prod specs");
                     let spec_index = i_vec[0];
+                    let skip = builder.get(&should_skip, spec_index.clone());
                     let max_round = builder.get(&tower_verifier_input.num_variables, spec_index);
                     let round_limit: RVar<C::N> = builder.eval_expr(max_round - RVar::from(1));
 
                     let prod: Ext<C::F, C::EF> = builder.eval(zero + zero);
 
-                    let is_smaller = is_smaller_than(builder, round_var, round_limit);
-                    builder.if_eq(is_smaller, RVar::from(1)).then(|builder| {
-                        let prod_slice =
-                            builder.get(&tower_verifier_input.prod_specs_eval, spec_index);
-                        let prod_round_slice = builder.get(&prod_slice, round_var);
-                        let pdt = product(builder, &prod_round_slice);
-                        builder.assign(&prod, pdt);
+                    // if skip == 0 && round_var != round_limit then we need to accumulate the product spec evaluations
+                    builder.if_eq(skip, var_zero.clone()).then(|builder| {
+                        builder.if_ne(round_var, round_limit).then_or_else(|builder| {
+
+                            let prod_slice =
+                                builder.get(&tower_verifier_input.prod_specs_eval, spec_index);
+                            let prod_round_slice = builder.get(&prod_slice, round_var);
+                            let pdt = product(builder, &prod_round_slice);
+                            builder.assign(&prod, pdt);
+                        }, |builder| {
+                            builder.set_value(&should_skip, spec_index, var_one.clone());
+                        });
                     });
 
                     builder.assign(
