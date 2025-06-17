@@ -4,6 +4,7 @@ use super::binding::{
 use crate::arithmetics::{
     challenger_multi_observe, dot_product, dot_product_pt_n_eval, eq_eval, evaluate_at_point,
     exts_to_felts, gen_alpha_pows, is_smaller_than, join, product, reverse,
+    UniPolyExtrapolator,
 };
 use crate::transcript::transcript_observe_label;
 use openvm_native_compiler::prelude::*;
@@ -137,7 +138,7 @@ pub fn iop_verifier_state_verify<C: Config>(
     prover_messages: &Array<C, IOPProverMessageVariable<C>>,
     max_num_variables: Felt<C::F>,
     max_degree: Felt<C::F>,
-    interpolation_weights: &Array<C, Array<C, Ext<C::F, C::EF>>>,
+    unipoly_extrapolator: &mut UniPolyExtrapolator<C>,
 ) -> (
     Array<C, Ext<<C as Config>::F, <C as Config>::EF>>,
     Ext<<C as Config>::F, <C as Config>::EF>,
@@ -188,15 +189,11 @@ pub fn iop_verifier_state_verify<C: Config>(
             let c = builder.iter_ptr_get(&challenges, c_ptr);
 
             let expected_ptr = idx_vec[2];
-            // _debug
-            // let expected = interpolate_uni_poly(builder, &msg, c);
-            let expected = interpolate_uni_poly_with_weights(
+            let expected = unipoly_extrapolator.extrapolate_uni_poly(
                 builder,
                 &msg.evaluations,
                 c,
-                interpolation_weights,
             );
-
             builder.iter_ptr_set(&truncated_expected_vec, expected_ptr, expected);
         },
     );
@@ -223,7 +220,7 @@ pub fn verify_tower_proof<C: Config>(
     builder: &mut Builder<C>,
     challenger: &mut DuplexChallengerVariable<C>,
     tower_verifier_input: TowerVerifierInputVariable<C>,
-    interpolation_weights: &Array<C, Array<C, Ext<C::F, C::EF>>>,
+    unipoly_extrapolator: &mut UniPolyExtrapolator<C>,
 ) -> (
     PointVariable<C>,
     Array<C, PointAndEvalVariable<C>>,
@@ -409,7 +406,7 @@ pub fn verify_tower_proof<C: Config>(
                 &prover_messages,
                 max_num_variables,
                 max_degree,
-                interpolation_weights,
+                unipoly_extrapolator,
             );
 
             let expected_evaluation: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
@@ -662,6 +659,7 @@ pub fn verify_tower_proof<C: Config>(
 
 #[cfg(test)]
 mod tests {
+    use crate::arithmetics::UniPolyExtrapolator;
     use crate::tower_verifier::binding::IOPProverMessage;
     use crate::tower_verifier::program::iop_verifier_state_verify;
     use ceno_mle::mle::DenseMultilinearExtension;
@@ -742,6 +740,8 @@ mod tests {
             builder.set(&interpolation_weights, deg - 1, weight_array);
         }
 
+        let mut unipoly_extrapolator = UniPolyExtrapolator::new(&mut builder);
+
         iop_verifier_state_verify(
             &mut builder,
             &mut challenger,
@@ -749,7 +749,7 @@ mod tests {
             &prover_msgs,
             max_num_variables,
             max_degree,
-            &interpolation_weights,
+            &mut unipoly_extrapolator,
         );
 
         builder.halt();
