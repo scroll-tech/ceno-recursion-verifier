@@ -1,7 +1,7 @@
 use super::binding::{
     ZKVMOpcodeProofInputVariable, ZKVMProofInputVariable, ZKVMTableProofInputVariable,
 };
-use crate::arithmetics::challenger_multi_observe;
+use crate::arithmetics::{challenger_multi_observe, UniPolyExtrapolator};
 use crate::e2e::SubcircuitParams;
 use crate::tower_verifier::program::verify_tower_proof;
 use crate::transcript::transcript_observe_label;
@@ -144,6 +144,8 @@ pub fn verify_zkvm_proof<C: Config>(
     builder.set(&challenges, 0, alpha.clone());
     builder.set(&challenges, 1, beta.clone());
 
+    let mut unipoly_extrapolator = UniPolyExtrapolator::new(builder);
+
     let dummy_table_item = alpha.clone();
     let dummy_table_item_multiplicity: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
 
@@ -165,6 +167,7 @@ pub fn verify_zkvm_proof<C: Config>(
                 &challenges,
                 &subcircuit_params,
                 &ceno_constraint_system,
+                &mut unipoly_extrapolator,
             );
 
             let cs = ceno_constraint_system.vk.circuit_vks[&subcircuit_params.name].get_cs();
@@ -216,6 +219,7 @@ pub fn verify_zkvm_proof<C: Config>(
                 &challenges,
                 &subcircuit_params,
                 ceno_constraint_system,
+                &mut unipoly_extrapolator,
             );
 
             let step = C::N::from_canonical_usize(4);
@@ -299,6 +303,7 @@ pub fn verify_opcode_proof<C: Config>(
     challenges: &Array<C, Ext<C::F, C::EF>>,
     subcircuit_params: &SubcircuitParams,
     cs: &ZKVMVerifier<E, Pcs>,
+    unipoly_extrapolator: &mut UniPolyExtrapolator<C>,
 ) {
     let cs = &cs.vk.circuit_vks[&subcircuit_params.name].cs;
     let one: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
@@ -366,6 +371,7 @@ pub fn verify_opcode_proof<C: Config>(
             prod_specs_eval: tower_proof.prod_specs_eval.clone(),
             logup_specs_eval: tower_proof.logup_specs_eval.clone(),
         },
+        unipoly_extrapolator,
     );
 
     let rt_non_lc_sumcheck: Array<C, Ext<C::F, C::EF>> =
@@ -430,6 +436,7 @@ pub fn verify_opcode_proof<C: Config>(
         &opcode_proof.main_sel_sumcheck_proofs,
         log2_num_instances_f,
         main_sel_subclaim_max_degree,
+        unipoly_extrapolator,
     );
 
     let input_opening_point = PointVariable {
@@ -636,6 +643,7 @@ pub fn verify_table_proof<C: Config>(
     challenges: &Array<C, Ext<C::F, C::EF>>,
     subcircuit_params: &SubcircuitParams,
     cs: &ZKVMVerifier<E, Pcs>,
+    unipoly_extrapolator: &mut UniPolyExtrapolator<C>,
 ) {
     let cs = cs.vk.circuit_vks[&subcircuit_params.name].get_cs();
     let tower_proof: &super::binding::TowerProofInputVariable<C> = &table_proof.tower_proof;
@@ -764,6 +772,7 @@ pub fn verify_table_proof<C: Config>(
                 prod_specs_eval: tower_proof.prod_specs_eval.clone(),
                 logup_specs_eval: tower_proof.logup_specs_eval.clone(),
             },
+            unipoly_extrapolator,
         );
 
     builder.assert_usize_eq(
