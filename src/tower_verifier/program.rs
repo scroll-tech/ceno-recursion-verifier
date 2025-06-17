@@ -409,7 +409,7 @@ pub fn verify_tower_proof<C: Config>(
 
                     builder.assign(
                         &expected_evaluation,
-                        expected_evaluation + eq_e * alpha_acc * prod,
+                        expected_evaluation + alpha_acc * prod,
                     );
                     builder.assign(&alpha_acc, alpha_acc * alpha.clone());
                     builder.cycle_tracker_end("accumulate expected eval for prod specs");
@@ -461,10 +461,11 @@ pub fn verify_tower_proof<C: Config>(
                         });
                     });
 
-                    builder.assign(&expected_evaluation, expected_evaluation + eq_e * prod);
+                    builder.assign(&expected_evaluation, expected_evaluation + prod);
                     builder.cycle_tracker_end("accumulate expected eval for logup specs");
                 });
 
+            builder.assign(&expected_evaluation, expected_evaluation * eq_e);
             builder.assert_ext_eq(expected_evaluation, sub_e);
             builder.cycle_tracker_end("check expected evaluation");
 
