@@ -5,7 +5,6 @@ use crate::arithmetics::{
     challenger_multi_observe, eq_eval, evaluate_at_point,
     extend, exts_to_felts, fixed_dot_product, is_smaller_than, product, reverse,
 };
-use crate::tower_verifier::binding::F;
 use crate::transcript::transcript_observe_label;
 use openvm_native_compiler::prelude::*;
 use openvm_native_compiler_derive::iter_zip;
@@ -398,8 +397,11 @@ pub fn verify_tower_proof<C: Config>(
                             let prod_slice =
                                 builder.get(&tower_verifier_input.prod_specs_eval, spec_index);
                             let prod_round_slice = builder.get(&prod_slice, round_var);
-                            let pdt = product(builder, &prod_round_slice);
-                            builder.assign(&prod, pdt);
+                            builder.assign(&prod, one * one);
+                            for j in 0..num_fanin {
+                                let prod_j = builder.get(&prod_round_slice, j);
+                                builder.assign(&prod, prod * prod_j);
+                            }
                         }, |builder| {
                             builder.set_value(&should_skip, spec_index, var_one.clone());
                         });
@@ -423,6 +425,7 @@ pub fn verify_tower_proof<C: Config>(
             builder
                 .range(0, num_logup_spec.clone())
                 .for_each(|i_vec, builder| {
+                    builder.cycle_tracker_start("accumulate expected eval for logup specs");
                     let spec_index = i_vec[0];
 
                     let alpha_numerator: Ext<<C as Config>::F, <C as Config>::EF> =
@@ -431,29 +434,35 @@ pub fn verify_tower_proof<C: Config>(
                     let alpha_denominator: Ext<C::F, C::EF> = builder.eval(alpha_acc * one);
                     builder.assign(&alpha_acc, alpha_acc * alpha);
 
+                    let idx: Var<C::N> = builder.eval(spec_index.variable() + num_prod_spec.get_var());
+                    let skip = builder.get(&should_skip, idx);
                     let max_round = builder.get(&logup_num_variables_slice, spec_index);
                     let round_limit: RVar<C::N> = builder.eval_expr(max_round - RVar::from(1));
 
                     let prod: Ext<C::F, C::EF> = builder.eval(zero + zero);
 
-                    let is_smaller = is_smaller_than(builder, round_var, round_limit);
-                    builder.if_eq(is_smaller, RVar::from(1)).then(|builder| {
-                        let prod_slice =
-                            builder.get(&tower_verifier_input.logup_specs_eval, spec_index);
-                        let prod_round_slice = builder.get(&prod_slice, round_var);
+                    builder.if_eq(skip, var_zero).then(|builder| {
+                        builder.if_ne(round_var, round_limit).then_or_else(|builder| {
 
-                        let p1 = builder.get(&prod_round_slice, 0);
-                        let p2 = builder.get(&prod_round_slice, 1);
-                        let q1 = builder.get(&prod_round_slice, 2);
-                        let q2 = builder.get(&prod_round_slice, 3);
+                            let prod_slice =
+                                builder.get(&tower_verifier_input.logup_specs_eval, spec_index);
+                            let prod_round_slice = builder.get(&prod_slice, round_var);
 
-                        builder.assign(
-                            &prod,
-                            alpha_numerator * (p1 * q2 + p2 * q1) + alpha_denominator * (q1 * q2),
-                        );
+                            let p1 = builder.get(&prod_round_slice, 0);
+                            let p2 = builder.get(&prod_round_slice, 1);
+                            let q1 = builder.get(&prod_round_slice, 2);
+                            let q2 = builder.get(&prod_round_slice, 3);
+                            builder.assign(
+                                &prod,
+                                alpha_numerator * (p1 * q2 + p2 * q1) + alpha_denominator * (q1 * q2),
+                            );
+                        }, |builder| {
+                            builder.set_value(&should_skip, idx, var_one.clone());
+                        });
                     });
 
                     builder.assign(&expected_evaluation, expected_evaluation + eq_e * prod);
+                    builder.cycle_tracker_end("accumulate expected eval for logup specs");
                 });
 
             builder.assert_ext_eq(expected_evaluation, sub_e);
@@ -634,6 +643,7 @@ mod tests {
     use ceno_sumcheck::structs::IOPProverState;
     use ceno_transcript::BasicTranscript;
     use ceno_zkvm::scheme::constants::NUM_FANIN;
+    use ceno_zkvm::scheme::utils::infer_tower_logup_witness;
     use ceno_zkvm::scheme::utils::infer_tower_product_witness;
     use ceno_zkvm::structs::TowerProver;
     use ff_ext::BabyBearExt4;
@@ -801,12 +811,21 @@ mod tests {
     #[test]
     fn test_prod_tower() {
         let nv = 5;
-        let num_prod_records = 2;
+        let num_prod_specs = 2;
+        let num_logup_specs = 1;
         let mut rng = thread_rng();
 
         setup_tracing_with_log_level(tracing::Level::WARN);
 
-        let records: Vec<DenseMultilinearExtension<E>> = (0..num_prod_records)
+        let records: Vec<DenseMultilinearExtension<E>> = (0..num_prod_specs)
+            .map(|_| {
+                DenseMultilinearExtension::from_evaluations_ext_vec(
+                    nv,
+                    E::random_vec(1 << nv, &mut rng),
+                )
+            })
+            .collect_vec();
+        let denom_records = (0..num_logup_specs)
             .map(|_| {
                 DenseMultilinearExtension::from_evaluations_ext_vec(
                     nv,
@@ -841,9 +860,36 @@ mod tests {
                     .collect_vec()
             })
             .collect_vec();
+
+        let logup_specs = denom_records
+            .into_iter()
+            .map(|record| {
+                let (first, second) = record
+                    .get_ext_field_vec()
+                    .split_at(record.evaluations().len() / 2);
+                let last_layer: Vec<ArcMultilinearExtension<E>> = vec![
+                    first.to_vec().into_mle().into(),
+                    second.to_vec().into_mle().into(),
+                ];
+                ceno_zkvm::structs::TowerProverSpec {
+                    witness: infer_tower_logup_witness(None, last_layer)
+                }
+            })
+            .collect_vec();
+
+        let logup_out_evals = logup_specs
+            .iter()
+            .map(|spec| {
+                spec.witness[0]
+                    .iter()
+                    .map(|mle| cast_vec(mle.get_ext_field_vec().to_vec())[0])
+                    .collect_vec()
+            })
+            .collect_vec();
+
         let mut transcript = BasicTranscript::new(&[]);
         let (_, tower_proof) =
-            TowerProver::create_proof(prod_specs, vec![], NUM_FANIN, &mut transcript);
+            TowerProver::create_proof(prod_specs, logup_specs, NUM_FANIN, &mut transcript);
 
         // build program
         let mut builder = AsmBuilder::<F, EF>::default();
@@ -886,12 +932,12 @@ mod tests {
         let tower_verifier_input_var = TowerVerifierInput::read(&mut builder);
         let tower_verifier_input = TowerVerifierInput {
             prod_out_evals,
-            logup_out_evals: vec![],
-            num_variables: vec![nv; num_prod_records],
+            logup_out_evals,
+            num_variables: vec![nv; num_prod_specs + num_logup_specs],
             num_fanin: NUM_FANIN,
             num_proofs: nv - 1,
-            num_prod_specs: num_prod_records,
-            num_logup_specs: 0,
+            num_prod_specs,
+            num_logup_specs,
             _max_num_variables: nv,
             proofs: tower_proof
                 .proofs
@@ -914,7 +960,15 @@ mod tests {
                         .collect_vec()
                 })
                 .collect_vec(),
-            logup_specs_eval: vec![],
+            logup_specs_eval: tower_proof
+                .logup_specs_eval
+                .iter()
+                .map(|spec| {
+                    spec.iter()
+                        .map(|layer| cast_vec(layer.clone()))
+                        .collect_vec()
+                })
+                .collect_vec(),
         };
         verify_tower_proof(
             &mut builder,
