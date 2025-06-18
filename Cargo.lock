@@ -1913,7 +1913,7 @@ checksum = "d6790f58c7ff633d8771f42965289203411a5e5c68388703c06e14f24770b41e"
 [[package]]
 name = "openvm"
 version = "1.1.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#ead0b2bea4e5a25083162a40ecde2bfa9ba576f2"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#0a8b3571c5e123ba47c224afc02df08afc79784a"
 dependencies = [
  "bytemuck",
  "num-bigint 0.4.6",
@@ -1926,7 +1926,7 @@ dependencies = [
 [[package]]
 name = "openvm-circuit"
 version = "1.1.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#ead0b2bea4e5a25083162a40ecde2bfa9ba576f2"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#0a8b3571c5e123ba47c224afc02df08afc79784a"
 dependencies = [
  "backtrace",
  "cfg-if",
@@ -1957,7 +1957,7 @@ dependencies = [
 [[package]]
 name = "openvm-circuit-derive"
 version = "1.1.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#ead0b2bea4e5a25083162a40ecde2bfa9ba576f2"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#0a8b3571c5e123ba47c224afc02df08afc79784a"
 dependencies = [
  "itertools 0.14.0",
  "quote",
@@ -1967,7 +1967,7 @@ dependencies = [
 [[package]]
 name = "openvm-circuit-primitives"
 version = "1.1.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#ead0b2bea4e5a25083162a40ecde2bfa9ba576f2"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#0a8b3571c5e123ba47c224afc02df08afc79784a"
 dependencies = [
  "derive-new 0.6.0",
  "itertools 0.14.0",
@@ -1982,7 +1982,7 @@ dependencies = [
 [[package]]
 name = "openvm-circuit-primitives-derive"
 version = "1.1.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#ead0b2bea4e5a25083162a40ecde2bfa9ba576f2"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#0a8b3571c5e123ba47c224afc02df08afc79784a"
 dependencies = [
  "itertools 0.14.0",
  "quote",
@@ -1992,7 +1992,7 @@ dependencies = [
 [[package]]
 name = "openvm-custom-insn"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#ead0b2bea4e5a25083162a40ecde2bfa9ba576f2"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#0a8b3571c5e123ba47c224afc02df08afc79784a"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2002,7 +2002,7 @@ dependencies = [
 [[package]]
 name = "openvm-instructions"
 version = "1.1.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#ead0b2bea4e5a25083162a40ecde2bfa9ba576f2"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#0a8b3571c5e123ba47c224afc02df08afc79784a"
 dependencies = [
  "backtrace",
  "derive-new 0.6.0",
@@ -2019,7 +2019,7 @@ dependencies = [
 [[package]]
 name = "openvm-instructions-derive"
 version = "1.1.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#ead0b2bea4e5a25083162a40ecde2bfa9ba576f2"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#0a8b3571c5e123ba47c224afc02df08afc79784a"
 dependencies = [
  "quote",
  "syn 2.0.101",
@@ -2028,7 +2028,7 @@ dependencies = [
 [[package]]
 name = "openvm-native-circuit"
 version = "1.1.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#ead0b2bea4e5a25083162a40ecde2bfa9ba576f2"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#0a8b3571c5e123ba47c224afc02df08afc79784a"
 dependencies = [
  "derive-new 0.6.0",
  "derive_more 1.0.0",
@@ -2055,7 +2055,7 @@ dependencies = [
 [[package]]
 name = "openvm-native-compiler"
 version = "1.1.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#ead0b2bea4e5a25083162a40ecde2bfa9ba576f2"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#0a8b3571c5e123ba47c224afc02df08afc79784a"
 dependencies = [
  "backtrace",
  "itertools 0.14.0",
@@ -2077,7 +2077,7 @@ dependencies = [
 [[package]]
 name = "openvm-native-compiler-derive"
 version = "1.1.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#ead0b2bea4e5a25083162a40ecde2bfa9ba576f2"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#0a8b3571c5e123ba47c224afc02df08afc79784a"
 dependencies = [
  "quote",
  "syn 2.0.101",
@@ -2086,7 +2086,7 @@ dependencies = [
 [[package]]
 name = "openvm-native-recursion"
 version = "1.1.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#ead0b2bea4e5a25083162a40ecde2bfa9ba576f2"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#0a8b3571c5e123ba47c224afc02df08afc79784a"
 dependencies = [
  "cfg-if",
  "itertools 0.14.0",
@@ -2110,7 +2110,7 @@ dependencies = [
 [[package]]
 name = "openvm-platform"
 version = "1.1.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#ead0b2bea4e5a25083162a40ecde2bfa9ba576f2"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#0a8b3571c5e123ba47c224afc02df08afc79784a"
 dependencies = [
  "getrandom 0.2.16",
  "libm",
@@ -2121,7 +2121,7 @@ dependencies = [
 [[package]]
 name = "openvm-poseidon2-air"
 version = "1.1.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#ead0b2bea4e5a25083162a40ecde2bfa9ba576f2"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#0a8b3571c5e123ba47c224afc02df08afc79784a"
 dependencies = [
  "derivative",
  "lazy_static",
@@ -2138,7 +2138,7 @@ dependencies = [
 [[package]]
 name = "openvm-rv32im-circuit"
 version = "1.1.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#ead0b2bea4e5a25083162a40ecde2bfa9ba576f2"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#0a8b3571c5e123ba47c224afc02df08afc79784a"
 dependencies = [
  "derive-new 0.6.0",
  "derive_more 1.0.0",
@@ -2161,7 +2161,7 @@ dependencies = [
 [[package]]
 name = "openvm-rv32im-guest"
 version = "1.1.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#ead0b2bea4e5a25083162a40ecde2bfa9ba576f2"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#0a8b3571c5e123ba47c224afc02df08afc79784a"
 dependencies = [
  "openvm-custom-insn",
  "strum_macros",
@@ -2170,7 +2170,7 @@ dependencies = [
 [[package]]
 name = "openvm-rv32im-transpiler"
 version = "1.1.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#ead0b2bea4e5a25083162a40ecde2bfa9ba576f2"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#0a8b3571c5e123ba47c224afc02df08afc79784a"
 dependencies = [
  "openvm-instructions",
  "openvm-instructions-derive",
@@ -2246,7 +2246,7 @@ dependencies = [
 [[package]]
 name = "openvm-transpiler"
 version = "1.1.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#ead0b2bea4e5a25083162a40ecde2bfa9ba576f2"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#0a8b3571c5e123ba47c224afc02df08afc79784a"
 dependencies = [
  "elf",
  "eyre",
