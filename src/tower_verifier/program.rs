@@ -519,22 +519,28 @@ pub fn verify_tower_proof<C: Config>(
                         let prod_round_slice = builder.get(&prod_slice, round_var);
                         let evals = fixed_dot_product(builder, &coeffs, &prod_round_slice, zero);
 
-                        builder.set(
-                            &prod_spec_point_n_eval,
-                            spec_index,
-                            PointAndEvalVariable {
-                                point: PointVariable {
-                                    fs: rt_prime.clone(),
-                                },
-                                eval: evals,
+                        builder.if_ne(next_round, round_limit).then_or_else(
+                            |builder| {
+                                let new_subsum: Ext<C::F, C::EF> = builder.eval(evals * alpha_acc);
+                                builder.assign(
+                                    &next_prod_spec_evals,
+                                    next_prod_spec_evals + new_subsum,
+                                );
+                            },
+                            // update point and eval only for last layer
+                            |builder| {
+                                builder.set(
+                                    &prod_spec_point_n_eval,
+                                    spec_index,
+                                    PointAndEvalVariable {
+                                        point: PointVariable {
+                                            fs: rt_prime.clone(),
+                                        },
+                                        eval: evals,
+                                    },
+                                );
                             },
                         );
-
-                        builder.if_ne(next_round, round_limit).then(|builder| {
-                            let new_subsum: Ext<C::F, C::EF> = builder.eval(evals * alpha_acc);
-                            builder
-                                .assign(&next_prod_spec_evals, next_prod_spec_evals + new_subsum);
-                        });
                     });
 
                     builder.assign(&alpha_acc, alpha_acc * alpha.clone());
@@ -560,13 +566,13 @@ pub fn verify_tower_proof<C: Config>(
                         builder.eval(spec_index.variable() + num_prod_spec.get_var());
                     let skip = builder.get(&should_skip, idx);
 
+                    let alpha_numerator: Ext<C::F, C::EF> = builder.eval(alpha_acc * one);
+                    builder.assign(&alpha_acc, alpha_acc * alpha.clone());
+                    let alpha_denominator: Ext<C::F, C::EF> = builder.eval(alpha_acc * one);
+                    builder.assign(&alpha_acc, alpha_acc * alpha.clone());
+
                     // now skip is 0 if and only if current round_var is smaller than round_limit.
                     builder.if_eq(skip, var_zero).then(|builder| {
-                        let alpha_numerator: Ext<C::F, C::EF> = builder.eval(alpha_acc * one);
-                        builder.assign(&alpha_acc, alpha_acc * alpha.clone());
-                        let alpha_denominator: Ext<C::F, C::EF> = builder.eval(alpha_acc * one);
-                        builder.assign(&alpha_acc, alpha_acc * alpha.clone());
-
                         let prod_slice =
                             builder.get(&tower_verifier_input.logup_specs_eval, spec_index);
                         let prod_round_slice = builder.get(&prod_slice, round_var);
@@ -576,41 +582,45 @@ pub fn verify_tower_proof<C: Config>(
                         let q2 = builder.get(&prod_round_slice, 3);
 
                         let p_eval: Ext<<C as Config>::F, <C as Config>::EF> =
-                            builder.constant(C::EF::ZERO);
+                            builder.eval(zero + zero);
                         let q_eval: Ext<<C as Config>::F, <C as Config>::EF> =
-                            builder.constant(C::EF::ZERO);
+                            builder.eval(zero + zero);
                         builder.assign(&p_eval, p1 * coeffs[0] + p2 * coeffs[1]);
                         builder.assign(&q_eval, q1 * coeffs[0] + q2 * coeffs[1]);
 
-                        builder.set(
-                            &logup_spec_p_point_n_eval,
-                            spec_index,
-                            PointAndEvalVariable {
-                                point: PointVariable {
-                                    fs: rt_prime.clone(),
-                                },
-                                eval: p_eval,
+                        builder.if_ne(next_round, round_limit).then_or_else(
+                            |builder| {
+                                builder.assign(
+                                    &next_logup_spec_evals,
+                                    next_logup_spec_evals
+                                        + alpha_numerator * p_eval
+                                        + alpha_denominator * q_eval,
+                                );
+                            },
+                            // update point and eval only for last layer
+                            |builder| {
+                                builder.set(
+                                    &logup_spec_p_point_n_eval,
+                                    spec_index,
+                                    PointAndEvalVariable {
+                                        point: PointVariable {
+                                            fs: rt_prime.clone(),
+                                        },
+                                        eval: p_eval,
+                                    },
+                                );
+                                builder.set(
+                                    &logup_spec_q_point_n_eval,
+                                    spec_index,
+                                    PointAndEvalVariable {
+                                        point: PointVariable {
+                                            fs: rt_prime.clone(),
+                                        },
+                                        eval: q_eval,
+                                    },
+                                );
                             },
                         );
-                        builder.set(
-                            &logup_spec_q_point_n_eval,
-                            spec_index,
-                            PointAndEvalVariable {
-                                point: PointVariable {
-                                    fs: rt_prime.clone(),
-                                },
-                                eval: q_eval,
-                            },
-                        );
-
-                        builder.if_ne(next_round, round_limit).then(|builder| {
-                            builder.assign(
-                                &next_logup_spec_evals,
-                                next_logup_spec_evals
-                                    + alpha_numerator * p_eval
-                                    + alpha_denominator * q_eval,
-                            );
-                        });
                     });
                     builder.cycle_tracker_end("derive next layer for logup specs");
                 });
