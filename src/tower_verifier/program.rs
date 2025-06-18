@@ -2,12 +2,12 @@ use super::binding::{
     IOPProverMessageVariable, PointAndEvalVariable, PointVariable, TowerVerifierInputVariable,
 };
 use crate::arithmetics::{
-    challenger_multi_observe, eq_eval, evaluate_at_point, extend, exts_to_felts, fixed_dot_product,
-    product, reverse,
+    challenger_multi_observe, dot_product, eq_eval, evaluate_at_point, extend, exts_to_felts, fixed_dot_product, gen_alpha_pows, is_smaller_than, reverse, UniPolyExtrapolator
 };
 use crate::transcript::transcript_observe_label;
 use openvm_native_compiler::prelude::*;
 use openvm_native_compiler_derive::iter_zip;
+use openvm_native_recursion::challenger::ChallengerVariable;
 use openvm_native_recursion::challenger::{
     duplex::DuplexChallengerVariable, CanObserveVariable, FeltChallenger,
 };
@@ -65,7 +65,7 @@ pub fn iop_verifier_state_verify<C: Config>(
     prover_messages: &Array<C, IOPProverMessageVariable<C>>,
     max_num_variables: Felt<C::F>,
     max_degree: Felt<C::F>,
-    interpolation_weights: &Array<C, Array<C, Ext<C::F, C::EF>>>,
+    unipoly_extrapolator: &mut UniPolyExtrapolator<C>,
 ) -> (
     Array<C, Ext<<C as Config>::F, <C as Config>::EF>>,
     Ext<<C as Config>::F, <C as Config>::EF>,
@@ -123,14 +123,12 @@ pub fn iop_verifier_state_verify<C: Config>(
 
             let expected_ptr = idx_vec[2];
             builder.cycle_tracker_start("extrapolate_uni_poly");
-            let expected = interpolate_uni_poly_with_weights(
+            let expected = unipoly_extrapolator.extrapolate_uni_poly(
                 builder,
                 &msg.evaluations,
                 c,
-                interpolation_weights,
             );
             builder.cycle_tracker_end("extrapolate_uni_poly");
-
             builder.iter_ptr_set(&truncated_expected_vec, expected_ptr, expected);
         },
     );
@@ -157,7 +155,7 @@ pub fn verify_tower_proof<C: Config>(
     builder: &mut Builder<C>,
     challenger: &mut DuplexChallengerVariable<C>,
     tower_verifier_input: TowerVerifierInputVariable<C>,
-    interpolation_weights: &Array<C, Array<C, Ext<C::F, C::EF>>>,
+    unipoly_extrapolator: &mut UniPolyExtrapolator<C>,
 ) -> (
     PointVariable<C>,
     Array<C, PointAndEvalVariable<C>>,
@@ -368,9 +366,12 @@ pub fn verify_tower_proof<C: Config>(
                 &prover_messages,
                 max_num_variables,
                 max_degree,
-                interpolation_weights,
+                unipoly_extrapolator,
             );
             builder.cycle_tracker_end("sumcheck verify");
+
+            let expected_evaluation: Ext<C::F, C::EF> = builder.eval(zero + zero);
+            let alpha_acc: Ext<C::F, C::EF> = builder.eval(zero + one);
 
             builder.cycle_tracker_start("check expected evaluation");
             builder.cycle_tracker_start("eq_eval");
@@ -649,6 +650,7 @@ pub fn verify_tower_proof<C: Config>(
 
 #[cfg(test)]
 mod tests {
+    use crate::arithmetics::UniPolyExtrapolator;
     use crate::tower_verifier::binding::IOPProverMessage;
     use crate::tower_verifier::binding::TowerVerifierInput;
     use crate::tower_verifier::program::iop_verifier_state_verify;
@@ -709,35 +711,7 @@ mod tests {
         let mut challenger: DuplexChallengerVariable<C> =
             DuplexChallengerVariable::new(&mut builder);
 
-        let interpolation_weights: Array<C, Array<C, Ext<F, EF>>> = builder.dyn_array(4);
-        for deg in 1..=4usize {
-            let points: Vec<EF> = (0..=deg)
-                .into_iter()
-                .map(|i| EF::from_canonical_u32(i as u32))
-                .collect();
-            let weights = points
-                .iter()
-                .enumerate()
-                .map(|(j, point_j)| {
-                    points
-                        .iter()
-                        .enumerate()
-                        .filter(|&(i, _)| (i != j))
-                        .map(|(_, point_i)| *point_j - *point_i)
-                        .reduce(|acc, value| acc * value)
-                        .unwrap_or(EF::ONE)
-                        .inverse()
-                })
-                .collect::<Vec<_>>();
-
-            let weight_array: Array<C, Ext<F, EF>> = builder.dyn_array(4);
-            weights.into_iter().enumerate().for_each(|(i, w)| {
-                let w: Ext<F, EF> = builder.constant(w);
-                builder.set(&weight_array, i, w);
-            });
-
-            builder.set(&interpolation_weights, deg - 1, weight_array);
-        }
+        let mut uni_p = UniPolyExtrapolator::new(&mut builder);
 
         iop_verifier_state_verify(
             &mut builder,
@@ -746,7 +720,7 @@ mod tests {
             &prover_msgs,
             max_num_variables,
             max_degree,
-            &interpolation_weights,
+            &mut uni_p,
         );
 
         builder.halt();
@@ -920,35 +894,7 @@ mod tests {
             DuplexChallengerVariable::new(&mut builder);
 
         // construct extrapolation weights
-        let interpolation_weights: Array<C, Array<C, Ext<F, EF>>> = builder.dyn_array(4);
-        for deg in 1..=4usize {
-            let points: Vec<EF> = (0..=deg)
-                .into_iter()
-                .map(|i| EF::from_canonical_u32(i as u32))
-                .collect();
-            let weights = points
-                .iter()
-                .enumerate()
-                .map(|(j, point_j)| {
-                    points
-                        .iter()
-                        .enumerate()
-                        .filter(|&(i, _)| (i != j))
-                        .map(|(_, point_i)| *point_j - *point_i)
-                        .reduce(|acc, value| acc * value)
-                        .unwrap_or(EF::ONE)
-                        .inverse()
-                })
-                .collect::<Vec<_>>();
-
-            let weight_array: Array<C, Ext<F, EF>> = builder.dyn_array(4);
-            weights.into_iter().enumerate().for_each(|(i, w)| {
-                let w: Ext<F, EF> = builder.constant(w);
-                builder.set(&weight_array, i, w);
-            });
-
-            builder.set(&interpolation_weights, deg - 1, weight_array);
-        }
+        let mut uni_p = UniPolyExtrapolator::new(&mut builder);
 
         assert_eq!(tower_proof.proofs.len(), nv - 1);
         let tower_verifier_input_var = TowerVerifierInput::read(&mut builder);
@@ -996,7 +942,7 @@ mod tests {
             &mut builder,
             &mut challenger,
             tower_verifier_input_var,
-            &interpolation_weights,
+            &mut uni_p,
         );
 
         builder.halt();
