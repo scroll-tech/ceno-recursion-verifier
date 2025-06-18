@@ -3,7 +3,7 @@ use super::binding::{
 };
 use crate::arithmetics::{
     challenger_multi_observe, eq_eval, evaluate_at_point,
-    extend, exts_to_felts, fixed_dot_product, is_smaller_than, product, reverse,
+    extend, exts_to_felts, fixed_dot_product, product, reverse,
 };
 use crate::transcript::transcript_observe_label;
 use openvm_native_compiler::prelude::*;
