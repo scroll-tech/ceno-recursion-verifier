@@ -8,7 +8,11 @@ use openvm_native_compiler::prelude::*;
 use openvm_native_compiler_derive::iter_zip;
 use openvm_native_recursion::challenger::ChallengerVariable;
 use p3_field::{FieldAlgebra, FieldExtensionAlgebra};
+use openvm_native_recursion::challenger::{
+    duplex::DuplexChallengerVariable, CanObserveVariable, FeltChallenger,
+};
 type E = BabyBearExt4;
+const HASH_RATE: usize = 8;
 
 pub fn _print_ext_arr<C: Config>(builder: &mut Builder<C>, arr: &Array<C, Ext<C::F, C::EF>>) {
     iter_zip!(builder, arr).for_each(|ptr_vec, builder| {
@@ -17,7 +21,7 @@ pub fn _print_ext_arr<C: Config>(builder: &mut Builder<C>, arr: &Array<C, Ext<C:
     });
 }
 
-pub fn _print_felt_arr<C: Config>(builder: &mut Builder<C>, arr: &Array<C, Felt<C::F>>) {
+pub fn print_felt_arr<C: Config>(builder: &mut Builder<C>, arr: &Array<C, Felt<C::F>>) {
     iter_zip!(builder, arr).for_each(|ptr_vec, builder| {
         let f = builder.iter_ptr_get(arr, ptr_vec[0]);
         builder.print_f(f);
@@ -28,6 +32,26 @@ pub fn _print_usize_arr<C: Config>(builder: &mut Builder<C>, arr: &Array<C, Usiz
     iter_zip!(builder, arr).for_each(|ptr_vec, builder| {
         let n = builder.iter_ptr_get(arr, ptr_vec[0]);
         builder.print_v(n.get_var());
+    });
+}
+
+pub unsafe fn exts_to_felts<C: Config>(builder: &mut Builder<C>, exts: &Array<C, Ext<C::F, C::EF>>) -> Array<C, Felt<C::F>> {
+    let f_len: Usize<C::N> = builder.eval(exts.len() * Usize::from(C::EF::D));
+    let f_arr: Array<C, Felt<C::F>> = Array::Dyn(exts.ptr(), f_len);
+    f_arr
+}
+
+pub fn challenger_multi_observe<C: Config>(
+    builder: &mut Builder<C>,
+    challenger: &mut DuplexChallengerVariable<C>,
+    arr: &Array<C, Felt<C::F>>
+) {
+    let next_input_ptr = builder.poseidon2_multi_observe(&challenger.sponge_state, challenger.input_ptr, &arr);
+    builder.assign(&challenger.input_ptr, challenger.io_empty_ptr + next_input_ptr.clone());
+    builder.if_ne(next_input_ptr, Usize::from(0)).then_or_else(|builder| {
+        builder.assign(&challenger.output_ptr, challenger.io_empty_ptr);
+    }, |builder| {
+        builder.assign(&challenger.output_ptr, challenger.io_full_ptr);
     });
 }
 
@@ -238,7 +262,7 @@ pub fn join<C: Config>(
 // Generate alpha power challenges
 pub fn gen_alpha_pows<C: Config>(
     builder: &mut Builder<C>,
-    challenger: &mut impl ChallengerVariable<C>,
+    challenger: &mut DuplexChallengerVariable<C>,
     alpha_len: Usize<<C as Config>::N>,
 ) -> Array<C, Ext<C::F, C::EF>> {
     let alpha = challenger.sample_ext(builder);
@@ -262,7 +286,7 @@ pub fn gen_alpha_pows<C: Config>(
 ///         = \sum_{\mathbf{b}=0}^{max_idx} \prod_{i=0}^{n-1} (x_i y_i b_i + (1 - x_i)(1 - y_i)(1 - b_i))
 pub fn eq_eval_less_or_equal_than<C: Config>(
     builder: &mut Builder<C>,
-    _challenger: &mut impl ChallengerVariable<C>,
+    _challenger: &mut DuplexChallengerVariable<C>,
     opcode_proof: &ZKVMOpcodeProofInputVariable<C>,
     a: &Array<C, Ext<C::F, C::EF>>,
     b: &Array<C, Ext<C::F, C::EF>>,
@@ -704,4 +728,163 @@ pub fn max_usize_arr<C: Config>(
     });
 
     Usize::from(max_var)
+}
+
+pub struct UniPolyExtrapolator<C: Config> {
+    constants: [Ext<C::F, C::EF>; 12],      // 0, 1, 2, 3, 4, -1, 1/2, -1/2, 1/6, -1/6, 1/4, 1/24
+}
+
+impl<C: Config> UniPolyExtrapolator<C> {
+    pub fn new(builder: &mut Builder<C>) -> Self {
+        let zero: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
+        let one: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
+        let two: Ext<C::F, C::EF> = builder.constant(C::EF::TWO);
+        let three: Ext<C::F, C::EF> = builder.constant(C::EF::from_canonical_u32(3));
+        let four: Ext<C::F, C::EF> = builder.constant(C::EF::from_canonical_u32(4));
+        let six: Ext<C::F, C::EF> = builder.constant(C::EF::from_canonical_u32(6));
+        let twenty_four: Ext<C::F, C::EF> = builder.constant(C::EF::from_canonical_u32(24));
+        let neg_one: Ext<C::F, C::EF> = builder.eval(zero - one);
+        let two_inverse: Ext<C::F, C::EF> = builder.eval(two.inverse());
+        let neg_two_inverse: Ext<C::F, C::EF> = builder.eval(zero - two_inverse);
+        let six_inverse: Ext<C::F, C::EF> = builder.eval(six.inverse());
+        let neg_six_inverse: Ext<C::F, C::EF> = builder.eval(zero - six_inverse);
+        let four_inverse: Ext<C::F, C::EF> = builder.eval(four.inverse());
+        let twenty_four_inverse: Ext<C::F, C::EF> = builder.eval(twenty_four.inverse());
+
+        Self {
+            constants: [
+                zero,
+                one,
+                two,
+                three,
+                four,
+                neg_one,
+                two_inverse,
+                neg_two_inverse,
+                six_inverse,
+                neg_six_inverse,
+                four_inverse,
+                twenty_four_inverse,
+            ]
+        }
+    }
+
+    pub fn extrapolate_uni_poly(&mut self, builder: &mut Builder<C>, p_i: &Array<C, Ext<C::F, C::EF>>, eval_at: Ext<C::F, C::EF>) -> Ext<C::F, C::EF> {
+        let res: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
+
+        builder.if_eq(p_i.len(), Usize::from(4)).then_or_else(|builder| {
+            let ext = self.extrapolate_uni_poly_deg_3(builder, p_i, eval_at);
+            builder.assign(&res, ext);
+        }, |builder| {
+            builder.if_eq(p_i.len(), Usize::from(3)).then_or_else(|builder| {
+                let ext = self.extrapolate_uni_poly_deg_2(builder, p_i, eval_at);
+                builder.assign(&res, ext);
+            }, |builder| {
+                builder.if_eq(p_i.len(), Usize::from(2)).then_or_else(|builder| {
+                    let ext = self.extrapolate_uni_poly_deg_1(builder, p_i, eval_at);
+                    builder.assign(&res, ext);
+                }, |builder| {
+                    builder.if_eq(p_i.len(), Usize::from(5)).then_or_else(|builder| {
+                        let ext = self.extrapolate_uni_poly_deg_4(builder, p_i, eval_at);
+                        builder.assign(&res, ext);
+                    }, |builder| {
+                        builder.error();
+                    });
+                });
+            });
+        });
+
+        res
+    }
+
+    fn extrapolate_uni_poly_deg_1(&self, builder: &mut Builder<C>, p_i: &Array<C, Ext<C::F, C::EF>>, eval_at: Ext<C::F, C::EF>) -> Ext<C::F, C::EF> {
+        // w0 = 1 / (0−1) = -1
+        // w1 = 1 / (1−0) =  1
+        let d0: Ext<C::F, C::EF> = builder.eval(eval_at - self.constants[0]);
+        let d1: Ext<C::F, C::EF> = builder.eval(eval_at - self.constants[1]);
+        let l: Ext<C::F, C::EF> = builder.eval(d0 * d1);
+
+        let p_i_0 = builder.get(p_i, 0);
+        let p_i_1 = builder.get(p_i, 1);
+
+        let t0: Ext<C::F, C::EF> = builder.eval(self.constants[5] * p_i_0 * d0.inverse());
+        let t1: Ext<C::F, C::EF> = builder.eval(self.constants[1] * p_i_1 * d1.inverse());
+
+        builder.eval(l * (t0 + t1))
+    }
+
+    fn extrapolate_uni_poly_deg_2(&self, builder: &mut Builder<C>, p_i: &Array<C, Ext<C::F, C::EF>>, eval_at: Ext<C::F, C::EF>) -> Ext<C::F, C::EF> {
+        // w0 = 1 / ((0−1)(0−2)) =  1/2
+        // w1 = 1 / ((1−0)(1−2)) = -1
+        // w2 = 1 / ((2−0)(2−1)) =  1/2
+        let d0: Ext<C::F, C::EF> = builder.eval(eval_at - self.constants[0]);
+        let d1: Ext<C::F, C::EF> = builder.eval(eval_at - self.constants[1]);
+        let d2: Ext<C::F, C::EF> = builder.eval(eval_at - self.constants[2]);
+
+        let l: Ext<C::F, C::EF> = builder.eval(d0 * d1 * d2);
+
+        let p_i_0: Ext<C::F, C::EF> = builder.get(p_i, 0);
+        let p_i_1: Ext<C::F, C::EF> = builder.get(p_i, 1);
+        let p_i_2: Ext<C::F, C::EF> = builder.get(p_i, 2);
+
+        let t0: Ext<C::F, C::EF> = builder.eval(self.constants[6] * p_i_0 * d0.inverse());
+        let t1: Ext<C::F, C::EF> = builder.eval(self.constants[5] * p_i_1 * d1.inverse());
+        let t2: Ext<C::F, C::EF> = builder.eval(self.constants[6] * p_i_2 * d2.inverse());
+
+        builder.eval(l * (t0 + t1 + t2))
+    }
+
+    fn extrapolate_uni_poly_deg_3(&self, builder: &mut Builder<C>, p_i: &Array<C, Ext<C::F, C::EF>>, eval_at: Ext<C::F, C::EF>) -> Ext<C::F, C::EF> {
+        // w0 = 1 / ((0−1)(0−2)(0−3)) = -1/6
+        // w1 = 1 / ((1−0)(1−2)(1−3)) =  1/2
+        // w2 = 1 / ((2−0)(2−1)(2−3)) = -1/2
+        // w3 = 1 / ((3−0)(3−1)(3−2)) =  1/6
+        let d0: Ext<C::F, C::EF> = builder.eval(eval_at - self.constants[0]);
+        let d1: Ext<C::F, C::EF> = builder.eval(eval_at - self.constants[1]);
+        let d2: Ext<C::F, C::EF> = builder.eval(eval_at - self.constants[2]);
+        let d3: Ext<C::F, C::EF> = builder.eval(eval_at - self.constants[3]);
+
+        let l: Ext<C::F, C::EF> = builder.eval(d0 * d1 * d2 * d3);
+
+        let p_i_0: Ext<C::F, C::EF> = builder.get(p_i, 0);
+        let p_i_1: Ext<C::F, C::EF> = builder.get(p_i, 1);
+        let p_i_2: Ext<C::F, C::EF> = builder.get(p_i, 2);
+        let p_i_3: Ext<C::F, C::EF> = builder.get(p_i, 3);
+
+        let t0: Ext<C::F, C::EF> = builder.eval(self.constants[9] * p_i_0 * d0.inverse());
+        let t1: Ext<C::F, C::EF> = builder.eval(self.constants[6] * p_i_1 * d1.inverse());
+        let t2: Ext<C::F, C::EF> = builder.eval(self.constants[7] * p_i_2 * d2.inverse());
+        let t3: Ext<C::F, C::EF> = builder.eval(self.constants[8] * p_i_3 * d3.inverse());
+
+        builder.eval(l * (t0 + t1 + t2 + t3))
+    }
+
+    fn extrapolate_uni_poly_deg_4(&self, builder: &mut Builder<C>, p_i: &Array<C, Ext<C::F, C::EF>>, eval_at: Ext<C::F, C::EF>) -> Ext<C::F, C::EF> {
+        // w0 = 1 / ((0−1)(0−2)(0−3)(0−4)) =  1/24
+        // w1 = 1 / ((1−0)(1−2)(1−3)(1−4)) = -1/6
+        // w2 = 1 / ((2−0)(2−1)(2−3)(2−4)) =  1/4
+        // w3 = 1 / ((3−0)(3−1)(3−2)(3−4)) = -1/6
+        // w4 = 1 / ((4−0)(4−1)(4−2)(4−3)) =  1/24
+        let d0: Ext<C::F, C::EF> = builder.eval(eval_at - self.constants[0]);
+        let d1: Ext<C::F, C::EF> = builder.eval(eval_at - self.constants[1]);
+        let d2: Ext<C::F, C::EF> = builder.eval(eval_at - self.constants[2]);
+        let d3: Ext<C::F, C::EF> = builder.eval(eval_at - self.constants[3]);
+        let d4: Ext<C::F, C::EF> = builder.eval(eval_at - self.constants[4]);
+
+        let l: Ext<C::F, C::EF> = builder.eval(d0 * d1 * d2 * d3 * d4);
+
+        let p_i_0: Ext<C::F, C::EF> = builder.get(p_i, 0);
+        let p_i_1: Ext<C::F, C::EF> = builder.get(p_i, 1);
+        let p_i_2: Ext<C::F, C::EF> = builder.get(p_i, 2);
+        let p_i_3: Ext<C::F, C::EF> = builder.get(p_i, 3);
+        let p_i_4: Ext<C::F, C::EF> = builder.get(p_i, 4);
+
+        let t0: Ext<C::F, C::EF> = builder.eval(self.constants[11] * p_i_0 * d0.inverse());
+        let t1: Ext<C::F, C::EF> = builder.eval(self.constants[9] * p_i_1 * d1.inverse());
+        let t2: Ext<C::F, C::EF> = builder.eval(self.constants[10] * p_i_2 * d2.inverse());
+        let t3: Ext<C::F, C::EF> = builder.eval(self.constants[9] * p_i_3 * d3.inverse());
+        let t4: Ext<C::F, C::EF> = builder.eval(self.constants[11] * p_i_4 * d4.inverse());
+
+        builder.eval(l * (t0 + t1 + t2 + t3 + t4))
+    }
 }

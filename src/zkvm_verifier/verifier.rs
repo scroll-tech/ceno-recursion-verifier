@@ -1,6 +1,7 @@
 use super::binding::{
     ZKVMOpcodeProofInputVariable, ZKVMProofInputVariable, ZKVMTableProofInputVariable,
 };
+use crate::arithmetics::{challenger_multi_observe, UniPolyExtrapolator};
 use crate::e2e::SubcircuitParams;
 use crate::tower_verifier::program::verify_tower_proof;
 use crate::transcript::transcript_observe_label;
@@ -83,10 +84,8 @@ pub fn verify_zkvm_proof<C: Config>(
 
     iter_zip!(builder, zkvm_proof_input.raw_pi).for_each(|ptr_vec, builder| {
         let v = builder.iter_ptr_get(&zkvm_proof_input.raw_pi, ptr_vec[0]);
-        iter_zip!(builder, v).for_each(|inner_ptr_vec, builder| {
-            let f = builder.iter_ptr_get(&v, inner_ptr_vec[0]);
-            challenger.observe(builder, f);
-        })
+
+        challenger_multi_observe(builder, &mut challenger, &v);
     });
 
     iter_zip!(builder, zkvm_proof_input.raw_pi, zkvm_proof_input.pi_evals).for_each(
@@ -102,18 +101,13 @@ pub fn verify_zkvm_proof<C: Config>(
         },
     );
 
-    iter_zip!(builder, zkvm_proof_input.fixed_commit).for_each(|ptr_vec, builder| {
-        let f = builder.iter_ptr_get(&zkvm_proof_input.fixed_commit, ptr_vec[0]);
-        challenger.observe(builder, f);
-    });
+    challenger_multi_observe(builder, &mut challenger, &zkvm_proof_input.fixed_commit);
+
     iter_zip!(builder, zkvm_proof_input.fixed_commit_trivial_commits).for_each(
         |ptr_vec, builder| {
             let trivial_cmt =
                 builder.iter_ptr_get(&zkvm_proof_input.fixed_commit_trivial_commits, ptr_vec[0]);
-            iter_zip!(builder, trivial_cmt).for_each(|t_ptr_vec, builder| {
-                let f = builder.iter_ptr_get(&trivial_cmt, t_ptr_vec[0]);
-                challenger.observe(builder, f);
-            });
+            challenger_multi_observe(builder, &mut challenger, &trivial_cmt);
         },
     );
     challenger.observe(
@@ -129,18 +123,13 @@ pub fn verify_zkvm_proof<C: Config>(
         challenger.observe(builder, num_var);
     });
 
-    iter_zip!(builder, zkvm_proof_input.witin_commit).for_each(|ptr_vec, builder| {
-        let f = builder.iter_ptr_get(&zkvm_proof_input.witin_commit, ptr_vec[0]);
-        challenger.observe(builder, f);
-    });
+    challenger_multi_observe(builder, &mut challenger, &zkvm_proof_input.witin_commit);
+
     iter_zip!(builder, zkvm_proof_input.witin_commit_trivial_commits).for_each(
         |ptr_vec, builder| {
             let trivial_cmt =
                 builder.iter_ptr_get(&zkvm_proof_input.witin_commit_trivial_commits, ptr_vec[0]);
-            iter_zip!(builder, trivial_cmt).for_each(|t_ptr_vec, builder| {
-                let f = builder.iter_ptr_get(&trivial_cmt, t_ptr_vec[0]);
-                challenger.observe(builder, f);
-            });
+            challenger_multi_observe(builder, &mut challenger, &trivial_cmt);
         },
     );
     challenger.observe(
@@ -155,39 +144,10 @@ pub fn verify_zkvm_proof<C: Config>(
     builder.set(&challenges, 0, alpha.clone());
     builder.set(&challenges, 1, beta.clone());
 
+    let mut unipoly_extrapolator = UniPolyExtrapolator::new(builder);
+
     let dummy_table_item = alpha.clone();
     let dummy_table_item_multiplicity: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
-
-    // Construct interpolation weights
-    let interpolation_weights: Array<C, Array<C, Ext<C::F, C::EF>>> = builder.dyn_array(4);
-    for deg in 1..=4usize {
-        let points: Vec<C::EF> = (0..=deg)
-            .into_iter()
-            .map(|i| C::EF::from_canonical_u32(i as u32))
-            .collect();
-        let weights = points
-            .iter()
-            .enumerate()
-            .map(|(j, point_j)| {
-                points
-                    .iter()
-                    .enumerate()
-                    .filter(|&(i, _)| (i != j))
-                    .map(|(_, point_i)| *point_j - *point_i)
-                    .reduce(|acc, value| acc * value)
-                    .unwrap_or(C::EF::ONE)
-                    .inverse()
-            })
-            .collect::<Vec<_>>();
-
-        let weight_array: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(4);
-        weights.into_iter().enumerate().for_each(|(i, w)| {
-            let w: Ext<C::F, C::EF> = builder.constant(w);
-            builder.set(&weight_array, i, w);
-        });
-
-        builder.set(&interpolation_weights, deg - 1, weight_array);
-    }
 
     for subcircuit_params in proving_sequence {
         if subcircuit_params.is_opcode {
@@ -207,7 +167,7 @@ pub fn verify_zkvm_proof<C: Config>(
                 &challenges,
                 &subcircuit_params,
                 &ceno_constraint_system,
-                &interpolation_weights,
+                &mut unipoly_extrapolator,
             );
 
             let cs = ceno_constraint_system.vk.circuit_vks[&subcircuit_params.name].get_cs();
@@ -259,7 +219,7 @@ pub fn verify_zkvm_proof<C: Config>(
                 &challenges,
                 &subcircuit_params,
                 ceno_constraint_system,
-                &interpolation_weights,
+                &mut unipoly_extrapolator,
             );
 
             let step = C::N::from_canonical_usize(4);
@@ -343,7 +303,7 @@ pub fn verify_opcode_proof<C: Config>(
     challenges: &Array<C, Ext<C::F, C::EF>>,
     subcircuit_params: &SubcircuitParams,
     cs: &ZKVMVerifier<E, Pcs>,
-    interpolation_weights: &Array<C, Array<C, Ext<C::F, C::EF>>>,
+    unipoly_extrapolator: &mut UniPolyExtrapolator<C>,
 ) {
     let cs = &cs.vk.circuit_vks[&subcircuit_params.name].cs;
     let one: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
@@ -411,7 +371,7 @@ pub fn verify_opcode_proof<C: Config>(
             prod_specs_eval: tower_proof.prod_specs_eval.clone(),
             logup_specs_eval: tower_proof.logup_specs_eval.clone(),
         },
-        &interpolation_weights
+        unipoly_extrapolator,
     );
 
     let rt_non_lc_sumcheck: Array<C, Ext<C::F, C::EF>> =
@@ -476,7 +436,7 @@ pub fn verify_opcode_proof<C: Config>(
         &opcode_proof.main_sel_sumcheck_proofs,
         log2_num_instances_f,
         main_sel_subclaim_max_degree,
-        interpolation_weights,
+        unipoly_extrapolator,
     );
 
     let input_opening_point = PointVariable {
@@ -683,7 +643,7 @@ pub fn verify_table_proof<C: Config>(
     challenges: &Array<C, Ext<C::F, C::EF>>,
     subcircuit_params: &SubcircuitParams,
     cs: &ZKVMVerifier<E, Pcs>,
-    interpolation_weights: &Array<C, Array<C, Ext<C::F, C::EF>>>,
+    unipoly_extrapolator: &mut UniPolyExtrapolator<C>,
 ) {
     let cs = cs.vk.circuit_vks[&subcircuit_params.name].get_cs();
     let tower_proof: &super::binding::TowerProofInputVariable<C> = &table_proof.tower_proof;
@@ -812,7 +772,7 @@ pub fn verify_table_proof<C: Config>(
                 prod_specs_eval: tower_proof.prod_specs_eval.clone(),
                 logup_specs_eval: tower_proof.logup_specs_eval.clone(),
             },
-            &interpolation_weights,
+            unipoly_extrapolator,
         );
 
     builder.assert_usize_eq(
