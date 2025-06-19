@@ -11,6 +11,7 @@ pub type InnerConfig = AsmConfig<F, E>;
 
 use openvm_stark_sdk::p3_baby_bear::BabyBear;
 use p3_field::extension::BinomialExtensionField;
+use serde::Deserialize;
 
 #[derive(DslVariable, Clone)]
 pub struct PointVariable<C: Config> {
@@ -46,6 +47,7 @@ pub struct TowerVerifierInputVariable<C: Config> {
     pub logup_specs_eval: Array<C, Array<C, Array<C, Ext<C::F, C::EF>>>>,
 }
 
+#[derive(Clone, Deserialize)]
 pub struct Point {
     pub fs: Vec<F>,
 }
@@ -66,7 +68,32 @@ impl Hintable<InnerConfig> for Point {
 }
 impl VecAutoHintable for Point {}
 
-#[derive(Debug)]
+pub struct PointAndEval {
+    pub point: Point,
+    pub eval: E,
+}
+impl Hintable<InnerConfig> for PointAndEval {
+    type HintVariable = PointAndEvalVariable<InnerConfig>;
+
+    fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
+        let point = Point::read(builder);
+        let eval = E::read(builder);
+        PointAndEvalVariable {
+            point,
+            eval,
+        }
+    }
+
+    fn write(&self) -> Vec<Vec<<InnerConfig as Config>::N>> {
+        let mut stream = Vec::new();
+        stream.extend(self.point.write());
+        stream.extend(self.eval.write());
+        stream
+    }
+}
+impl VecAutoHintable for PointAndEval {}
+
+#[derive(Debug, Deserialize)]
 pub struct IOPProverMessage {
     pub evaluations: Vec<E>,
 }
