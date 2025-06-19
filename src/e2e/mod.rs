@@ -17,6 +17,7 @@ use openvm_native_compiler::{
 };
 use openvm_native_recursion::hints::Hintable;
 use openvm_stark_backend::config::StarkGenericConfig;
+use openvm_stark_sdk::config::setup_tracing_with_log_level;
 use openvm_stark_sdk::{
     config::baby_bear_poseidon2::BabyBearPoseidon2Config, p3_baby_bear::BabyBear,
 };
@@ -415,6 +416,7 @@ pub fn parse_zkvm_proof_import(
 
 #[test]
 pub fn test_zkvm_proof_verifier_from_bincode_exports() {
+    setup_tracing_with_log_level(tracing::Level::WARN);
     let proof_path = "./src/e2e/encoded/proof.bin";
     let vk_path = "./src/e2e/encoded/vk.bin";
 
