@@ -453,28 +453,13 @@ pub fn test_zkvm_proof_verifier_from_bincode_exports() {
 
     // Compile program
     let options = CompilerOptions::default().with_cycle_tracker();
-    let mut compiler = AsmCompiler::new(options.word_size);
-    compiler.build(builder.operations);
-    let asm_code = compiler.code();
-
-    // _debug: print out assembly
-    /*
-    println!("=> AssemblyCode:");
-    println!("{asm_code}");
-    return ();
-    */
-
-    let program: Program<
-        p3_monty_31::MontyField31<openvm_stark_sdk::p3_baby_bear::BabyBearParameters>,
-    > = convert_program(asm_code, options);
-    let mut system_config = SystemConfig::default()
+    let program = builder.compile_isa_with_options(options);
+    let system_config = SystemConfig::default()
         .with_public_values(4)
-        .with_max_segment_len((1 << 25) - 100);
-    system_config.profiling = true;
+        .with_max_segment_len((1 << 25) - 100)
+        .with_profiling();
     let config = NativeConfig::new(system_config, Native);
-
     let executor = VmExecutor::<BabyBear, NativeConfig>::new(config);
-
     let res = executor
         .execute_and_then(program, witness_stream, |_, seg| Ok(seg), |err| err)
         .unwrap();
