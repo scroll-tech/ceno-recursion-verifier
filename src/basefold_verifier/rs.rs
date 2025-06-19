@@ -183,36 +183,11 @@ impl<C: Config> Radix2DitVariable<C> {
 
 #[derive(Deserialize)]
 pub struct RSCodeVerifierParameters {
-    pub t_inv_halves: Vec<Vec<F>>,
     pub full_message_size_log: usize,
-}
-
-impl Hintable<InnerConfig> for RSCodeVerifierParameters {
-    type HintVariable = RSCodeVerifierParametersVariable<InnerConfig>;
-
-    fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
-        let t_inv_halves = Vec::<Vec<F>>::read(builder);
-        let full_message_size_log = Usize::Var(usize::read(builder));
-
-        RSCodeVerifierParametersVariable {
-            t_inv_halves,
-            full_message_size_log,
-        }
-    }
-
-    fn write(&self) -> Vec<Vec<<InnerConfig as Config>::N>> {
-        let mut stream = Vec::new();
-        stream.extend(self.t_inv_halves.write());
-        stream.extend(<usize as Hintable<InnerConfig>>::write(
-            &self.full_message_size_log,
-        ));
-        stream
-    }
 }
 
 #[derive(DslVariable, Clone)]
 pub struct RSCodeVerifierParametersVariable<C: Config> {
-    pub t_inv_halves: Array<C, Array<C, Felt<C::F>>>,
     pub full_message_size_log: Usize<C::N>,
 }
 

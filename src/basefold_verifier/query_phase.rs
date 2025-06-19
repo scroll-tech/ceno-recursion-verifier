@@ -191,7 +191,6 @@ pub struct PointAndEvalsVariable<C: Config> {
 pub struct QueryPhaseVerifierInput {
     pub max_num_var: usize,
     pub indices: Vec<usize>,
-    pub vp: RSCodeVerifierParameters,
     pub final_message: Vec<Vec<E>>,
     pub batch_coeffs: Vec<E>,
     pub queries: QueryOpeningProofs,
@@ -210,7 +209,6 @@ impl Hintable<InnerConfig> for QueryPhaseVerifierInput {
     fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
         let max_num_var = Usize::Var(usize::read(builder));
         let indices = Vec::<usize>::read(builder);
-        let vp = RSCodeVerifierParameters::read(builder);
         let final_message = Vec::<Vec<E>>::read(builder);
         let batch_coeffs = Vec::<E>::read(builder);
         let queries = QueryOpeningProofs::read(builder);
@@ -226,7 +224,6 @@ impl Hintable<InnerConfig> for QueryPhaseVerifierInput {
         QueryPhaseVerifierInputVariable {
             max_num_var,
             indices,
-            vp,
             final_message,
             batch_coeffs,
             queries,
@@ -245,7 +242,6 @@ impl Hintable<InnerConfig> for QueryPhaseVerifierInput {
         let mut stream = Vec::new();
         stream.extend(<usize as Hintable<InnerConfig>>::write(&self.max_num_var));
         stream.extend(self.indices.write());
-        stream.extend(self.vp.write());
         stream.extend(self.final_message.write());
         stream.extend(self.batch_coeffs.write());
         stream.extend(self.queries.write());
@@ -284,7 +280,6 @@ impl Hintable<InnerConfig> for QueryPhaseVerifierInput {
 pub struct QueryPhaseVerifierInputVariable<C: Config> {
     pub max_num_var: Usize<C::N>,
     pub indices: Array<C, Var<C::N>>,
-    pub vp: RSCodeVerifierParametersVariable<C>,
     pub final_message: Array<C, Array<C, Ext<C::F, C::EF>>>,
     pub batch_coeffs: Array<C, Ext<C::F, C::EF>>,
     pub queries: QueryOpeningProofsVariable<C>,
@@ -308,7 +303,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
         inv_2 * C::F::from_canonical_usize(2),
         C::F::from_canonical_usize(1),
     );
-    let two_adic_generators: Array<C, Felt<C::F>> = builder.uninit_fixed_array(28);
+    let two_adic_generators: Array<C, Felt<C::F>> = builder.dyn_array(28);
     for (index, val) in [
         0x1usize, 0x78000000, 0x67055c21, 0x5ee99486, 0xbb4c4e4, 0x2d4cc4da, 0x669d6090,
         0x17b56c64, 0x67456167, 0x688442f9, 0x145e952d, 0x4fe61226, 0x4c734715, 0x11c33e2a,
@@ -812,7 +807,7 @@ pub mod tests {
         > = Vec::new();
 
         // INPUT
-        let mut f = File::open("input.bin".to_string()).unwrap();
+        let mut f = File::open("query_phase_verifier_input.bin".to_string()).unwrap();
         let mut content: Vec<u8> = Vec::new();
         f.read_to_end(&mut content).unwrap();
         let input: QueryPhaseVerifierInput = bincode::deserialize(&content).unwrap();
