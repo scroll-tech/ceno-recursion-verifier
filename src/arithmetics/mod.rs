@@ -286,6 +286,7 @@ pub fn eq_eval_less_or_equal_than<C: Config>(
     a: &Array<C, Ext<C::F, C::EF>>,
     b: &Array<C, Ext<C::F, C::EF>>,
 ) -> Ext<C::F, C::EF> {
+    builder.cycle_tracker_start("Compute eq_eval_less_or_eval_than");
     let eq_bit_decomp: Array<C, Felt<C::F>> = opcode_proof
         .num_instances_minus_one_bit_decomposition
         .slice(builder, 0, b.len());
@@ -355,6 +356,7 @@ pub fn eq_eval_less_or_equal_than<C: Config>(
         let a = builder.iter_ptr_get(&a_remainder_arr, ptr_vec[0]);
         builder.assign(&ans, ans * (one_ext - a));
     });
+    builder.cycle_tracker_end("Compute eq_eval_less_or_eval_than");
 
     ans
 }
@@ -363,6 +365,7 @@ pub fn build_eq_x_r_vec_sequential<C: Config>(
     builder: &mut Builder<C>,
     r: &Array<C, Ext<C::F, C::EF>>,
 ) -> Array<C, Ext<C::F, C::EF>> {
+    builder.cycle_tracker_start("build_eq_x_r_vec_sequential");
     let evals_len = pow_of_2(builder, RVar::from(r.len()));
     let evals: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(evals_len);
     let one: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
@@ -388,6 +391,7 @@ pub fn build_eq_x_r_vec_sequential<C: Config>(
             builder.set(&evals, right_i, right_v);
         });
     });
+    builder.cycle_tracker_end("build_eq_x_r_vec_sequential");
 
     evals
 }

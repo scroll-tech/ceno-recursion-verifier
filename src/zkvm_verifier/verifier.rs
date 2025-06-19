@@ -75,6 +75,7 @@ pub fn verify_zkvm_proof<C: Config>(
     ceno_constraint_system: &ZKVMVerifier<E, Pcs>,
     proving_sequence: Vec<SubcircuitParams>,
 ) {
+    builder.cycle_tracker_start("Pre-verification transcript operations");
     let mut challenger = DuplexChallengerVariable::new(builder);
     transcript_observe_label(builder, &mut challenger, b"riscv");
 
@@ -136,6 +137,7 @@ pub fn verify_zkvm_proof<C: Config>(
         builder,
         zkvm_proof_input.witin_commit_log2_max_codeword_size,
     );
+    builder.cycle_tracker_end("Pre-verification transcript operations");
 
     let alpha = challenger.sample_ext(builder);
     let beta = challenger.sample_ext(builder);
@@ -151,6 +153,7 @@ pub fn verify_zkvm_proof<C: Config>(
 
     for subcircuit_params in proving_sequence {
         if subcircuit_params.is_opcode {
+            builder.cycle_tracker_start("Verify opcode proof");
             let opcode_proof = builder.get(
                 &zkvm_proof_input.opcode_proofs,
                 subcircuit_params.type_order_idx,
@@ -169,7 +172,9 @@ pub fn verify_zkvm_proof<C: Config>(
                 &ceno_constraint_system,
                 &mut unipoly_extrapolator,
             );
+            builder.cycle_tracker_end("Verify opcode proof");
 
+            builder.cycle_tracker_start("Post-opcode verification routine");
             let cs = ceno_constraint_system.vk.circuit_vks[&subcircuit_params.name].get_cs();
             let num_lks = cs.lk_expressions.len();
 
@@ -200,7 +205,9 @@ pub fn verify_zkvm_proof<C: Config>(
                 &logup_sum,
                 logup_sum + opcode_proof.lk_p2_out_eval * opcode_proof.lk_q2_out_eval.inverse(),
             );
+            builder.cycle_tracker_end("Post-opcode verification routine");
         } else {
+            builder.cycle_tracker_start("Verify table proof");
             let table_proof = builder.get(
                 &zkvm_proof_input.table_proofs,
                 subcircuit_params.type_order_idx,
@@ -221,7 +228,9 @@ pub fn verify_zkvm_proof<C: Config>(
                 ceno_constraint_system,
                 &mut unipoly_extrapolator,
             );
+            builder.cycle_tracker_end("Verify table proof");
 
+            builder.cycle_tracker_start("Post-table verification routine");
             let step = C::N::from_canonical_usize(4);
             builder
                 .range_with_step(0, table_proof.lk_out_evals.len(), step)
@@ -245,6 +254,7 @@ pub fn verify_zkvm_proof<C: Config>(
             builder.assign(&prod_w, prod_w * w_out_evals_prod);
             let r_out_evals_prod = product(builder, &table_proof.r_out_evals);
             builder.assign(&prod_r, prod_r * r_out_evals_prod);
+            builder.cycle_tracker_end("Post-table verification routine");
         }
     }
 
@@ -497,6 +507,7 @@ pub fn verify_opcode_proof<C: Config>(
             builder.assign(&sel_non_lc_zero_sumcheck, sel_sumcheck);
         });
 
+    builder.cycle_tracker_start("Calculate sel_sum");
     let r_records_slice =
         opcode_proof
             .r_records_in_evals
@@ -552,6 +563,7 @@ pub fn verify_opcode_proof<C: Config>(
 
         builder.assign(&sel_sum, sel_sum + al * expr_eval);
     }
+    builder.cycle_tracker_end("Calculate sel_sum");
 
     builder.assign(
         &computed_eval,
@@ -559,6 +571,7 @@ pub fn verify_opcode_proof<C: Config>(
     );
     builder.assert_ext_eq(computed_eval, expected_evaluation);
 
+    builder.cycle_tracker_start("Verify degree = 1 statements");
     // verify records (degree = 1) statement, thus no sumcheck
     let r_records = &opcode_proof
         .r_records_in_evals
@@ -635,6 +648,7 @@ pub fn verify_opcode_proof<C: Config>(
 
             builder.assert_ext_eq(e, zero);
         });
+    builder.cycle_tracker_end("Verify degree = 1 statements");
 }
 
 pub fn verify_table_proof<C: Config>(
