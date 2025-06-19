@@ -1,30 +1,13 @@
 use crate::arithmetics::{challenger_multi_observe, exts_to_felts, print_felt_arr};
+use crate::e2e::SubcircuitParams;
 use crate::tower_verifier::binding::IOPProverMessage;
+use crate::tower_verifier::program::verify_tower_proof;
+use crate::transcript::transcript_observe_label;
 use crate::zkvm_verifier::binding::ZKVMProofInput;
 use crate::zkvm_verifier::binding::{
     TowerProofInput, ZKVMOpcodeProofInput, ZKVMTableProofInput, E, F,
 };
 use crate::zkvm_verifier::verifier::verify_zkvm_proof;
-use ff_ext::BabyBearExt4;
-use itertools::Itertools;
-use mpcs::BasefoldCommitment;
-use mpcs::{Basefold, BasefoldRSParams};
-use openvm_circuit::arch::{instructions::program::Program, SystemConfig, VmExecutor};
-use openvm_native_circuit::{Native, NativeConfig};
-use openvm_native_compiler::{asm::AsmBuilder, conversion::CompilerOptions};
-use openvm_native_recursion::challenger::{self, CanSampleVariable};
-use openvm_native_recursion::hints::Hintable;
-use openvm_stark_backend::config::StarkGenericConfig;
-use openvm_stark_sdk::{
-    config::baby_bear_poseidon2::BabyBearPoseidon2Config, p3_baby_bear::BabyBear,
-};
-use openvm_native_compiler::conversion::convert_program;
-use std::collections::HashMap;
-use std::fs::File;
-use std::marker::PhantomData;
-use crate::e2e::SubcircuitParams;
-use crate::tower_verifier::program::verify_tower_proof;
-use crate::transcript::transcript_observe_label;
 use crate::{
     arithmetics::{
         build_eq_x_r_vec_sequential, ceil_log2, concat, dot_product as ext_dot_product,
@@ -39,14 +22,31 @@ use crate::{
 };
 use ceno_zkvm::circuit_builder::SetTableSpec;
 use ceno_zkvm::{expression::StructuralWitIn, scheme::verifier::ZKVMVerifier};
+use ff_ext::BabyBearExt4;
 use itertools::interleave;
 use itertools::max;
+use itertools::Itertools;
+use mpcs::BasefoldCommitment;
+use mpcs::{Basefold, BasefoldRSParams};
+use openvm_circuit::arch::{instructions::program::Program, SystemConfig, VmExecutor};
+use openvm_native_circuit::{Native, NativeConfig};
+use openvm_native_compiler::conversion::convert_program;
 use openvm_native_compiler::prelude::*;
+use openvm_native_compiler::{asm::AsmBuilder, conversion::CompilerOptions};
 use openvm_native_compiler_derive::iter_zip;
+use openvm_native_recursion::challenger::{self, CanSampleVariable};
 use openvm_native_recursion::challenger::{
     duplex::DuplexChallengerVariable, CanObserveVariable, FeltChallenger,
 };
+use openvm_native_recursion::hints::Hintable;
+use openvm_stark_backend::config::StarkGenericConfig;
+use openvm_stark_sdk::{
+    config::baby_bear_poseidon2::BabyBearPoseidon2Config, p3_baby_bear::BabyBear,
+};
 use p3_field::{Field, FieldAlgebra, FieldExtensionAlgebra};
+use std::collections::HashMap;
+use std::fs::File;
+use std::marker::PhantomData;
 
 type Pcs = Basefold<E, BasefoldRSParams>;
 const NUM_FANIN: usize = 2;
@@ -84,27 +84,20 @@ pub fn test_native_multi_observe() {
     let config = NativeConfig::new(system_config, Native);
 
     let executor = VmExecutor::<BabyBear, NativeConfig>::new(config);
-    
+
     // Alternative execution
     // executor.execute(program, witness_stream).unwrap();
 
-    let res = executor.execute_and_then(
-        program,
-        witness_stream,
-        |_, seg| {
-            Ok(seg)
-        },
-        |err| err,
-    ).unwrap();
+    let res = executor
+        .execute_and_then(program, witness_stream, |_, seg| Ok(seg), |err| err)
+        .unwrap();
 
     for (i, seg) in res.iter().enumerate() {
         println!("=> segment {:?} metrics: {:?}", i, seg.metrics);
     }
 }
 
-fn vm_program<C: Config>(
-    builder: &mut Builder<C>,
-) {
+fn vm_program<C: Config>(builder: &mut Builder<C>) {
     let e1: Ext<C::F, C::EF> = builder.constant(C::EF::GENERATOR.exp_power_of_2(16));
     let e2: Ext<C::F, C::EF> = builder.constant(C::EF::GENERATOR.exp_power_of_2(32));
     let e3: Ext<C::F, C::EF> = builder.constant(C::EF::GENERATOR.exp_power_of_2(64));
@@ -123,10 +116,10 @@ fn vm_program<C: Config>(
         let mut c1 = DuplexChallengerVariable::new(builder);
         let mut c2 = DuplexChallengerVariable::new(builder);
 
-        let f_arr1 = exts_to_felts(builder, &e_arr); 
+        let f_arr1 = exts_to_felts(builder, &e_arr);
         let f_arr2 = f_arr1.clone();
 
-        challenger_multi_observe(builder, &mut c1, &f_arr1); 
+        challenger_multi_observe(builder, &mut c1, &f_arr1);
         let test_e1 = c1.sample(builder);
 
         c2.observe_slice(builder, f_arr2);
