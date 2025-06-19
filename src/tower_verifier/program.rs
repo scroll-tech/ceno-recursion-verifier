@@ -2,7 +2,8 @@ use super::binding::{
     IOPProverMessageVariable, PointAndEvalVariable, PointVariable, TowerVerifierInputVariable,
 };
 use crate::arithmetics::{
-    challenger_multi_observe, dot_product, eq_eval, evaluate_at_point, extend, exts_to_felts, fixed_dot_product, gen_alpha_pows, is_smaller_than, reverse, UniPolyExtrapolator
+    challenger_multi_observe, dot_product, eq_eval, evaluate_at_point, extend, exts_to_felts,
+    fixed_dot_product, gen_alpha_pows, is_smaller_than, reverse, UniPolyExtrapolator,
 };
 use crate::transcript::transcript_observe_label;
 use openvm_native_compiler::prelude::*;
@@ -70,83 +71,54 @@ pub fn iop_verifier_state_verify<C: Config>(
     Array<C, Ext<<C as Config>::F, <C as Config>::EF>>,
     Ext<<C as Config>::F, <C as Config>::EF>,
 ) {
+    // TODO: either store it in a global cache or pass them as parameters
+    let zero: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
+
     let max_num_variables_usize: Usize<C::N> =
         Usize::from(builder.cast_felt_to_var(max_num_variables.clone()));
     challenger.observe(builder, max_num_variables);
     challenger.observe(builder, max_degree);
 
-    let one: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
-    let round: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
+    builder.assert_var_eq(max_num_variables_usize.get_var(), prover_messages.len());
+
     let challenges: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(max_num_variables_usize.clone());
+    let expected: Ext<C::F, C::EF> = builder.eval(out_claim.clone() + zero);
 
     builder.cycle_tracker_start("IOPVerifierState::verify_round_and_update_state");
     builder
         .range(0, max_num_variables_usize.clone())
         .for_each(|i_vec, builder| {
             let i = i_vec[0];
+            // TODO: this takes 7 cycles, can we optimize it?
             let prover_msg = builder.get(&prover_messages, i);
 
-            builder.cycle_tracker_start("multi_observe");
+            builder.cycle_tracker_start("observe_then_sample");
             unsafe {
                 let prover_msg_felts = exts_to_felts(builder, &prover_msg.evaluations);
                 challenger_multi_observe(builder, challenger, &prover_msg_felts);
             }
-            builder.cycle_tracker_end("multi_observe");
 
-            builder.cycle_tracker_start("observe round");
             transcript_observe_label(builder, challenger, b"Internal round");
-            builder.cycle_tracker_end("observe round");
-
-            builder.cycle_tracker_start("sample_ext");
             let challenge = challenger.sample_ext(builder);
-            builder.cycle_tracker_end("sample_ext");
+            builder.cycle_tracker_end("observe_then_sample");
 
-            builder.set_value(&challenges, i, challenge);
-            builder.assign(&round, round + one);
-        });
-    builder.cycle_tracker_end("IOPVerifierState::verify_round_and_update_state");
+            let e1 = builder.get(&prover_msg.evaluations, 0);
+            let e2 = builder.get(&prover_msg.evaluations, 1);
+            let target: Ext<<C as Config>::F, <C as Config>::EF> = builder.eval(e1 + e2);
+            builder.assert_ext_eq(expected, target);
 
-    builder.cycle_tracker_start("IOPVerifierState::check_and_generate_subclaim");
-    // set `expected` to P(r)`
-    let expected_len: RVar<_> = builder.eval_expr(max_num_variables_usize.clone() + RVar::from(1));
-    let expected_vec: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(expected_len.clone());
-    builder.set(&expected_vec, 0, out_claim.clone());
-
-    let truncated_expected_vec = expected_vec.slice(builder, 1, expected_len);
-    iter_zip!(builder, prover_messages, challenges, truncated_expected_vec).for_each(
-        |idx_vec, builder| {
-            let poly_ptr = idx_vec[0];
-            let c_ptr = idx_vec[1];
-
-            let msg = builder.iter_ptr_get(&prover_messages, poly_ptr);
-            let c = builder.iter_ptr_get(&challenges, c_ptr);
-
-            let expected_ptr = idx_vec[2];
             builder.cycle_tracker_start("extrapolate_uni_poly");
-            let expected = unipoly_extrapolator.extrapolate_uni_poly(
+            let p_r = unipoly_extrapolator.extrapolate_uni_poly(
                 builder,
-                &msg.evaluations,
-                c,
+                &prover_msg.evaluations,
+                challenge,
             );
             builder.cycle_tracker_end("extrapolate_uni_poly");
-            builder.iter_ptr_set(&truncated_expected_vec, expected_ptr, expected);
-        },
-    );
 
-    // l-append asserted_sum to the first position of the expected vector
-    iter_zip!(builder, prover_messages, expected_vec).for_each(|idx_vec, builder| {
-        let msg = builder.iter_ptr_get(&prover_messages, idx_vec[0]);
-        let expected = builder.iter_ptr_get(&expected_vec, idx_vec[1]);
-
-        let e1 = builder.get(&msg.evaluations, 0);
-        let e2 = builder.get(&msg.evaluations, 1);
-        let target: Ext<<C as Config>::F, <C as Config>::EF> = builder.eval(e1 + e2);
-
-        builder.assert_ext_eq(expected, target);
-    });
-
-    let expected = builder.get(&expected_vec, max_num_variables_usize);
-    builder.cycle_tracker_end("IOPVerifierState::check_and_generate_subclaim");
+            builder.assign(&expected, p_r + zero);
+            builder.set_value(&challenges, i, challenge);
+        });
+    builder.cycle_tracker_end("IOPVerifierState::verify_round_and_update_state");
 
     (challenges, expected)
 }
