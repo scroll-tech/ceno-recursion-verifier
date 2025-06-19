@@ -761,8 +761,8 @@ impl<C: Config> UniPolyExtrapolator<C> {
         let p_i_0 = builder.get(p_i, 0);
         let p_i_1 = builder.get(p_i, 1);
 
-        let t0: Ext<C::F, C::EF> = builder.eval(self.constants[5] * p_i_0 * d0.inverse());
-        let t1: Ext<C::F, C::EF> = builder.eval(self.constants[1] * p_i_1 * d1.inverse());
+        let t0: Ext<C::F, C::EF> = builder.eval(self.constants[5] * p_i_0 / d0);
+        let t1: Ext<C::F, C::EF> = builder.eval(self.constants[1] * p_i_1 / d1);
 
         builder.eval(l * (t0 + t1))
     }
@@ -781,9 +781,9 @@ impl<C: Config> UniPolyExtrapolator<C> {
         let p_i_1: Ext<C::F, C::EF> = builder.get(p_i, 1);
         let p_i_2: Ext<C::F, C::EF> = builder.get(p_i, 2);
 
-        let t0: Ext<C::F, C::EF> = builder.eval(self.constants[6] * p_i_0 * d0.inverse());
-        let t1: Ext<C::F, C::EF> = builder.eval(self.constants[5] * p_i_1 * d1.inverse());
-        let t2: Ext<C::F, C::EF> = builder.eval(self.constants[6] * p_i_2 * d2.inverse());
+        let t0: Ext<C::F, C::EF> = builder.eval(self.constants[6] * p_i_0 / d0);
+        let t1: Ext<C::F, C::EF> = builder.eval(self.constants[5] * p_i_1 / d1);
+        let t2: Ext<C::F, C::EF> = builder.eval(self.constants[6] * p_i_2 / d2);
 
         builder.eval(l * (t0 + t1 + t2))
     }
@@ -805,10 +805,10 @@ impl<C: Config> UniPolyExtrapolator<C> {
         let p_i_2: Ext<C::F, C::EF> = builder.get(p_i, 2);
         let p_i_3: Ext<C::F, C::EF> = builder.get(p_i, 3);
 
-        let t0: Ext<C::F, C::EF> = builder.eval(self.constants[9] * p_i_0 * d0.inverse());
-        let t1: Ext<C::F, C::EF> = builder.eval(self.constants[6] * p_i_1 * d1.inverse());
-        let t2: Ext<C::F, C::EF> = builder.eval(self.constants[7] * p_i_2 * d2.inverse());
-        let t3: Ext<C::F, C::EF> = builder.eval(self.constants[8] * p_i_3 * d3.inverse());
+        let t0: Ext<C::F, C::EF> = builder.eval(self.constants[9] * p_i_0 / d0);
+        let t1: Ext<C::F, C::EF> = builder.eval(self.constants[6] * p_i_1 / d1);
+        let t2: Ext<C::F, C::EF> = builder.eval(self.constants[7] * p_i_2 / d2);
+        let t3: Ext<C::F, C::EF> = builder.eval(self.constants[8] * p_i_3 / d3);
 
         builder.eval(l * (t0 + t1 + t2 + t3))
     }
@@ -833,11 +833,11 @@ impl<C: Config> UniPolyExtrapolator<C> {
         let p_i_3: Ext<C::F, C::EF> = builder.get(p_i, 3);
         let p_i_4: Ext<C::F, C::EF> = builder.get(p_i, 4);
 
-        let t0: Ext<C::F, C::EF> = builder.eval(self.constants[11] * p_i_0 * d0.inverse());
-        let t1: Ext<C::F, C::EF> = builder.eval(self.constants[9] * p_i_1 * d1.inverse());
-        let t2: Ext<C::F, C::EF> = builder.eval(self.constants[10] * p_i_2 * d2.inverse());
-        let t3: Ext<C::F, C::EF> = builder.eval(self.constants[9] * p_i_3 * d3.inverse());
-        let t4: Ext<C::F, C::EF> = builder.eval(self.constants[11] * p_i_4 * d4.inverse());
+        let t0: Ext<C::F, C::EF> = builder.eval(self.constants[11] * p_i_0 / d0);
+        let t1: Ext<C::F, C::EF> = builder.eval(self.constants[9] * p_i_1 / d1);
+        let t2: Ext<C::F, C::EF> = builder.eval(self.constants[10] * p_i_2 / d2);
+        let t3: Ext<C::F, C::EF> = builder.eval(self.constants[9] * p_i_3 / d3);
+        let t4: Ext<C::F, C::EF> = builder.eval(self.constants[11] * p_i_4 / d4);
 
         builder.eval(l * (t0 + t1 + t2 + t3 + t4))
     }
