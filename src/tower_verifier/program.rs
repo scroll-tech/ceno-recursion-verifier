@@ -92,7 +92,6 @@ pub fn iop_verifier_state_verify<C: Config>(
             // TODO: this takes 7 cycles, can we optimize it?
             let prover_msg = builder.get(&prover_messages, i);
 
-            builder.cycle_tracker_start("observe_then_sample");
             unsafe {
                 let prover_msg_felts = exts_to_felts(builder, &prover_msg.evaluations);
                 challenger_multi_observe(builder, challenger, &prover_msg_felts);
@@ -100,20 +99,17 @@ pub fn iop_verifier_state_verify<C: Config>(
 
             transcript_observe_label(builder, challenger, b"Internal round");
             let challenge = challenger.sample_ext(builder);
-            builder.cycle_tracker_end("observe_then_sample");
 
             let e1 = builder.get(&prover_msg.evaluations, 0);
             let e2 = builder.get(&prover_msg.evaluations, 1);
             let target: Ext<<C as Config>::F, <C as Config>::EF> = builder.eval(e1 + e2);
             builder.assert_ext_eq(expected, target);
 
-            builder.cycle_tracker_start("extrapolate_uni_poly");
             let p_r = unipoly_extrapolator.extrapolate_uni_poly(
                 builder,
                 &prover_msg.evaluations,
                 challenge,
             );
-            builder.cycle_tracker_end("extrapolate_uni_poly");
 
             builder.assign(&expected, p_r + zero);
             builder.set_value(&challenges, i, challenge);
@@ -342,13 +338,8 @@ pub fn verify_tower_proof<C: Config>(
             );
             builder.cycle_tracker_end("sumcheck verify");
 
-            let expected_evaluation: Ext<C::F, C::EF> = builder.eval(zero + zero);
-            let alpha_acc: Ext<C::F, C::EF> = builder.eval(zero + one);
-
             builder.cycle_tracker_start("check expected evaluation");
-            builder.cycle_tracker_start("eq_eval");
             let eq_e = eq_eval(builder, &out_rt, &sub_rt, one, zero);
-            builder.cycle_tracker_end("eq_eval");
 
             let expected_evaluation: Ext<C::F, C::EF> = builder.eval(zero + zero);
             let alpha_acc: Ext<C::F, C::EF> = builder.eval(zero + one);
