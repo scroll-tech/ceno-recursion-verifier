@@ -724,7 +724,7 @@ impl<C: Config> UniPolyExtrapolator<C> {
     }
 
     pub fn extrapolate_uni_poly(&mut self, builder: &mut Builder<C>, p_i: &Array<C, Ext<C::F, C::EF>>, eval_at: Ext<C::F, C::EF>) -> Ext<C::F, C::EF> {
-        let res: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
+        let res: Ext<C::F, C::EF> = builder.eval(self.constants[0] + self.constants[0]);
 
         builder.if_eq(p_i.len(), Usize::from(4)).then_or_else(|builder| {
             let ext = self.extrapolate_uni_poly_deg_3(builder, p_i, eval_at);
