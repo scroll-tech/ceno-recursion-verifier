@@ -697,7 +697,7 @@ mod tests {
     fn test_simple_sumcheck() {
         setup_tracing_with_log_level(tracing::Level::WARN);
 
-        let nv = 4;
+        let nv = 5;
         let degree = 3;
 
         let mut builder = AsmBuilder::<F, EF>::default();
@@ -713,6 +713,7 @@ mod tests {
 
         let mut uni_p = UniPolyExtrapolator::new(&mut builder);
 
+        builder.cycle_tracker_start("sumcheck verify");
         iop_verifier_state_verify(
             &mut builder,
             &mut challenger,
@@ -722,6 +723,7 @@ mod tests {
             max_degree,
             &mut uni_p,
         );
+        builder.cycle_tracker_end("sumcheck verify");
 
         builder.halt();
 
