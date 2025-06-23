@@ -952,3 +952,21 @@ impl<C: Config> UniPolyExtrapolator<C> {
         builder.eval(l * (t0 + t1 + t2 + t3 + t4))
     }
 }
+
+pub fn extend<C: Config>(
+    builder: &mut Builder<C>,
+    arr: &Array<C, Ext<C::F, C::EF>>,
+    elem: &Ext<C::F, C::EF>,
+) -> Array<C, Ext<C::F, C::EF>> {
+    let new_len: Var<C::N> = builder.eval(arr.len() + C::N::ONE);
+    let out = builder.dyn_array(new_len);
+
+    builder.range(0, arr.len()).for_each(|i_vec, builder| {
+        let i = i_vec[0];
+        let val = builder.get(arr, i);
+        builder.set_value(&out, i, val);
+    });
+    builder.set_value(&out, arr.len(), elem.clone());
+
+    out
+}
