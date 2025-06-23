@@ -1,4 +1,7 @@
 use crate::arithmetics::next_pow2_instance_padding;
+use crate::basefold_verifier::query_phase::{
+    QueryPhaseVerifierInput, QueryPhaseVerifierInputVariable,
+};
 use crate::{
     arithmetics::ceil_log2,
     tower_verifier::binding::{IOPProverMessage, IOPProverMessageVariable},
@@ -37,6 +40,8 @@ pub struct ZKVMProofInputVariable<C: Config> {
     pub fixed_commit_trivial_commits: Array<C, Array<C, Felt<C::F>>>,
     pub fixed_commit_log2_max_codeword_size: Felt<C::F>,
     pub num_instances: Array<C, Array<C, Felt<C::F>>>,
+
+    pub query_phase_verifier_input: QueryPhaseVerifierInputVariable<C>,
 }
 
 #[derive(DslVariable, Clone)]
@@ -106,6 +111,7 @@ pub(crate) struct ZKVMProofInput {
     pub witin_commit: BasefoldCommitment<BabyBearExt4>,
     pub fixed_commit: Option<BasefoldCommitment<BabyBearExt4>>,
     pub num_instances: Vec<(usize, usize)>,
+    pub query_phase_verifier_input: QueryPhaseVerifierInput,
 }
 impl Hintable<InnerConfig> for ZKVMProofInput {
     type HintVariable = ZKVMProofInputVariable<InnerConfig>;
@@ -128,6 +134,8 @@ impl Hintable<InnerConfig> for ZKVMProofInput {
 
         let num_instances = Vec::<Vec<F>>::read(builder);
 
+        let query_phase_verifier_input = QueryPhaseVerifierInput::read(builder);
+
         ZKVMProofInputVariable {
             raw_pi,
             raw_pi_num_variables,
@@ -142,6 +150,7 @@ impl Hintable<InnerConfig> for ZKVMProofInput {
             fixed_commit_trivial_commits,
             fixed_commit_log2_max_codeword_size,
             num_instances,
+            query_phase_verifier_input,
         }
     }
 
@@ -225,6 +234,8 @@ impl Hintable<InnerConfig> for ZKVMProofInput {
             ]);
         }
         stream.extend(num_instances_vec.write());
+
+        stream.extend(self.query_phase_verifier_input.write());
 
         stream
     }
