@@ -355,6 +355,7 @@ pub fn verify_opcode_proof<C: Config>(
     builder.set(&logup_inner_evals, 3, opcode_proof.lk_q2_out_eval);
     builder.set(&logup_out_evals, 0, logup_inner_evals);
 
+    builder.cycle_tracker_start("verify tower proof for opcode");
     let (rt_tower, record_evals, logup_p_evals, logup_q_evals) = verify_tower_proof(
         builder,
         challenger,
@@ -373,6 +374,7 @@ pub fn verify_opcode_proof<C: Config>(
         },
         unipoly_extrapolator,
     );
+    builder.cycle_tracker_end("verify tower proof for opcode");
 
     let rt_non_lc_sumcheck: Array<C, Ext<C::F, C::EF>> =
         rt_tower
@@ -429,6 +431,7 @@ pub fn verify_opcode_proof<C: Config>(
         SEL_DEGREE.max(max_non_lc_degree + 1) as u32,
     ));
 
+    builder.cycle_tracker_start("main sumcheck");
     let main_sel_subclaim = iop_verifier_state_verify(
         builder,
         challenger,
@@ -438,6 +441,7 @@ pub fn verify_opcode_proof<C: Config>(
         main_sel_subclaim_max_degree,
         unipoly_extrapolator,
     );
+    builder.cycle_tracker_end("main sumcheck");
 
     let input_opening_point = PointVariable {
         fs: main_sel_subclaim.0,
@@ -755,6 +759,7 @@ pub fn verify_table_proof<C: Config>(
     let num_logup_specs: Usize<C::N> = tower_proof.logup_specs_eval.len();
     let max_num_variables: Usize<C::N> = Usize::from(max_expected_rounds);
 
+    builder.cycle_tracker_start("verify tower proof");
     let (rt_tower, prod_point_and_eval, logup_p_point_and_eval, logup_q_point_and_eval) =
         verify_tower_proof(
             builder,
@@ -774,6 +779,7 @@ pub fn verify_table_proof<C: Config>(
             },
             unipoly_extrapolator,
         );
+    builder.cycle_tracker_end("verify tower proof");
 
     builder.assert_usize_eq(
         logup_q_point_and_eval.len(),

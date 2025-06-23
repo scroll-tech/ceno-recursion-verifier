@@ -11,12 +11,13 @@ use mpcs::{Basefold, BasefoldRSParams};
 use openvm_circuit::arch::{instructions::program::Program, SystemConfig, VmExecutor};
 use openvm_native_circuit::{Native, NativeConfig};
 use openvm_native_compiler::{
-    asm::AsmBuilder, 
-    conversion::{CompilerOptions, convert_program}, 
-    prelude::AsmCompiler
+    asm::AsmBuilder,
+    conversion::{convert_program, CompilerOptions},
+    prelude::AsmCompiler,
 };
 use openvm_native_recursion::hints::Hintable;
 use openvm_stark_backend::config::StarkGenericConfig;
+use openvm_stark_sdk::config::setup_tracing_with_log_level;
 use openvm_stark_sdk::{
     config::baby_bear_poseidon2::BabyBearPoseidon2Config, p3_baby_bear::BabyBear,
 };
@@ -415,6 +416,7 @@ pub fn parse_zkvm_proof_import(
 
 #[test]
 pub fn test_zkvm_proof_verifier_from_bincode_exports() {
+    setup_tracing_with_log_level(tracing::Level::WARN);
     let proof_path = "./src/e2e/encoded/proof.bin";
     let vk_path = "./src/e2e/encoded/vk.bin";
 
@@ -456,13 +458,15 @@ pub fn test_zkvm_proof_verifier_from_bincode_exports() {
     let asm_code = compiler.code();
 
     // _debug: print out assembly
-    /* 
+    /*
     println!("=> AssemblyCode:");
     println!("{asm_code}");
     return ();
     */
 
-    let program: Program<p3_monty_31::MontyField31<openvm_stark_sdk::p3_baby_bear::BabyBearParameters>,> = convert_program(asm_code, options);
+    let program: Program<
+        p3_monty_31::MontyField31<openvm_stark_sdk::p3_baby_bear::BabyBearParameters>,
+    > = convert_program(asm_code, options);
     let mut system_config = SystemConfig::default()
         .with_public_values(4)
         .with_max_segment_len((1 << 25) - 100);
@@ -471,14 +475,9 @@ pub fn test_zkvm_proof_verifier_from_bincode_exports() {
 
     let executor = VmExecutor::<BabyBear, NativeConfig>::new(config);
 
-    let res = executor.execute_and_then(
-        program,
-        witness_stream,
-        |_, seg| {
-            Ok(seg)
-        },
-        |err| err,
-    ).unwrap();
+    let res = executor
+        .execute_and_then(program, witness_stream, |_, seg| Ok(seg), |err| err)
+        .unwrap();
 
     for (i, seg) in res.iter().enumerate() {
         println!("=> segment {:?} metrics: {:?}", i, seg.metrics);
