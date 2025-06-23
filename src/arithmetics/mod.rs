@@ -7,10 +7,10 @@ use ff_ext::{BabyBearExt4, SmallField};
 use openvm_native_compiler::prelude::*;
 use openvm_native_compiler_derive::iter_zip;
 use openvm_native_recursion::challenger::ChallengerVariable;
-use p3_field::{FieldAlgebra, FieldExtensionAlgebra};
 use openvm_native_recursion::challenger::{
     duplex::DuplexChallengerVariable, CanObserveVariable, FeltChallenger,
 };
+use p3_field::{FieldAlgebra, FieldExtensionAlgebra};
 type E = BabyBearExt4;
 const HASH_RATE: usize = 8;
 
@@ -35,7 +35,10 @@ pub fn _print_usize_arr<C: Config>(builder: &mut Builder<C>, arr: &Array<C, Usiz
     });
 }
 
-pub unsafe fn exts_to_felts<C: Config>(builder: &mut Builder<C>, exts: &Array<C, Ext<C::F, C::EF>>) -> Array<C, Felt<C::F>> {
+pub unsafe fn exts_to_felts<C: Config>(
+    builder: &mut Builder<C>,
+    exts: &Array<C, Ext<C::F, C::EF>>,
+) -> Array<C, Felt<C::F>> {
     let f_len: Usize<C::N> = builder.eval(exts.len() * Usize::from(C::EF::D));
     let f_arr: Array<C, Felt<C::F>> = Array::Dyn(exts.ptr(), f_len);
     f_arr
@@ -44,15 +47,22 @@ pub unsafe fn exts_to_felts<C: Config>(builder: &mut Builder<C>, exts: &Array<C,
 pub fn challenger_multi_observe<C: Config>(
     builder: &mut Builder<C>,
     challenger: &mut DuplexChallengerVariable<C>,
-    arr: &Array<C, Felt<C::F>>
+    arr: &Array<C, Felt<C::F>>,
 ) {
-    let next_input_ptr = builder.poseidon2_multi_observe(&challenger.sponge_state, challenger.input_ptr, &arr);
-    builder.assign(&challenger.input_ptr, challenger.io_empty_ptr + next_input_ptr.clone());
-    builder.if_ne(next_input_ptr, Usize::from(0)).then_or_else(|builder| {
-        builder.assign(&challenger.output_ptr, challenger.io_empty_ptr);
-    }, |builder| {
-        builder.assign(&challenger.output_ptr, challenger.io_full_ptr);
-    });
+    let next_input_ptr =
+        builder.poseidon2_multi_observe(&challenger.sponge_state, challenger.input_ptr, &arr);
+    builder.assign(
+        &challenger.input_ptr,
+        challenger.io_empty_ptr + next_input_ptr.clone(),
+    );
+    builder.if_ne(next_input_ptr, Usize::from(0)).then_or_else(
+        |builder| {
+            builder.assign(&challenger.output_ptr, challenger.io_empty_ptr);
+        },
+        |builder| {
+            builder.assign(&challenger.output_ptr, challenger.io_full_ptr);
+        },
+    );
 }
 
 pub fn is_smaller_than<C: Config>(
@@ -731,7 +741,7 @@ pub fn max_usize_arr<C: Config>(
 }
 
 pub struct UniPolyExtrapolator<C: Config> {
-    constants: [Ext<C::F, C::EF>; 12],      // 0, 1, 2, 3, 4, -1, 1/2, -1/2, 1/6, -1/6, 1/4, 1/24
+    constants: [Ext<C::F, C::EF>; 12], // 0, 1, 2, 3, 4, -1, 1/2, -1/2, 1/6, -1/6, 1/4, 1/24
 }
 
 impl<C: Config> UniPolyExtrapolator<C> {
@@ -765,39 +775,62 @@ impl<C: Config> UniPolyExtrapolator<C> {
                 neg_six_inverse,
                 four_inverse,
                 twenty_four_inverse,
-            ]
+            ],
         }
     }
 
-    pub fn extrapolate_uni_poly(&mut self, builder: &mut Builder<C>, p_i: &Array<C, Ext<C::F, C::EF>>, eval_at: Ext<C::F, C::EF>) -> Ext<C::F, C::EF> {
+    pub fn extrapolate_uni_poly(
+        &mut self,
+        builder: &mut Builder<C>,
+        p_i: &Array<C, Ext<C::F, C::EF>>,
+        eval_at: Ext<C::F, C::EF>,
+    ) -> Ext<C::F, C::EF> {
         let res: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
 
-        builder.if_eq(p_i.len(), Usize::from(4)).then_or_else(|builder| {
-            let ext = self.extrapolate_uni_poly_deg_3(builder, p_i, eval_at);
-            builder.assign(&res, ext);
-        }, |builder| {
-            builder.if_eq(p_i.len(), Usize::from(3)).then_or_else(|builder| {
-                let ext = self.extrapolate_uni_poly_deg_2(builder, p_i, eval_at);
+        builder.if_eq(p_i.len(), Usize::from(4)).then_or_else(
+            |builder| {
+                let ext = self.extrapolate_uni_poly_deg_3(builder, p_i, eval_at);
                 builder.assign(&res, ext);
-            }, |builder| {
-                builder.if_eq(p_i.len(), Usize::from(2)).then_or_else(|builder| {
-                    let ext = self.extrapolate_uni_poly_deg_1(builder, p_i, eval_at);
-                    builder.assign(&res, ext);
-                }, |builder| {
-                    builder.if_eq(p_i.len(), Usize::from(5)).then_or_else(|builder| {
-                        let ext = self.extrapolate_uni_poly_deg_4(builder, p_i, eval_at);
+            },
+            |builder| {
+                builder.if_eq(p_i.len(), Usize::from(3)).then_or_else(
+                    |builder| {
+                        let ext = self.extrapolate_uni_poly_deg_2(builder, p_i, eval_at);
                         builder.assign(&res, ext);
-                    }, |builder| {
-                        builder.error();
-                    });
-                });
-            });
-        });
+                    },
+                    |builder| {
+                        builder.if_eq(p_i.len(), Usize::from(2)).then_or_else(
+                            |builder| {
+                                let ext = self.extrapolate_uni_poly_deg_1(builder, p_i, eval_at);
+                                builder.assign(&res, ext);
+                            },
+                            |builder| {
+                                builder.if_eq(p_i.len(), Usize::from(5)).then_or_else(
+                                    |builder| {
+                                        let ext =
+                                            self.extrapolate_uni_poly_deg_4(builder, p_i, eval_at);
+                                        builder.assign(&res, ext);
+                                    },
+                                    |builder| {
+                                        builder.error();
+                                    },
+                                );
+                            },
+                        );
+                    },
+                );
+            },
+        );
 
         res
     }
 
-    fn extrapolate_uni_poly_deg_1(&self, builder: &mut Builder<C>, p_i: &Array<C, Ext<C::F, C::EF>>, eval_at: Ext<C::F, C::EF>) -> Ext<C::F, C::EF> {
+    fn extrapolate_uni_poly_deg_1(
+        &self,
+        builder: &mut Builder<C>,
+        p_i: &Array<C, Ext<C::F, C::EF>>,
+        eval_at: Ext<C::F, C::EF>,
+    ) -> Ext<C::F, C::EF> {
         // w0 = 1 / (0−1) = -1
         // w1 = 1 / (1−0) =  1
         let d0: Ext<C::F, C::EF> = builder.eval(eval_at - self.constants[0]);
@@ -813,7 +846,12 @@ impl<C: Config> UniPolyExtrapolator<C> {
         builder.eval(l * (t0 + t1))
     }
 
-    fn extrapolate_uni_poly_deg_2(&self, builder: &mut Builder<C>, p_i: &Array<C, Ext<C::F, C::EF>>, eval_at: Ext<C::F, C::EF>) -> Ext<C::F, C::EF> {
+    fn extrapolate_uni_poly_deg_2(
+        &self,
+        builder: &mut Builder<C>,
+        p_i: &Array<C, Ext<C::F, C::EF>>,
+        eval_at: Ext<C::F, C::EF>,
+    ) -> Ext<C::F, C::EF> {
         // w0 = 1 / ((0−1)(0−2)) =  1/2
         // w1 = 1 / ((1−0)(1−2)) = -1
         // w2 = 1 / ((2−0)(2−1)) =  1/2
@@ -834,7 +872,12 @@ impl<C: Config> UniPolyExtrapolator<C> {
         builder.eval(l * (t0 + t1 + t2))
     }
 
-    fn extrapolate_uni_poly_deg_3(&self, builder: &mut Builder<C>, p_i: &Array<C, Ext<C::F, C::EF>>, eval_at: Ext<C::F, C::EF>) -> Ext<C::F, C::EF> {
+    fn extrapolate_uni_poly_deg_3(
+        &self,
+        builder: &mut Builder<C>,
+        p_i: &Array<C, Ext<C::F, C::EF>>,
+        eval_at: Ext<C::F, C::EF>,
+    ) -> Ext<C::F, C::EF> {
         // w0 = 1 / ((0−1)(0−2)(0−3)) = -1/6
         // w1 = 1 / ((1−0)(1−2)(1−3)) =  1/2
         // w2 = 1 / ((2−0)(2−1)(2−3)) = -1/2
@@ -859,7 +902,12 @@ impl<C: Config> UniPolyExtrapolator<C> {
         builder.eval(l * (t0 + t1 + t2 + t3))
     }
 
-    fn extrapolate_uni_poly_deg_4(&self, builder: &mut Builder<C>, p_i: &Array<C, Ext<C::F, C::EF>>, eval_at: Ext<C::F, C::EF>) -> Ext<C::F, C::EF> {
+    fn extrapolate_uni_poly_deg_4(
+        &self,
+        builder: &mut Builder<C>,
+        p_i: &Array<C, Ext<C::F, C::EF>>,
+        eval_at: Ext<C::F, C::EF>,
+    ) -> Ext<C::F, C::EF> {
         // w0 = 1 / ((0−1)(0−2)(0−3)(0−4)) =  1/24
         // w1 = 1 / ((1−0)(1−2)(1−3)(1−4)) = -1/6
         // w2 = 1 / ((2−0)(2−1)(2−3)(2−4)) =  1/4
