@@ -400,6 +400,8 @@ pub fn parse_zkvm_proof_import(
         serde_json::from_value(serde_json::to_value(zkvm_proof.witin_commit).unwrap()).unwrap();
     let fixed_commit = verifier.vk.fixed_commit.clone();
 
+    let pcs_proof = zkvm_proof.fixed_witin_opening_proof;
+
     let query_phase_verifier_input = QueryPhaseVerifierInput {
         max_num_var,
         indices,
@@ -409,9 +411,9 @@ pub fn parse_zkvm_proof_import(
         fixed_comm,
         witin_comm,
         circuit_meta,
-        commits,
+        commits: pcs_proof.commits,
         fold_challenges,
-        sumcheck_messages,
+        sumcheck_messages: pcs_proof.sumcheck_proof.unwrap(),
         point_evals,
     };
 
