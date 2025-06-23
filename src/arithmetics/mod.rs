@@ -180,12 +180,28 @@ pub fn gen_idx_arr<C: Config>(builder: &mut Builder<C>, len: Usize<C::N>) -> Arr
     res
 }
 
+// Evaluate eq polynomial.
 pub fn eq_eval<C: Config>(
     builder: &mut Builder<C>,
     x: &Array<C, Ext<C::F, C::EF>>,
     y: &Array<C, Ext<C::F, C::EF>>,
+    one: Ext<C::F, C::EF>,
+    zero: Ext<C::F, C::EF>,
 ) -> Ext<C::F, C::EF> {
-    eq_eval_with_index::<C>(builder, x, y, Usize::from(0), Usize::from(0), x.len())
+    let acc: Ext<C::F, C::EF> = builder.eval(zero + one); // simple trick to use AddE
+
+    iter_zip!(builder, x, y).for_each(|idx_vec, builder| {
+        let ptr_x = idx_vec[0];
+        let ptr_y = idx_vec[1];
+        let v_x = builder.iter_ptr_get(&x, ptr_x);
+        let v_y = builder.iter_ptr_get(&y, ptr_y);
+        // x*y + (1-x)*(1-y)
+        let xi_yi: Ext<C::F, C::EF> = builder.eval(v_x * v_y);
+        let new_acc: Ext<C::F, C::EF> = builder.eval(acc * (xi_yi + xi_yi - v_x - v_y + one));
+        builder.assign(&acc, new_acc);
+    });
+
+    acc
 }
 
 // Evaluate eq polynomial.
