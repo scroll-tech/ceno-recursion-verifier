@@ -111,7 +111,7 @@ pub(crate) struct ZKVMProofInput {
     pub witin_commit: BasefoldCommitment<BabyBearExt4>,
     pub fixed_commit: Option<BasefoldCommitment<BabyBearExt4>>,
     pub num_instances: Vec<(usize, usize)>,
-    pub query_phase_verifier_input: QueryPhaseVerifierInput,
+    // pub query_phase_verifier_input: QueryPhaseVerifierInput,
 }
 impl Hintable<InnerConfig> for ZKVMProofInput {
     type HintVariable = ZKVMProofInputVariable<InnerConfig>;
@@ -235,7 +235,7 @@ impl Hintable<InnerConfig> for ZKVMProofInput {
         }
         stream.extend(num_instances_vec.write());
 
-        stream.extend(self.query_phase_verifier_input.write());
+        // stream.extend(self.query_phase_verifier_input.write());
 
         stream
     }

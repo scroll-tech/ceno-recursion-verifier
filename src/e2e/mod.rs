@@ -21,6 +21,7 @@ use openvm_stark_sdk::config::setup_tracing_with_log_level;
 use openvm_stark_sdk::{
     config::baby_bear_poseidon2::BabyBearPoseidon2Config, p3_baby_bear::BabyBear,
 };
+use crate::basefold_verifier::query_phase::QueryPhaseVerifierInput;
 use std::collections::HashMap;
 use std::fs::File;
 
@@ -402,20 +403,20 @@ pub fn parse_zkvm_proof_import(
 
     let pcs_proof = zkvm_proof.fixed_witin_opening_proof;
 
-    let query_phase_verifier_input = QueryPhaseVerifierInput {
-        max_num_var,
-        indices,
-        final_message,
-        batch_coeffs,
-        queries,
-        fixed_comm,
-        witin_comm,
-        circuit_meta,
-        commits: pcs_proof.commits,
-        fold_challenges,
-        sumcheck_messages: pcs_proof.sumcheck_proof.unwrap(),
-        point_evals,
-    };
+    // let query_phase_verifier_input = QueryPhaseVerifierInput {
+    //     max_num_var,
+    //     indices,
+    //     final_message,
+    //     batch_coeffs,
+    //     queries,
+    //     fixed_comm,
+    //     witin_comm,
+    //     circuit_meta,
+    //     commits: pcs_proof.commits,
+    //     fold_challenges,
+    //     sumcheck_messages: pcs_proof.sumcheck_proof.unwrap(),
+    //     point_evals,
+    // };
 
     (
         ZKVMProofInput {
@@ -426,7 +427,7 @@ pub fn parse_zkvm_proof_import(
             witin_commit,
             fixed_commit,
             num_instances: zkvm_proof.num_instances.clone(),
-            query_phase_verifier_input,
+            // query_phase_verifier_input,
         },
         proving_sequence,
     )
