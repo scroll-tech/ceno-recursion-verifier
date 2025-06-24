@@ -1,5 +1,6 @@
 // Note: check all XXX comments!
 
+use ff_ext::{ExtensionField, PoseidonField};
 use mpcs::QueryPhaseVerifierInput as InnerQueryPhaseVerifierInput;
 use openvm_native_compiler::{asm::AsmConfig, prelude::*};
 use openvm_native_recursion::{
@@ -7,6 +8,7 @@ use openvm_native_recursion::{
     vars::HintSlice,
 };
 use openvm_stark_sdk::p3_baby_bear::BabyBear;
+use p3_commit::ExtensionMmcs;
 use p3_field::extension::BinomialExtensionField;
 use p3_field::FieldAlgebra;
 use serde::Deserialize;
@@ -23,10 +25,32 @@ pub type F = BabyBear;
 pub type E = BinomialExtensionField<F, DIMENSIONS>;
 pub type InnerConfig = AsmConfig<F, E>;
 
+use p3_fri::BatchOpening as InnerBatchOpening;
 #[derive(Deserialize)]
 pub struct BatchOpening {
     pub opened_values: Vec<Vec<F>>,
     pub opening_proof: MmcsProof,
+}
+
+impl
+    From<
+        InnerBatchOpening<
+            <E as ExtensionField>::BaseField,
+            <<E as ExtensionField>::BaseField as PoseidonField>::MMCS,
+        >,
+    > for BatchOpening
+{
+    fn from(
+        inner: InnerBatchOpening<
+            <E as ExtensionField>::BaseField,
+            <<E as ExtensionField>::BaseField as PoseidonField>::MMCS,
+        >,
+    ) -> Self {
+        Self {
+            opened_values: inner.opened_values,
+            opening_proof: inner.opening_proof.into(),
+        }
+    }
 }
 
 impl Hintable<InnerConfig> for BatchOpening {
@@ -64,10 +88,25 @@ pub struct BatchOpeningVariable<C: Config> {
     pub opening_proof: HintSlice<C>,
 }
 
+use p3_fri::CommitPhaseProofStep as InnerCommitPhaseProofStep;
 #[derive(Deserialize)]
 pub struct CommitPhaseProofStep {
     pub sibling_value: E,
     pub opening_proof: MmcsProof,
+}
+
+pub type ExtMmcs<E> = ExtensionMmcs<
+    <E as ExtensionField>::BaseField,
+    E,
+    <<E as ExtensionField>::BaseField as PoseidonField>::MMCS,
+>;
+impl From<InnerCommitPhaseProofStep<E, ExtMmcs<E>>> for CommitPhaseProofStep {
+    fn from(inner: InnerCommitPhaseProofStep<E, ExtMmcs<E>>) -> Self {
+        Self {
+            sibling_value: inner.sibling_value,
+            opening_proof: inner.opening_proof.into(),
+        }
+    }
 }
 
 impl Hintable<InnerConfig> for CommitPhaseProofStep {
@@ -113,6 +152,21 @@ pub struct QueryOpeningProof {
     pub commit_phase_openings: Vec<CommitPhaseProofStep>,
 }
 type QueryOpeningProofs = Vec<QueryOpeningProof>;
+
+use mpcs::QueryOpeningProof as InnerQueryOpeningProof;
+impl From<InnerQueryOpeningProof<E>> for QueryOpeningProof {
+    fn from(proof: InnerQueryOpeningProof<E>) -> Self {
+        QueryOpeningProof {
+            witin_base_proof: proof.witin_base_proof.into(),
+            fixed_base_proof: proof.fixed_base_proof.map(|p| p.into()),
+            commit_phase_openings: proof
+                .commit_phase_openings
+                .into_iter()
+                .map(|p| p.into())
+                .collect(),
+        }
+    }
+}
 
 impl Hintable<InnerConfig> for QueryOpeningProof {
     type HintVariable = QueryOpeningProofVariable<InnerConfig>;
@@ -211,14 +265,14 @@ impl From<InnerQueryPhaseVerifierInput<E>> for QueryPhaseVerifierInput {
             indices: input.indices,
             final_message: input.final_message,
             batch_coeffs: input.batch_coeffs,
-            queries: input.queries,
-            fixed_comm: input.fixed_comm,
-            witin_comm: input.witin_comm,
-            circuit_meta: input.circuit_meta,
-            commits: input.commits,
+            queries: input.queries.into_iter().map(|q| q.into()).collect(),
+            fixed_comm: input.fixed_comm.into(),
+            witin_comm: input.witin_comm.into(),
+            circuit_meta: input.circuit_meta.into(),
+            commits: input.commits.into(),
             fold_challenges: input.fold_challenges,
-            sumcheck_messages: input.sumcheck_messages,
-            point_evals: input.point_evals,
+            sumcheck_messages: input.sumcheck_messages.into(),
+            point_evals: input.point_evals.into(),
         }
     }
 }
