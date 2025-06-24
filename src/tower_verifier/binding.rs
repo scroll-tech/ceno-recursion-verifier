@@ -78,10 +78,7 @@ impl Hintable<InnerConfig> for PointAndEval {
     fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
         let point = Point::read(builder);
         let eval = E::read(builder);
-        PointAndEvalVariable {
-            point,
-            eval,
-        }
+        PointAndEvalVariable { point, eval }
     }
 
     fn write(&self) -> Vec<Vec<<InnerConfig as Config>::N>> {
@@ -97,6 +94,16 @@ impl VecAutoHintable for PointAndEval {}
 pub struct IOPProverMessage {
     pub evaluations: Vec<E>,
 }
+
+use ceno_sumcheck::structs::IOPProverMessage as InnerIOPProverMessage;
+impl From<InnerIOPProverMessage<E>> for IOPProverMessage {
+    fn from(value: InnerIOPProverMessage<E>) -> Self {
+        IOPProverMessage {
+            evaluations: value.evaluations,
+        }
+    }
+}
+
 impl Hintable<InnerConfig> for IOPProverMessage {
     type HintVariable = IOPProverMessageVariable<InnerConfig>;
 

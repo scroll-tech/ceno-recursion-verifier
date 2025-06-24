@@ -269,9 +269,17 @@ impl From<InnerQueryPhaseVerifierInput<E>> for QueryPhaseVerifierInput {
             fixed_comm: input.fixed_comm.map(|comm| comm.into()),
             witin_comm: input.witin_comm.into(),
             circuit_meta: input.circuit_meta.into_iter().map(|q| q.into()).collect(),
-            commits: input.commits.into(),
+            commits: input
+                .commits
+                .into_iter()
+                .map(|q| super::hash::Hash { value: q.into() })
+                .collect(),
             fold_challenges: input.fold_challenges,
-            sumcheck_messages: input.sumcheck_messages.into(),
+            sumcheck_messages: input
+                .sumcheck_messages
+                .into_iter()
+                .map(|q| q.into())
+                .collect(),
             point_evals: input.point_evals.into(),
         }
     }
