@@ -266,7 +266,7 @@ impl From<InnerQueryPhaseVerifierInput<E>> for QueryPhaseVerifierInput {
             final_message: input.final_message,
             batch_coeffs: input.batch_coeffs,
             queries: input.queries.into_iter().map(|q| q.into()).collect(),
-            fixed_comm: input.fixed_comm.into(),
+            fixed_comm: input.fixed_comm.map(|comm| comm.into()),
             witin_comm: input.witin_comm.into(),
             circuit_meta: input.circuit_meta.into(),
             commits: input.commits.into(),
