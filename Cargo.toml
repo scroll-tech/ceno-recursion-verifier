@@ -38,13 +38,13 @@ ark-poly = "0.5"
 ark-serialize = "0.5"
 
 # Ceno
-ceno_mle = { git = "https://github.com/scroll-tech/ceno.git", branch = "feat/export_ff_ext", package = "multilinear_extensions" }
-ceno_sumcheck = { git = "https://github.com/scroll-tech/ceno.git", branch = "feat/export_ff_ext", package = "sumcheck" }
-ceno_transcript = { git = "https://github.com/scroll-tech/ceno.git", branch = "feat/export_ff_ext", package = "transcript" }
-ceno_zkvm = { git = "https://github.com/scroll-tech/ceno.git", branch = "feat/export_ff_ext" }
-ceno_emul = { git = "https://github.com/scroll-tech/ceno.git", branch = "feat/export_ff_ext" }
-mpcs = { git = "https://github.com/scroll-tech/ceno.git", branch = "feat/export_ff_ext" }
-ff_ext = { git = "https://github.com/scroll-tech/ceno.git", branch = "feat/export_ff_ext" }
+ceno_mle = { git = "https://github.com/scroll-tech/ceno.git", branch = "cyte/generate-basefold-verifier-query-phase-test-data", package = "multilinear_extensions" }
+ceno_sumcheck = { git = "https://github.com/scroll-tech/ceno.git", branch = "cyte/generate-basefold-verifier-query-phase-test-data", package = "sumcheck" }
+ceno_transcript = { git = "https://github.com/scroll-tech/ceno.git", branch = "cyte/generate-basefold-verifier-query-phase-test-data", package = "transcript" }
+ceno_zkvm = { git = "https://github.com/scroll-tech/ceno.git", branch = "cyte/generate-basefold-verifier-query-phase-test-data" }
+ceno_emul = { git = "https://github.com/scroll-tech/ceno.git", branch = "cyte/generate-basefold-verifier-query-phase-test-data" }
+mpcs = { git = "https://github.com/scroll-tech/ceno.git", branch = "cyte/generate-basefold-verifier-query-phase-test-data" }
+ff_ext = { git = "https://github.com/scroll-tech/ceno.git", branch = "cyte/generate-basefold-verifier-query-phase-test-data" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 

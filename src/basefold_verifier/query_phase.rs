@@ -1,5 +1,6 @@
 // Note: check all XXX comments!
 
+use mpcs::QueryPhaseVerifierInput as InnerQueryPhaseVerifierInput;
 use openvm_native_compiler::{asm::AsmConfig, prelude::*};
 use openvm_native_recursion::{
     hints::{Hintable, VecAutoHintable},
@@ -201,6 +202,25 @@ pub struct QueryPhaseVerifierInput {
     pub fold_challenges: Vec<E>,
     pub sumcheck_messages: Vec<IOPProverMessage>,
     pub point_evals: Vec<(Point, Vec<E>)>,
+}
+
+impl From<InnerQueryPhaseVerifierInput<E>> for QueryPhaseVerifierInput {
+    fn from(input: InnerQueryPhaseVerifierInput<E>) -> Self {
+        QueryPhaseVerifierInput {
+            max_num_var: input.max_num_var,
+            indices: input.indices,
+            final_message: input.final_message,
+            batch_coeffs: input.batch_coeffs,
+            queries: input.queries,
+            fixed_comm: input.fixed_comm,
+            witin_comm: input.witin_comm,
+            circuit_meta: input.circuit_meta,
+            commits: input.commits,
+            fold_challenges: input.fold_challenges,
+            sumcheck_messages: input.sumcheck_messages,
+            point_evals: input.point_evals,
+        }
+    }
 }
 
 impl Hintable<InnerConfig> for QueryPhaseVerifierInput {
@@ -773,6 +793,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
 pub mod tests {
     use std::{fs::File, io::Read};
 
+    use mpcs::QueryPhaseVerifierInput as InnerQueryPhaseVerifierInput;
     use openvm_circuit::arch::{instructions::program::Program, SystemConfig, VmExecutor};
     use openvm_native_circuit::{Native, NativeConfig};
     use openvm_native_compiler::asm::AsmBuilder;
@@ -810,7 +831,8 @@ pub mod tests {
         let mut f = File::open("query_phase_verifier_input.bin".to_string()).unwrap();
         let mut content: Vec<u8> = Vec::new();
         f.read_to_end(&mut content).unwrap();
-        let input: QueryPhaseVerifierInput = bincode::deserialize(&content).unwrap();
+        let input: InnerQueryPhaseVerifierInput<E> = bincode::deserialize(&content).unwrap();
+        let input: QueryPhaseVerifierInput = input.into();
         witness_stream.extend(input.write());
 
         // PROGRAM
