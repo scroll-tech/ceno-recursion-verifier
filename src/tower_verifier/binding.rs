@@ -49,7 +49,7 @@ pub struct TowerVerifierInputVariable<C: Config> {
 
 #[derive(Clone, Deserialize)]
 pub struct Point {
-    pub fs: Vec<F>,
+    pub fs: Vec<E>,
 }
 impl Hintable<InnerConfig> for Point {
     type HintVariable = PointVariable<InnerConfig>;

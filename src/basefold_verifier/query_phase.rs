@@ -280,7 +280,11 @@ impl From<InnerQueryPhaseVerifierInput<E>> for QueryPhaseVerifierInput {
                 .into_iter()
                 .map(|q| q.into())
                 .collect(),
-            point_evals: input.point_evals.into(),
+            point_evals: input
+                .point_evals
+                .into_iter()
+                .map(|q| (Point { fs: q.0 }, q.1))
+                .collect(),
         }
     }
 }
