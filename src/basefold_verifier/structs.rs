@@ -30,6 +30,18 @@ pub struct CircuitIndexMeta {
     pub fixed_num_polys: usize,
 }
 
+use mpcs::CircuitIndexMeta as InnerCircuitIndexMeta;
+impl From<InnerCircuitIndexMeta> for CircuitIndexMeta {
+    fn from(inner: InnerCircuitIndexMeta) -> Self {
+        Self {
+            witin_num_vars: inner.witin_num_vars,
+            witin_num_polys: inner.witin_num_polys,
+            fixed_num_vars: inner.fixed_num_vars,
+            fixed_num_polys: inner.fixed_num_polys,
+        }
+    }
+}
+
 impl Hintable<InnerConfig> for CircuitIndexMeta {
     type HintVariable = CircuitIndexMetaVariable<InnerConfig>;
 

@@ -484,9 +484,9 @@ dependencies = [
 
 [[package]]
 name = "bumpalo"
-version = "3.18.1"
+version = "3.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "793db76d6187cd04dff33004d8e6c9cc4e05cd330500379d2394209271b4aeee"
+checksum = "46c5e41b57b8bba42a04676d81cb89e9ee8e859a1a66f80a5a72e1cb76b34d43"
 
 [[package]]
 name = "bytecheck"
@@ -547,7 +547,7 @@ dependencies = [
 [[package]]
 name = "ceno-examples"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=cyte%2Fgenerate-basefold-verifier-query-phase-test-data#a9f074b85711df47b32116d056469a282febfdf8"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=cyte%2Fgenerate-basefold-verifier-query-phase-test-data#7aa2a55ebcbf087e16e4a629020cc072691a059e"
 dependencies = [
  "glob",
 ]
@@ -597,7 +597,7 @@ dependencies = [
 [[package]]
 name = "ceno_emul"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=cyte%2Fgenerate-basefold-verifier-query-phase-test-data#a9f074b85711df47b32116d056469a282febfdf8"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=cyte%2Fgenerate-basefold-verifier-query-phase-test-data#7aa2a55ebcbf087e16e4a629020cc072691a059e"
 dependencies = [
  "anyhow",
  "ceno_rt",
@@ -618,7 +618,7 @@ dependencies = [
 [[package]]
 name = "ceno_host"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=cyte%2Fgenerate-basefold-verifier-query-phase-test-data#a9f074b85711df47b32116d056469a282febfdf8"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=cyte%2Fgenerate-basefold-verifier-query-phase-test-data#7aa2a55ebcbf087e16e4a629020cc072691a059e"
 dependencies = [
  "anyhow",
  "ceno_emul",
@@ -631,7 +631,7 @@ dependencies = [
 [[package]]
 name = "ceno_rt"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=cyte%2Fgenerate-basefold-verifier-query-phase-test-data#a9f074b85711df47b32116d056469a282febfdf8"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=cyte%2Fgenerate-basefold-verifier-query-phase-test-data#7aa2a55ebcbf087e16e4a629020cc072691a059e"
 dependencies = [
  "getrandom 0.2.16",
  "rkyv",
@@ -640,7 +640,7 @@ dependencies = [
 [[package]]
 name = "ceno_zkvm"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=cyte%2Fgenerate-basefold-verifier-query-phase-test-data#a9f074b85711df47b32116d056469a282febfdf8"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=cyte%2Fgenerate-basefold-verifier-query-phase-test-data#7aa2a55ebcbf087e16e4a629020cc072691a059e"
 dependencies = [
  "base64",
  "bincode",
@@ -1152,7 +1152,7 @@ dependencies = [
 [[package]]
 name = "ff_ext"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=cyte%2Fgenerate-basefold-verifier-query-phase-test-data#a9f074b85711df47b32116d056469a282febfdf8"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=cyte%2Fgenerate-basefold-verifier-query-phase-test-data#7aa2a55ebcbf087e16e4a629020cc072691a059e"
 dependencies = [
  "p3",
  "rand_core",
@@ -1675,7 +1675,7 @@ dependencies = [
 [[package]]
 name = "mpcs"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=cyte%2Fgenerate-basefold-verifier-query-phase-test-data#a9f074b85711df47b32116d056469a282febfdf8"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=cyte%2Fgenerate-basefold-verifier-query-phase-test-data#7aa2a55ebcbf087e16e4a629020cc072691a059e"
 dependencies = [
  "aes",
  "bincode",
@@ -1705,7 +1705,7 @@ dependencies = [
 [[package]]
 name = "multilinear_extensions"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=cyte%2Fgenerate-basefold-verifier-query-phase-test-data#a9f074b85711df47b32116d056469a282febfdf8"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=cyte%2Fgenerate-basefold-verifier-query-phase-test-data#7aa2a55ebcbf087e16e4a629020cc072691a059e"
 dependencies = [
  "ff_ext",
  "itertools 0.13.0",
@@ -2270,7 +2270,7 @@ checksum = "b15813163c1d831bf4a13c3610c05c0d03b39feb07f7e09fa234dac9b15aaf39"
 [[package]]
 name = "p3"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=cyte%2Fgenerate-basefold-verifier-query-phase-test-data#a9f074b85711df47b32116d056469a282febfdf8"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=cyte%2Fgenerate-basefold-verifier-query-phase-test-data#7aa2a55ebcbf087e16e4a629020cc072691a059e"
 dependencies = [
  "p3-baby-bear",
  "p3-challenger",
@@ -2705,7 +2705,7 @@ checksum = "f84267b20a16ea918e43c6a88433c2d54fa145c92a811b5b047ccbe153674483"
 [[package]]
 name = "poseidon"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=cyte%2Fgenerate-basefold-verifier-query-phase-test-data#a9f074b85711df47b32116d056469a282febfdf8"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=cyte%2Fgenerate-basefold-verifier-query-phase-test-data#7aa2a55ebcbf087e16e4a629020cc072691a059e"
 dependencies = [
  "criterion",
  "ff_ext",
@@ -3308,7 +3308,7 @@ checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 [[package]]
 name = "sumcheck"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=cyte%2Fgenerate-basefold-verifier-query-phase-test-data#a9f074b85711df47b32116d056469a282febfdf8"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=cyte%2Fgenerate-basefold-verifier-query-phase-test-data#7aa2a55ebcbf087e16e4a629020cc072691a059e"
 dependencies = [
  "crossbeam-channel",
  "ff_ext",
@@ -3325,7 +3325,7 @@ dependencies = [
 [[package]]
 name = "sumcheck_macro"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=cyte%2Fgenerate-basefold-verifier-query-phase-test-data#a9f074b85711df47b32116d056469a282febfdf8"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=cyte%2Fgenerate-basefold-verifier-query-phase-test-data#7aa2a55ebcbf087e16e4a629020cc072691a059e"
 dependencies = [
  "itertools 0.13.0",
  "p3",
@@ -3599,7 +3599,7 @@ dependencies = [
 [[package]]
 name = "transcript"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=cyte%2Fgenerate-basefold-verifier-query-phase-test-data#a9f074b85711df47b32116d056469a282febfdf8"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=cyte%2Fgenerate-basefold-verifier-query-phase-test-data#7aa2a55ebcbf087e16e4a629020cc072691a059e"
 dependencies = [
  "crossbeam-channel",
  "ff_ext",
@@ -3777,7 +3777,7 @@ dependencies = [
 [[package]]
 name = "whir"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=cyte%2Fgenerate-basefold-verifier-query-phase-test-data#a9f074b85711df47b32116d056469a282febfdf8"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=cyte%2Fgenerate-basefold-verifier-query-phase-test-data#7aa2a55ebcbf087e16e4a629020cc072691a059e"
 dependencies = [
  "bincode",
  "blake2",
@@ -4015,7 +4015,7 @@ dependencies = [
 [[package]]
 name = "witness"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=cyte%2Fgenerate-basefold-verifier-query-phase-test-data#a9f074b85711df47b32116d056469a282febfdf8"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=cyte%2Fgenerate-basefold-verifier-query-phase-test-data#7aa2a55ebcbf087e16e4a629020cc072691a059e"
 dependencies = [
  "ff_ext",
  "multilinear_extensions",

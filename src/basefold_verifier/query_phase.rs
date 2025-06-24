@@ -268,7 +268,7 @@ impl From<InnerQueryPhaseVerifierInput<E>> for QueryPhaseVerifierInput {
             queries: input.queries.into_iter().map(|q| q.into()).collect(),
             fixed_comm: input.fixed_comm.map(|comm| comm.into()),
             witin_comm: input.witin_comm.into(),
-            circuit_meta: input.circuit_meta.into(),
+            circuit_meta: input.circuit_meta.into_iter().map(|q| q.into()).collect(),
             commits: input.commits.into(),
             fold_challenges: input.fold_challenges,
             sumcheck_messages: input.sumcheck_messages.into(),
