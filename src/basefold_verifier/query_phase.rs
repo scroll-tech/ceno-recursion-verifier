@@ -130,9 +130,8 @@ impl Hintable<InnerConfig> for QueryOpeningProof {
 
     fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
         let witin_base_proof = BatchOpening::read(builder);
-        let fixed_is_some = Usize::Var(builder.constant(F::from_canonical_usize(0)));
-        // let fixed_is_some = Usize::Var(usize::read(builder));
-        let fixed_base_proof = witin_base_proof.clone();
+        let fixed_is_some = Usize::Var(usize::read(builder));
+        let fixed_base_proof = BatchOpening::read(builder);
         let commit_phase_openings = Vec::<CommitPhaseProofStep>::read(builder);
         QueryOpeningProofVariable {
             witin_base_proof,
@@ -145,17 +144,17 @@ impl Hintable<InnerConfig> for QueryOpeningProof {
     fn write(&self) -> Vec<Vec<<InnerConfig as Config>::N>> {
         let mut stream = Vec::new();
         stream.extend(self.witin_base_proof.write());
-        // if let Some(fixed_base_proof) = &self.fixed_base_proof {
-        //     stream.extend(<usize as Hintable<InnerConfig>>::write(&1));
-        //     stream.extend(fixed_base_proof.write());
-        // } else {
-        //     stream.extend(<usize as Hintable<InnerConfig>>::write(&0));
-        //     let tmp_proof = BatchOpening {
-        //         opened_values: Vec::new(),
-        //         opening_proof: Vec::new(),
-        //     };
-        //     stream.extend(tmp_proof.write());
-        // }
+        if let Some(fixed_base_proof) = &self.fixed_base_proof {
+            stream.extend(<usize as Hintable<InnerConfig>>::write(&1));
+            stream.extend(fixed_base_proof.write());
+        } else {
+            stream.extend(<usize as Hintable<InnerConfig>>::write(&0));
+            let tmp_proof = BatchOpening {
+                opened_values: Vec::new(),
+                opening_proof: Vec::new(),
+            };
+            stream.extend(tmp_proof.write());
+        }
         stream.extend(self.commit_phase_openings.write());
         stream
     }
@@ -682,6 +681,8 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
             builder.assert_eq::<Ext<C::F, C::EF>>(final_value, folded);
         });
 
+    // FIXME(kunxian): checkpoint 1
+    builder.halt();
     // 1. check initial claim match with first round sumcheck value
     let points = builder.dyn_array(input.batch_coeffs.len());
     let next_point_index: Var<C::N> = builder.eval(Usize::from(0));
@@ -791,6 +792,7 @@ pub mod tests {
     use openvm_native_recursion::hints::Hintable;
     use openvm_stark_sdk::p3_baby_bear::BabyBear;
     use p3_field::FieldAlgebra;
+    use p3_field::Field;
     use rand::thread_rng;
 
     type F = BabyBear;
@@ -822,6 +824,7 @@ pub mod tests {
         // prepare input
         let mut witness_stream: Vec<Vec<F>> = Vec::new();
         witness_stream.extend(input.write());
+        witness_stream.push(vec![F::from_canonical_u32(2).inverse()]);
 
         (program, witness_stream)
     }
