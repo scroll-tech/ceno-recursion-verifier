@@ -306,41 +306,28 @@ pub fn eq_eval_less_or_equal_than<C: Config>(
         builder.set(&running_product, next_idx, next_v);
     });
 
-    let running_product2: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(rp_len);
-    builder.set(&running_product2, b.len(), one_ext);
-
-    let last_idx: Var<C::N> = builder.uninit();
-    let idx: Var<C::N> = builder.uninit();
-    builder.assign(&last_idx, b.len());
-    builder.assign(&idx, b.len() - C::N::ONE);
-
     let ans = builder.get(&running_product, b.len());
+    let running_product2: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
+    let idx: Var<C::N> = builder.uninit();
+    builder.assign(&idx, b.len() - C::N::ONE);
     builder.range(0, b.len()).for_each(|_, builder| {
         let bit = builder.get(&eq_bit_decomp, idx);
         let bit_rvar = RVar::from(builder.cast_felt_to_var(bit));
-        let bit_ext = builder.ext_from_base_slice(&[bit]);
+        let bit_ext: Ext<C::F, C::EF> = builder.eval(bit * SymbolicExt::from_f(C::EF::ONE));
 
-        let v = builder.get(&running_product2, last_idx);
         let a_i = builder.get(a, idx);
         let b_i = builder.get(b, idx);
 
-        let next_v: Ext<C::F, C::EF> = builder.eval(
-            v * (a_i * b_i * bit_ext + (one_ext - a_i) * (one_ext - b_i) * (one_ext - bit_ext)),
-        );
-
-        builder.set(&running_product2, idx, next_v);
-
-        // Here is an example of how this works:
         // Suppose max_idx = (110101)_2
         // Then ans = eq(a, b)
         //          - eq(11011, a[1..6], b[1..6])eq(a[0..1], b[0..1])
         //          - eq(111, a[3..6], b[3..6])eq(a[0..3], b[0..3])
         builder.if_ne(bit_rvar, RVar::from(1)).then(|builder| {
             let v1 = builder.get(&running_product, idx);
-            builder.assign(&ans, ans - v1 * v * a_i * b_i);
+            builder.assign(&ans, ans - v1 * running_product2 * a_i * b_i);
         });
 
-        builder.assign(&last_idx, idx);
+        builder.assign(&running_product2, running_product2 * (a_i * b_i * bit_ext + (one_ext - a_i) * (one_ext - b_i) * (one_ext - bit_ext)));
         builder.assign(&idx, idx - C::N::ONE);
     });
 
