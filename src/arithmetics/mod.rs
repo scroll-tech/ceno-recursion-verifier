@@ -314,9 +314,12 @@ pub fn eq_eval_less_or_equal_than<C: Config>(
     builder.assign(&last_idx, b.len());
     builder.assign(&idx, b.len() - C::N::ONE);
 
+    let ans = builder.get(&running_product, b.len());
     builder.range(0, b.len()).for_each(|_, builder| {
         let bit = builder.get(&eq_bit_decomp, idx);
+        let bit_rvar = RVar::from(builder.cast_felt_to_var(bit));
         let bit_ext = builder.ext_from_base_slice(&[bit]);
+
         let v = builder.get(&running_product2, last_idx);
         let a_i = builder.get(a, idx);
         let b_i = builder.get(b, idx);
@@ -326,29 +329,19 @@ pub fn eq_eval_less_or_equal_than<C: Config>(
         );
 
         builder.set(&running_product2, idx, next_v);
+
+        // Here is an example of how this works:
+        // Suppose max_idx = (110101)_2
+        // Then ans = eq(a, b)
+        //          - eq(11011, a[1..6], b[1..6])eq(a[0..1], b[0..1])
+        //          - eq(111, a[3..6], b[3..6])eq(a[0..3], b[0..3])
+        builder.if_ne(bit_rvar, RVar::from(1)).then(|builder| {
+            let v1 = builder.get(&running_product, idx);
+            builder.assign(&ans, ans - v1 * v * a_i * b_i);
+        });
+
         builder.assign(&last_idx, idx);
         builder.assign(&idx, idx - C::N::ONE);
-    });
-
-    // Here is an example of how this works:
-    // Suppose max_idx = (110101)_2
-    // Then ans = eq(a, b)
-    //          - eq(11011, a[1..6], b[1..6])eq(a[0..1], b[0..1])
-    //          - eq(111, a[3..6], b[3..6])eq(a[0..3], b[0..3])
-    let ans = builder.get(&running_product, b.len());
-    builder.range(0, b.len()).for_each(|idx_vec, builder| {
-        let bit = builder.get(&eq_bit_decomp, idx_vec[0]);
-        let bit_rvar = RVar::from(builder.cast_felt_to_var(bit));
-
-        builder.if_ne(bit_rvar, RVar::from(1)).then(|builder| {
-            let next_idx = builder.eval_expr(idx_vec[0] + RVar::from(1));
-            let v1 = builder.get(&running_product, idx_vec[0]);
-            let v2 = builder.get(&running_product2, next_idx);
-            let a_i = builder.get(a, idx_vec[0]);
-            let b_i = builder.get(b, idx_vec[0]);
-
-            builder.assign(&ans, ans - v1 * v2 * a_i * b_i);
-        });
     });
 
     let a_remainder_arr: Array<C, Ext<C::F, C::EF>> = a.slice(builder, b.len(), a.len());
