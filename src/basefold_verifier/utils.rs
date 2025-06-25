@@ -1,4 +1,5 @@
 use openvm_native_compiler::ir::*;
+use openvm_native_recursion::vars::HintSlice;
 use p3_field::FieldAlgebra;
 
 // XXX: more efficient pow implementation
@@ -243,4 +244,10 @@ pub fn codeword_fold_with_challenge<C: Config>(
     // lagrange domain fixed variable
     let ret: Ext<C::F, C::EF> = builder.eval(lo + challenge * (hi - lo));
     ret
+}
+
+pub(crate) fn read_hint_slice<C: Config>(builder: &mut Builder<C>) -> HintSlice<C> {
+    let length = Usize::from(builder.hint_var());
+    let id = Usize::from(builder.hint_load());
+    HintSlice { length, id }
 }

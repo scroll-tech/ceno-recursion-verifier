@@ -29,6 +29,7 @@ p3-util = { git = "https://github.com/Plonky3/Plonky3.git", rev = "1ba4e5c" }
 p3-challenger = { git = "https://github.com/Plonky3/Plonky3.git", rev = "1ba4e5c" }
 p3-monty-31 = { git = "https://github.com/Plonky3/Plonky3.git", rev = "1ba4e5c" }
 p3-symmetric = { git = "https://github.com/Plonky3/Plonky3.git", rev = "1ba4e5c" }
+p3-fri = { git = "https://github.com/Plonky3/Plonky3.git", rev = "1ba4e5c" }
 p3-goldilocks = { git = "https://github.com/Plonky3/plonky3", rev = "1ba4e5c" }
 
 # WHIR
@@ -41,6 +42,7 @@ ark-serialize = "0.5"
 ceno_mle = { git = "https://github.com/scroll-tech/ceno.git", branch = "feat/export_ff_ext", package = "multilinear_extensions" }
 ceno_sumcheck = { git = "https://github.com/scroll-tech/ceno.git", branch = "feat/export_ff_ext", package = "sumcheck" }
 ceno_transcript = { git = "https://github.com/scroll-tech/ceno.git", branch = "feat/export_ff_ext", package = "transcript" }
+ceno_witness = { git = "https://github.com/scroll-tech/ceno.git", branch = "feat/export_ff_ext", package = "witness" }
 ceno_zkvm = { git = "https://github.com/scroll-tech/ceno.git", branch = "feat/export_ff_ext" }
 ceno_emul = { git = "https://github.com/scroll-tech/ceno.git", branch = "feat/export_ff_ext" }
 mpcs = { git = "https://github.com/scroll-tech/ceno.git", branch = "feat/export_ff_ext" }

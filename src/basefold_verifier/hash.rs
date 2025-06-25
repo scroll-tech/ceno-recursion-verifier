@@ -26,6 +26,12 @@ impl Default for Hash {
     }
 }
 
+impl From<p3_symmetric::Hash<F, F, DIGEST_ELEMS>> for Hash {
+    fn from(hash: p3_symmetric::Hash<F, F, DIGEST_ELEMS>) -> Self {
+        Hash { value: hash.into() }
+    }
+}
+
 impl Hintable<InnerConfig> for Hash {
     type HintVariable = HashVariable<InnerConfig>;
 

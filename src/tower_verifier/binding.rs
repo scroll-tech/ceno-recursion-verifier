@@ -49,7 +49,7 @@ pub struct TowerVerifierInputVariable<C: Config> {
 
 #[derive(Clone, Deserialize)]
 pub struct Point {
-    pub fs: Vec<F>,
+    pub fs: Vec<E>,
 }
 impl Hintable<InnerConfig> for Point {
     type HintVariable = PointVariable<InnerConfig>;
@@ -78,10 +78,7 @@ impl Hintable<InnerConfig> for PointAndEval {
     fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
         let point = Point::read(builder);
         let eval = E::read(builder);
-        PointAndEvalVariable {
-            point,
-            eval,
-        }
+        PointAndEvalVariable { point, eval }
     }
 
     fn write(&self) -> Vec<Vec<<InnerConfig as Config>::N>> {
@@ -97,6 +94,15 @@ impl VecAutoHintable for PointAndEval {}
 pub struct IOPProverMessage {
     pub evaluations: Vec<E>,
 }
+
+impl From<ceno_sumcheck::structs::IOPProverMessage<E>> for IOPProverMessage {
+    fn from(msg: ceno_sumcheck::structs::IOPProverMessage<E>) -> Self {
+        IOPProverMessage {
+            evaluations: msg.evaluations,
+        }
+    }
+}
+
 impl Hintable<InnerConfig> for IOPProverMessage {
     type HintVariable = IOPProverMessageVariable<InnerConfig>;
 
