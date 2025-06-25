@@ -1,31 +1,37 @@
 // Note: check all XXX comments!
 
+use ff_ext::BabyBearExt4;
 use openvm_native_compiler::{asm::AsmConfig, prelude::*};
 use openvm_native_recursion::{
     hints::{Hintable, VecAutoHintable},
     vars::HintSlice,
 };
 use openvm_stark_sdk::p3_baby_bear::BabyBear;
-use p3_field::extension::BinomialExtensionField;
 use p3_field::FieldAlgebra;
 use serde::Deserialize;
 
 use super::{basefold::*, extension_mmcs::*, mmcs::*, rs::*, structs::*, utils::*};
 use crate::{
-    arithmetics::{
-        build_eq_x_r_vec_sequential, build_eq_x_r_vec_sequential_with_offset, eq_eval_with_index,
-    },
+    arithmetics::{build_eq_x_r_vec_sequential_with_offset, eq_eval_with_index},
     tower_verifier::{binding::*, program::interpolate_uni_poly},
 };
 
 pub type F = BabyBear;
-pub type E = BinomialExtensionField<F, DIMENSIONS>;
+pub type E = BabyBearExt4;
 pub type InnerConfig = AsmConfig<F, E>;
 
+/// We have to define a struct similar to p3_fri::BatchOpening as
+/// the trait `Hintable` is defined in another crate inside OpenVM
 #[derive(Deserialize)]
 pub struct BatchOpening {
     pub opened_values: Vec<Vec<F>>,
     pub opening_proof: MmcsProof,
+}
+
+#[derive(DslVariable, Clone)]
+pub struct BatchOpeningVariable<C: Config> {
+    pub opened_values: Array<C, Array<C, Felt<C::F>>>,
+    pub opening_proof: HintSlice<C>,
 }
 
 impl Hintable<InnerConfig> for BatchOpening {
@@ -33,9 +39,7 @@ impl Hintable<InnerConfig> for BatchOpening {
 
     fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
         let opened_values = Vec::<Vec<F>>::read(builder);
-        let length = Usize::from(builder.hint_var());
-        let id = Usize::from(builder.hint_load());
-        let opening_proof = HintSlice { length, id };
+        let opening_proof = read_hint_slice(builder);
 
         BatchOpeningVariable {
             opened_values,
@@ -46,37 +50,39 @@ impl Hintable<InnerConfig> for BatchOpening {
     fn write(&self) -> Vec<Vec<<InnerConfig as Config>::N>> {
         let mut stream = Vec::new();
         stream.extend(self.opened_values.write());
-        stream.extend(
+        stream.extend(vec![
+            vec![F::from_canonical_usize(self.opening_proof.len())],
             self.opening_proof
                 .iter()
-                .map(|p| p.to_vec())
-                .collect::<Vec<_>>()
-                .write(),
-        );
+                .flatten()
+                .copied()
+                .collect::<Vec<_>>(),
+        ]);
         stream
     }
 }
 
-#[derive(DslVariable, Clone)]
-pub struct BatchOpeningVariable<C: Config> {
-    pub opened_values: Array<C, Array<C, Felt<C::F>>>,
-    pub opening_proof: HintSlice<C>,
-}
-
+/// TODO: use `openvm_native_recursion::fri::types::FriCommitPhaseProofStepVariable` instead
 #[derive(Deserialize)]
 pub struct CommitPhaseProofStep {
     pub sibling_value: E,
     pub opening_proof: MmcsProof,
 }
 
+#[derive(DslVariable, Clone)]
+pub struct CommitPhaseProofStepVariable<C: Config> {
+    pub sibling_value: Ext<C::F, C::EF>,
+    pub opening_proof: HintSlice<C>,
+}
+
+impl VecAutoHintable for CommitPhaseProofStep {}
+
 impl Hintable<InnerConfig> for CommitPhaseProofStep {
     type HintVariable = CommitPhaseProofStepVariable<InnerConfig>;
 
     fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
         let sibling_value = E::read(builder);
-        let length = Usize::from(builder.hint_var());
-        let id = Usize::from(builder.hint_load());
-        let opening_proof = HintSlice { length, id };
+        let opening_proof = read_hint_slice(builder);
 
         CommitPhaseProofStepVariable {
             sibling_value,
@@ -87,22 +93,16 @@ impl Hintable<InnerConfig> for CommitPhaseProofStep {
     fn write(&self) -> Vec<Vec<<InnerConfig as Config>::N>> {
         let mut stream = Vec::new();
         stream.extend(self.sibling_value.write());
-        stream.extend(
+        stream.extend(vec![
+            vec![F::from_canonical_usize(self.opening_proof.len())],
             self.opening_proof
                 .iter()
-                .map(|p| p.to_vec())
-                .collect::<Vec<_>>()
-                .write(),
-        );
+                .flatten()
+                .copied()
+                .collect::<Vec<_>>(),
+        ]);
         stream
     }
-}
-impl VecAutoHintable for CommitPhaseProofStep {}
-
-#[derive(DslVariable, Clone)]
-pub struct CommitPhaseProofStepVariable<C: Config> {
-    pub sibling_value: Ext<C::F, C::EF>,
-    pub opening_proof: HintSlice<C>,
 }
 
 #[derive(Deserialize)]
@@ -111,15 +111,28 @@ pub struct QueryOpeningProof {
     pub fixed_base_proof: Option<BatchOpening>,
     pub commit_phase_openings: Vec<CommitPhaseProofStep>,
 }
+
+#[derive(DslVariable, Clone)]
+pub struct QueryOpeningProofVariable<C: Config> {
+    pub witin_base_proof: BatchOpeningVariable<C>,
+    pub fixed_is_some: Usize<C::N>, // 0 <==> false
+    pub fixed_base_proof: BatchOpeningVariable<C>,
+    pub commit_phase_openings: Array<C, CommitPhaseProofStepVariable<C>>,
+}
+
 type QueryOpeningProofs = Vec<QueryOpeningProof>;
+type QueryOpeningProofsVariable<C> = Array<C, QueryOpeningProofVariable<C>>;
+
+impl VecAutoHintable for QueryOpeningProof {}
 
 impl Hintable<InnerConfig> for QueryOpeningProof {
     type HintVariable = QueryOpeningProofVariable<InnerConfig>;
 
     fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
         let witin_base_proof = BatchOpening::read(builder);
-        let fixed_is_some = Usize::Var(usize::read(builder));
-        let fixed_base_proof = BatchOpening::read(builder);
+        let fixed_is_some = Usize::Var(builder.constant(F::from_canonical_usize(0)));
+        // let fixed_is_some = Usize::Var(usize::read(builder));
+        let fixed_base_proof = witin_base_proof.clone();
         let commit_phase_openings = Vec::<CommitPhaseProofStep>::read(builder);
         QueryOpeningProofVariable {
             witin_base_proof,
@@ -132,31 +145,21 @@ impl Hintable<InnerConfig> for QueryOpeningProof {
     fn write(&self) -> Vec<Vec<<InnerConfig as Config>::N>> {
         let mut stream = Vec::new();
         stream.extend(self.witin_base_proof.write());
-        if let Some(fixed_base_proof) = &self.fixed_base_proof {
-            stream.extend(<usize as Hintable<InnerConfig>>::write(&1));
-            stream.extend(fixed_base_proof.write());
-        } else {
-            stream.extend(<usize as Hintable<InnerConfig>>::write(&0));
-            let tmp_proof = BatchOpening {
-                opened_values: Vec::new(),
-                opening_proof: Vec::new(),
-            };
-            stream.extend(tmp_proof.write());
-        }
+        // if let Some(fixed_base_proof) = &self.fixed_base_proof {
+        //     stream.extend(<usize as Hintable<InnerConfig>>::write(&1));
+        //     stream.extend(fixed_base_proof.write());
+        // } else {
+        //     stream.extend(<usize as Hintable<InnerConfig>>::write(&0));
+        //     let tmp_proof = BatchOpening {
+        //         opened_values: Vec::new(),
+        //         opening_proof: Vec::new(),
+        //     };
+        //     stream.extend(tmp_proof.write());
+        // }
         stream.extend(self.commit_phase_openings.write());
         stream
     }
 }
-impl VecAutoHintable for QueryOpeningProof {}
-
-#[derive(DslVariable, Clone)]
-pub struct QueryOpeningProofVariable<C: Config> {
-    pub witin_base_proof: BatchOpeningVariable<C>,
-    pub fixed_is_some: Usize<C::N>, // 0 <==> false
-    pub fixed_base_proof: BatchOpeningVariable<C>,
-    pub commit_phase_openings: Array<C, CommitPhaseProofStepVariable<C>>,
-}
-type QueryOpeningProofsVariable<C> = Array<C, QueryOpeningProofVariable<C>>;
 
 // NOTE: Different from PointAndEval in tower_verifier!
 pub struct PointAndEvals {
@@ -253,7 +256,7 @@ impl Hintable<InnerConfig> for QueryPhaseVerifierInput {
             let tmp_comm = BasefoldCommitment {
                 commit: Default::default(),
                 log2_max_codeword_size: 0,
-                // trivial_commits: Vec::new(),
+                trivial_commits: vec![],
             };
             stream.extend(tmp_comm.write());
         }
@@ -651,7 +654,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                     let dimensions = builder.dyn_array(1);
                     // let two: Var<_> = builder.eval(Usize::from(2));
                     builder.set_value(&dimensions, 0, n_d_i.clone());
-                    let opened_values = builder.uninit_fixed_array(1);
+                    let opened_values = builder.dyn_array(1);
                     builder.set_value(&opened_values, 0, leafs.clone());
                     let ext_mmcs_verifier_input = ExtMmcsVerifierInputVariable {
                         commit: pi_comm.clone(),
@@ -770,60 +773,180 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
     builder.assert_eq::<Ext<C::F, C::EF>>(left, right);
 }
 
+#[cfg(test)]
 pub mod tests {
-    use std::{fs::File, io::Read};
+    use std::{collections::BTreeMap, iter::once};
 
+    use ceno_mle::mle::MultilinearExtension;
+    use ceno_transcript::{BasicTranscript, Transcript};
+    use ff_ext::{BabyBearExt4, FromUniformBytes};
+    use itertools::Itertools;
+    use mpcs::{
+        pcs_batch_commit, pcs_batch_open, pcs_setup, pcs_trim,
+        util::hash::write_digest_to_transcript, BasefoldDefault, PolynomialCommitmentScheme,
+    };
     use openvm_circuit::arch::{instructions::program::Program, SystemConfig, VmExecutor};
     use openvm_native_circuit::{Native, NativeConfig};
     use openvm_native_compiler::asm::AsmBuilder;
     use openvm_native_recursion::hints::Hintable;
-    use openvm_stark_backend::config::StarkGenericConfig;
-    use openvm_stark_sdk::{
-        config::baby_bear_poseidon2::BabyBearPoseidon2Config, p3_baby_bear::BabyBear,
-    };
-    use p3_field::{extension::BinomialExtensionField, FieldAlgebra, FieldExtensionAlgebra};
-    type SC = BabyBearPoseidon2Config;
+    use openvm_stark_sdk::p3_baby_bear::BabyBear;
+    use p3_field::FieldAlgebra;
+    use rand::thread_rng;
 
     type F = BabyBear;
-    type E = BinomialExtensionField<F, 4>;
-    type EF = <SC as StarkGenericConfig>::Challenge;
+    type E = BabyBearExt4;
+    type PCS = BasefoldDefault<E>;
+
+    use crate::{
+        basefold_verifier::{
+            basefold::BasefoldCommitment,
+            query_phase::{BatchOpening, CommitPhaseProofStep, QueryOpeningProof},
+            structs::CircuitIndexMeta,
+        },
+        tower_verifier::binding::{Point, PointAndEval},
+    };
 
     use super::{batch_verifier_query_phase, QueryPhaseVerifierInput};
 
     #[allow(dead_code)]
-    pub fn build_batch_verifier_query_phase() -> (Program<BabyBear>, Vec<Vec<BabyBear>>) {
-        // OpenVM DSL
-        let mut builder = AsmBuilder::<F, EF>::default();
-
-        // Witness inputs
+    pub fn build_batch_verifier_query_phase(
+        input: QueryPhaseVerifierInput,
+    ) -> (Program<BabyBear>, Vec<Vec<BabyBear>>) {
+        // build test program
+        let mut builder = AsmBuilder::<F, E>::default();
         let query_phase_input = QueryPhaseVerifierInput::read(&mut builder);
         batch_verifier_query_phase(&mut builder, query_phase_input);
         builder.halt();
+        let program = builder.compile_isa();
 
-        // Pass in witness stream
-        let f = |n: usize| F::from_canonical_usize(n);
-        let mut witness_stream: Vec<
-            Vec<p3_monty_31::MontyField31<openvm_stark_sdk::p3_baby_bear::BabyBearParameters>>,
-        > = Vec::new();
-
-        // INPUT
-        let mut f = File::open("query_phase_verifier_input.bin".to_string()).unwrap();
-        let mut content: Vec<u8> = Vec::new();
-        f.read_to_end(&mut content).unwrap();
-        let input: QueryPhaseVerifierInput = bincode::deserialize(&content).unwrap();
+        // prepare input
+        let mut witness_stream: Vec<Vec<F>> = Vec::new();
         witness_stream.extend(input.write());
-
-        // PROGRAM
-        let program: Program<
-            p3_monty_31::MontyField31<openvm_stark_sdk::p3_baby_bear::BabyBearParameters>,
-        > = builder.compile_isa();
 
         (program, witness_stream)
     }
 
     #[test]
     fn test_verify_query_phase_batch() {
-        let (program, witness) = build_batch_verifier_query_phase();
+        let mut rng = thread_rng();
+        let m1 = ceno_witness::RowMajorMatrix::<F>::rand(&mut rng, 1 << 10, 10);
+        let mles_1 = m1.to_mles();
+        let matrices = BTreeMap::from_iter(once((0, m1)));
+
+        let pp = pcs_setup::<E, PCS>(1 << 20).unwrap();
+        let (pp, vp) = pcs_trim::<E, PCS>(pp, 1 << 20).unwrap();
+        let pcs_data = pcs_batch_commit::<E, PCS>(&pp, matrices).unwrap();
+        let witin_comm = PCS::get_pure_commitment(&pcs_data);
+
+        let points = vec![E::random_vec(10, &mut rng)];
+        let evals = mles_1
+            .iter()
+            .map(|mle| points.iter().map(|p| mle.evaluate(&p)).collect_vec())
+            .collect::<Vec<_>>();
+        let mut transcript = BasicTranscript::<E>::new(&[]);
+        let opening_proof = pcs_batch_open::<E, PCS>(
+            &pp,
+            &[(0, 1 << 10)],
+            None,
+            &pcs_data,
+            &points,
+            &evals,
+            &[(10, 0)],
+            &mut transcript,
+        )
+        .unwrap();
+
+        let mut transcript = BasicTranscript::<E>::new(&[]);
+        let batch_coeffs = transcript.sample_and_append_challenge_pows(10, b"batch coeffs");
+
+        let max_num_var = 10;
+        let num_rounds = max_num_var - 7;
+
+        // prepare folding challenges via sumcheck round msg + FRI commitment
+        let mut fold_challenges: Vec<E> = Vec::with_capacity(10);
+        let commits = &opening_proof.commits;
+
+        let sumcheck_messages = opening_proof.sumcheck_proof.as_ref().unwrap();
+        for i in 0..num_rounds {
+            transcript.append_field_element_exts(sumcheck_messages[i].evaluations.as_slice());
+            fold_challenges.push(
+                transcript
+                    .sample_and_append_challenge(b"commit round")
+                    .elements,
+            );
+            if i < num_rounds - 1 {
+                write_digest_to_transcript(&commits[i], &mut transcript);
+            }
+        }
+        transcript.append_field_element_exts_iter(opening_proof.final_message.iter().flatten());
+
+        let queries = opening_proof
+            .query_opening_proof
+            .iter()
+            .map(|query| QueryOpeningProof {
+                witin_base_proof: BatchOpening {
+                    opened_values: query.witin_base_proof.opened_values.clone(),
+                    opening_proof: query.witin_base_proof.opening_proof.clone(),
+                },
+                fixed_base_proof: None,
+                commit_phase_openings: query
+                    .commit_phase_openings
+                    .iter()
+                    .map(|step| CommitPhaseProofStep {
+                        sibling_value: step.sibling_value.clone(),
+                        opening_proof: step.opening_proof.clone(),
+                    })
+                    .collect(),
+            })
+            .collect();
+
+        let query_input = QueryPhaseVerifierInput {
+            max_num_var: 10,
+            indices: opening_proof.query_indices,
+            final_message: opening_proof.final_message,
+            batch_coeffs,
+            queries,
+            fixed_comm: None,
+            witin_comm: BasefoldCommitment {
+                commit: witin_comm.commit().into(),
+                trivial_commits: witin_comm
+                    .trivial_commits
+                    .iter()
+                    .copied()
+                    .map(|c| c.into())
+                    .collect(),
+                log2_max_codeword_size: 20,
+                // This is a dummy value, should be set according to the actual codeword size
+            },
+            circuit_meta: vec![CircuitIndexMeta {
+                witin_num_vars: 10,
+                fixed_num_vars: 0,
+                witin_num_polys: 10,
+                fixed_num_polys: 0,
+            }],
+            commits: opening_proof
+                .commits
+                .iter()
+                .copied()
+                .map(|c| c.into())
+                .collect(),
+            fold_challenges,
+            sumcheck_messages: opening_proof
+                .sumcheck_proof
+                .as_ref()
+                .unwrap()
+                .clone()
+                .into_iter()
+                .map(|msg| msg.into())
+                .collect(),
+            point_evals: vec![(
+                Point {
+                    fs: points[0].clone(),
+                },
+                evals[0].clone(),
+            )],
+        };
+        let (program, witness) = build_batch_verifier_query_phase(query_input);
 
         let system_config = SystemConfig::default()
             .with_public_values(4)

@@ -1,3 +1,4 @@
+use crate::basefold_verifier::query_phase::QueryPhaseVerifierInput;
 use crate::tower_verifier::binding::IOPProverMessage;
 use crate::zkvm_verifier::binding::ZKVMProofInput;
 use crate::zkvm_verifier::binding::{
@@ -21,7 +22,6 @@ use openvm_stark_sdk::config::setup_tracing_with_log_level;
 use openvm_stark_sdk::{
     config::baby_bear_poseidon2::BabyBearPoseidon2Config, p3_baby_bear::BabyBear,
 };
-use crate::basefold_verifier::query_phase::QueryPhaseVerifierInput;
 use std::collections::HashMap;
 use std::fs::File;
 

@@ -15,6 +15,7 @@ pub type InnerConfig = AsmConfig<F, E>;
 
 pub type MmcsCommitment = Hash;
 pub type MmcsProof = Vec<[F; DIGEST_ELEMS]>;
+
 pub struct MmcsVerifierInput {
     pub commit: MmcsCommitment,
     pub dimensions: Vec<usize>,

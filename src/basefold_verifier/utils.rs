@@ -2,6 +2,8 @@ use openvm_native_compiler::ir::*;
 use openvm_native_recursion::vars::HintSlice;
 use p3_field::FieldAlgebra;
 
+use crate::basefold_verifier::mmcs::MmcsProof;
+
 // XXX: more efficient pow implementation
 pub fn pow<C: Config>(builder: &mut Builder<C>, base: Var<C::N>, exponent: Var<C::N>) -> Var<C::N> {
     let value: Var<C::N> = builder.constant(C::N::ONE);

@@ -15,7 +15,7 @@ pub type HashDigest = MmcsCommitment;
 pub struct BasefoldCommitment {
     pub commit: HashDigest,
     pub log2_max_codeword_size: usize,
-    // pub trivial_commits: Vec<HashDigest>,
+    pub trivial_commits: Vec<HashDigest>,
 }
 
 impl Hintable<InnerConfig> for BasefoldCommitment {
@@ -36,7 +36,9 @@ impl Hintable<InnerConfig> for BasefoldCommitment {
     fn write(&self) -> Vec<Vec<<InnerConfig as Config>::N>> {
         let mut stream = Vec::new();
         stream.extend(self.commit.write());
-        stream.extend(<usize as Hintable<InnerConfig>>::write(&self.log2_max_codeword_size));
+        stream.extend(<usize as Hintable<InnerConfig>>::write(
+            &self.log2_max_codeword_size,
+        ));
         // stream.extend(self.trivial_commits.write());
         stream
     }
