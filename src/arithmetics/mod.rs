@@ -286,6 +286,7 @@ pub fn eq_eval_less_or_equal_than<C: Config>(
     a: &Array<C, Ext<C::F, C::EF>>,
     b: &Array<C, Ext<C::F, C::EF>>,
 ) -> Ext<C::F, C::EF> {
+    builder.cycle_tracker_start("Compute eq_eval_less_or_equal_than");
     let eq_bit_decomp: Array<C, Felt<C::F>> = opcode_proof
         .num_instances_minus_one_bit_decomposition
         .slice(builder, 0, b.len());
@@ -308,25 +309,25 @@ pub fn eq_eval_less_or_equal_than<C: Config>(
     let running_product2: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(rp_len);
     builder.set(&running_product2, b.len(), one_ext);
 
-    let eq_bit_decomp_rev = reverse(builder, &eq_bit_decomp);
-    let idx_arr = gen_idx_arr(builder, b.len());
-    let idx_arr_rev = reverse(builder, &idx_arr);
-    builder.assert_usize_eq(eq_bit_decomp_rev.len(), idx_arr_rev.len());
+    let last_idx: Var<C::N> = builder.uninit();
+    let idx: Var<C::N> = builder.uninit();
+    builder.assign(&last_idx, b.len());
+    builder.assign(&idx, b.len() - C::N::ONE);
 
-    iter_zip!(builder, idx_arr_rev, eq_bit_decomp_rev).for_each(|ptr_vec, builder| {
-        let i = builder.iter_ptr_get(&idx_arr_rev, ptr_vec[0]);
-        let bit = builder.iter_ptr_get(&eq_bit_decomp_rev, ptr_vec[1]);
+    builder.range(0, b.len()).for_each(|_, builder| {
+        let bit = builder.get(&eq_bit_decomp, idx);
         let bit_ext = builder.ext_from_base_slice(&[bit]);
-        let last_idx = builder.eval_expr(i.clone() + RVar::from(1));
-
         let v = builder.get(&running_product2, last_idx);
-        let a_i = builder.get(a, i.clone());
-        let b_i = builder.get(b, i.clone());
+        let a_i = builder.get(a, idx);
+        let b_i = builder.get(b, idx);
 
         let next_v: Ext<C::F, C::EF> = builder.eval(
             v * (a_i * b_i * bit_ext + (one_ext - a_i) * (one_ext - b_i) * (one_ext - bit_ext)),
         );
-        builder.set(&running_product2, i, next_v);
+
+        builder.set(&running_product2, idx, next_v);
+        builder.assign(&last_idx, idx);
+        builder.assign(&idx, idx - C::N::ONE);
     });
 
     // Here is an example of how this works:
@@ -355,6 +356,8 @@ pub fn eq_eval_less_or_equal_than<C: Config>(
         let a = builder.iter_ptr_get(&a_remainder_arr, ptr_vec[0]);
         builder.assign(&ans, ans * (one_ext - a));
     });
+
+    builder.cycle_tracker_end("Compute eq_eval_less_or_equal_than");
 
     ans
 }
