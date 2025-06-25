@@ -292,7 +292,7 @@ pub fn eq_eval_less_or_equal_than<C: Config>(
         .slice(builder, 0, b.len());
 
     let one_ext: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
-    let rp_len = builder.eval_expr(RVar::from(b.len()) + RVar::from(1));
+    let rp_len = builder.eval_expr(b.len() + C::N::ONE);
     let running_product: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(rp_len);
     builder.set(&running_product, 0, one_ext);
 
