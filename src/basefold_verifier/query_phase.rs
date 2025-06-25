@@ -1,5 +1,7 @@
 // Note: check all XXX comments!
 
+use std::fmt::Debug;
+
 use ff_ext::{ExtensionField, PoseidonField};
 use mpcs::QueryPhaseVerifierInput as InnerQueryPhaseVerifierInput;
 use openvm_native_compiler::{asm::AsmConfig, prelude::*};
@@ -379,7 +381,7 @@ pub struct QueryPhaseVerifierInputVariable<C: Config> {
     pub point_evals: Array<C, PointAndEvalsVariable<C>>,
 }
 
-pub(crate) fn batch_verifier_query_phase<C: Config>(
+pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
     builder: &mut Builder<C>,
     input: QueryPhaseVerifierInputVariable<C>,
 ) {
@@ -465,6 +467,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
             let idx = builder.get(&input.indices, i);
             let query = builder.get(&input.queries, i);
             let witin_opened_values = query.witin_base_proof.opened_values;
+
             let witin_opening_proof = query.witin_base_proof.opening_proof;
             let fixed_is_some = query.fixed_is_some;
             let fixed_commit = query.fixed_base_proof;
@@ -509,6 +512,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                 .if_eq(fixed_is_some.clone(), Usize::from(1))
                 .then(|builder| {
                     let fixed_opened_values = fixed_commit.opened_values.clone();
+
                     let fixed_opening_proof = fixed_commit.opening_proof.clone();
                     // new_idx used by mmcs proof
                     let new_idx: Var<C::N> = builder.eval(idx);
@@ -737,7 +741,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                     let dimensions = builder.dyn_array(1);
                     // let two: Var<_> = builder.eval(Usize::from(2));
                     builder.set_value(&dimensions, 0, n_d_i.clone());
-                    let opened_values = builder.uninit_fixed_array(1);
+                    let opened_values = builder.dyn_array(1);
                     builder.set_value(&opened_values, 0, leafs.clone());
                     let ext_mmcs_verifier_input = ExtMmcsVerifierInputVariable {
                         commit: pi_comm.clone(),
