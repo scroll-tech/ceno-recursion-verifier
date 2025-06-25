@@ -159,6 +159,7 @@ pub fn verify_zkvm_proof<C: Config>(
                 builder.constant(C::F::from_canonical_usize(subcircuit_params.id));
             challenger.observe(builder, id_f);
 
+            builder.cycle_tracker_start("Verify opcode proof");
             verify_opcode_proof(
                 builder,
                 &mut challenger,
@@ -169,6 +170,7 @@ pub fn verify_zkvm_proof<C: Config>(
                 &ceno_constraint_system,
                 &mut unipoly_extrapolator,
             );
+            builder.cycle_tracker_end("Verify opcode proof");
 
             let cs = ceno_constraint_system.vk.circuit_vks[&subcircuit_params.name].get_cs();
             let num_lks = cs.lk_expressions.len();
