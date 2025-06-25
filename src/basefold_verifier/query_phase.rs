@@ -73,13 +73,12 @@ impl Hintable<InnerConfig> for BatchOpening {
     fn write(&self) -> Vec<Vec<<InnerConfig as Config>::N>> {
         let mut stream = Vec::new();
         stream.extend(self.opened_values.write());
-        stream.extend(
-            self.opening_proof
-                .iter()
-                .map(|p| p.to_vec())
-                .collect::<Vec<_>>()
-                .write(),
-        );
+        stream.extend(vec![
+            vec![<InnerConfig as Config>::N::from_canonical_usize(
+                self.opening_proof.len(),
+            )],
+            self.opening_proof.iter().flatten().copied().collect(),
+        ]);
         stream
     }
 }
@@ -129,13 +128,12 @@ impl Hintable<InnerConfig> for CommitPhaseProofStep {
     fn write(&self) -> Vec<Vec<<InnerConfig as Config>::N>> {
         let mut stream = Vec::new();
         stream.extend(self.sibling_value.write());
-        stream.extend(
-            self.opening_proof
-                .iter()
-                .map(|p| p.to_vec())
-                .collect::<Vec<_>>()
-                .write(),
-        );
+        stream.extend(vec![
+            vec![<InnerConfig as Config>::N::from_canonical_usize(
+                self.opening_proof.len(),
+            )],
+            self.opening_proof.iter().flatten().copied().collect(),
+        ]);
         stream
     }
 }
@@ -872,7 +870,7 @@ pub mod tests {
     use openvm_stark_sdk::{
         config::baby_bear_poseidon2::BabyBearPoseidon2Config, p3_baby_bear::BabyBear,
     };
-    use p3_field::{extension::BinomialExtensionField, FieldAlgebra, FieldExtensionAlgebra};
+    use p3_field::{extension::BinomialExtensionField, Field, FieldAlgebra};
     type SC = BabyBearPoseidon2Config;
 
     type F = BabyBear;
@@ -903,7 +901,14 @@ pub mod tests {
         f.read_to_end(&mut content).unwrap();
         let input: InnerQueryPhaseVerifierInput<E> = bincode::deserialize(&content).unwrap();
         let input: QueryPhaseVerifierInput = input.into();
+
         witness_stream.extend(input.write());
+
+        // TODO: the builder reads some additional hints after reading the query
+        // phase verifier input. Need to feed them into the stream
+
+        // inv_2
+        witness_stream.push(vec![F::TWO.try_inverse().unwrap()]);
 
         // PROGRAM
         let program: Program<
