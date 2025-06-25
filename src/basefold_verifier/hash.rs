@@ -32,6 +32,13 @@ impl From<p3_symmetric::Hash<F, F, DIGEST_ELEMS>> for Hash {
     }
 }
 
+#[derive(DslVariable, Clone)]
+pub struct HashVariable<C: Config> {
+    pub value: Array<C, Felt<C::F>>,
+}
+
+impl VecAutoHintable for Hash {}
+
 impl Hintable<InnerConfig> for Hash {
     type HintVariable = HashVariable<InnerConfig>;
 
@@ -54,51 +61,36 @@ impl Hintable<InnerConfig> for Hash {
         stream
     }
 }
-impl VecAutoHintable for Hash {}
-
-#[derive(DslVariable, Clone)]
-pub struct HashVariable<C: Config> {
-    pub value: Array<C, Felt<C::F>>,
-}
-
-pub fn hash_iter_slices<C: Config>(
-    builder: &mut Builder<C>,
-    // _hash: HashVariable<C>,
-    _values: Array<C, Array<C, Felt<C::F>>>,
-) -> Array<C, Felt<C::F>> {
-    // XXX: verify hash
-    builder.hint_felts_fixed(DIGEST_ELEMS)
-}
-
-pub fn compress<C: Config>(
-    builder: &mut Builder<C>,
-    // _hash: HashVariable<C>,
-    _values: Array<C, Array<C, Felt<C::F>>>,
-) -> Array<C, Felt<C::F>> {
-    // XXX: verify hash
-    builder.hint_felts_fixed(DIGEST_ELEMS)
-}
 
 #[cfg(test)]
 mod tests {
+    use openvm_circuit::arch::{SystemConfig, VmExecutor};
+    use openvm_native_circuit::{Native, NativeConfig};
     use openvm_native_compiler::asm::AsmBuilder;
-    use openvm_native_compiler_derive::iter_zip;
-    use openvm_stark_backend::config::StarkGenericConfig;
-    use openvm_stark_sdk::config::baby_bear_poseidon2::BabyBearPoseidon2Config;
-    type SC = BabyBearPoseidon2Config;
     type F = BabyBear;
     type E = BinomialExtensionField<F, 4>;
-    type EF = <SC as StarkGenericConfig>::Challenge;
 
     use crate::basefold_verifier::basefold::HashDigest;
 
     use super::*;
     #[test]
     fn test_read_to_hash_variable() {
-        let mut builder = AsmBuilder::<F, EF>::default();
+        // simple test program
+        let mut builder = AsmBuilder::<F, E>::default();
+        let _digest = HashDigest::read(&mut builder);
+        builder.halt();
 
-        let hint = HashDigest::read(&mut builder);
-        let dst: HashVariable<_> = builder.uninit();
-        builder.assign(&dst, hint);
+        // configure the VM executor
+        let system_config = SystemConfig::default().with_max_segment_len(1 << 20);
+        let config = NativeConfig::new(system_config, Native);
+        let executor = VmExecutor::new(config);
+
+        // prepare input
+        let mut input = Vec::new();
+        input.extend(Hash::default().write());
+
+        // execute the program
+        let program = builder.compile_isa();
+        executor.execute(program, input).unwrap();
     }
 }
