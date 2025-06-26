@@ -434,8 +434,11 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
             // verify base oracle query proof
             // refer to prover documentation for the reason of right shift by 1
             // The index length should be the maximal Merkle tree height.
+            // Minus 1 because two leaves are indexed, grouped and opened together,
+            // so the total number of indices is half the number of Merkle tree leaves
             // TODO: double check
-            let idx_len: Var<C::N> = builder.eval(input.max_num_var.clone() + get_rate_log::<C>());
+            let idx_len: Var<C::N> =
+                builder.eval(input.max_num_var.clone() + get_rate_log::<C>() - Usize::from(1));
             let idx_felt = builder.unsafe_cast_var_to_felt(idx);
             // TODO: The result of num2bits_f seems to be in little endian?
             let idx_bits = builder.num2bits_f(idx_felt, C::N::bits() as u32);
@@ -467,6 +470,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
                 proof: witin_opening_proof,
             };
             mmcs_verify_batch(builder, mmcs_verifier_input);
+            builder.halt();
 
             // verify fixed
             let fixed_commit_leafs = builder.dyn_array(0);
@@ -931,7 +935,7 @@ pub mod tests {
         let batch_coeffs = transcript.sample_and_append_challenge_pows(10, b"batch coeffs");
 
         let max_num_var = 10;
-        let num_rounds = max_num_var - 7;
+        let num_rounds = max_num_var; // The final message is of length 1
 
         // prepare folding challenges via sumcheck round msg + FRI commitment
         let mut fold_challenges: Vec<E> = Vec::with_capacity(10);
