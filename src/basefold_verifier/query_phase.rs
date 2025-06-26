@@ -454,6 +454,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
     // 1. height_order: after sorting by decreasing height, the original index of each entry
     // 2. num_unique_height: number of different heights
     // 3. count_per_unique_height: for each unique height, number of dimensions of that height
+    // builder.assert_nonzero(&Usize::from(0));
     let (folding_sorted_order_index, _num_unique_num_vars, count_per_unique_num_var) =
         sort_with_count(
             builder,
@@ -864,7 +865,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
 pub mod tests {
     use std::{fs::File, io::Read};
 
-    use mpcs::QueryPhaseVerifierInput as InnerQueryPhaseVerifierInput;
+    use mpcs::{QueryPhaseAdditionalHint, QueryPhaseVerifierInput as InnerQueryPhaseVerifierInput};
     use openvm_circuit::arch::{instructions::program::Program, SystemConfig, VmExecutor};
     use openvm_native_circuit::{Native, NativeConfig};
     use openvm_native_compiler::asm::AsmBuilder;
@@ -907,11 +908,22 @@ pub mod tests {
 
         witness_stream.extend(input.write());
 
-        // TODO: the builder reads some additional hints after reading the query
+        // the builder reads some additional hints after reading the query
         // phase verifier input. Need to feed them into the stream
+        let mut f = File::open("query_phase_additional_hint.bin".to_string()).unwrap();
+        let mut content: Vec<u8> = Vec::new();
+        f.read_to_end(&mut content).unwrap();
+        let input: QueryPhaseAdditionalHint<E> = bincode::deserialize(&content).unwrap();
 
-        // inv_2
-        witness_stream.push(vec![F::TWO.try_inverse().unwrap()]);
+        witness_stream.extend(vec![vec![input.two_inv]]);
+        witness_stream.extend(vec![vec![F::from_canonical_usize(
+            input.num_unique_entries,
+        )]]);
+        witness_stream.extend(vec![input
+            .sorting_orders
+            .iter()
+            .map(|x| F::from_canonical_usize(*x))
+            .collect()]);
 
         // PROGRAM
         let program: Program<
