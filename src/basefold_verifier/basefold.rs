@@ -4,6 +4,8 @@ use openvm_stark_sdk::p3_baby_bear::BabyBear;
 use p3_field::extension::BinomialExtensionField;
 use serde::Deserialize;
 
+use crate::basefold_verifier::hash::Hash;
+
 use super::{mmcs::*, structs::DIMENSIONS};
 
 pub type F = BabyBear;
@@ -16,6 +18,20 @@ pub struct BasefoldCommitment {
     pub commit: HashDigest,
     pub log2_max_codeword_size: usize,
     pub trivial_commits: Vec<HashDigest>,
+}
+
+use mpcs::BasefoldCommitment as InnerBasefoldCommitment;
+
+impl From<InnerBasefoldCommitment<E>> for BasefoldCommitment {
+    fn from(value: InnerBasefoldCommitment<E>) -> Self {
+        Self {
+            commit: Hash {
+                value: value.commit().into(),
+            },
+            log2_max_codeword_size: value.log2_max_codeword_size,
+            trivial_commits: value.trivial_commits.into_iter().map(|c| c.into()).collect(),
+        }
+    }
 }
 
 impl Hintable<InnerConfig> for BasefoldCommitment {

@@ -95,10 +95,11 @@ pub struct IOPProverMessage {
     pub evaluations: Vec<E>,
 }
 
-impl From<ceno_sumcheck::structs::IOPProverMessage<E>> for IOPProverMessage {
-    fn from(msg: ceno_sumcheck::structs::IOPProverMessage<E>) -> Self {
+use ceno_sumcheck::structs::IOPProverMessage as InnerIOPProverMessage;
+impl From<InnerIOPProverMessage<E>> for IOPProverMessage {
+    fn from(value: InnerIOPProverMessage<E>) -> Self {
         IOPProverMessage {
-            evaluations: msg.evaluations,
+            evaluations: value.evaluations,
         }
     }
 }

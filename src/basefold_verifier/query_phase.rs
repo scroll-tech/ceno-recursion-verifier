@@ -1,14 +1,16 @@
 // Note: check all XXX comments!
 
-use ff_ext::BabyBearExt4;
+use ff_ext::{BabyBearExt4, ExtensionField, PoseidonField};
 use openvm_native_compiler::{asm::AsmConfig, prelude::*};
 use openvm_native_recursion::{
     hints::{Hintable, VecAutoHintable},
     vars::HintSlice,
 };
 use openvm_stark_sdk::p3_baby_bear::BabyBear;
+use p3_commit::ExtensionMmcs;
 use p3_field::FieldAlgebra;
 use serde::Deserialize;
+use std::fmt::Debug;
 
 use super::{basefold::*, extension_mmcs::*, mmcs::*, rs::*, structs::*, utils::*};
 use crate::{
@@ -20,12 +22,36 @@ pub type F = BabyBear;
 pub type E = BabyBearExt4;
 pub type InnerConfig = AsmConfig<F, E>;
 
+use p3_fri::BatchOpening as InnerBatchOpening;
+use p3_fri::CommitPhaseProofStep as InnerCommitPhaseProofStep;
+
 /// We have to define a struct similar to p3_fri::BatchOpening as
 /// the trait `Hintable` is defined in another crate inside OpenVM
 #[derive(Deserialize)]
 pub struct BatchOpening {
     pub opened_values: Vec<Vec<F>>,
     pub opening_proof: MmcsProof,
+}
+
+impl
+    From<
+        InnerBatchOpening<
+            <E as ExtensionField>::BaseField,
+            <<E as ExtensionField>::BaseField as PoseidonField>::MMCS,
+        >,
+    > for BatchOpening
+{
+    fn from(
+        inner: InnerBatchOpening<
+            <E as ExtensionField>::BaseField,
+            <<E as ExtensionField>::BaseField as PoseidonField>::MMCS,
+        >,
+    ) -> Self {
+        Self {
+            opened_values: inner.opened_values,
+            opening_proof: inner.opening_proof.into(),
+        }
+    }
 }
 
 #[derive(DslVariable, Clone)]
@@ -67,6 +93,20 @@ impl Hintable<InnerConfig> for BatchOpening {
 pub struct CommitPhaseProofStep {
     pub sibling_value: E,
     pub opening_proof: MmcsProof,
+}
+
+pub type ExtMmcs<E> = ExtensionMmcs<
+    <E as ExtensionField>::BaseField,
+    E,
+    <<E as ExtensionField>::BaseField as PoseidonField>::MMCS,
+>;
+impl From<InnerCommitPhaseProofStep<E, ExtMmcs<E>>> for CommitPhaseProofStep {
+    fn from(inner: InnerCommitPhaseProofStep<E, ExtMmcs<E>>) -> Self {
+        Self {
+            sibling_value: inner.sibling_value,
+            opening_proof: inner.opening_proof.into(),
+        }
+    }
 }
 
 #[derive(DslVariable, Clone)]
@@ -295,7 +335,7 @@ pub struct QueryPhaseVerifierInputVariable<C: Config> {
     pub point_evals: Array<C, PointAndEvalsVariable<C>>,
 }
 
-pub(crate) fn batch_verifier_query_phase<C: Config>(
+pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
     builder: &mut Builder<C>,
     input: QueryPhaseVerifierInputVariable<C>,
 ) {
@@ -322,19 +362,22 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
     // encode_small
     let final_rmm_values_len = builder.get(&input.final_message, 0).len();
     let final_rmm_values = builder.dyn_array(final_rmm_values_len.clone());
+
     builder
         .range(0, final_rmm_values_len.clone())
         .for_each(|i_vec, builder| {
             let i = i_vec[0];
-            let row = builder.get(&input.final_message, i);
+            let row_len = input.final_message.len();
             let sum = builder.constant(C::EF::ZERO);
-            builder.range(0, row.len()).for_each(|j_vec, builder| {
+            builder.range(0, row_len).for_each(|j_vec, builder| {
                 let j = j_vec[0];
-                let row_j = builder.get(&row, j);
+                let row = builder.get(&input.final_message, j);
+                let row_j = builder.get(&row, i);
                 builder.assign(&sum, sum + row_j);
             });
             builder.set_value(&final_rmm_values, i, sum);
         });
+
     let final_rmm = RowMajorMatrixVariable {
         values: final_rmm_values,
         width: builder.eval(Usize::from(1)),
@@ -367,6 +410,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
     // 1. height_order: after sorting by decreasing height, the original index of each entry
     // 2. num_unique_height: number of different heights
     // 3. count_per_unique_height: for each unique height, number of dimensions of that height
+    // builder.assert_nonzero(&Usize::from(0));
     let (folding_sorted_order_index, _num_unique_num_vars, count_per_unique_num_var) =
         sort_with_count(
             builder,
@@ -381,6 +425,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
             let idx = builder.get(&input.indices, i);
             let query = builder.get(&input.queries, i);
             let witin_opened_values = query.witin_base_proof.opened_values;
+
             let witin_opening_proof = query.witin_base_proof.opening_proof;
             let fixed_is_some = query.fixed_is_some;
             let fixed_commit = query.fixed_base_proof;
@@ -425,6 +470,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                 .if_eq(fixed_is_some.clone(), Usize::from(1))
                 .then(|builder| {
                     let fixed_opened_values = fixed_commit.opened_values.clone();
+
                     let fixed_opening_proof = fixed_commit.opening_proof.clone();
                     // new_idx used by mmcs proof
                     let new_idx: Var<C::N> = builder.eval(idx);
@@ -791,8 +837,8 @@ pub mod tests {
     use openvm_native_compiler::asm::AsmBuilder;
     use openvm_native_recursion::hints::Hintable;
     use openvm_stark_sdk::p3_baby_bear::BabyBear;
-    use p3_field::FieldAlgebra;
     use p3_field::Field;
+    use p3_field::FieldAlgebra;
     use rand::thread_rng;
 
     type F = BabyBear;
