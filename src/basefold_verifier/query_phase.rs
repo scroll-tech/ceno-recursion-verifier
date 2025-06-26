@@ -326,13 +326,15 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
         .range(0, final_rmm_values_len.clone())
         .for_each(|i_vec, builder| {
             let i = i_vec[0];
-            let row = builder.get(&input.final_message, i);
             let sum = builder.constant(C::EF::ZERO);
-            builder.range(0, row.len()).for_each(|j_vec, builder| {
-                let j = j_vec[0];
-                let row_j = builder.get(&row, j);
-                builder.assign(&sum, sum + row_j);
-            });
+            builder
+                .range(0, input.final_message.len())
+                .for_each(|j_vec, builder| {
+                    let j = j_vec[0];
+                    let row = builder.get(&input.final_message, j);
+                    let row_i = builder.get(&row, i);
+                    builder.assign(&sum, sum + row_i);
+                });
             builder.set_value(&final_rmm_values, i, sum);
         });
     let final_rmm = RowMajorMatrixVariable {
@@ -776,7 +778,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
 
 #[cfg(test)]
 pub mod tests {
-    use std::{collections::BTreeMap, iter::once};
+    use std::{cmp::Reverse, collections::BTreeMap, iter::once};
 
     use ceno_mle::mle::MultilinearExtension;
     use ceno_transcript::{BasicTranscript, Transcript};
@@ -791,8 +793,8 @@ pub mod tests {
     use openvm_native_compiler::asm::AsmBuilder;
     use openvm_native_recursion::hints::Hintable;
     use openvm_stark_sdk::p3_baby_bear::BabyBear;
-    use p3_field::FieldAlgebra;
     use p3_field::Field;
+    use p3_field::FieldAlgebra;
     use rand::thread_rng;
 
     type F = BabyBear;
@@ -825,6 +827,24 @@ pub mod tests {
         let mut witness_stream: Vec<Vec<F>> = Vec::new();
         witness_stream.extend(input.write());
         witness_stream.push(vec![F::from_canonical_u32(2).inverse()]);
+        witness_stream.push(vec![F::from_canonical_usize(
+            input
+                .circuit_meta
+                .iter()
+                .unique_by(|x| x.witin_num_vars)
+                .count(),
+        )]);
+        witness_stream.push(
+            input
+                .circuit_meta
+                .iter()
+                .enumerate()
+                .sorted_by_key(|(_, CircuitIndexMeta { witin_num_vars, .. })| {
+                    Reverse(witin_num_vars)
+                })
+                .map(|(index, _)| F::from_canonical_usize(index))
+                .collect_vec(),
+        );
 
         (program, witness_stream)
     }
