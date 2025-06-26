@@ -469,7 +469,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
                 opened_values: witin_opened_values.clone(),
                 proof: witin_opening_proof,
             };
-            mmcs_verify_batch(builder, mmcs_verifier_input); // FIXME: this verification fails currently, maybe because index bits should be big endian?
+            mmcs_verify_batch(builder, mmcs_verifier_input); // FIXME: this verification fails currently, the Merkle root does not match
             builder.halt();
 
             // verify fixed
