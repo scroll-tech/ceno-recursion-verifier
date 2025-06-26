@@ -433,9 +433,9 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
 
             // verify base oracle query proof
             // refer to prover documentation for the reason of right shift by 1
-            // Nondeterministically supply the bits of idx in BIG ENDIAN
-            // These are not only used by the right shift here but also later on idx_shift
-            let idx_len = builder.hint_var();
+            // The index length should be the maximal Merkle tree height.
+            // TODO: double check
+            let idx_len: Var<C::N> = builder.eval(input.max_num_var.clone() + get_rate_log::<C>());
             let idx_felt = builder.unsafe_cast_var_to_felt(idx);
             let idx_bits = builder.num2bits_f(idx_felt, C::N::bits() as u32);
             builder
@@ -445,14 +445,6 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
                     builder.assert_eq::<Var<_>>(bit, Usize::from(0));
                 });
 
-            let idx_bits: Array<C, Var<C::N>> = builder.dyn_array(idx_len);
-            builder.range(0, idx_len).for_each(|j_vec, builder| {
-                let j = j_vec[0];
-                let next_bit = builder.hint_var();
-                // Assert that it is a bit
-                builder.assert_eq::<Var<C::N>>(next_bit * next_bit, next_bit);
-                builder.set_value(&idx_bits, j, next_bit);
-            });
             // Right shift
             let idx_len_minus_one: Var<C::N> = builder.eval(idx_len - Usize::from(1));
             builder.assign(&idx_len, idx_len_minus_one);
