@@ -465,7 +465,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
             let mmcs_verifier_input = MmcsVerifierInputVariable {
                 commit: input.witin_comm.commit.clone(),
                 dimensions: witin_dimensions,
-                index_bits: idx_bits.clone(), // TODO: double check, should be new idx bits here ?
+                index_bits: idx_bits.clone(), // FIXME: need to truncate the index bits, otherwise it is too long and cause the verifier to read beyond the sibling hashes in the proof
                 opened_values: witin_opened_values.clone(),
                 proof: witin_opening_proof,
             };
