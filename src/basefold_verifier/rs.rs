@@ -98,20 +98,18 @@ pub fn get_rate_log<C: Config>() -> Usize<C::N> {
 }
 
 pub fn get_basecode_msg_size_log<C: Config>() -> Usize<C::N> {
-    Usize::from(7)
+    Usize::from(0)
 }
 
 pub fn verifier_folding_coeffs_level<C: Config>(
     builder: &mut Builder<C>,
-    two_adic_generators: &Array<C, Felt<C::F>>,
+    two_adic_generators_inverses: &Array<C, Felt<C::F>>,
     level: Var<C::N>,
     index_bits: &Array<C, Var<C::N>>, // In big endian
     two_inv: Felt<C::F>,
 ) -> Felt<C::F> {
     let level_plus_one = builder.eval::<Var<C::N>, _>(level + C::N::ONE);
-    let g = builder.get(two_adic_generators, level_plus_one);
-    let g_inv = builder.hint_felt();
-    builder.assert_eq::<Felt<C::F>>(g_inv * g, C::F::from_canonical_usize(1));
+    let g_inv = builder.get(two_adic_generators_inverses, level_plus_one);
 
     let g_inv_index = pow_felt_bits(builder, g_inv, index_bits, level.into());
 

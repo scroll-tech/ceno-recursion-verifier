@@ -8,7 +8,7 @@ use openvm_native_recursion::{
 };
 use openvm_stark_sdk::p3_baby_bear::BabyBear;
 use p3_commit::ExtensionMmcs;
-use p3_field::FieldAlgebra;
+use p3_field::{Field, FieldAlgebra};
 use serde::Deserialize;
 use std::fmt::Debug;
 
@@ -345,7 +345,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
         inv_2 * C::F::from_canonical_usize(2),
         C::F::from_canonical_usize(1),
     );
-    let two_adic_generators: Array<C, Felt<C::F>> = builder.dyn_array(28);
+    let two_adic_generators_inverses: Array<C, Felt<C::F>> = builder.dyn_array(28);
     for (index, val) in [
         0x1usize, 0x78000000, 0x67055c21, 0x5ee99486, 0xbb4c4e4, 0x2d4cc4da, 0x669d6090,
         0x17b56c64, 0x67456167, 0x688442f9, 0x145e952d, 0x4fe61226, 0x4c734715, 0x11c33e2a,
@@ -355,8 +355,8 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
     .iter()
     .enumerate()
     {
-        let generator = builder.constant(C::F::from_canonical_usize(*val));
-        builder.set_value(&two_adic_generators, index, generator);
+        let generator = builder.constant(C::F::from_canonical_usize(*val).inverse());
+        builder.set_value(&two_adic_generators_inverses, index, generator);
     }
 
     // encode_small
@@ -556,7 +556,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
                         .if_ne(fixed_num_vars, Usize::from(0))
                         .then(|builder| {
                             let fixed_leafs = builder.get(&fixed_commit_leafs, j);
-                            let leafs_len_div_2 = builder.hint_var();
+                            let leafs_len_div_2: Var<<C as Config>::N> = builder.hint_var();
                             let two: Var<C::N> = builder.eval(Usize::from(2));
                             builder
                                 .assert_eq::<Var<C::N>>(leafs_len_div_2 * two, fixed_leafs.len()); // Can we assume that leafs.len() is even?
@@ -602,7 +602,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
                         builder.eval(cur_num_var + get_rate_log::<C>() - Usize::from(1));
                     let coeff = verifier_folding_coeffs_level(
                         builder,
-                        &two_adic_generators,
+                        &two_adic_generators_inverses,
                         level,
                         &idx_bits,
                         inv_2,
@@ -712,7 +712,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
 
                     let coeff = verifier_folding_coeffs_level(
                         builder,
-                        &two_adic_generators,
+                        &two_adic_generators_inverses,
                         n_d_i_log.clone(),
                         &idx_bits,
                         inv_2,
