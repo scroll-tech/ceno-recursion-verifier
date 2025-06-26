@@ -436,6 +436,15 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
             // Nondeterministically supply the bits of idx in BIG ENDIAN
             // These are not only used by the right shift here but also later on idx_shift
             let idx_len = builder.hint_var();
+            let idx_felt = builder.unsafe_cast_var_to_felt(idx);
+            let idx_bits = builder.num2bits_f(idx_felt, C::N::bits() as u32);
+            builder
+                .range(idx_len, idx_bits.len())
+                .for_each(|i_vec, builder| {
+                    let bit = builder.get(&idx_bits, i_vec[0]);
+                    builder.assert_eq::<Var<_>>(bit, Usize::from(0));
+                });
+
             let idx_bits: Array<C, Var<C::N>> = builder.dyn_array(idx_len);
             builder.range(0, idx_len).for_each(|j_vec, builder| {
                 let j = j_vec[0];
