@@ -448,11 +448,12 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
 
             // Right shift
             let idx_len_minus_one: Var<C::N> = builder.eval(idx_len - Usize::from(1));
-            let one = builder.eval(Usize::from(1));
+            let one = builder.constant(C::N::ONE);
             let new_idx = bin_to_dec_le(builder, &idx_bits, one, idx_len);
-            builder.assign(&idx_len, idx_len_minus_one);
             let first_bit = builder.get(&idx_bits, 0);
+            builder.assign(&idx_len, idx_len_minus_one);
             builder.assert_eq::<Var<C::N>>(Usize::from(2) * new_idx + first_bit, idx);
+            builder.halt();
             builder.assign(&idx, new_idx);
 
             let (witin_dimensions, fixed_dimensions) =

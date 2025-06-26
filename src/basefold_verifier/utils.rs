@@ -135,11 +135,12 @@ pub fn bin_to_dec_le<C: Config>(
 ) -> Var<C::N> {
     let value: Var<C::N> = builder.constant(C::N::ZERO);
     let two: Var<C::N> = builder.constant(C::N::TWO);
+    let power_of_two: Var<C::N> = builder.constant(C::N::ONE);
     builder.range(start, end).for_each(|i_vec, builder| {
         let i = i_vec[0];
-        builder.assign(&value, value * two);
         let next_bit = builder.get(bin, i);
-        builder.assign(&value, value + next_bit);
+        builder.assign(&value, power_of_two * next_bit);
+        builder.assign(&power_of_two, power_of_two * two);
     });
     value
 }
