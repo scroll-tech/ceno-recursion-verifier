@@ -437,6 +437,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
             // TODO: double check
             let idx_len: Var<C::N> = builder.eval(input.max_num_var.clone() + get_rate_log::<C>());
             let idx_felt = builder.unsafe_cast_var_to_felt(idx);
+            // TODO: The result of num2bits_f seems to be in little endian?
             let idx_bits = builder.num2bits_f(idx_felt, C::N::bits() as u32);
             builder
                 .range(idx_len, idx_bits.len())
@@ -447,10 +448,11 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
 
             // Right shift
             let idx_len_minus_one: Var<C::N> = builder.eval(idx_len - Usize::from(1));
+            let one = builder.eval(Usize::from(1));
+            let new_idx = bin_to_dec_le(builder, &idx_bits, one, idx_len);
             builder.assign(&idx_len, idx_len_minus_one);
-            let new_idx = bin_to_dec(builder, &idx_bits, idx_len);
-            let last_bit = builder.get(&idx_bits, idx_len);
-            builder.assert_eq::<Var<C::N>>(Usize::from(2) * new_idx + last_bit, idx);
+            let first_bit = builder.get(&idx_bits, 0);
+            builder.assert_eq::<Var<C::N>>(Usize::from(2) * new_idx + first_bit, idx);
             builder.assign(&idx, new_idx);
 
             let (witin_dimensions, fixed_dimensions) =

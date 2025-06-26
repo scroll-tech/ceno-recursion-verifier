@@ -126,6 +126,24 @@ pub fn bin_to_dec<C: Config>(
     value
 }
 
+// Convert start to end entries of binary to decimal in little endian
+pub fn bin_to_dec_le<C: Config>(
+    builder: &mut Builder<C>,
+    bin: &Array<C, Var<C::N>>,
+    start: Var<C::N>,
+    end: Var<C::N>,
+) -> Var<C::N> {
+    let value: Var<C::N> = builder.constant(C::N::ZERO);
+    let two: Var<C::N> = builder.constant(C::N::TWO);
+    builder.range(start, end).for_each(|i_vec, builder| {
+        let i = i_vec[0];
+        builder.assign(&value, value * two);
+        let next_bit = builder.get(bin, i);
+        builder.assign(&value, value + next_bit);
+    });
+    value
+}
+
 // Sort a list in decreasing order, returns:
 // 1. The original index of each sorted entry
 // 2. Number of unique entries
