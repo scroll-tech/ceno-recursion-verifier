@@ -406,19 +406,22 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
     // encode_small
     let final_rmm_values_len = builder.get(&input.final_message, 0).len();
     let final_rmm_values = builder.dyn_array(final_rmm_values_len.clone());
+
     builder
         .range(0, final_rmm_values_len.clone())
         .for_each(|i_vec, builder| {
             let i = i_vec[0];
-            let row = builder.get(&input.final_message, i);
+            let row_len = input.final_message.len();
             let sum = builder.constant(C::EF::ZERO);
-            builder.range(0, row.len()).for_each(|j_vec, builder| {
+            builder.range(0, row_len).for_each(|j_vec, builder| {
                 let j = j_vec[0];
-                let row_j = builder.get(&row, j);
+                let row = builder.get(&input.final_message, j);
+                let row_j = builder.get(&row, i);
                 builder.assign(&sum, sum + row_j);
             });
             builder.set_value(&final_rmm_values, i, sum);
         });
+
     let final_rmm = RowMajorMatrixVariable {
         values: final_rmm_values,
         width: builder.eval(Usize::from(1)),
