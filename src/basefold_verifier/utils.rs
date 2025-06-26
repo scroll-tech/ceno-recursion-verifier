@@ -139,7 +139,7 @@ pub fn bin_to_dec_le<C: Config>(
     builder.range(start, end).for_each(|i_vec, builder| {
         let i = i_vec[0];
         let next_bit = builder.get(bin, i);
-        builder.assign(&value, power_of_two * next_bit);
+        builder.assign(&value, value + power_of_two * next_bit);
         builder.assign(&power_of_two, power_of_two * two);
     });
     value
