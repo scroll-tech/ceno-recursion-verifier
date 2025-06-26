@@ -465,11 +465,11 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
             let mmcs_verifier_input = MmcsVerifierInputVariable {
                 commit: input.witin_comm.commit.clone(),
                 dimensions: witin_dimensions,
-                index_bits: idx_bits.clone(), // FIXME: need to truncate the index bits, otherwise it is too long and cause the verifier to read beyond the sibling hashes in the proof
+                index_bits: idx_bits.clone().slice(builder, 0, idx_len),
                 opened_values: witin_opened_values.clone(),
                 proof: witin_opening_proof,
             };
-            mmcs_verify_batch(builder, mmcs_verifier_input);
+            mmcs_verify_batch(builder, mmcs_verifier_input); // FIXME: this verification fails currently, maybe because index bits should be big endian?
             builder.halt();
 
             // verify fixed

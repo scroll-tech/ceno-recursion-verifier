@@ -114,11 +114,13 @@ pub fn get_base_codeword_dimensions<C: Config>(
         // wit_dim
         // let width = builder.eval(witin_num_polys * Usize::from(2));
         let height_exp = builder.eval(witin_num_vars + get_rate_log::<C>() - Usize::from(1));
-        let height = pow_2(builder, height_exp);
+        // let height = pow_2(builder, height_exp);
         // let next_wit: DimensionsVariable<C> = DimensionsVariable { width, height };
         // Only keep the height because the width is not needed in the mmcs batch
         // verify instruction
-        builder.set_value(&wit_dim, i, height);
+        // The dimension passed to the mmcs verifier batch is log of the height, not
+        // the height itself
+        builder.set_value(&wit_dim, i, height_exp);
 
         // fixed_dim
         // XXX: since fixed_num_vars is usize, fixed_num_vars > 0 is equivalent to fixed_num_vars != 0
@@ -129,9 +131,9 @@ pub fn get_base_codeword_dimensions<C: Config>(
                 let height_exp =
                     builder.eval(fixed_num_vars.clone() + get_rate_log::<C>() - Usize::from(1));
                 // XXX: more efficient pow implementation
-                let height = pow_2(builder, height_exp);
+                // let height = pow_2(builder, height_exp);
                 // let next_fixed: DimensionsVariable<C> = DimensionsVariable { width, height };
-                builder.set_value(&fixed_dim, i, height);
+                builder.set_value(&fixed_dim, i, height_exp);
             });
     });
     (wit_dim, fixed_dim)
