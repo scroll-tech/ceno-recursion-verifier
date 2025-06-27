@@ -908,8 +908,6 @@ pub mod tests {
         let pcs_data = pcs_batch_commit::<E, PCS>(&pp, matrices).unwrap();
         let witin_comm = PCS::get_pure_commitment(&pcs_data);
 
-        println!("query index bit len: {}", witin_comm.log2_max_codeword_size);
-
         let points = vec![E::random_vec(10, &mut rng)];
         let evals = points
             .iter()
@@ -989,11 +987,6 @@ pub mod tests {
                     .collect(),
             })
             .collect();
-
-        println!(
-            "opening_proof.query_indices: {:?}",
-            opening_proof.query_indices
-        );
 
         let query_input = QueryPhaseVerifierInput {
             max_num_var: 10,
