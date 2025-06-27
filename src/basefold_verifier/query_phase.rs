@@ -913,10 +913,14 @@ pub mod tests {
         let witin_comm = PCS::get_pure_commitment(&pcs_data);
 
         let points = vec![E::random_vec(10, &mut rng)];
-        let evals = mles_1
+        let evals = points
             .iter()
-            .map(|mle| points.iter().map(|p| mle.evaluate(&p)).collect_vec())
+            .map(|p| mles_1.iter().map(|mle| mle.evaluate(p)).collect_vec())
             .collect::<Vec<_>>();
+        // let evals = mles_1
+        //     .iter()
+        //     .map(|mle| points.iter().map(|p| mle.evaluate(&p)).collect_vec())
+        //     .collect::<Vec<_>>();
         let mut transcript = BasicTranscript::<E>::new(&[]);
         let opening_proof = pcs_batch_open::<E, PCS>(
             &pp,
