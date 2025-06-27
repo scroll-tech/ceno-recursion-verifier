@@ -29,7 +29,11 @@ impl From<InnerBasefoldCommitment<E>> for BasefoldCommitment {
                 value: value.commit().into(),
             },
             log2_max_codeword_size: value.log2_max_codeword_size,
-            trivial_commits: value.trivial_commits.into_iter().map(|c| c.into()).collect(),
+            trivial_commits: value
+                .trivial_commits
+                .into_iter()
+                .map(|c| c.into())
+                .collect(),
         }
     }
 }
