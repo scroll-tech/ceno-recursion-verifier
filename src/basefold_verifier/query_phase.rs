@@ -433,10 +433,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
 
             // verify base oracle query proof
             // refer to prover documentation for the reason of right shift by 1
-            // The index length should be the maximal Merkle tree height.
-            // Double check: when idx is set to the following number - 1, the program
-            // fails with 1/2 probability, which means the provided index has length
-            // exactly the following number.
+            // The index length is the logarithm of the maximal codeword size.
             let idx_len: Var<C::N> = builder.eval(input.max_num_var.clone() + get_rate_log::<C>());
             let idx_felt = builder.unsafe_cast_var_to_felt(idx);
             let idx_bits = builder.num2bits_f(idx_felt, C::N::bits() as u32);
@@ -463,12 +460,11 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
             let mmcs_verifier_input = MmcsVerifierInputVariable {
                 commit: input.witin_comm.commit.clone(),
                 dimensions: witin_dimensions,
-                index_bits: idx_bits.clone().slice(builder, 0, idx_len),
+                index_bits: idx_bits.clone().slice(builder, 1, idx_len), // Remove the first bit because two entries are grouped into one leaf in the Merkle tree
                 opened_values: witin_opened_values.clone(),
                 proof: witin_opening_proof,
             };
-            mmcs_verify_batch(builder, mmcs_verifier_input); // FIXME: this verification fails currently, the Merkle root does not match. This probably has something to do with the MMCS proof length being 10 while the index length being 11 bits instead of 10
-            builder.halt();
+            mmcs_verify_batch(builder, mmcs_verifier_input);
 
             // verify fixed
             let fixed_commit_leafs = builder.dyn_array(0);
@@ -911,6 +907,8 @@ pub mod tests {
         let (pp, vp) = pcs_trim::<E, PCS>(pp, 1 << 20).unwrap();
         let pcs_data = pcs_batch_commit::<E, PCS>(&pp, matrices).unwrap();
         let witin_comm = PCS::get_pure_commitment(&pcs_data);
+
+        println!("query index bit len: {}", witin_comm.log2_max_codeword_size);
 
         let points = vec![E::random_vec(10, &mut rng)];
         let evals = points
