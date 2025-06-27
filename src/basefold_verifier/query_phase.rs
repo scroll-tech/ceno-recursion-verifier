@@ -446,13 +446,12 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
 
             // Right shift
             let idx_len_minus_one: Var<C::N> = builder.eval(idx_len - Usize::from(1));
-            let one = builder.constant(C::N::ONE);
-            let new_idx = bin_to_dec_le(builder, &idx_bits, one, idx_len);
-            let first_bit = builder.get(&idx_bits, 0);
-            builder.assert_eq::<Var<C::N>>(Usize::from(2) * new_idx + first_bit, idx);
+            let idx_half = builder.hint_var();
+            let lsb = builder.get(&idx_bits, 0);
+            builder.assert_var_eq(Usize::from(2) * idx_half + lsb, idx);
 
             builder.assign(&idx_len, idx_len_minus_one);
-            builder.assign(&idx, new_idx);
+            builder.assign(&idx, idx_half);
 
             let (witin_dimensions, fixed_dimensions) =
                 get_base_codeword_dimensions(builder, input.circuit_meta.clone());
@@ -893,7 +892,8 @@ pub mod tests {
                 .map(|(index, _)| F::from_canonical_usize(index))
                 .collect_vec(),
         );
-        for query in input.queries.iter() {
+        for (query, idx) in input.queries.iter().zip(input.indices.iter()) {
+            witness_stream.push(vec![F::from_canonical_usize(idx / 2)]);
             if let Some(fixed_comm) = &input.fixed_comm {
                 let log2_witin_max_codeword_size = input.max_num_var + 1;
                 if log2_witin_max_codeword_size > fixed_comm.log2_max_codeword_size {
