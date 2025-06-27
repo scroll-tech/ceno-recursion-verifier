@@ -708,7 +708,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
                     let ext_mmcs_verifier_input = ExtMmcsVerifierInputVariable {
                         commit: pi_comm.clone(),
                         dimensions,
-                        index_bits: idx_bits.clone(), // TODO: new idx bits?
+                        index_bits: idx_bits.clone().slice(builder, idx_offset, idx_end),
                         opened_values,
                         proof,
                     };
