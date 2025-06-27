@@ -892,6 +892,30 @@ pub mod tests {
                 .map(|(index, _)| F::from_canonical_usize(index))
                 .collect_vec(),
         );
+        for query in input.queries.iter() {
+            if let Some(fixed_comm) = &input.fixed_comm {
+                let log2_witin_max_codeword_size = input.max_num_var + 1;
+                if log2_witin_max_codeword_size > fixed_comm.log2_max_codeword_size {
+                    witness_stream.push(vec![F::ZERO])
+                } else {
+                    witness_stream.push(vec![F::ONE])
+                }
+            }
+            for i in 0..input.circuit_meta.len() {
+                witness_stream.push(vec![F::from_canonical_usize(
+                    query.witin_base_proof.opened_values[i].len() / 2,
+                )]);
+                if input.circuit_meta[i].fixed_num_vars > 0 {
+                    witness_stream.push(vec![F::from_canonical_usize(
+                        if let Some(fixed_base_proof) = &query.fixed_base_proof {
+                            fixed_base_proof.opened_values[i].len() / 2
+                        } else {
+                            0
+                        },
+                    )]);
+                }
+            }
+        }
 
         (program, witness_stream)
     }
