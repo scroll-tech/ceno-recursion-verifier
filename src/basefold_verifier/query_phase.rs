@@ -515,7 +515,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
                     let mmcs_verifier_input = MmcsVerifierInputVariable {
                         commit: input.fixed_comm.commit.clone(),
                         dimensions: fixed_dimensions.clone(),
-                        index_bits: idx_bits.clone(), // TODO: should be new idx_bits
+                        index_bits: idx_bits.clone().slice(builder, 1, idx_len),
                         opened_values: fixed_opened_values.clone(),
                         proof: fixed_opening_proof,
                     };
@@ -628,14 +628,14 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
                     let j = j_vec[0];
                     let pi_comm = builder.get(&input.commits, j);
                     let j_plus_one = builder.eval_expr(j + RVar::from(1));
+                    let j_plus_two = builder.eval(j + RVar::from(2));
                     let r = builder.get(&input.fold_challenges, j_plus_one);
                     let leaf = builder.get(&opening_ext, j).sibling_value;
                     let proof = builder.get(&opening_ext, j).opening_proof;
                     builder.assign(&cur_num_var, cur_num_var - Usize::from(1));
 
                     // next folding challenges
-                    let idx_len_minus_one: Var<C::N> = builder.eval(idx_len - Usize::from(1));
-                    let is_interpolate_to_right_index = builder.get(&idx_bits, idx_len_minus_one); // FIXME: may be should take the first bit?
+                    let is_interpolate_to_right_index = builder.get(&idx_bits, j_plus_one);
                     let new_involved_codewords: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
                     let next_unique_num_vars_count: Var<C::N> =
                         builder.get(&count_per_unique_num_var, next_unique_num_vars_index);
@@ -690,11 +690,9 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
                     // idx >>= 1
                     let idx_len_minus_one: Var<C::N> = builder.eval(idx_len - Usize::from(1));
                     builder.assign(&idx_len, idx_len_minus_one);
-                    let idx_offset: Var<_> = builder.eval(j + Usize::from(1));
-                    let new_idx_offset = builder.eval(j + Usize::from(2));
                     let idx_end = builder.eval(input.max_num_var.clone() + get_rate_log::<C>());
-                    let new_idx = bin_to_dec_le(builder, &idx_bits, new_idx_offset, idx_end);
-                    let first_bit = builder.get(&idx_bits, idx_offset);
+                    let new_idx = bin_to_dec_le(builder, &idx_bits, j_plus_two, idx_end);
+                    let first_bit = builder.get(&idx_bits, j_plus_one);
                     builder.assert_eq::<Var<C::N>>(Usize::from(2) * new_idx + first_bit, idx);
                     builder.assign(&idx, new_idx);
                     // n_d_i >> 1
@@ -708,7 +706,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
                     let ext_mmcs_verifier_input = ExtMmcsVerifierInputVariable {
                         commit: pi_comm.clone(),
                         dimensions,
-                        index_bits: idx_bits.clone().slice(builder, idx_offset, idx_end),
+                        index_bits: idx_bits.clone().slice(builder, j_plus_two, idx_end),
                         opened_values,
                         proof,
                     };
