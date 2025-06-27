@@ -601,11 +601,12 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
                     let hi = builder.get(&base_codeword_hi, index.clone());
                     let level: Var<C::N> =
                         builder.eval(cur_num_var + get_rate_log::<C>() - Usize::from(1));
+                    let sliced_bits = idx_bits.clone().slice(builder, 1, idx_len);
                     let coeff = verifier_folding_coeffs_level(
                         builder,
                         &two_adic_generators_inverses,
                         level,
-                        &idx_bits,
+                        &sliced_bits, // FIXME: idx_bits should be sliced
                         inv_2,
                     );
                     let fold = codeword_fold_with_challenge::<C>(builder, lo, hi, r, coeff, inv_2);
