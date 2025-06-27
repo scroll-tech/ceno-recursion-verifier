@@ -635,7 +635,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
 
                     // next folding challenges
                     let idx_len_minus_one: Var<C::N> = builder.eval(idx_len - Usize::from(1));
-                    let is_interpolate_to_right_index = builder.get(&idx_bits, idx_len_minus_one);
+                    let is_interpolate_to_right_index = builder.get(&idx_bits, idx_len_minus_one); // FIXME: may be should take the first bit?
                     let new_involved_codewords: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
                     let next_unique_num_vars_count: Var<C::N> =
                         builder.get(&count_per_unique_num_var, next_unique_num_vars_index);
@@ -690,9 +690,12 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
                     // idx >>= 1
                     let idx_len_minus_one: Var<C::N> = builder.eval(idx_len - Usize::from(1));
                     builder.assign(&idx_len, idx_len_minus_one);
-                    let new_idx = bin_to_dec(builder, &idx_bits, idx_len);
-                    let last_bit = builder.get(&idx_bits, idx_len);
-                    builder.assert_eq::<Var<C::N>>(Usize::from(2) * new_idx + last_bit, idx);
+                    let idx_offset: Var<_> = builder.eval(j + Usize::from(1));
+                    let new_idx_offset = builder.eval(j + Usize::from(2));
+                    let idx_end = builder.eval(input.max_num_var.clone() + get_rate_log::<C>());
+                    let new_idx = bin_to_dec_le(builder, &idx_bits, new_idx_offset, idx_end);
+                    let first_bit = builder.get(&idx_bits, idx_offset);
+                    builder.assert_eq::<Var<C::N>>(Usize::from(2) * new_idx + first_bit, idx);
                     builder.assign(&idx, new_idx);
                     // n_d_i >> 1
                     builder.assign(&n_d_i_log, n_d_i_log - Usize::from(1));
@@ -710,7 +713,8 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
                         opened_values,
                         proof,
                     };
-                    ext_mmcs_verify_batch::<C>(builder, ext_mmcs_verifier_input);
+                    ext_mmcs_verify_batch::<C>(builder, ext_mmcs_verifier_input); // FIXME: the dimensions are probably wrong
+                    builder.halt();
 
                     let coeff = verifier_folding_coeffs_level(
                         builder,
