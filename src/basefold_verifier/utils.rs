@@ -1,5 +1,8 @@
 use openvm_native_compiler::ir::*;
+use openvm_native_recursion::vars::HintSlice;
 use p3_field::FieldAlgebra;
+
+use crate::basefold_verifier::mmcs::MmcsProof;
 
 // XXX: more efficient pow implementation
 pub fn pow<C: Config>(builder: &mut Builder<C>, base: Var<C::N>, exponent: Var<C::N>) -> Var<C::N> {
@@ -119,6 +122,25 @@ pub fn bin_to_dec<C: Config>(
         builder.assign(&value, value * two);
         let next_bit = builder.get(bin, i);
         builder.assign(&value, value + next_bit);
+    });
+    value
+}
+
+// Convert start to end entries of binary to decimal in little endian
+pub fn bin_to_dec_le<C: Config>(
+    builder: &mut Builder<C>,
+    bin: &Array<C, Var<C::N>>,
+    start: Var<C::N>,
+    end: Var<C::N>,
+) -> Var<C::N> {
+    let value: Var<C::N> = builder.constant(C::N::ZERO);
+    let two: Var<C::N> = builder.constant(C::N::TWO);
+    let power_of_two: Var<C::N> = builder.constant(C::N::ONE);
+    builder.range(start, end).for_each(|i_vec, builder| {
+        let i = i_vec[0];
+        let next_bit = builder.get(bin, i);
+        builder.assign(&value, value + power_of_two * next_bit);
+        builder.assign(&power_of_two, power_of_two * two);
     });
     value
 }
@@ -243,4 +265,10 @@ pub fn codeword_fold_with_challenge<C: Config>(
     // lagrange domain fixed variable
     let ret: Ext<C::F, C::EF> = builder.eval(lo + challenge * (hi - lo));
     ret
+}
+
+pub(crate) fn read_hint_slice<C: Config>(builder: &mut Builder<C>) -> HintSlice<C> {
+    let length = Usize::from(builder.hint_var());
+    let id = Usize::from(builder.hint_load());
+    HintSlice { length, id }
 }

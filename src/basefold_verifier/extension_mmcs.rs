@@ -17,6 +17,15 @@ pub struct ExtMmcsVerifierInput {
     pub proof: MmcsProof,
 }
 
+#[derive(DslVariable, Clone)]
+pub struct ExtMmcsVerifierInputVariable<C: Config> {
+    pub commit: MmcsCommitmentVariable<C>,
+    pub dimensions: Array<C, Var<C::N>>,
+    pub index_bits: Array<C, Var<C::N>>,
+    pub opened_values: Array<C, Array<C, Ext<C::F, C::EF>>>,
+    pub proof: HintSlice<C>,
+}
+
 impl Hintable<InnerConfig> for ExtMmcsVerifierInput {
     type HintVariable = ExtMmcsVerifierInputVariable<InnerConfig>;
 
@@ -59,15 +68,6 @@ impl Hintable<InnerConfig> for ExtMmcsVerifierInput {
         );
         stream
     }
-}
-
-#[derive(DslVariable, Clone)]
-pub struct ExtMmcsVerifierInputVariable<C: Config> {
-    pub commit: MmcsCommitmentVariable<C>,
-    pub dimensions: Array<C, Var<C::N>>,
-    pub index_bits: Array<C, Var<C::N>>,
-    pub opened_values: Array<C, Array<C, Ext<C::F, C::EF>>>,
-    pub proof: HintSlice<C>,
 }
 
 pub(crate) fn ext_mmcs_verify_batch<C: Config>(
