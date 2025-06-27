@@ -699,11 +699,10 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
                     builder.assign(&idx, new_idx);
                     // n_d_i >> 1
                     builder.assign(&n_d_i_log, n_d_i_log - Usize::from(1));
-                    let n_d_i = pow_2(builder, n_d_i_log);
                     // mmcs_ext.verify_batch
                     let dimensions = builder.dyn_array(1);
                     // let two: Var<_> = builder.eval(Usize::from(2));
-                    builder.set_value(&dimensions, 0, n_d_i.clone());
+                    builder.set_value(&dimensions, 0, n_d_i_log.clone());
                     let opened_values = builder.dyn_array(1);
                     builder.set_value(&opened_values, 0, leafs.clone());
                     let ext_mmcs_verifier_input = ExtMmcsVerifierInputVariable {
@@ -713,7 +712,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
                         opened_values,
                         proof,
                     };
-                    ext_mmcs_verify_batch::<C>(builder, ext_mmcs_verifier_input); // FIXME: the dimensions are probably wrong
+                    ext_mmcs_verify_batch::<C>(builder, ext_mmcs_verifier_input); // FIXME: the Merkle roots do not match
                     builder.halt();
 
                     let coeff = verifier_folding_coeffs_level(
