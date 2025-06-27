@@ -434,13 +434,11 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
             // verify base oracle query proof
             // refer to prover documentation for the reason of right shift by 1
             // The index length should be the maximal Merkle tree height.
-            // Minus 1 because two leaves are indexed, grouped and opened together,
-            // so the total number of indices is half the number of Merkle tree leaves
-            // TODO: double check
-            let idx_len: Var<C::N> =
-                builder.eval(input.max_num_var.clone() + get_rate_log::<C>() - Usize::from(1));
+            // Double check: when idx is set to the following number - 1, the program
+            // fails with 1/2 probability, which means the provided index has length
+            // exactly the following number.
+            let idx_len: Var<C::N> = builder.eval(input.max_num_var.clone() + get_rate_log::<C>());
             let idx_felt = builder.unsafe_cast_var_to_felt(idx);
-            // TODO: The result of num2bits_f seems to be in little endian?
             let idx_bits = builder.num2bits_f(idx_felt, C::N::bits() as u32);
             builder
                 .range(idx_len, idx_bits.len())
@@ -469,7 +467,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
                 opened_values: witin_opened_values.clone(),
                 proof: witin_opening_proof,
             };
-            mmcs_verify_batch(builder, mmcs_verifier_input); // FIXME: this verification fails currently, the Merkle root does not match
+            mmcs_verify_batch(builder, mmcs_verifier_input); // FIXME: this verification fails currently, the Merkle root does not match. This probably has something to do with the MMCS proof length being 10 while the index length being 11 bits instead of 10
             builder.halt();
 
             // verify fixed
@@ -836,6 +834,7 @@ pub mod tests {
     use ceno_transcript::{BasicTranscript, Transcript};
     use ff_ext::{BabyBearExt4, FromUniformBytes};
     use itertools::Itertools;
+    use mpcs::pcs_batch_verify;
     use mpcs::{
         pcs_batch_commit, pcs_batch_open, pcs_setup, pcs_trim,
         util::hash::write_digest_to_transcript, BasefoldDefault, PolynomialCommitmentScheme,
@@ -932,6 +931,20 @@ pub mod tests {
         .unwrap();
 
         let mut transcript = BasicTranscript::<E>::new(&[]);
+        pcs_batch_verify::<E, PCS>(
+            &vp,
+            &[(0, 1 << 10)],
+            &points,
+            None,
+            &witin_comm,
+            &evals,
+            &opening_proof,
+            &[(10, 0)],
+            &mut transcript,
+        )
+        .expect("Native verification failed");
+
+        let mut transcript = BasicTranscript::<E>::new(&[]);
         let batch_coeffs = transcript.sample_and_append_challenge_pows(10, b"batch coeffs");
 
         let max_num_var = 10;
@@ -974,6 +987,11 @@ pub mod tests {
                     .collect(),
             })
             .collect();
+
+        println!(
+            "opening_proof.query_indices: {:?}",
+            opening_proof.query_indices
+        );
 
         let query_input = QueryPhaseVerifierInput {
             max_num_var: 10,
