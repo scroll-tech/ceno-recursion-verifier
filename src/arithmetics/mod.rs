@@ -1,6 +1,6 @@
 use crate::tower_verifier::binding::PointAndEvalVariable;
 use crate::zkvm_verifier::binding::ZKVMOpcodeProofInputVariable;
-use ceno_zkvm::expression::{Expression, Fixed, Instance};
+use ceno_mle::expression::{Expression, Fixed, Instance};
 use ceno_zkvm::structs::{ChallengeId, WitnessId};
 use ff_ext::ExtensionField;
 use ff_ext::{BabyBearExt4, SmallField};
@@ -10,6 +10,7 @@ use openvm_native_recursion::challenger::ChallengerVariable;
 use openvm_native_recursion::challenger::{
     duplex::DuplexChallengerVariable, CanObserveVariable, FeltChallenger,
 };
+use itertools::Either;
 use p3_field::{FieldAlgebra, FieldExtensionAlgebra};
 type E = BabyBearExt4;
 const HASH_RATE: usize = 8;
@@ -431,6 +432,7 @@ pub fn ext_pow<C: Config>(
     res
 }
 
+/* : _debug
 pub fn eval_ceno_expr_with_instance<C: Config>(
     builder: &mut Builder<C>,
     fixed: &Array<C, Ext<C::F, C::EF>>,
@@ -502,7 +504,9 @@ pub fn eval_ceno_expr_with_instance<C: Config>(
         },
     )
 }
+*/
 
+/* : _debug
 pub fn evaluate_ceno_expr<C: Config, T>(
     builder: &mut Builder<C>,
     expr: &Expression<E>,
@@ -510,7 +514,7 @@ pub fn evaluate_ceno_expr<C: Config, T>(
     wit_in: &impl Fn(&mut Builder<C>, WitnessId) -> T, // witin id
     structural_wit_in: &impl Fn(&mut Builder<C>, WitnessId, usize, u32, usize) -> T,
     instance: &impl Fn(&mut Builder<C>, Instance) -> T,
-    constant: &impl Fn(&mut Builder<C>, <E as ExtensionField>::BaseField) -> T,
+    constant: &impl Fn(&mut Builder<C>, Either<E::Basefield, E>) -> T,
     challenge: &impl Fn(&mut Builder<C>, ChallengeId, usize, E, E) -> T,
     sum: &impl Fn(&mut Builder<C>, T, T) -> T,
     product: &impl Fn(&mut Builder<C>, T, T) -> T,
@@ -629,6 +633,7 @@ pub fn evaluate_ceno_expr<C: Config, T>(
         }
     }
 }
+*/
 
 /// evaluate MLE M(x0, x1, x2, ..., xn) address vector with it evaluation format a*[0, 1, 2, 3, ....2^n-1] + b
 /// on r = [r0, r1, r2, ...rn] succintly

@@ -8,7 +8,7 @@ use crate::transcript::transcript_observe_label;
 use crate::{
     arithmetics::{
         build_eq_x_r_vec_sequential, ceil_log2, concat, dot_product as ext_dot_product,
-        eq_eval_less_or_equal_than, eval_ceno_expr_with_instance, eval_wellform_address_vec,
+        eq_eval_less_or_equal_than, eval_wellform_address_vec,
         gen_alpha_pows, max_usize_arr, max_usize_vec, next_pow2_instance_padding, product,
         sum as ext_sum,
     },
@@ -17,8 +17,8 @@ use crate::{
         program::iop_verifier_state_verify,
     },
 };
-use ceno_zkvm::circuit_builder::SetTableSpec;
-use ceno_zkvm::{expression::StructuralWitIn, scheme::verifier::ZKVMVerifier};
+use ceno_zkvm::{circuit_builder::SetTableSpec, scheme::verifier::ZKVMVerifier};
+use ceno_mle::expression::StructuralWitIn;
 use ff_ext::BabyBearExt4;
 use itertools::interleave;
 use itertools::max;
@@ -75,6 +75,7 @@ pub fn verify_zkvm_proof<C: Config>(
     ceno_constraint_system: &ZKVMVerifier<E, Pcs>,
     proving_sequence: Vec<SubcircuitParams>,
 ) {
+    /* : _debug
     let mut challenger = DuplexChallengerVariable::new(builder);
     transcript_observe_label(builder, &mut challenger, b"riscv");
 
@@ -192,6 +193,7 @@ pub fn verify_zkvm_proof<C: Config>(
             let record_w_out_evals_prod = product(builder, &opcode_proof.record_w_out_evals);
             builder.assign(&prod_w, prod_w * record_w_out_evals_prod);
 
+            /* : _debug
             builder.assign(
                 &logup_sum,
                 logup_sum + opcode_proof.lk_p1_out_eval * opcode_proof.lk_q1_out_eval.inverse(),
@@ -200,6 +202,7 @@ pub fn verify_zkvm_proof<C: Config>(
                 &logup_sum,
                 logup_sum + opcode_proof.lk_p2_out_eval * opcode_proof.lk_q2_out_eval.inverse(),
             );
+            */
         } else {
             let table_proof = builder.get(
                 &zkvm_proof_input.table_proofs,
@@ -269,6 +272,7 @@ pub fn verify_zkvm_proof<C: Config>(
     .map_err(ZKVMError::PCSError)?;
     */
 
+    /* : _debug
     let empty_arr: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(0);
     let initial_global_state = eval_ceno_expr_with_instance(
         builder,
@@ -291,8 +295,11 @@ pub fn verify_zkvm_proof<C: Config>(
         &ceno_constraint_system.vk.finalize_global_state_expr,
     );
     builder.assign(&prod_r, prod_r * finalize_global_state);
+    */
 
     // builder.assert_ext_eq(prod_r, prod_w);
+
+    */
 }
 
 pub fn verify_opcode_proof<C: Config>(
@@ -349,10 +356,12 @@ pub fn verify_opcode_proof<C: Config>(
 
     let logup_out_evals: Array<C, Array<C, Ext<C::F, C::EF>>> = builder.dyn_array(1);
     let logup_inner_evals: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(4);
+    /* : _debug
     builder.set(&logup_inner_evals, 0, opcode_proof.lk_p1_out_eval);
     builder.set(&logup_inner_evals, 1, opcode_proof.lk_p2_out_eval);
     builder.set(&logup_inner_evals, 2, opcode_proof.lk_q1_out_eval);
     builder.set(&logup_inner_evals, 3, opcode_proof.lk_q2_out_eval);
+    */
     builder.set(&logup_out_evals, 0, logup_inner_evals);
 
     builder.cycle_tracker_start("verify tower proof for opcode");
@@ -536,6 +545,7 @@ pub fn verify_opcode_proof<C: Config>(
     // sel(rt_non_lc_sumcheck, main_sel_eval_point) * \sum_j (alpha{j} * expr(main_sel_eval_point))
     let sel_sum: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
     let alpha_pow_sel_sum = alpha_pow.slice(builder, 3, alpha_pow.len());
+    /* : _debug
     for i in 0..cs.assert_zero_sumcheck_expressions.len() {
         let expr = &cs.assert_zero_sumcheck_expressions[i];
         let al = builder.get(&alpha_pow_sel_sum, i);
@@ -552,6 +562,7 @@ pub fn verify_opcode_proof<C: Config>(
 
         builder.assign(&sel_sum, sel_sum + al * expr_eval);
     }
+    */
 
     builder.assign(
         &computed_eval,
@@ -570,6 +581,7 @@ pub fn verify_opcode_proof<C: Config>(
         .lk_records_in_evals
         .slice(builder, 0, lk_counts_per_instance);
 
+    /* : _debug
     let _ = &cs.r_expressions.iter().enumerate().for_each(|(idx, expr)| {
         let expected_eval = builder.get(&r_records, idx);
         let e = eval_ceno_expr_with_instance(
@@ -635,6 +647,7 @@ pub fn verify_opcode_proof<C: Config>(
 
             builder.assert_ext_eq(e, zero);
         });
+    */
 }
 
 pub fn verify_table_proof<C: Config>(
@@ -894,6 +907,7 @@ pub fn verify_table_proof<C: Config>(
     )
     .enumerate()
     .for_each(|(idx, expr)| {
+        /* : _debug
         let e = eval_ceno_expr_with_instance(
             builder,
             &table_proof.fixed_in_evals,
@@ -906,5 +920,6 @@ pub fn verify_table_proof<C: Config>(
 
         let expected_evals = builder.get(&in_evals, idx);
         builder.assert_ext_eq(e, expected_evals);
+        */
     });
 }

@@ -60,10 +60,12 @@ pub struct ZKVMOpcodeProofInputVariable<C: Config> {
     pub record_r_out_evals: Array<C, Ext<C::F, C::EF>>,
     pub record_w_out_evals: Array<C, Ext<C::F, C::EF>>,
 
+    /* : _debug
     pub lk_p1_out_eval: Ext<C::F, C::EF>,
     pub lk_p2_out_eval: Ext<C::F, C::EF>,
     pub lk_q1_out_eval: Ext<C::F, C::EF>,
     pub lk_q2_out_eval: Ext<C::F, C::EF>,
+    */
 
     pub tower_proof: TowerProofInputVariable<C>,
 
@@ -310,10 +312,12 @@ pub struct ZKVMOpcodeProofInput {
     pub record_w_out_evals: Vec<E>,
 
     // logup sum at layer 1
+    /* : _debug
     pub lk_p1_out_eval: E,
     pub lk_p2_out_eval: E,
     pub lk_q1_out_eval: E,
     pub lk_q2_out_eval: E,
+    */
 
     pub tower_proof: TowerProofInput,
 
@@ -336,10 +340,12 @@ impl Hintable<InnerConfig> for ZKVMOpcodeProofInput {
         let log2_num_instances = Usize::Var(usize::read(builder));
         let record_r_out_evals = Vec::<E>::read(builder);
         let record_w_out_evals = Vec::<E>::read(builder);
+        /* : _debug
         let lk_p1_out_eval = E::read(builder);
         let lk_p2_out_eval = E::read(builder);
         let lk_q1_out_eval = E::read(builder);
         let lk_q2_out_eval = E::read(builder);
+        */
         let tower_proof = TowerProofInput::read(builder);
         let main_sel_sumcheck_proofs = Vec::<IOPProverMessage>::read(builder);
         let r_records_in_evals = Vec::<E>::read(builder);
@@ -355,10 +361,12 @@ impl Hintable<InnerConfig> for ZKVMOpcodeProofInput {
             log2_num_instances,
             record_r_out_evals,
             record_w_out_evals,
+            /* : _debug
             lk_p1_out_eval,
             lk_p2_out_eval,
             lk_q1_out_eval,
             lk_q2_out_eval,
+            */
             tower_proof,
             main_sel_sumcheck_proofs,
             r_records_in_evals,
@@ -390,10 +398,12 @@ impl Hintable<InnerConfig> for ZKVMOpcodeProofInput {
 
         stream.extend(self.record_r_out_evals.write());
         stream.extend(self.record_w_out_evals.write());
+        /* : _debug
         stream.extend(<E as Hintable<InnerConfig>>::write(&self.lk_p1_out_eval));
         stream.extend(<E as Hintable<InnerConfig>>::write(&self.lk_p2_out_eval));
         stream.extend(<E as Hintable<InnerConfig>>::write(&self.lk_q1_out_eval));
         stream.extend(<E as Hintable<InnerConfig>>::write(&self.lk_q2_out_eval));
+        */
         stream.extend(self.tower_proof.write());
         stream.extend(self.main_sel_sumcheck_proofs.write());
         stream.extend(self.r_records_in_evals.write());

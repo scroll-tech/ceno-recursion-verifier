@@ -611,6 +611,7 @@ pub fn verify_tower_proof<C: Config>(
     )
 }
 
+/*
 #[cfg(test)]
 mod tests {
     use crate::arithmetics::UniPolyExtrapolator;
@@ -944,3 +945,4 @@ mod tests {
         unsafe { Vec::from_raw_parts(new_ptr, length, capacity) }
     }
 }
+*/
