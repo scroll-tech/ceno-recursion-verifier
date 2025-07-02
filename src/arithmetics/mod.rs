@@ -15,7 +15,7 @@ use p3_field::{FieldAlgebra, FieldExtensionAlgebra};
 type E = BabyBearExt4;
 const HASH_RATE: usize = 8;
 
-pub fn _print_ext_arr<C: Config>(builder: &mut Builder<C>, arr: &Array<C, Ext<C::F, C::EF>>) {
+pub fn print_ext_arr<C: Config>(builder: &mut Builder<C>, arr: &Array<C, Ext<C::F, C::EF>>) {
     iter_zip!(builder, arr).for_each(|ptr_vec, builder| {
         let e = builder.iter_ptr_get(arr, ptr_vec[0]);
         builder.print_e(e);
@@ -29,7 +29,7 @@ pub fn print_felt_arr<C: Config>(builder: &mut Builder<C>, arr: &Array<C, Felt<C
     });
 }
 
-pub fn _print_usize_arr<C: Config>(builder: &mut Builder<C>, arr: &Array<C, Usize<C::N>>) {
+pub fn print_usize_arr<C: Config>(builder: &mut Builder<C>, arr: &Array<C, Usize<C::N>>) {
     iter_zip!(builder, arr).for_each(|ptr_vec, builder| {
         let n = builder.iter_ptr_get(arr, ptr_vec[0]);
         builder.print_v(n.get_var());
@@ -432,7 +432,6 @@ pub fn ext_pow<C: Config>(
     res
 }
 
-/* : _debug
 pub fn eval_ceno_expr_with_instance<C: Config>(
     builder: &mut Builder<C>,
     fixed: &Array<C, Ext<C::F, C::EF>>,
@@ -462,9 +461,14 @@ pub fn eval_ceno_expr_with_instance<C: Config>(
             res
         },
         &|builder, scalar| {
-            let res: Ext<C::F, C::EF> =
-                builder.constant(C::EF::from_canonical_u32(scalar.to_canonical_u64() as u32));
-            res
+            let scalar_base_slice = scalar
+                .as_bases()
+                .iter()
+                .map(|b| C::F::from_canonical_u64(b.to_canonical_u64()))
+                .collect::<Vec<C::F>>();
+            let scalar_ext: Ext<C::F, C::EF> =
+                builder.constant(C::EF::from_base_slice(&scalar_base_slice));
+            scalar_ext
         },
         &|builder, challenge_id, pow, scalar, offset| {
             let challenge = builder.get(&challenges, challenge_id as usize);
@@ -504,9 +508,7 @@ pub fn eval_ceno_expr_with_instance<C: Config>(
         },
     )
 }
-*/
 
-/* : _debug
 pub fn evaluate_ceno_expr<C: Config, T>(
     builder: &mut Builder<C>,
     expr: &Expression<E>,
@@ -514,7 +516,7 @@ pub fn evaluate_ceno_expr<C: Config, T>(
     wit_in: &impl Fn(&mut Builder<C>, WitnessId) -> T, // witin id
     structural_wit_in: &impl Fn(&mut Builder<C>, WitnessId, usize, u32, usize) -> T,
     instance: &impl Fn(&mut Builder<C>, Instance) -> T,
-    constant: &impl Fn(&mut Builder<C>, Either<E::Basefield, E>) -> T,
+    constant: &impl Fn(&mut Builder<C>, E) -> T,
     challenge: &impl Fn(&mut Builder<C>, ChallengeId, usize, E, E) -> T,
     sum: &impl Fn(&mut Builder<C>, T, T) -> T,
     product: &impl Fn(&mut Builder<C>, T, T) -> T,
@@ -527,7 +529,16 @@ pub fn evaluate_ceno_expr<C: Config, T>(
             structural_wit_in(builder, *witness_id, *max_len, *offset, *multi_factor)
         }
         Expression::Instance(i) => instance(builder, *i),
-        Expression::Constant(scalar) => constant(builder, *scalar),
+        Expression::Constant(scalar) => {
+            match scalar {
+                Either::Left(s) => {
+                    constant(builder, E::from_base(*s))
+                },
+                Either::Right(s) => {
+                    constant(builder, *s)
+                },
+            }
+        },
         Expression::Sum(a, b) => {
             let a = evaluate_ceno_expr(
                 builder,
@@ -633,7 +644,6 @@ pub fn evaluate_ceno_expr<C: Config, T>(
         }
     }
 }
-*/
 
 /// evaluate MLE M(x0, x1, x2, ..., xn) address vector with it evaluation format a*[0, 1, 2, 3, ....2^n-1] + b
 /// on r = [r0, r1, r2, ...rn] succintly

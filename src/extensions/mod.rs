@@ -16,7 +16,7 @@ use crate::{
         sum as ext_sum,
     },
     tower_verifier::{
-        binding::{PointVariable, TowerVerifierInputVariable},
+        binding::PointVariable,
         program::iop_verifier_state_verify,
     },
 };

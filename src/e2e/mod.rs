@@ -33,7 +33,7 @@ use ceno_zkvm::{
     structs::ZKVMVerifyingKey,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SubcircuitParams {
     pub id: usize,
     pub order_idx: usize,
@@ -120,36 +120,37 @@ pub fn parse_zkvm_proof_import(
 
     let mut opcode_proofs_vec: Vec<ZKVMOpcodeProofInput> = vec![];
     for (opcode_id, opcode_proof) in &zkvm_proof.opcode_proofs {
-        let mut record_r_out_evals: Vec<E> = vec![];
-        let mut record_w_out_evals: Vec<E> = vec![];
+        let mut record_r_out_evals: Vec<Vec<E>> = vec![];
+        let mut record_w_out_evals: Vec<Vec<E>> = vec![];
+        let mut record_lk_out_evals: Vec<Vec<E>> = vec![];
 
-        /* : _debug
-        for v in &opcode_proof.r_out_evals {
-            let v_e: E = serde_json::from_value(serde_json::to_value(v.clone()).unwrap()).unwrap();
-            record_r_out_evals.push(v_e);
+        let record_r_out_evals_len: usize = opcode_proof.r_out_evals.len();
+        for v_vec in &opcode_proof.r_out_evals {
+            let mut arr: Vec<E> = vec![];
+            for v in v_vec {
+                let v_e: E = serde_json::from_value(serde_json::to_value(v.clone()).unwrap()).unwrap();
+                arr.push(v_e);
+            }
+            record_r_out_evals.push(arr);
         }
-
-        for v in &opcode_proof.w_out_evals {
-            let v_e: E = serde_json::from_value(serde_json::to_value(v.clone()).unwrap()).unwrap();
-            record_w_out_evals.push(v_e);
+        let record_w_out_evals_len: usize = opcode_proof.w_out_evals.len();
+        for v_vec in &opcode_proof.w_out_evals {
+            let mut arr: Vec<E> = vec![];
+            for v in v_vec {
+                let v_e: E = serde_json::from_value(serde_json::to_value(v.clone()).unwrap()).unwrap();
+                arr.push(v_e);
+            }
+            record_w_out_evals.push(arr);
         }
-         */
-
-        // logup sum at layer 1
-        /* : _debug
-        let lk_p1_out_eval: E =
-            serde_json::from_value(serde_json::to_value(opcode_proof.lk_p1_out_eval).unwrap())
-                .unwrap();
-        let lk_p2_out_eval: E =
-            serde_json::from_value(serde_json::to_value(opcode_proof.lk_p2_out_eval).unwrap())
-                .unwrap();
-        let lk_q1_out_eval: E =
-            serde_json::from_value(serde_json::to_value(opcode_proof.lk_q1_out_eval).unwrap())
-                .unwrap();
-        let lk_q2_out_eval: E =
-            serde_json::from_value(serde_json::to_value(opcode_proof.lk_q2_out_eval).unwrap())
-                .unwrap();
-        */
+        let record_lk_out_evals_len: usize = opcode_proof.lk_out_evals.len();
+        for v_vec in &opcode_proof.lk_out_evals {
+            let mut arr: Vec<E> = vec![];
+            for v in v_vec {
+                let v_e: E = serde_json::from_value(serde_json::to_value(v.clone()).unwrap()).unwrap();
+                arr.push(v_e);
+            }
+            record_lk_out_evals.push(arr);
+        }
 
         // Tower proof
         let mut tower_proof = TowerProofInput::default();
@@ -211,64 +212,46 @@ pub fn parse_zkvm_proof_import(
         tower_proof.logup_specs_eval = logup_specs_eval;
 
         // main constraint and select sumcheck proof
-        let mut main_sel_sumcheck_proofs: Vec<IOPProverMessage> = vec![];
-        /* : _debug
-        for m in &opcode_proof.main_sel_sumcheck_proofs {
-            let mut evaluations_vec: Vec<E> = vec![];
-            for v in &m.evaluations {
-                let v_e: E =
-                    serde_json::from_value(serde_json::to_value(v.clone()).unwrap()).unwrap();
-                evaluations_vec.push(v_e);
+        let mut main_sumcheck_proofs: Vec<IOPProverMessage> = vec![];
+        if opcode_proof.main_sumcheck_proofs.is_some() {
+            for m in opcode_proof.main_sumcheck_proofs.as_ref().unwrap() {
+                let mut evaluations_vec: Vec<E> = vec![];
+                for v in &m.evaluations {
+                    let v_e: E =
+                        serde_json::from_value(serde_json::to_value(v.clone()).unwrap()).unwrap();
+                    evaluations_vec.push(v_e);
+                }
+                main_sumcheck_proofs.push(IOPProverMessage {
+                    evaluations: evaluations_vec,
+                });
             }
-            main_sel_sumcheck_proofs.push(IOPProverMessage {
-                evaluations: evaluations_vec,
-            });
         }
-        */
-        let mut r_records_in_evals: Vec<E> = vec![];
-        /* : _debug
-        for v in &opcode_proof.r_records_in_evals {
-            let v_e: E = serde_json::from_value(serde_json::to_value(v.clone()).unwrap()).unwrap();
-            r_records_in_evals.push(v_e);
-        }
-        */
-        let mut w_records_in_evals: Vec<E> = vec![];
-        /* : _debug
-        for v in &opcode_proof.w_records_in_evals {
-            let v_e: E = serde_json::from_value(serde_json::to_value(v.clone()).unwrap()).unwrap();
-            w_records_in_evals.push(v_e);
-        }
-        */
-        let mut lk_records_in_evals: Vec<E> = vec![];
-        /* : _debug
-        for v in &opcode_proof.lk_records_in_evals {
-            let v_e: E = serde_json::from_value(serde_json::to_value(v.clone()).unwrap()).unwrap();
-            lk_records_in_evals.push(v_e);
-        }
-        */
+        
         let mut wits_in_evals: Vec<E> = vec![];
         for v in &opcode_proof.wits_in_evals {
             let v_e: E = serde_json::from_value(serde_json::to_value(v.clone()).unwrap()).unwrap();
             wits_in_evals.push(v_e);
         }
 
+        let mut fixed_in_evals: Vec<E> = vec![];
+        for v in &opcode_proof.fixed_in_evals {
+            let v_e: E = serde_json::from_value(serde_json::to_value(v.clone()).unwrap()).unwrap();
+            fixed_in_evals.push(v_e);
+        }
+
         opcode_proofs_vec.push(ZKVMOpcodeProofInput {
             idx: opcode_id.clone(),
             num_instances: opcode_num_instances_lookup.get(opcode_id).unwrap().clone(),
+            record_r_out_evals_len,
+            record_w_out_evals_len,
+            record_lk_out_evals_len,
             record_r_out_evals,
             record_w_out_evals,
-            /* : _debug
-            lk_p1_out_eval,
-            lk_p2_out_eval,
-            lk_q1_out_eval,
-            lk_q2_out_eval,
-            */
+            record_lk_out_evals,
             tower_proof,
-            main_sel_sumcheck_proofs,
-            r_records_in_evals,
-            w_records_in_evals,
-            lk_records_in_evals,
+            main_sumcheck_proofs,
             wits_in_evals,
+            fixed_in_evals,
         });
     }
 
