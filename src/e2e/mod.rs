@@ -290,12 +290,6 @@ pub fn parse_zkvm_proof_import(
             record_lk_out_evals.push(arr);
         }
 
-        let mut has_same_r_sumcheck_proofs: usize = 0;
-        let mut same_r_sumcheck_proofs: Vec<IOPProverMessage> = vec![];
-        let mut rw_in_evals: Vec<E> = vec![];        
-        let mut lk_in_evals: Vec<E> = vec![];
-
-
         // Tower proof
         let mut tower_proof = TowerProofInput::default();
         let mut proofs: Vec<Vec<IOPProverMessage>> = vec![];
