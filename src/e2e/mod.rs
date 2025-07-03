@@ -416,7 +416,10 @@ pub fn inner_test_thread() {
     let mut builder = AsmBuilder::<F, EF>::default();
 
     // Obtain witness inputs
+    builder.cycle_tracker_start("Read witness stream");
     let zkvm_proof_input_variables = ZKVMProofInput::read(&mut builder);
+    builder.cycle_tracker_end("Read witness stream");
+
     verify_zkvm_proof(
         &mut builder,
         zkvm_proof_input_variables,
@@ -431,6 +434,7 @@ pub fn inner_test_thread() {
     > = Vec::new();
 
     witness_stream.extend(zkvm_proof_input.write());
+    println!("=> Witness_stream.len(): {:?}", witness_stream.len());
 
     // Compile program
     let options = CompilerOptions::default().with_cycle_tracker();

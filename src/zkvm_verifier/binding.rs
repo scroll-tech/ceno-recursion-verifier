@@ -106,22 +106,57 @@ impl Hintable<InnerConfig> for ZKVMProofInput {
     type HintVariable = ZKVMProofInputVariable<InnerConfig>;
 
     fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
+        builder.cycle_tracker_start("Read raw pi");
         let raw_pi = Vec::<Vec<F>>::read(builder);
+        builder.cycle_tracker_end("Read raw pi");
+
+        builder.cycle_tracker_start("Read raw pi num_vars");
         let raw_pi_num_variables = Vec::<usize>::read(builder);
+        builder.cycle_tracker_end("Read raw pi num_vars");
+
+        builder.cycle_tracker_start("Read pi_evals");
         let pi_evals = Vec::<E>::read(builder);
+        builder.cycle_tracker_end("Read pi_evals");
+
+        builder.cycle_tracker_start("Read opcode_proofs");
         let opcode_proofs = Vec::<ZKVMOpcodeProofInput>::read(builder);
+        builder.cycle_tracker_end("Read opcode_proofs");
+
+        builder.cycle_tracker_start("Read table_proofs");
         let table_proofs = Vec::<ZKVMTableProofInput>::read(builder);
+        builder.cycle_tracker_end("Read table_proofs");
 
+        builder.cycle_tracker_start("Read witin_commit");
         let witin_commit = Vec::<F>::read(builder);
+        builder.cycle_tracker_end("Read witin_commit");
+
+        builder.cycle_tracker_start("Read witin_commit trivial commits");
         let witin_commit_trivial_commits = Vec::<Vec<F>>::read(builder);
+        builder.cycle_tracker_end("Read witin_commit trivial commits");
+
+        builder.cycle_tracker_start("Read witin_commit log2_max_codeword_size");
         let witin_commit_log2_max_codeword_size = F::read(builder);
+        builder.cycle_tracker_end("Read witin_commit log2_max_codeword_size");
 
+        builder.cycle_tracker_start("Read fixed_commit indicator");
         let has_fixed_commit = Usize::Var(usize::read(builder));
-        let fixed_commit = Vec::<F>::read(builder);
-        let fixed_commit_trivial_commits = Vec::<Vec<F>>::read(builder);
-        let fixed_commit_log2_max_codeword_size = F::read(builder);
+        builder.cycle_tracker_end("Read fixed_commit indicator");
 
+        builder.cycle_tracker_start("Read fixed_commit");
+        let fixed_commit = Vec::<F>::read(builder);
+        builder.cycle_tracker_end("Read fixed_commit");
+
+        builder.cycle_tracker_start("Read fixed_commit trivial commit");
+        let fixed_commit_trivial_commits = Vec::<Vec<F>>::read(builder);
+        builder.cycle_tracker_end("Read fixed_commit trivial commit");
+
+        builder.cycle_tracker_start("Read fixed_commit log2_max_codeword_size");
+        let fixed_commit_log2_max_codeword_size = F::read(builder);
+        builder.cycle_tracker_end("Read fixed_commit log2_max_codeword_size");
+
+        builder.cycle_tracker_start("Read num_instances");
         let num_instances = Vec::<Vec<F>>::read(builder);
+        builder.cycle_tracker_end("Read num_instances");
 
         ZKVMProofInputVariable {
             raw_pi,
