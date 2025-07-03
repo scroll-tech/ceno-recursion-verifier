@@ -2,7 +2,7 @@ use super::binding::{
     IOPProverMessageVariable, PointAndEvalVariable, PointVariable,
 };
 use crate::arithmetics::{
-    challenger_multi_observe, dot_product, eq_eval, evaluate_at_point, extend, exts_to_felts,
+    challenger_multi_observe, dot_product, eq_eval, evaluate_at_point_degree_1, extend, exts_to_felts,
     fixed_dot_product, gen_alpha_pows, is_smaller_than, reverse, UniPolyExtrapolator, print_ext_arr,
 };
 use crate::transcript::transcript_observe_label;
@@ -217,7 +217,7 @@ pub fn verify_tower_proof<C: Config>(
     .for_each(|ptr_vec, builder| {
         let ptr = ptr_vec[0];
         let evals = builder.iter_ptr_get(&prod_out_evals, ptr);
-        let e = evaluate_at_point(builder, &evals, &initial_rt);
+        let e = evaluate_at_point_degree_1(builder, &evals, &initial_rt);
         let p_ptr = ptr_vec[1];
         builder.iter_ptr_set(
             &prod_spec_point_n_eval,
@@ -249,8 +249,8 @@ pub fn verify_tower_proof<C: Config>(
         let p_slice = evals.slice(builder, 0, 2);
         let q_slice = evals.slice(builder, 2, 4);
 
-        let e1 = evaluate_at_point(builder, &p_slice, &initial_rt);
-        let e2 = evaluate_at_point(builder, &q_slice, &initial_rt);
+        let e1 = evaluate_at_point_degree_1(builder, &p_slice, &initial_rt);
+        let e2 = evaluate_at_point_degree_1(builder, &q_slice, &initial_rt);
 
         let p_ptr = ptr_vec[1];
         let q_ptr = ptr_vec[2];

@@ -4,6 +4,7 @@ use crate::zkvm_verifier::binding::{
     TowerProofInput, ZKVMOpcodeProofInput, ZKVMTableProofInput, E, F,
 };
 use crate::zkvm_verifier::verifier::verify_zkvm_proof;
+use ceno_mle::util::ceil_log2;
 use ff_ext::BabyBearExt4;
 use itertools::Itertools;
 use mpcs::BasefoldCommitment;
@@ -257,26 +258,37 @@ pub fn parse_zkvm_proof_import(
 
     let mut table_proofs_vec: Vec<ZKVMTableProofInput> = vec![];
     for (table_id, table_proof) in &zkvm_proof.table_proofs {
-        let mut r_out_evals: Vec<E> = vec![];
-        let mut w_out_evals: Vec<E> = vec![];
-        let mut lk_out_evals: Vec<E> = vec![];
+        let mut record_r_out_evals: Vec<Vec<E>> = vec![];
+        let mut record_w_out_evals: Vec<Vec<E>> = vec![];
+        let mut record_lk_out_evals: Vec<Vec<E>> = vec![];
 
-        for v in &table_proof.r_out_evals {
-            r_out_evals.push(serde_json::from_value(serde_json::to_value(v[0]).unwrap()).unwrap());
-            r_out_evals.push(serde_json::from_value(serde_json::to_value(v[1]).unwrap()).unwrap());
+        let record_r_out_evals_len: usize = table_proof.r_out_evals.len();
+        for v_vec in &table_proof.r_out_evals {
+            let mut arr: Vec<E> = vec![];
+            for v in v_vec {
+                let v_e: E = serde_json::from_value(serde_json::to_value(v.clone()).unwrap()).unwrap();
+                arr.push(v_e);
+            }
+            record_r_out_evals.push(arr);
         }
-        for v in &table_proof.w_out_evals {
-            w_out_evals.push(serde_json::from_value(serde_json::to_value(v[0]).unwrap()).unwrap());
-            w_out_evals.push(serde_json::from_value(serde_json::to_value(v[1]).unwrap()).unwrap());
+        let record_w_out_evals_len: usize = table_proof.w_out_evals.len();
+        for v_vec in &table_proof.w_out_evals {
+            let mut arr: Vec<E> = vec![];
+            for v in v_vec {
+                let v_e: E = serde_json::from_value(serde_json::to_value(v.clone()).unwrap()).unwrap();
+                arr.push(v_e);
+            }
+            record_w_out_evals.push(arr);
         }
-        let compressed_rw_out_len: usize = r_out_evals.len() / 2;
-        for v in &table_proof.lk_out_evals {
-            lk_out_evals.push(serde_json::from_value(serde_json::to_value(v[0]).unwrap()).unwrap());
-            lk_out_evals.push(serde_json::from_value(serde_json::to_value(v[1]).unwrap()).unwrap());
-            lk_out_evals.push(serde_json::from_value(serde_json::to_value(v[2]).unwrap()).unwrap());
-            lk_out_evals.push(serde_json::from_value(serde_json::to_value(v[3]).unwrap()).unwrap());
+        let record_lk_out_evals_len: usize = table_proof.lk_out_evals.len();
+        for v_vec in &table_proof.lk_out_evals {
+            let mut arr: Vec<E> = vec![];
+            for v in v_vec {
+                let v_e: E = serde_json::from_value(serde_json::to_value(v.clone()).unwrap()).unwrap();
+                arr.push(v_e);
+            }
+            record_lk_out_evals.push(arr);
         }
-        let compressed_lk_out_len: usize = lk_out_evals.len() / 4;
 
         let mut has_same_r_sumcheck_proofs: usize = 0;
         let mut same_r_sumcheck_proofs: Vec<IOPProverMessage> = vec![];
@@ -385,11 +397,12 @@ pub fn parse_zkvm_proof_import(
         table_proofs_vec.push(ZKVMTableProofInput {
             idx: table_id.clone(),
             num_instances,
-            r_out_evals,
-            w_out_evals,
-            compressed_rw_out_len,
-            lk_out_evals,
-            compressed_lk_out_len,
+            record_r_out_evals_len,
+            record_w_out_evals_len,
+            record_lk_out_evals_len,
+            record_r_out_evals,
+            record_w_out_evals,
+            record_lk_out_evals,
             has_same_r_sumcheck_proofs,
             same_r_sumcheck_proofs,
             rw_in_evals,

@@ -79,11 +79,13 @@ pub struct ZKVMTableProofInputVariable<C: Config> {
     pub num_instances: Usize<C::N>,
     pub log2_num_instances: Usize<C::N>,
 
-    pub r_out_evals: Array<C, Ext<C::F, C::EF>>, // Vec<[E; 2]>,
-    pub w_out_evals: Array<C, Ext<C::F, C::EF>>, // Vec<[E; 2]>,
-    pub compressed_rw_out_len: Usize<C::N>,
-    pub lk_out_evals: Array<C, Ext<C::F, C::EF>>, // Vec<[E; 4]>,
-    pub compressed_lk_out_len: Usize<C::N>,
+    pub record_r_out_evals_len: Usize<C::N>,
+    pub record_w_out_evals_len: Usize<C::N>,
+    pub record_lk_out_evals_len: Usize<C::N>,
+
+    pub record_r_out_evals: Array<C, Array<C, Ext<C::F, C::EF>>>,
+    pub record_w_out_evals: Array<C, Array<C, Ext<C::F, C::EF>>>,
+    pub record_lk_out_evals: Array<C, Array<C, Ext<C::F, C::EF>>>,
 
     pub has_same_r_sumcheck_proofs: Usize<C::N>, // Either 1 or 0
     pub same_r_sumcheck_proofs: Array<C, IOPProverMessageVariable<C>>, // Could be empty
@@ -388,6 +390,7 @@ impl Hintable<InnerConfig> for ZKVMOpcodeProofInput {
         stream.extend(self.record_r_out_evals.write());
         stream.extend(self.record_w_out_evals.write());
         stream.extend(self.record_lk_out_evals.write());
+
         stream.extend(self.tower_proof.write());
         stream.extend(self.main_sumcheck_proofs.write());
         stream.extend(self.wits_in_evals.write());
@@ -402,11 +405,12 @@ pub struct ZKVMTableProofInput {
     pub num_instances: usize,
 
     // tower evaluation at layer 1
-    pub r_out_evals: Vec<E>, // Vec<[E; 2]>
-    pub w_out_evals: Vec<E>, // Vec<[E; 2]>
-    pub compressed_rw_out_len: usize,
-    pub lk_out_evals: Vec<E>, // Vec<[E; 4]>
-    pub compressed_lk_out_len: usize,
+    pub record_r_out_evals_len: usize,
+    pub record_w_out_evals_len: usize,
+    pub record_lk_out_evals_len: usize,
+    pub record_r_out_evals: Vec<Vec<E>>,
+    pub record_w_out_evals: Vec<Vec<E>>,
+    pub record_lk_out_evals: Vec<Vec<E>>,
 
     pub has_same_r_sumcheck_proofs: usize,
     pub same_r_sumcheck_proofs: Vec<IOPProverMessage>, // Could be empty
@@ -429,11 +433,13 @@ impl Hintable<InnerConfig> for ZKVMTableProofInput {
         let num_instances = Usize::Var(usize::read(builder));
         let log2_num_instances = Usize::Var(usize::read(builder));
 
-        let r_out_evals = Vec::<E>::read(builder);
-        let w_out_evals = Vec::<E>::read(builder);
-        let compressed_rw_out_len = Usize::Var(usize::read(builder));
-        let lk_out_evals = Vec::<E>::read(builder);
-        let compressed_lk_out_len = Usize::Var(usize::read(builder));
+        let record_r_out_evals_len = Usize::Var(usize::read(builder));
+        let record_w_out_evals_len = Usize::Var(usize::read(builder));
+        let record_lk_out_evals_len = Usize::Var(usize::read(builder));
+
+        let record_r_out_evals = Vec::<Vec<E>>::read(builder);
+        let record_w_out_evals = Vec::<Vec<E>>::read(builder);
+        let record_lk_out_evals = Vec::<Vec<E>>::read(builder);
 
         let has_same_r_sumcheck_proofs = Usize::Var(usize::read(builder));
         let same_r_sumcheck_proofs = Vec::<IOPProverMessage>::read(builder);
@@ -448,11 +454,12 @@ impl Hintable<InnerConfig> for ZKVMTableProofInput {
             idx_felt,
             num_instances,
             log2_num_instances,
-            r_out_evals,
-            w_out_evals,
-            compressed_rw_out_len,
-            lk_out_evals,
-            compressed_lk_out_len,
+            record_r_out_evals_len,
+            record_w_out_evals_len,
+            record_lk_out_evals_len,
+            record_r_out_evals,
+            record_w_out_evals,
+            record_lk_out_evals,
             has_same_r_sumcheck_proofs,
             same_r_sumcheck_proofs,
             rw_in_evals,
@@ -474,15 +481,13 @@ impl Hintable<InnerConfig> for ZKVMTableProofInput {
         let log2_num_instances = ceil_log2(self.num_instances);
         stream.extend(<usize as Hintable<InnerConfig>>::write(&log2_num_instances));
 
-        stream.extend(self.r_out_evals.write());
-        stream.extend(self.w_out_evals.write());
-        stream.extend(<usize as Hintable<InnerConfig>>::write(
-            &self.compressed_rw_out_len,
-        ));
-        stream.extend(self.lk_out_evals.write());
-        stream.extend(<usize as Hintable<InnerConfig>>::write(
-            &self.compressed_lk_out_len,
-        ));
+        stream.extend(<usize as Hintable<InnerConfig>>::write(&self.record_r_out_evals_len));
+        stream.extend(<usize as Hintable<InnerConfig>>::write(&self.record_w_out_evals_len));
+        stream.extend(<usize as Hintable<InnerConfig>>::write(&self.record_lk_out_evals_len));
+
+        stream.extend(self.record_r_out_evals.write());
+        stream.extend(self.record_w_out_evals.write());
+        stream.extend(self.record_lk_out_evals.write());
 
         stream.extend(<usize as Hintable<InnerConfig>>::write(
             &self.has_same_r_sumcheck_proofs,

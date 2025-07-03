@@ -14,6 +14,7 @@ use itertools::Either;
 use p3_field::{FieldAlgebra, FieldExtensionAlgebra};
 type E = BabyBearExt4;
 const HASH_RATE: usize = 8;
+const MAX_NUM_VARS: usize = 25;
 
 pub fn print_ext_arr<C: Config>(builder: &mut Builder<C>, arr: &Array<C, Ext<C::F, C::EF>>) {
     iter_zip!(builder, arr).for_each(|ptr_vec, builder| {
@@ -88,18 +89,89 @@ pub fn is_smaller_than<C: Config>(
     RVar::from(v)
 }
 
-pub fn evaluate_at_point<C: Config>(
+pub fn evaluate_at_point_degree_1<C: Config>(
     builder: &mut Builder<C>,
     evals: &Array<C, Ext<C::F, C::EF>>,
     point: &Array<C, Ext<C::F, C::EF>>,
 ) -> Ext<C::F, C::EF> {
-    // TODO: Dynamic length
-    // TODO: Sanity checks
     let left = builder.get(&evals, 0);
     let right = builder.get(&evals, 1);
     let r = builder.get(point, 0);
 
     builder.eval(r * (right - left) + left)
+}
+
+pub struct PolyEvaluator<C: Config> {
+    powers_of_2: Array<C, Usize<C::N>>,
+}
+
+impl<C: Config> PolyEvaluator<C> {
+    pub fn new(builder: &mut Builder<C>) -> Self {
+        let powers_of_2: Array<C, Usize<C::N>> = builder.dyn_array(MAX_NUM_VARS);
+        builder.set(&powers_of_2, 0, Usize::from(16777216));
+        builder.set(&powers_of_2, 1, Usize::from(8388608));
+        builder.set(&powers_of_2, 2, Usize::from(4194304));
+        builder.set(&powers_of_2, 3, Usize::from(1048576));
+        builder.set(&powers_of_2, 4, Usize::from(2097152));
+        builder.set(&powers_of_2, 5, Usize::from(524288));
+        builder.set(&powers_of_2, 6, Usize::from(262144));
+        builder.set(&powers_of_2, 7, Usize::from(131072));
+        builder.set(&powers_of_2, 8, Usize::from(65536));
+        builder.set(&powers_of_2, 9, Usize::from(32768));
+        builder.set(&powers_of_2, 10, Usize::from(16384));
+        builder.set(&powers_of_2, 11, Usize::from(8192));
+        builder.set(&powers_of_2, 12, Usize::from(4096));
+        builder.set(&powers_of_2, 13, Usize::from(2048));
+        builder.set(&powers_of_2, 14, Usize::from(1024));
+        builder.set(&powers_of_2, 15, Usize::from(512));
+        builder.set(&powers_of_2, 16, Usize::from(256));
+        builder.set(&powers_of_2, 17, Usize::from(128));
+        builder.set(&powers_of_2, 18, Usize::from(64));
+        builder.set(&powers_of_2, 19, Usize::from(32));
+        builder.set(&powers_of_2, 20, Usize::from(16));
+        builder.set(&powers_of_2, 21, Usize::from(8));
+        builder.set(&powers_of_2, 22, Usize::from(4));
+        builder.set(&powers_of_2, 23, Usize::from(2));
+        builder.set(&powers_of_2, 24, Usize::from(1));
+
+        Self { powers_of_2 }
+    }
+
+    pub fn evaluate_base_poly_at_point(
+        &self,
+        builder: &mut Builder<C>,
+        evals: &Array<C, Felt<C::F>>,
+        point: &Array<C, Ext<C::F, C::EF>>,
+    ) -> Ext<C::F, C::EF> {
+        let num_var = point.len();
+
+        let evals_ext: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(evals.len());
+        iter_zip!(builder, evals, evals_ext).for_each(|ptr_vec, builder| {
+            let f = builder.iter_ptr_get(&evals, ptr_vec[0]);
+            let e = builder.ext_from_base_slice(&[f]);
+            builder.iter_ptr_set(&evals_ext, ptr_vec[1], e);
+        });
+
+        let pwr_slice_idx: Usize<C::N> = builder.eval(Usize::from(25) - num_var);
+        let pwrs = self.powers_of_2.slice(builder, pwr_slice_idx, MAX_NUM_VARS);
+
+        iter_zip!(builder, point, pwrs).for_each(|ptr_vec, builder| {
+            let pt = builder.iter_ptr_get(&point, ptr_vec[0]);
+            let idx_bound = builder.iter_ptr_get(&pwrs, ptr_vec[1]);
+
+            builder.range(0, idx_bound).for_each(|idx_vec, builder| {
+                let left_idx: Usize<C::N> = builder.eval(idx_vec[0] * Usize::from(2));
+                let right_idx: Usize<C::N> = builder.eval(idx_vec[0] * Usize::from(2) + Usize::from(1));
+                let left = builder.get(&evals_ext, left_idx);
+                let right = builder.get(&evals_ext, right_idx);
+
+                let e: Ext<C::F, C::EF> = builder.eval(pt * (right - left) + left);
+                builder.set(&evals_ext, idx_vec[0], e);
+            });
+        });
+
+        builder.get(&evals_ext, 0)
+    }
 }
 
 pub fn dot_product<C: Config>(
@@ -217,6 +289,24 @@ pub fn product<C: Config>(
     iter_zip!(builder, arr).for_each(|idx_vec, builder| {
         let el = builder.iter_ptr_get(arr, idx_vec[0]);
         builder.assign(&acc, acc * el);
+    });
+
+    acc
+}
+
+// Multiply all elements in a nested Array
+pub fn nested_product<C: Config>(
+    builder: &mut Builder<C>,
+    arr: &Array<C, Array<C, Ext<C::F, C::EF>>>,
+) -> Ext<C::F, C::EF> {
+    let acc = builder.constant(C::EF::ONE);
+    iter_zip!(builder, arr).for_each(|ptr_vec, builder| {
+        let inner_arr = builder.iter_ptr_get(arr, ptr_vec[0]);
+
+        iter_zip!(builder, inner_arr).for_each(|ptr_vec, builder| {
+            let el = builder.iter_ptr_get(&inner_arr, ptr_vec[0]);
+            builder.assign(&acc, acc * el);
+        });
     });
 
     acc
