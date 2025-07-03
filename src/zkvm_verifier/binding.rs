@@ -151,7 +151,7 @@ impl Hintable<InnerConfig> for ZKVMProofInput {
 
         let mut raw_pi_num_variables: Vec<usize> = vec![];
         for v in &self.raw_pi {
-            raw_pi_num_variables.push(v.len().next_power_of_two());
+            raw_pi_num_variables.push(ceil_log2(v.len().next_power_of_two()));
         }
         stream.extend(raw_pi_num_variables.write());
 

@@ -714,10 +714,7 @@ pub fn verify_table_proof<C: Config>(
         let eval_point = rt_tower.fs.slice(builder, 0, poly_num_vars);
         let expected_eval = poly_evaluator.evaluate_base_poly_at_point(builder, &poly, &eval_point);
         let eval = builder.get(&pi_evals, idx);
-        // _debug
-        /* 
         builder.assert_ext_eq(eval, expected_eval);
-        */
     }
 
     rt_tower.fs
