@@ -292,35 +292,9 @@ pub fn parse_zkvm_proof_import(
 
         let mut has_same_r_sumcheck_proofs: usize = 0;
         let mut same_r_sumcheck_proofs: Vec<IOPProverMessage> = vec![];
-        /* : _debug
-        if table_proof.same_r_sumcheck_proofs.is_some() {
-            for m in table_proof.same_r_sumcheck_proofs.as_ref().unwrap() {
-                let mut evaluation_vec: Vec<E> = vec![];
-                for v in &m.evaluations {
-                    let v_e: E = serde_json::from_value(serde_json::to_value(v).unwrap()).unwrap();
-                    evaluation_vec.push(v_e);
-                }
-                same_r_sumcheck_proofs.push(IOPProverMessage {
-                    evaluations: evaluation_vec,
-                });
-            }
-        }
-        */
-
-        let mut rw_in_evals: Vec<E> = vec![];
-        /* : _debug
-        for v in &table_proof.rw_in_evals {
-            let v_e: E = serde_json::from_value(serde_json::to_value(v).unwrap()).unwrap();
-            rw_in_evals.push(v_e);
-        }
-        */
+        let mut rw_in_evals: Vec<E> = vec![];        
         let mut lk_in_evals: Vec<E> = vec![];
-        /* : _debug
-        for v in &table_proof.lk_in_evals {
-            let v_e: E = serde_json::from_value(serde_json::to_value(v).unwrap()).unwrap();
-            lk_in_evals.push(v_e);
-        }
-        */
+
 
         // Tower proof
         let mut tower_proof = TowerProofInput::default();
@@ -403,10 +377,6 @@ pub fn parse_zkvm_proof_import(
             record_r_out_evals,
             record_w_out_evals,
             record_lk_out_evals,
-            has_same_r_sumcheck_proofs,
-            same_r_sumcheck_proofs,
-            rw_in_evals,
-            lk_in_evals,
             tower_proof,
             fixed_in_evals,
             wits_in_evals,
@@ -432,8 +402,7 @@ pub fn parse_zkvm_proof_import(
 }
 
 pub fn inner_test_thread() {
-    // _debug
-    // setup_tracing_with_log_level(tracing::Level::WARN);
+    setup_tracing_with_log_level(tracing::Level::WARN);
 
     let proof_path = "./src/e2e/encoded/proof.bin";
     let vk_path = "./src/e2e/encoded/vk.bin";

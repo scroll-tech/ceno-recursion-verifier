@@ -143,9 +143,6 @@ pub fn verify_tower_proof<C: Config>(
     Array<C, PointAndEvalVariable<C>>,
     Array<C, PointAndEvalVariable<C>>,
 ) {
-    // _debug
-    // let num_fanin: usize = 2;
-    // builder.assert_usize_eq(num_fanin, RVar::from(num_fanin));
     let num_prod_spec = prod_out_evals.len();
     let num_logup_spec = logup_out_evals.len();
 

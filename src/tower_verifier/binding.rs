@@ -28,21 +28,6 @@ pub struct IOPProverMessageVariable<C: Config> {
     pub evaluations: Array<C, Ext<C::F, C::EF>>,
 }
 
-// _debug
-// pub struct TowerVerifierInputVariable<C: Config> {
-//     pub prod_out_evals: Array<C, Array<C, Ext<C::F, C::EF>>>,
-//     pub logup_out_evals: Array<C, Array<C, Ext<C::F, C::EF>>>,
-//     pub num_variables: Array<C, Usize<C::N>>,
-//     pub num_fanin: Usize<C::N>,
-
-//     // TowerProofVariable
-//     pub max_num_variables: Usize<C::N>,
-
-//     pub proofs: Array<C, Array<C, IOPProverMessageVariable<C>>>,
-//     pub prod_specs_eval: Array<C, Array<C, Array<C, Ext<C::F, C::EF>>>>,
-//     pub logup_specs_eval: Array<C, Array<C, Array<C, Ext<C::F, C::EF>>>>,
-// }
-
 pub struct Point {
     pub fs: Vec<F>,
 }

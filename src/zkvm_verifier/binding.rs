@@ -87,11 +87,6 @@ pub struct ZKVMTableProofInputVariable<C: Config> {
     pub record_w_out_evals: Array<C, Array<C, Ext<C::F, C::EF>>>,
     pub record_lk_out_evals: Array<C, Array<C, Ext<C::F, C::EF>>>,
 
-    pub has_same_r_sumcheck_proofs: Usize<C::N>, // Either 1 or 0
-    pub same_r_sumcheck_proofs: Array<C, IOPProverMessageVariable<C>>, // Could be empty
-    pub rw_in_evals: Array<C, Ext<C::F, C::EF>>,
-    pub lk_in_evals: Array<C, Ext<C::F, C::EF>>,
-
     pub tower_proof: TowerProofInputVariable<C>,
     pub fixed_in_evals: Array<C, Ext<C::F, C::EF>>,
     pub wits_in_evals: Array<C, Ext<C::F, C::EF>>,
@@ -412,11 +407,6 @@ pub struct ZKVMTableProofInput {
     pub record_w_out_evals: Vec<Vec<E>>,
     pub record_lk_out_evals: Vec<Vec<E>>,
 
-    pub has_same_r_sumcheck_proofs: usize,
-    pub same_r_sumcheck_proofs: Vec<IOPProverMessage>, // Could be empty
-    pub rw_in_evals: Vec<E>,
-    pub lk_in_evals: Vec<E>,
-
     pub tower_proof: TowerProofInput,
 
     pub fixed_in_evals: Vec<E>,
@@ -441,10 +431,6 @@ impl Hintable<InnerConfig> for ZKVMTableProofInput {
         let record_w_out_evals = Vec::<Vec<E>>::read(builder);
         let record_lk_out_evals = Vec::<Vec<E>>::read(builder);
 
-        let has_same_r_sumcheck_proofs = Usize::Var(usize::read(builder));
-        let same_r_sumcheck_proofs = Vec::<IOPProverMessage>::read(builder);
-        let rw_in_evals = Vec::<E>::read(builder);
-        let lk_in_evals = Vec::<E>::read(builder);
         let tower_proof = TowerProofInput::read(builder);
         let fixed_in_evals = Vec::<E>::read(builder);
         let wits_in_evals = Vec::<E>::read(builder);
@@ -460,10 +446,6 @@ impl Hintable<InnerConfig> for ZKVMTableProofInput {
             record_r_out_evals,
             record_w_out_evals,
             record_lk_out_evals,
-            has_same_r_sumcheck_proofs,
-            same_r_sumcheck_proofs,
-            rw_in_evals,
-            lk_in_evals,
             tower_proof,
             fixed_in_evals,
             wits_in_evals,
@@ -489,12 +471,6 @@ impl Hintable<InnerConfig> for ZKVMTableProofInput {
         stream.extend(self.record_w_out_evals.write());
         stream.extend(self.record_lk_out_evals.write());
 
-        stream.extend(<usize as Hintable<InnerConfig>>::write(
-            &self.has_same_r_sumcheck_proofs,
-        ));
-        stream.extend(self.same_r_sumcheck_proofs.write());
-        stream.extend(self.rw_in_evals.write());
-        stream.extend(self.lk_in_evals.write());
         stream.extend(self.tower_proof.write());
         stream.extend(self.fixed_in_evals.write());
         stream.extend(self.wits_in_evals.write());
