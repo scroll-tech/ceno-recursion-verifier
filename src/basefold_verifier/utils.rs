@@ -30,18 +30,30 @@ pub fn pow_felt<C: Config>(
 pub fn pow_felt_bits<C: Config>(
     builder: &mut Builder<C>,
     base: Felt<C::F>,
-    exponent_bits: &Array<C, Var<C::N>>, // In small endian
+    exponent_bits: &Array<C, Var<C::N>>, // FIXME: Should be big endian? There is a bit_reverse_rows() in Ceno native code
     exponent_len: Usize<C::N>,
 ) -> Felt<C::F> {
     let value: Felt<C::F> = builder.constant(C::F::ONE);
-    let repeated_squared: Felt<C::F> = base;
+
+    // Little endian
+    // let repeated_squared: Felt<C::F> = base;
+    // builder.range(0, exponent_len).for_each(|ptr, builder| {
+    //     let ptr = ptr[0];
+    //     let bit = builder.get(exponent_bits, ptr);
+    //     builder.if_eq(bit, C::N::ONE).then(|builder| {
+    //         builder.assign(&value, value * repeated_squared);
+    //     });
+    //     builder.assign(&repeated_squared, repeated_squared * repeated_squared);
+    // });
+
+    // Big endian
     builder.range(0, exponent_len).for_each(|ptr, builder| {
         let ptr = ptr[0];
+        builder.assign(&value, value * value);
         let bit = builder.get(exponent_bits, ptr);
         builder.if_eq(bit, C::N::ONE).then(|builder| {
-            builder.assign(&value, value * repeated_squared);
+            builder.assign(&value, value * base);
         });
-        builder.assign(&repeated_squared, repeated_squared * repeated_squared);
     });
     value
 }
@@ -153,7 +165,12 @@ pub fn sort_with_count<C: Config, E, N, Ind>(
     builder: &mut Builder<C>,
     list: &Array<C, E>,
     ind: Ind, // Convert loaded out entries into comparable ones
-) -> (Array<C, Var<C::N>>, Var<C::N>, Array<C, Var<C::N>>)
+) -> (
+    Array<C, Var<C::N>>,
+    Var<C::N>,
+    Array<C, Var<C::N>>,
+    Array<C, Var<C::N>>,
+)
 where
     E: openvm_native_compiler::ir::MemVariable<C>,
     N: Into<SymbolicVar<<C as openvm_native_compiler::ir::Config>::N>>
@@ -172,6 +189,7 @@ where
     // 1. count_per_unique_entry: for each unique entry value, count of entries of that value
     let num_unique_entries = builder.hint_var();
     let count_per_unique_entry = builder.dyn_array(num_unique_entries);
+    let sorted_unique_num_vars = builder.dyn_array(num_unique_entries);
     let zero: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
     let one: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
     let entries_sort_surjective: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(len.clone());
@@ -221,6 +239,11 @@ where
                     last_unique_entry_index,
                     last_count_per_unique_entry,
                 );
+                builder.set(
+                    &sorted_unique_num_vars,
+                    last_unique_entry_index,
+                    last_entry.clone(),
+                );
                 builder.assign(&last_entry, next_entry.clone());
                 builder.assign(
                     &last_unique_entry_index,
@@ -238,13 +261,23 @@ where
         last_unique_entry_index,
         last_count_per_unique_entry,
     );
+    builder.set(
+        &sorted_unique_num_vars,
+        last_unique_entry_index,
+        last_entry.clone(),
+    );
     builder.assign(
         &last_unique_entry_index,
         last_unique_entry_index + Usize::from(1),
     );
     builder.assert_var_eq(last_unique_entry_index, num_unique_entries);
 
-    (entries_order, num_unique_entries, count_per_unique_entry)
+    (
+        entries_order,
+        num_unique_entries,
+        count_per_unique_entry,
+        sorted_unique_num_vars,
+    )
 }
 
 pub fn codeword_fold_with_challenge<C: Config>(

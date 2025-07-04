@@ -105,7 +105,7 @@ pub fn verifier_folding_coeffs_level<C: Config>(
     builder: &mut Builder<C>,
     two_adic_generators_inverses: &Array<C, Felt<C::F>>,
     level: Var<C::N>,
-    index_bits: &Array<C, Var<C::N>>, // FIXME: the algorithm assumes big endian, it is actually little endian
+    index_bits: &Array<C, Var<C::N>>,
     two_inv: Felt<C::F>,
 ) -> Felt<C::F> {
     let level_plus_one = builder.eval::<Var<C::N>, _>(level + C::N::ONE);

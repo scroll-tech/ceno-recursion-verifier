@@ -231,6 +231,7 @@ pub struct PointAndEvalsVariable<C: Config> {
 
 #[derive(Deserialize)]
 pub struct QueryPhaseVerifierInput {
+    // pub t_inv_halves: Vec<Vec<<E as ExtensionField>::BaseField>>,
     pub max_num_var: usize,
     pub indices: Vec<usize>,
     pub final_message: Vec<Vec<E>>,
@@ -249,6 +250,7 @@ impl Hintable<InnerConfig> for QueryPhaseVerifierInput {
     type HintVariable = QueryPhaseVerifierInputVariable<InnerConfig>;
 
     fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
+        // let t_inv_halves = Vec::<Vec<F>>::read(builder);
         let max_num_var = Usize::Var(usize::read(builder));
         let indices = Vec::<usize>::read(builder);
         let final_message = Vec::<Vec<E>>::read(builder);
@@ -264,6 +266,7 @@ impl Hintable<InnerConfig> for QueryPhaseVerifierInput {
         let point_evals = Vec::<PointAndEvals>::read(builder);
 
         QueryPhaseVerifierInputVariable {
+            // t_inv_halves,
             max_num_var,
             indices,
             final_message,
@@ -282,6 +285,7 @@ impl Hintable<InnerConfig> for QueryPhaseVerifierInput {
 
     fn write(&self) -> Vec<Vec<<InnerConfig as Config>::N>> {
         let mut stream = Vec::new();
+        // stream.extend(self.t_inv_halves.write());
         stream.extend(<usize as Hintable<InnerConfig>>::write(&self.max_num_var));
         stream.extend(self.indices.write());
         stream.extend(self.final_message.write());
@@ -320,6 +324,7 @@ impl Hintable<InnerConfig> for QueryPhaseVerifierInput {
 
 #[derive(DslVariable, Clone)]
 pub struct QueryPhaseVerifierInputVariable<C: Config> {
+    // pub t_inv_halves: Array<C, Array<C, Felt<C::F>>>,
     pub max_num_var: Usize<C::N>,
     pub indices: Array<C, Var<C::N>>,
     pub final_message: Array<C, Array<C, Ext<C::F, C::EF>>>,
@@ -411,12 +416,16 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
     // 2. num_unique_height: number of different heights
     // 3. count_per_unique_height: for each unique height, number of dimensions of that height
     // builder.assert_nonzero(&Usize::from(0));
-    let (folding_sorted_order_index, _num_unique_num_vars, count_per_unique_num_var) =
-        sort_with_count(
-            builder,
-            &input.circuit_meta,
-            |m: CircuitIndexMetaVariable<C>| m.witin_num_vars,
-        );
+    let (
+        folding_sorted_order_index,
+        num_unique_num_vars,
+        count_per_unique_num_var,
+        sorted_unique_num_vars,
+    ) = sort_with_count(
+        builder,
+        &input.circuit_meta,
+        |m: CircuitIndexMetaVariable<C>| m.witin_num_vars,
+    );
 
     builder
         .range(0, input.indices.len())
@@ -585,7 +594,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
             let cur_num_var: Var<C::N> = builder.eval(input.max_num_var.clone());
             // let rounds: Var<C::N> = builder.eval(cur_num_var - get_basecode_msg_size_log::<C>() - Usize::from(1));
             let n_d_next_log: Var<C::N> =
-                builder.eval(cur_num_var - get_rate_log::<C>() - Usize::from(1));
+                builder.eval(cur_num_var + get_rate_log::<C>() - Usize::from(1));
             // let n_d_next = pow_2(builder, n_d_next_log);
 
             // first folding challenge
@@ -602,13 +611,17 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
                     let level: Var<C::N> =
                         builder.eval(cur_num_var + get_rate_log::<C>() - Usize::from(1));
                     let sliced_bits = idx_bits.clone().slice(builder, 1, idx_len);
+                    // let expected_coeffs = builder.get(&input.t_inv_halves, level);
+                    // let expected_coeff = builder.get(&expected_coeffs, idx); // TODO: remove this and directly use the result from verifier_folding_coeffs_level function
                     let coeff = verifier_folding_coeffs_level(
                         builder,
                         &two_adic_generators_inverses,
                         level,
-                        &sliced_bits, // FIXME: idx_bits should be sliced
+                        &sliced_bits,
                         inv_2,
                     );
+                    // builder.assert_eq::<Felt<C::F>>(coeff, expected_coeff);
+                    // builder.halt();
                     let fold = codeword_fold_with_challenge::<C>(builder, lo, hi, r, coeff, inv_2);
                     builder.assign(&folded, folded + fold);
                 });
@@ -637,40 +650,57 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
                     // next folding challenges
                     let is_interpolate_to_right_index = builder.get(&idx_bits, j_plus_one);
                     let new_involved_codewords: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
-                    let next_unique_num_vars_count: Var<C::N> =
-                        builder.get(&count_per_unique_num_var, next_unique_num_vars_index);
                     builder
-                        .range(0, next_unique_num_vars_count)
-                        .for_each(|k_vec, builder| {
-                            let k = builder.eval_expr(k_vec[0] + cumul_num_vars_count);
-                            let index = builder.get(&folding_sorted_order_index, k);
-                            let lo = builder.get(&base_codeword_lo, index.clone());
-                            let hi = builder.get(&base_codeword_hi, index.clone());
+                        .if_ne(next_unique_num_vars_index, num_unique_num_vars)
+                        .then(|builder| {
+                            let next_unique_num_vars: Var<C::N> =
+                                builder.get(&sorted_unique_num_vars, next_unique_num_vars_index);
                             builder
-                                .if_eq(is_interpolate_to_right_index, Usize::from(1))
+                                .if_eq(next_unique_num_vars, cur_num_var)
                                 .then(|builder| {
-                                    builder.assign(
-                                        &new_involved_codewords,
-                                        new_involved_codewords + hi,
+                                    let next_unique_num_vars_count: Var<C::N> = builder
+                                        .get(&count_per_unique_num_var, next_unique_num_vars_index);
+                                    builder.range(0, next_unique_num_vars_count).for_each(
+                                        |k_vec, builder| {
+                                            let k =
+                                                builder.eval_expr(k_vec[0] + cumul_num_vars_count);
+                                            let index = builder.get(&folding_sorted_order_index, k);
+                                            let lo = builder.get(&base_codeword_lo, index.clone());
+                                            let hi = builder.get(&base_codeword_hi, index.clone());
+                                            builder
+                                                .if_eq(
+                                                    is_interpolate_to_right_index,
+                                                    Usize::from(1),
+                                                )
+                                                .then(|builder| {
+                                                    builder.assign(
+                                                        &new_involved_codewords,
+                                                        new_involved_codewords + hi,
+                                                    );
+                                                });
+                                            builder
+                                                .if_ne(
+                                                    is_interpolate_to_right_index,
+                                                    Usize::from(1),
+                                                )
+                                                .then(|builder| {
+                                                    builder.assign(
+                                                        &new_involved_codewords,
+                                                        new_involved_codewords + lo,
+                                                    );
+                                                });
+                                        },
                                     );
-                                });
-                            builder
-                                .if_ne(is_interpolate_to_right_index, Usize::from(1))
-                                .then(|builder| {
                                     builder.assign(
-                                        &new_involved_codewords,
-                                        new_involved_codewords + lo,
+                                        &cumul_num_vars_count,
+                                        cumul_num_vars_count + next_unique_num_vars_count,
+                                    );
+                                    builder.assign(
+                                        &next_unique_num_vars_index,
+                                        next_unique_num_vars_index + Usize::from(1),
                                     );
                                 });
                         });
-                    builder.assign(
-                        &cumul_num_vars_count,
-                        cumul_num_vars_count + next_unique_num_vars_count,
-                    );
-                    builder.assign(
-                        &next_unique_num_vars_index,
-                        next_unique_num_vars_index + Usize::from(1),
-                    );
 
                     // leafs
                     let leafs = builder.dyn_array(2);
@@ -711,13 +741,13 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
                         proof,
                     };
                     ext_mmcs_verify_batch::<C>(builder, ext_mmcs_verifier_input); // FIXME: the Merkle roots do not match
-                    builder.halt();
 
+                    let sliced_bits = idx_bits.clone().slice(builder, j_plus_two, idx_len);
                     let coeff = verifier_folding_coeffs_level(
                         builder,
                         &two_adic_generators_inverses,
                         n_d_i_log.clone(),
-                        &idx_bits,
+                        &sliced_bits,
                         inv_2,
                     );
                     let left = builder.get(&leafs, 0);
@@ -1015,6 +1045,7 @@ pub mod tests {
             .collect();
 
         let query_input = QueryPhaseVerifierInput {
+            // t_inv_halves: vp.encoding_params.t_inv_halves,
             max_num_var: 10,
             indices: opening_proof.query_indices,
             final_message: opening_proof.final_message,
