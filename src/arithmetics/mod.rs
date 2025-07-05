@@ -465,6 +465,7 @@ pub fn build_eq_x_r_vec_sequential_with_offset<C: Config>(
     // _debug
     // build_eq_x_r_helper_sequential_offset(r, &mut evals, E::ONE);
     // unsafe { std::mem::transmute(evals) }
+    // FIXME: this function is not implemented yet
     evals
 }
 
