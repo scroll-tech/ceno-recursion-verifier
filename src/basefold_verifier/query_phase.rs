@@ -760,8 +760,6 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
             builder.assert_eq::<Ext<C::F, C::EF>>(final_value, folded);
         });
 
-    // FIXME(kunxian): checkpoint 1
-    builder.halt();
     // 1. check initial claim match with first round sumcheck value
     let points = builder.dyn_array(input.batch_coeffs.len());
     let next_point_index: Var<C::N> = builder.eval(Usize::from(0));
