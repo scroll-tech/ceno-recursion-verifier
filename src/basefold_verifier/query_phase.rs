@@ -1105,12 +1105,12 @@ pub mod tests {
         let config = NativeConfig::new(system_config, Native);
 
         let executor = VmExecutor::<BabyBear, NativeConfig>::new(config);
-        executor.execute(program, witness).unwrap();
+        executor.execute(program.clone(), witness.clone()).unwrap();
 
         // _debug
-        // let results = executor.execute_segments(program, witness).unwrap();
-        // for seg in results {
-        //     println!("=> cycle count: {:?}", seg.metrics.cycle_count);
-        // }
+        let results = executor.execute_segments(program, witness).unwrap();
+        for seg in results {
+            println!("=> cycle count: {:?}", seg.metrics.cycle_count);
+        }
     }
 }
