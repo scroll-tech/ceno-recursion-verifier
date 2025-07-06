@@ -377,12 +377,13 @@ pub fn eq_eval_less_or_equal_than<C: Config>(
     a: &Array<C, Ext<C::F, C::EF>>,
     b: &Array<C, Ext<C::F, C::EF>>,
 ) -> Ext<C::F, C::EF> {
+    builder.cycle_tracker_start("Compute eq_eval_less_or_equal_than");
     let eq_bit_decomp: Array<C, Felt<C::F>> = opcode_proof
         .num_instances_minus_one_bit_decomposition
         .slice(builder, 0, b.len());
 
     let one_ext: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
-    let rp_len = builder.eval_expr(RVar::from(b.len()) + RVar::from(1));
+    let rp_len = builder.eval_expr(b.len() + C::N::ONE);
     let running_product: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(rp_len);
     builder.set(&running_product, 0, one_ext);
 
@@ -396,49 +397,29 @@ pub fn eq_eval_less_or_equal_than<C: Config>(
         builder.set(&running_product, next_idx, next_v);
     });
 
-    let running_product2: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(rp_len);
-    builder.set(&running_product2, b.len(), one_ext);
-
-    let eq_bit_decomp_rev = reverse(builder, &eq_bit_decomp);
-    let idx_arr = gen_idx_arr(builder, b.len());
-    let idx_arr_rev = reverse(builder, &idx_arr);
-    builder.assert_usize_eq(eq_bit_decomp_rev.len(), idx_arr_rev.len());
-
-    iter_zip!(builder, idx_arr_rev, eq_bit_decomp_rev).for_each(|ptr_vec, builder| {
-        let i = builder.iter_ptr_get(&idx_arr_rev, ptr_vec[0]);
-        let bit = builder.iter_ptr_get(&eq_bit_decomp_rev, ptr_vec[1]);
-        let bit_ext = builder.ext_from_base_slice(&[bit]);
-        let last_idx = builder.eval_expr(i.clone() + RVar::from(1));
-
-        let v = builder.get(&running_product2, last_idx);
-        let a_i = builder.get(a, i.clone());
-        let b_i = builder.get(b, i.clone());
-
-        let next_v: Ext<C::F, C::EF> = builder.eval(
-            v * (a_i * b_i * bit_ext + (one_ext - a_i) * (one_ext - b_i) * (one_ext - bit_ext)),
-        );
-        builder.set(&running_product2, i, next_v);
-    });
-
-    // Here is an example of how this works:
-    // Suppose max_idx = (110101)_2
-    // Then ans = eq(a, b)
-    //          - eq(11011, a[1..6], b[1..6])eq(a[0..1], b[0..1])
-    //          - eq(111, a[3..6], b[3..6])eq(a[0..3], b[0..3])
     let ans = builder.get(&running_product, b.len());
-    builder.range(0, b.len()).for_each(|idx_vec, builder| {
-        let bit = builder.get(&eq_bit_decomp, idx_vec[0]);
+    let running_product2: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
+    let idx: Var<C::N> = builder.uninit();
+    builder.assign(&idx, b.len() - C::N::ONE);
+    builder.range(0, b.len()).for_each(|_, builder| {
+        let bit = builder.get(&eq_bit_decomp, idx);
         let bit_rvar = RVar::from(builder.cast_felt_to_var(bit));
+        let bit_ext: Ext<C::F, C::EF> = builder.eval(bit * SymbolicExt::from_f(C::EF::ONE));
 
+        let a_i = builder.get(a, idx);
+        let b_i = builder.get(b, idx);
+
+        // Suppose max_idx = (110101)_2
+        // Then ans = eq(a, b)
+        //          - eq(11011, a[1..6], b[1..6])eq(a[0..1], b[0..1])
+        //          - eq(111, a[3..6], b[3..6])eq(a[0..3], b[0..3])
         builder.if_ne(bit_rvar, RVar::from(1)).then(|builder| {
-            let next_idx = builder.eval_expr(idx_vec[0] + RVar::from(1));
-            let v1 = builder.get(&running_product, idx_vec[0]);
-            let v2 = builder.get(&running_product2, next_idx);
-            let a_i = builder.get(a, idx_vec[0]);
-            let b_i = builder.get(b, idx_vec[0]);
-
-            builder.assign(&ans, ans - v1 * v2 * a_i * b_i);
+            let v1 = builder.get(&running_product, idx);
+            builder.assign(&ans, ans - v1 * running_product2 * a_i * b_i);
         });
+
+        builder.assign(&running_product2, running_product2 * (a_i * b_i * bit_ext + (one_ext - a_i) * (one_ext - b_i) * (one_ext - bit_ext)));
+        builder.assign(&idx, idx - C::N::ONE);
     });
 
     let a_remainder_arr: Array<C, Ext<C::F, C::EF>> = a.slice(builder, b.len(), a.len());
@@ -446,6 +427,8 @@ pub fn eq_eval_less_or_equal_than<C: Config>(
         let a = builder.iter_ptr_get(&a_remainder_arr, ptr_vec[0]);
         builder.assign(&ans, ans * (one_ext - a));
     });
+
+    builder.cycle_tracker_end("Compute eq_eval_less_or_equal_than");
 
     ans
 }
