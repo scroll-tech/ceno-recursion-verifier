@@ -833,19 +833,27 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
                 Usize::Var(ylo),
                 Usize::Var(num_vars_evaluated),
             );
-            let eq = build_eq_x_r_vec_sequential_with_offset::<C>(
-                builder,
-                &point.fs,
-                Usize::Var(num_vars_evaluated),
-            );
-            let eq_coeff = builder.dyn_array(eq.len());
-            builder.range(0, eq.len()).for_each(|j_vec, builder| {
-                let j = j_vec[0];
-                let next_eq = builder.get(&eq, j);
-                let next_eq_coeff: Ext<C::F, C::EF> = builder.eval(next_eq * coeff);
-                builder.set_value(&eq_coeff, j, next_eq_coeff);
-            });
-            let dot_prod = dot_product(builder, &final_message, &eq_coeff);
+            // We assume that the final message is of size 1, so the eq poly is just
+            // vec![one].
+            // let eq = build_eq_x_r_vec_sequential_with_offset::<C>(
+            //     builder,
+            //     &point.fs,
+            //     Usize::Var(num_vars_evaluated),
+            // );
+            // eq_coeff = eq * coeff
+            // let eq_coeff = builder.dyn_array(eq.len());
+            // builder.range(0, eq.len()).for_each(|j_vec, builder| {
+            //     let j = j_vec[0];
+            //     let next_eq = builder.get(&eq, j);
+            //     let next_eq_coeff: Ext<C::F, C::EF> = builder.eval(next_eq * coeff);
+            //     builder.set_value(&eq_coeff, j, next_eq_coeff);
+            // });
+            // let dot_prod = dot_product(builder, &final_message, &eq_coeff);
+
+            // Again assuming final message is a single element
+            let final_message = builder.get(&final_message, 0);
+            // Again, eq polynomial is just one
+            let dot_prod: Ext<C::F, C::EF> = builder.eval(final_message * coeff);
             builder.assign(&right, right + dot_prod);
         });
     builder.assert_eq::<Ext<C::F, C::EF>>(left, right);
