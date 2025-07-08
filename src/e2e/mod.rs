@@ -1,3 +1,4 @@
+use crate::basefold_verifier::query_phase::QueryPhaseVerifierInput;
 use crate::tower_verifier::binding::IOPProverMessage;
 use crate::zkvm_verifier::binding::ZKVMProofInput;
 use crate::zkvm_verifier::binding::{
@@ -400,6 +401,23 @@ pub fn parse_zkvm_proof_import(
         serde_json::from_value(serde_json::to_value(zkvm_proof.witin_commit).unwrap()).unwrap();
     let fixed_commit = verifier.vk.fixed_commit.clone();
 
+    let pcs_proof = zkvm_proof.fixed_witin_opening_proof;
+
+    // let query_phase_verifier_input = QueryPhaseVerifierInput {
+    //     max_num_var,
+    //     indices,
+    //     final_message,
+    //     batch_coeffs,
+    //     queries,
+    //     fixed_comm,
+    //     witin_comm,
+    //     circuit_meta,
+    //     commits: pcs_proof.commits,
+    //     fold_challenges,
+    //     sumcheck_messages: pcs_proof.sumcheck_proof.unwrap(),
+    //     point_evals,
+    // };
+
     (
         ZKVMProofInput {
             raw_pi,
@@ -409,6 +427,7 @@ pub fn parse_zkvm_proof_import(
             witin_commit,
             fixed_commit,
             num_instances: zkvm_proof.num_instances.clone(),
+            // query_phase_verifier_input,
         },
         proving_sequence,
     )
