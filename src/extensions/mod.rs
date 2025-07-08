@@ -11,17 +11,17 @@ use crate::zkvm_verifier::verifier::verify_zkvm_proof;
 use crate::{
     arithmetics::{
         build_eq_x_r_vec_sequential, ceil_log2, concat, dot_product as ext_dot_product,
-        eq_eval_less_or_equal_than, eval_ceno_expr_with_instance, eval_wellform_address_vec,
+        eq_eval_less_or_equal_than, eval_wellform_address_vec,
         gen_alpha_pows, max_usize_arr, max_usize_vec, next_pow2_instance_padding, product,
         sum as ext_sum,
     },
     tower_verifier::{
-        binding::{PointVariable, TowerVerifierInputVariable},
+        binding::PointVariable,
         program::iop_verifier_state_verify,
     },
 };
-use ceno_zkvm::circuit_builder::SetTableSpec;
-use ceno_zkvm::{expression::StructuralWitIn, scheme::verifier::ZKVMVerifier};
+use ceno_zkvm::{circuit_builder::SetTableSpec, scheme::verifier::ZKVMVerifier};
+use ceno_mle::expression::StructuralWitIn;
 use ff_ext::BabyBearExt4;
 use itertools::interleave;
 use itertools::max;

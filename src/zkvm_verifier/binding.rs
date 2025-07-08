@@ -57,21 +57,19 @@ pub struct ZKVMOpcodeProofInputVariable<C: Config> {
     pub num_instances_minus_one_bit_decomposition: Array<C, Felt<C::F>>,
     pub log2_num_instances: Usize<C::N>,
 
-    pub record_r_out_evals: Array<C, Ext<C::F, C::EF>>,
-    pub record_w_out_evals: Array<C, Ext<C::F, C::EF>>,
+    pub record_r_out_evals_len: Usize<C::N>,
+    pub record_w_out_evals_len: Usize<C::N>,
+    pub record_lk_out_evals_len: Usize<C::N>,
 
-    pub lk_p1_out_eval: Ext<C::F, C::EF>,
-    pub lk_p2_out_eval: Ext<C::F, C::EF>,
-    pub lk_q1_out_eval: Ext<C::F, C::EF>,
-    pub lk_q2_out_eval: Ext<C::F, C::EF>,
+    pub record_r_out_evals: Array<C, Array<C, Ext<C::F, C::EF>>>,
+    pub record_w_out_evals: Array<C, Array<C, Ext<C::F, C::EF>>>,
+    pub record_lk_out_evals: Array<C, Array<C, Ext<C::F, C::EF>>>,
 
     pub tower_proof: TowerProofInputVariable<C>,
 
     pub main_sel_sumcheck_proofs: Array<C, IOPProverMessageVariable<C>>,
-    pub r_records_in_evals: Array<C, Ext<C::F, C::EF>>,
-    pub w_records_in_evals: Array<C, Ext<C::F, C::EF>>,
-    pub lk_records_in_evals: Array<C, Ext<C::F, C::EF>>,
     pub wits_in_evals: Array<C, Ext<C::F, C::EF>>,
+    pub fixed_in_evals: Array<C, Ext<C::F, C::EF>>,
 }
 
 #[derive(DslVariable, Clone)]
@@ -81,16 +79,13 @@ pub struct ZKVMTableProofInputVariable<C: Config> {
     pub num_instances: Usize<C::N>,
     pub log2_num_instances: Usize<C::N>,
 
-    pub r_out_evals: Array<C, Ext<C::F, C::EF>>, // Vec<[E; 2]>,
-    pub w_out_evals: Array<C, Ext<C::F, C::EF>>, // Vec<[E; 2]>,
-    pub compressed_rw_out_len: Usize<C::N>,
-    pub lk_out_evals: Array<C, Ext<C::F, C::EF>>, // Vec<[E; 4]>,
-    pub compressed_lk_out_len: Usize<C::N>,
+    pub record_r_out_evals_len: Usize<C::N>,
+    pub record_w_out_evals_len: Usize<C::N>,
+    pub record_lk_out_evals_len: Usize<C::N>,
 
-    pub has_same_r_sumcheck_proofs: Usize<C::N>, // Either 1 or 0
-    pub same_r_sumcheck_proofs: Array<C, IOPProverMessageVariable<C>>, // Could be empty
-    pub rw_in_evals: Array<C, Ext<C::F, C::EF>>,
-    pub lk_in_evals: Array<C, Ext<C::F, C::EF>>,
+    pub record_r_out_evals: Array<C, Array<C, Ext<C::F, C::EF>>>,
+    pub record_w_out_evals: Array<C, Array<C, Ext<C::F, C::EF>>>,
+    pub record_lk_out_evals: Array<C, Array<C, Ext<C::F, C::EF>>>,
 
     pub tower_proof: TowerProofInputVariable<C>,
     pub fixed_in_evals: Array<C, Ext<C::F, C::EF>>,
@@ -151,7 +146,7 @@ impl Hintable<InnerConfig> for ZKVMProofInput {
 
         let mut raw_pi_num_variables: Vec<usize> = vec![];
         for v in &self.raw_pi {
-            raw_pi_num_variables.push(v.len().next_power_of_two());
+            raw_pi_num_variables.push(ceil_log2(v.len().next_power_of_two()));
         }
         stream.extend(raw_pi_num_variables.write());
 
@@ -306,23 +301,19 @@ pub struct ZKVMOpcodeProofInput {
     pub num_instances: usize,
 
     // product constraints
-    pub record_r_out_evals: Vec<E>,
-    pub record_w_out_evals: Vec<E>,
-
-    // logup sum at layer 1
-    pub lk_p1_out_eval: E,
-    pub lk_p2_out_eval: E,
-    pub lk_q1_out_eval: E,
-    pub lk_q2_out_eval: E,
+    pub record_r_out_evals_len: usize,
+    pub record_w_out_evals_len: usize,
+    pub record_lk_out_evals_len: usize,
+    pub record_r_out_evals: Vec<Vec<E>>,
+    pub record_w_out_evals: Vec<Vec<E>>,
+    pub record_lk_out_evals: Vec<Vec<E>>,
 
     pub tower_proof: TowerProofInput,
 
     // main constraint and select sumcheck proof
-    pub main_sel_sumcheck_proofs: Vec<IOPProverMessage>,
-    pub r_records_in_evals: Vec<E>,
-    pub w_records_in_evals: Vec<E>,
-    pub lk_records_in_evals: Vec<E>,
+    pub main_sumcheck_proofs: Vec<IOPProverMessage>,
     pub wits_in_evals: Vec<E>,
+    pub fixed_in_evals: Vec<E>,
 }
 impl VecAutoHintable for ZKVMOpcodeProofInput {}
 impl Hintable<InnerConfig> for ZKVMOpcodeProofInput {
@@ -334,18 +325,19 @@ impl Hintable<InnerConfig> for ZKVMOpcodeProofInput {
         let num_instances = Usize::Var(usize::read(builder));
         let num_instances_minus_one_bit_decomposition = Vec::<F>::read(builder);
         let log2_num_instances = Usize::Var(usize::read(builder));
-        let record_r_out_evals = Vec::<E>::read(builder);
-        let record_w_out_evals = Vec::<E>::read(builder);
-        let lk_p1_out_eval = E::read(builder);
-        let lk_p2_out_eval = E::read(builder);
-        let lk_q1_out_eval = E::read(builder);
-        let lk_q2_out_eval = E::read(builder);
+
+        let record_r_out_evals_len = Usize::Var(usize::read(builder));
+        let record_w_out_evals_len = Usize::Var(usize::read(builder));
+        let record_lk_out_evals_len = Usize::Var(usize::read(builder));
+
+        let record_r_out_evals = Vec::<Vec<E>>::read(builder);
+        let record_w_out_evals = Vec::<Vec<E>>::read(builder);
+        let record_lk_out_evals = Vec::<Vec<E>>::read(builder);
+
         let tower_proof = TowerProofInput::read(builder);
         let main_sel_sumcheck_proofs = Vec::<IOPProverMessage>::read(builder);
-        let r_records_in_evals = Vec::<E>::read(builder);
-        let w_records_in_evals = Vec::<E>::read(builder);
-        let lk_records_in_evals = Vec::<E>::read(builder);
         let wits_in_evals = Vec::<E>::read(builder);
+        let fixed_in_evals = Vec::<E>::read(builder);
 
         ZKVMOpcodeProofInputVariable {
             idx,
@@ -353,18 +345,16 @@ impl Hintable<InnerConfig> for ZKVMOpcodeProofInput {
             num_instances,
             num_instances_minus_one_bit_decomposition,
             log2_num_instances,
+            record_r_out_evals_len,
+            record_w_out_evals_len,
+            record_lk_out_evals_len,
             record_r_out_evals,
             record_w_out_evals,
-            lk_p1_out_eval,
-            lk_p2_out_eval,
-            lk_q1_out_eval,
-            lk_q2_out_eval,
+            record_lk_out_evals,
             tower_proof,
             main_sel_sumcheck_proofs,
-            r_records_in_evals,
-            w_records_in_evals,
-            lk_records_in_evals,
             wits_in_evals,
+            fixed_in_evals,
         }
     }
 
@@ -388,18 +378,18 @@ impl Hintable<InnerConfig> for ZKVMOpcodeProofInput {
         let log2_num_instances = ceil_log2(next_pow2_instance);
         stream.extend(<usize as Hintable<InnerConfig>>::write(&log2_num_instances));
 
+        stream.extend(<usize as Hintable<InnerConfig>>::write(&self.record_r_out_evals_len));
+        stream.extend(<usize as Hintable<InnerConfig>>::write(&self.record_w_out_evals_len));
+        stream.extend(<usize as Hintable<InnerConfig>>::write(&self.record_lk_out_evals_len));
+
         stream.extend(self.record_r_out_evals.write());
         stream.extend(self.record_w_out_evals.write());
-        stream.extend(<E as Hintable<InnerConfig>>::write(&self.lk_p1_out_eval));
-        stream.extend(<E as Hintable<InnerConfig>>::write(&self.lk_p2_out_eval));
-        stream.extend(<E as Hintable<InnerConfig>>::write(&self.lk_q1_out_eval));
-        stream.extend(<E as Hintable<InnerConfig>>::write(&self.lk_q2_out_eval));
+        stream.extend(self.record_lk_out_evals.write());
+
         stream.extend(self.tower_proof.write());
-        stream.extend(self.main_sel_sumcheck_proofs.write());
-        stream.extend(self.r_records_in_evals.write());
-        stream.extend(self.w_records_in_evals.write());
-        stream.extend(self.lk_records_in_evals.write());
+        stream.extend(self.main_sumcheck_proofs.write());
         stream.extend(self.wits_in_evals.write());
+        stream.extend(self.fixed_in_evals.write());
 
         stream
     }
@@ -410,16 +400,12 @@ pub struct ZKVMTableProofInput {
     pub num_instances: usize,
 
     // tower evaluation at layer 1
-    pub r_out_evals: Vec<E>, // Vec<[E; 2]>
-    pub w_out_evals: Vec<E>, // Vec<[E; 2]>
-    pub compressed_rw_out_len: usize,
-    pub lk_out_evals: Vec<E>, // Vec<[E; 4]>
-    pub compressed_lk_out_len: usize,
-
-    pub has_same_r_sumcheck_proofs: usize,
-    pub same_r_sumcheck_proofs: Vec<IOPProverMessage>, // Could be empty
-    pub rw_in_evals: Vec<E>,
-    pub lk_in_evals: Vec<E>,
+    pub record_r_out_evals_len: usize,
+    pub record_w_out_evals_len: usize,
+    pub record_lk_out_evals_len: usize,
+    pub record_r_out_evals: Vec<Vec<E>>,
+    pub record_w_out_evals: Vec<Vec<E>>,
+    pub record_lk_out_evals: Vec<Vec<E>>,
 
     pub tower_proof: TowerProofInput,
 
@@ -437,16 +423,14 @@ impl Hintable<InnerConfig> for ZKVMTableProofInput {
         let num_instances = Usize::Var(usize::read(builder));
         let log2_num_instances = Usize::Var(usize::read(builder));
 
-        let r_out_evals = Vec::<E>::read(builder);
-        let w_out_evals = Vec::<E>::read(builder);
-        let compressed_rw_out_len = Usize::Var(usize::read(builder));
-        let lk_out_evals = Vec::<E>::read(builder);
-        let compressed_lk_out_len = Usize::Var(usize::read(builder));
+        let record_r_out_evals_len = Usize::Var(usize::read(builder));
+        let record_w_out_evals_len = Usize::Var(usize::read(builder));
+        let record_lk_out_evals_len = Usize::Var(usize::read(builder));
 
-        let has_same_r_sumcheck_proofs = Usize::Var(usize::read(builder));
-        let same_r_sumcheck_proofs = Vec::<IOPProverMessage>::read(builder);
-        let rw_in_evals = Vec::<E>::read(builder);
-        let lk_in_evals = Vec::<E>::read(builder);
+        let record_r_out_evals = Vec::<Vec<E>>::read(builder);
+        let record_w_out_evals = Vec::<Vec<E>>::read(builder);
+        let record_lk_out_evals = Vec::<Vec<E>>::read(builder);
+
         let tower_proof = TowerProofInput::read(builder);
         let fixed_in_evals = Vec::<E>::read(builder);
         let wits_in_evals = Vec::<E>::read(builder);
@@ -456,15 +440,12 @@ impl Hintable<InnerConfig> for ZKVMTableProofInput {
             idx_felt,
             num_instances,
             log2_num_instances,
-            r_out_evals,
-            w_out_evals,
-            compressed_rw_out_len,
-            lk_out_evals,
-            compressed_lk_out_len,
-            has_same_r_sumcheck_proofs,
-            same_r_sumcheck_proofs,
-            rw_in_evals,
-            lk_in_evals,
+            record_r_out_evals_len,
+            record_w_out_evals_len,
+            record_lk_out_evals_len,
+            record_r_out_evals,
+            record_w_out_evals,
+            record_lk_out_evals,
             tower_proof,
             fixed_in_evals,
             wits_in_evals,
@@ -482,22 +463,14 @@ impl Hintable<InnerConfig> for ZKVMTableProofInput {
         let log2_num_instances = ceil_log2(self.num_instances);
         stream.extend(<usize as Hintable<InnerConfig>>::write(&log2_num_instances));
 
-        stream.extend(self.r_out_evals.write());
-        stream.extend(self.w_out_evals.write());
-        stream.extend(<usize as Hintable<InnerConfig>>::write(
-            &self.compressed_rw_out_len,
-        ));
-        stream.extend(self.lk_out_evals.write());
-        stream.extend(<usize as Hintable<InnerConfig>>::write(
-            &self.compressed_lk_out_len,
-        ));
+        stream.extend(<usize as Hintable<InnerConfig>>::write(&self.record_r_out_evals_len));
+        stream.extend(<usize as Hintable<InnerConfig>>::write(&self.record_w_out_evals_len));
+        stream.extend(<usize as Hintable<InnerConfig>>::write(&self.record_lk_out_evals_len));
 
-        stream.extend(<usize as Hintable<InnerConfig>>::write(
-            &self.has_same_r_sumcheck_proofs,
-        ));
-        stream.extend(self.same_r_sumcheck_proofs.write());
-        stream.extend(self.rw_in_evals.write());
-        stream.extend(self.lk_in_evals.write());
+        stream.extend(self.record_r_out_evals.write());
+        stream.extend(self.record_w_out_evals.write());
+        stream.extend(self.record_lk_out_evals.write());
+
         stream.extend(self.tower_proof.write());
         stream.extend(self.fixed_in_evals.write());
         stream.extend(self.wits_in_evals.write());

@@ -10,13 +10,12 @@ openvm-native-circuit = { git = "https://github.com/scroll-tech/openvm.git", bra
 openvm-native-compiler = { git = "https://github.com/scroll-tech/openvm.git", branch = "feat/native_multi_observe", default-features = false }
 openvm-native-compiler-derive = { git = "https://github.com/scroll-tech/openvm.git", branch = "feat/native_multi_observe", default-features = false }
 openvm-native-recursion = { git = "https://github.com/scroll-tech/openvm.git", branch = "feat/native_multi_observe", default-features = false }
-
 openvm-stark-backend = { git = "https://github.com/openvm-org/stark-backend.git", tag = "v1.0.0", default-features = false }
 openvm-stark-sdk = { git = "https://github.com/openvm-org/stark-backend.git", tag = "v1.0.0", default-features = false }
 
 rand = { version = "0.8.5", default-features = false }
 itertools = { version = "0.13.0", default-features = false }
-bincode = "1"
+bincode = "1.3.3"
 tracing = "0.1.40"
 
 # Plonky3
@@ -38,13 +37,13 @@ ark-poly = "0.5"
 ark-serialize = "0.5"
 
 # Ceno
-ceno_mle = { git = "https://github.com/scroll-tech/ceno.git", branch = "feat/export_ff_ext", package = "multilinear_extensions" }
-ceno_sumcheck = { git = "https://github.com/scroll-tech/ceno.git", branch = "feat/export_ff_ext", package = "sumcheck" }
-ceno_transcript = { git = "https://github.com/scroll-tech/ceno.git", branch = "feat/export_ff_ext", package = "transcript" }
-ceno_zkvm = { git = "https://github.com/scroll-tech/ceno.git", branch = "feat/export_ff_ext" }
-ceno_emul = { git = "https://github.com/scroll-tech/ceno.git", branch = "feat/export_ff_ext" }
-mpcs = { git = "https://github.com/scroll-tech/ceno.git", branch = "feat/export_ff_ext" }
-ff_ext = { git = "https://github.com/scroll-tech/ceno.git", branch = "feat/export_ff_ext" }
+ceno_mle = { git = "https://github.com/scroll-tech/ceno.git", branch = "feat/smaller_field_support", package = "multilinear_extensions" }
+ceno_sumcheck = { git = "https://github.com/scroll-tech/ceno.git", branch = "feat/smaller_field_support", package = "sumcheck" }
+ceno_transcript = { git = "https://github.com/scroll-tech/ceno.git", branch = "feat/smaller_field_support", package = "transcript" }
+ceno_zkvm = { git = "https://github.com/scroll-tech/ceno.git", branch = "feat/smaller_field_support" }
+ceno_emul = { git = "https://github.com/scroll-tech/ceno.git", branch = "feat/smaller_field_support" }
+mpcs = { git = "https://github.com/scroll-tech/ceno.git", branch = "feat/smaller_field_support" }
+ff_ext = { git = "https://github.com/scroll-tech/ceno.git", branch = "feat/smaller_field_support" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 
