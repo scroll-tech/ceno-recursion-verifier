@@ -1,5 +1,8 @@
 use openvm_native_compiler::ir::*;
+use openvm_native_recursion::vars::HintSlice;
 use p3_field::FieldAlgebra;
+
+use crate::basefold_verifier::mmcs::MmcsProof;
 
 // XXX: more efficient pow implementation
 pub fn pow<C: Config>(builder: &mut Builder<C>, base: Var<C::N>, exponent: Var<C::N>) -> Var<C::N> {
@@ -27,18 +30,30 @@ pub fn pow_felt<C: Config>(
 pub fn pow_felt_bits<C: Config>(
     builder: &mut Builder<C>,
     base: Felt<C::F>,
-    exponent_bits: &Array<C, Var<C::N>>, // In small endian
+    exponent_bits: &Array<C, Var<C::N>>, // FIXME: Should be big endian? There is a bit_reverse_rows() in Ceno native code
     exponent_len: Usize<C::N>,
 ) -> Felt<C::F> {
     let value: Felt<C::F> = builder.constant(C::F::ONE);
-    let repeated_squared: Felt<C::F> = base;
+
+    // Little endian
+    // let repeated_squared: Felt<C::F> = base;
+    // builder.range(0, exponent_len).for_each(|ptr, builder| {
+    //     let ptr = ptr[0];
+    //     let bit = builder.get(exponent_bits, ptr);
+    //     builder.if_eq(bit, C::N::ONE).then(|builder| {
+    //         builder.assign(&value, value * repeated_squared);
+    //     });
+    //     builder.assign(&repeated_squared, repeated_squared * repeated_squared);
+    // });
+
+    // Big endian
     builder.range(0, exponent_len).for_each(|ptr, builder| {
         let ptr = ptr[0];
+        builder.assign(&value, value * value);
         let bit = builder.get(exponent_bits, ptr);
         builder.if_eq(bit, C::N::ONE).then(|builder| {
-            builder.assign(&value, value * repeated_squared);
+            builder.assign(&value, value * base);
         });
-        builder.assign(&repeated_squared, repeated_squared * repeated_squared);
     });
     value
 }
@@ -123,6 +138,25 @@ pub fn bin_to_dec<C: Config>(
     value
 }
 
+// Convert start to end entries of binary to decimal in little endian
+pub fn bin_to_dec_le<C: Config>(
+    builder: &mut Builder<C>,
+    bin: &Array<C, Var<C::N>>,
+    start: Var<C::N>,
+    end: Var<C::N>,
+) -> Var<C::N> {
+    let value: Var<C::N> = builder.constant(C::N::ZERO);
+    let two: Var<C::N> = builder.constant(C::N::TWO);
+    let power_of_two: Var<C::N> = builder.constant(C::N::ONE);
+    builder.range(start, end).for_each(|i_vec, builder| {
+        let i = i_vec[0];
+        let next_bit = builder.get(bin, i);
+        builder.assign(&value, value + power_of_two * next_bit);
+        builder.assign(&power_of_two, power_of_two * two);
+    });
+    value
+}
+
 // Sort a list in decreasing order, returns:
 // 1. The original index of each sorted entry
 // 2. Number of unique entries
@@ -131,7 +165,12 @@ pub fn sort_with_count<C: Config, E, N, Ind>(
     builder: &mut Builder<C>,
     list: &Array<C, E>,
     ind: Ind, // Convert loaded out entries into comparable ones
-) -> (Array<C, Var<C::N>>, Var<C::N>, Array<C, Var<C::N>>)
+) -> (
+    Array<C, Var<C::N>>,
+    Var<C::N>,
+    Array<C, Var<C::N>>,
+    Array<C, Var<C::N>>,
+)
 where
     E: openvm_native_compiler::ir::MemVariable<C>,
     N: Into<SymbolicVar<<C as openvm_native_compiler::ir::Config>::N>>
@@ -150,6 +189,7 @@ where
     // 1. count_per_unique_entry: for each unique entry value, count of entries of that value
     let num_unique_entries = builder.hint_var();
     let count_per_unique_entry = builder.dyn_array(num_unique_entries);
+    let sorted_unique_num_vars = builder.dyn_array(num_unique_entries);
     let zero: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
     let one: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
     let entries_sort_surjective: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(len.clone());
@@ -199,6 +239,11 @@ where
                     last_unique_entry_index,
                     last_count_per_unique_entry,
                 );
+                builder.set(
+                    &sorted_unique_num_vars,
+                    last_unique_entry_index,
+                    last_entry.clone(),
+                );
                 builder.assign(&last_entry, next_entry.clone());
                 builder.assign(
                     &last_unique_entry_index,
@@ -216,13 +261,23 @@ where
         last_unique_entry_index,
         last_count_per_unique_entry,
     );
+    builder.set(
+        &sorted_unique_num_vars,
+        last_unique_entry_index,
+        last_entry.clone(),
+    );
     builder.assign(
         &last_unique_entry_index,
         last_unique_entry_index + Usize::from(1),
     );
     builder.assert_var_eq(last_unique_entry_index, num_unique_entries);
 
-    (entries_order, num_unique_entries, count_per_unique_entry)
+    (
+        entries_order,
+        num_unique_entries,
+        count_per_unique_entry,
+        sorted_unique_num_vars,
+    )
 }
 
 pub fn codeword_fold_with_challenge<C: Config>(
@@ -243,4 +298,10 @@ pub fn codeword_fold_with_challenge<C: Config>(
     // lagrange domain fixed variable
     let ret: Ext<C::F, C::EF> = builder.eval(lo + challenge * (hi - lo));
     ret
+}
+
+pub(crate) fn read_hint_slice<C: Config>(builder: &mut Builder<C>) -> HintSlice<C> {
+    let length = Usize::from(builder.hint_var());
+    let id = Usize::from(builder.hint_load());
+    HintSlice { length, id }
 }
