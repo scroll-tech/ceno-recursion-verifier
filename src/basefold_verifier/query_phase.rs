@@ -867,10 +867,9 @@ pub mod tests {
     use ceno_transcript::{BasicTranscript, Transcript};
     use ff_ext::{BabyBearExt4, FromUniformBytes};
     use itertools::Itertools;
-    use mpcs::pcs_batch_verify;
     use mpcs::{
-        pcs_batch_commit, pcs_batch_open, pcs_setup, pcs_trim,
-        util::hash::write_digest_to_transcript, BasefoldDefault, PolynomialCommitmentScheme,
+        pcs_batch_commit, pcs_setup, pcs_trim, util::hash::write_digest_to_transcript,
+        BasefoldDefault, PolynomialCommitmentScheme,
     };
     use openvm_circuit::arch::{instructions::program::Program, SystemConfig, VmExecutor};
     use openvm_native_circuit::{Native, NativeConfig};
@@ -965,7 +964,7 @@ pub mod tests {
         let mles_1 = m1.to_mles();
         let matrices = BTreeMap::from_iter(once((0, m1)));
 
-        let pp = pcs_setup::<E, PCS>(1 << 20).unwrap();
+        let pp = PCS::setup(1 << 20, mpcs::SecurityLevel::Conjecture100bits).unwrap();
         let (pp, vp) = pcs_trim::<E, PCS>(pp, 1 << 20).unwrap();
         let pcs_data = pcs_batch_commit::<E, PCS>(&pp, matrices).unwrap();
         let witin_comm = PCS::get_pure_commitment(&pcs_data);
@@ -980,7 +979,7 @@ pub mod tests {
         //     .map(|mle| points.iter().map(|p| mle.evaluate(&p)).collect_vec())
         //     .collect::<Vec<_>>();
         let mut transcript = BasicTranscript::<E>::new(&[]);
-        let opening_proof = pcs_batch_open::<E, PCS>(
+        let opening_proof = PCS::batch_open(
             &pp,
             &[(0, 1 << 10)],
             None,
@@ -993,7 +992,7 @@ pub mod tests {
         .unwrap();
 
         let mut transcript = BasicTranscript::<E>::new(&[]);
-        pcs_batch_verify::<E, PCS>(
+        PCS::batch_verify(
             &vp,
             &[(0, 1 << 10)],
             &points,

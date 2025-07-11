@@ -177,7 +177,7 @@ impl Hintable<InnerConfig> for ZKVMProofInput {
         let mut witin_commit_trivial_commits: Vec<Vec<F>> = vec![];
         for trivial_commit in &self.witin_commit.trivial_commits {
             let mut t_cmt_vec: Vec<F> = vec![];
-            trivial_commit.iter().for_each(|x| {
+            trivial_commit.1.iter().for_each(|x| {
                 let f: F =
                     serde_json::from_value(serde_json::to_value(x.clone()).unwrap()).unwrap();
                 t_cmt_vec.push(f);
@@ -209,7 +209,7 @@ impl Hintable<InnerConfig> for ZKVMProofInput {
 
             for trivial_commit in &self.fixed_commit.as_ref().unwrap().trivial_commits {
                 let mut t_cmt_vec: Vec<F> = vec![];
-                trivial_commit.iter().for_each(|x| {
+                trivial_commit.1.iter().for_each(|x| {
                     let f: F =
                         serde_json::from_value(serde_json::to_value(x.clone()).unwrap()).unwrap();
                     t_cmt_vec.push(f);

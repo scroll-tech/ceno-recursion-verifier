@@ -17,7 +17,7 @@ pub type HashDigest = MmcsCommitment;
 pub struct BasefoldCommitment {
     pub commit: HashDigest,
     pub log2_max_codeword_size: usize,
-    pub trivial_commits: Vec<HashDigest>,
+    pub trivial_commits: Vec<(usize, HashDigest)>,
 }
 
 use mpcs::BasefoldCommitment as InnerBasefoldCommitment;
@@ -32,7 +32,7 @@ impl From<InnerBasefoldCommitment<E>> for BasefoldCommitment {
             trivial_commits: value
                 .trivial_commits
                 .into_iter()
-                .map(|c| c.into())
+                .map(|(i, c)| (i, c.into()))
                 .collect(),
         }
     }

@@ -689,15 +689,14 @@ mod tests {
     use crate::tower_verifier::binding::TowerVerifierInput;
     use crate::tower_verifier::program::iop_verifier_state_verify;
     use crate::tower_verifier::program::verify_tower_proof;
-    use ceno_mle::mle::{DenseMultilinearExtension, IntoMLE, MultilinearExtension};
-    use ceno_mle::virtual_poly::ArcMultilinearExtension;
+    use ceno_mle::mle::ArcMultilinearExtension;
+    use ceno_mle::mle::{IntoMLE, MultilinearExtension};
     use ceno_mle::virtual_polys::VirtualPolynomials;
     use ceno_sumcheck::structs::IOPProverState;
     use ceno_transcript::BasicTranscript;
     use ceno_zkvm::scheme::constants::NUM_FANIN;
-    use ceno_zkvm::scheme::utils::infer_tower_logup_witness;
-    use ceno_zkvm::scheme::utils::infer_tower_product_witness;
-    use ceno_zkvm::structs::TowerProver;
+    use ceno_zkvm::scheme::hal::TowerProver;
+    use ceno_zkvm::scheme::hal::TowerProverSpec;
     use ff_ext::BabyBearExt4;
     use ff_ext::FieldFrom;
     use ff_ext::FromUniformBytes;
@@ -771,9 +770,8 @@ mod tests {
 
         // run sumcheck prover to get sumcheck proof
         let mut rng = thread_rng();
-        let (mles, expected_sum) =
-            DenseMultilinearExtension::<E>::random_mle_list(nv, degree, &mut rng);
-        let mles: Vec<ArcMultilinearExtension<E>> =
+        let (mles, expected_sum) = MultilinearExtension::<E>::random_mle_list(nv, degree, &mut rng);
+        let mles: Vec<ceno_mle::mle::ArcMultilinearExtension<E>> =
             mles.into_iter().map(|mle| mle as _).collect_vec();
         let mut virtual_poly: VirtualPolynomials<'_, E> = VirtualPolynomials::new(1, nv);
         virtual_poly.add_mle_list(mles.iter().collect_vec(), E::from_v(1));
@@ -843,9 +841,9 @@ mod tests {
 
         setup_tracing_with_log_level(tracing::Level::WARN);
 
-        let records: Vec<DenseMultilinearExtension<E>> = (0..num_prod_specs)
+        let records: Vec<MultilinearExtension<E>> = (0..num_prod_specs)
             .map(|_| {
-                DenseMultilinearExtension::from_evaluations_ext_vec(
+                MultilinearExtension::from_evaluations_ext_vec(
                     nv - 1,
                     E::random_vec(1 << (nv - 1), &mut rng),
                 )
@@ -853,10 +851,7 @@ mod tests {
             .collect_vec();
         let denom_records = (0..num_logup_specs)
             .map(|_| {
-                DenseMultilinearExtension::from_evaluations_ext_vec(
-                    nv,
-                    E::random_vec(1 << nv, &mut rng),
-                )
+                MultilinearExtension::from_evaluations_ext_vec(nv, E::random_vec(1 << nv, &mut rng))
             })
             .collect_vec();
 
@@ -897,7 +892,7 @@ mod tests {
                     first.to_vec().into_mle().into(),
                     second.to_vec().into_mle().into(),
                 ];
-                ceno_zkvm::structs::TowerProverSpec {
+                TowerProverSpec {
                     witness: infer_tower_logup_witness(None, last_layer),
                 }
             })

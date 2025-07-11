@@ -1,6 +1,6 @@
 use crate::tower_verifier::binding::PointAndEvalVariable;
 use crate::zkvm_verifier::binding::ZKVMOpcodeProofInputVariable;
-use ceno_zkvm::expression::{Expression, Fixed, Instance};
+use ceno_mle::{Expression, Fixed, Instance};
 use ceno_zkvm::structs::{ChallengeId, WitnessId};
 use ff_ext::ExtensionField;
 use ff_ext::{BabyBearExt4, SmallField};

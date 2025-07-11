@@ -21,7 +21,7 @@ use crate::{
     },
 };
 use ceno_zkvm::circuit_builder::SetTableSpec;
-use ceno_zkvm::{expression::StructuralWitIn, scheme::verifier::ZKVMVerifier};
+use ceno_zkvm::scheme::verifier::ZKVMVerifier;
 use ff_ext::BabyBearExt4;
 use itertools::interleave;
 use itertools::max;
