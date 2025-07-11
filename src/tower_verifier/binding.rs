@@ -29,25 +29,6 @@ pub struct IOPProverMessageVariable<C: Config> {
     pub evaluations: Array<C, Ext<C::F, C::EF>>,
 }
 
-#[derive(DslVariable, Clone)]
-pub struct TowerVerifierInputVariable<C: Config> {
-    pub prod_out_evals: Array<C, Array<C, Ext<C::F, C::EF>>>,
-    pub logup_out_evals: Array<C, Array<C, Ext<C::F, C::EF>>>,
-    pub num_variables: Array<C, Usize<C::N>>,
-    pub num_fanin: Usize<C::N>,
-
-    // TowerProofVariable
-    pub num_proofs: Usize<C::N>,
-    pub num_prod_specs: Usize<C::N>,
-    pub num_logup_specs: Usize<C::N>,
-    pub max_num_variables: Usize<C::N>,
-
-    pub proofs: Array<C, Array<C, IOPProverMessageVariable<C>>>,
-    pub prod_specs_eval: Array<C, Array<C, Array<C, Ext<C::F, C::EF>>>>,
-    pub logup_specs_eval: Array<C, Array<C, Array<C, Ext<C::F, C::EF>>>>,
-}
-
-#[derive(Clone, Deserialize)]
 pub struct Point {
     pub fs: Vec<E>,
 }
@@ -136,92 +117,4 @@ pub struct TowerVerifierInput {
     pub proofs: Vec<Vec<IOPProverMessage>>,
     pub prod_specs_eval: Vec<Vec<Vec<E>>>,
     pub logup_specs_eval: Vec<Vec<Vec<E>>>,
-}
-
-impl Hintable<InnerConfig> for TowerVerifierInput {
-    type HintVariable = TowerVerifierInputVariable<InnerConfig>;
-
-    fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
-        let prod_out_evals = Vec::<Vec<E>>::read(builder);
-        let logup_out_evals = Vec::<Vec<E>>::read(builder);
-        let num_variables_var = Vec::<usize>::read(builder);
-        let num_variables = builder.dyn_array(num_variables_var.len());
-        iter_zip!(builder, num_variables_var, num_variables).for_each(|ptr_vec, builder| {
-            let v = builder.iter_ptr_get(&num_variables_var, ptr_vec[0]);
-            let v_usize: Usize<<InnerConfig as Config>::N> = Usize::from(v);
-            builder.iter_ptr_set(&num_variables, ptr_vec[1], v_usize);
-        });
-
-        let num_fanin = Usize::Var(usize::read(builder));
-        let num_proofs = Usize::Var(usize::read(builder));
-        let num_prod_specs = Usize::Var(usize::read(builder));
-        let num_logup_specs = Usize::Var(usize::read(builder));
-        let max_num_variables = Usize::Var(usize::read(builder));
-
-        let proofs = builder.dyn_array(num_proofs.clone());
-        let prod_specs_eval = builder.dyn_array(num_prod_specs.clone());
-        let logup_specs_eval = builder.dyn_array(num_logup_specs.clone());
-
-        iter_zip!(builder, proofs).for_each(|idx_vec, builder| {
-            let ptr = idx_vec[0];
-            let proof = Vec::<IOPProverMessage>::read(builder);
-            builder.iter_ptr_set(&proofs, ptr, proof);
-        });
-
-        iter_zip!(builder, prod_specs_eval).for_each(|idx_vec, builder| {
-            let ptr = idx_vec[0];
-            let evals = Vec::<Vec<E>>::read(builder);
-            builder.iter_ptr_set(&prod_specs_eval, ptr, evals);
-        });
-
-        iter_zip!(builder, logup_specs_eval).for_each(|idx_vec, builder| {
-            let ptr = idx_vec[0];
-            let evals = Vec::<Vec<E>>::read(builder);
-            builder.iter_ptr_set(&logup_specs_eval, ptr, evals);
-        });
-
-        TowerVerifierInputVariable {
-            prod_out_evals,
-            logup_out_evals,
-            num_variables,
-            num_fanin,
-            num_proofs,
-            num_prod_specs,
-            num_logup_specs,
-            max_num_variables,
-            proofs,
-            prod_specs_eval,
-            logup_specs_eval,
-        }
-    }
-
-    fn write(&self) -> Vec<Vec<<InnerConfig as Config>::N>> {
-        let mut stream = Vec::new();
-        stream.extend(self.prod_out_evals.write());
-        stream.extend(self.logup_out_evals.write());
-        stream.extend(self.num_variables.write());
-        stream.extend(<usize as Hintable<InnerConfig>>::write(&self.num_fanin));
-        stream.extend(<usize as Hintable<InnerConfig>>::write(&self.num_proofs));
-        stream.extend(<usize as Hintable<InnerConfig>>::write(
-            &self.num_prod_specs,
-        ));
-        stream.extend(<usize as Hintable<InnerConfig>>::write(
-            &self.num_logup_specs,
-        ));
-
-        let max_num_variables = self.num_variables.iter().max().unwrap().clone();
-        stream.extend(<usize as Hintable<InnerConfig>>::write(&max_num_variables));
-
-        for p in &self.proofs {
-            stream.extend(p.write());
-        }
-        for evals in &self.prod_specs_eval {
-            stream.extend(evals.write());
-        }
-        for evals in &self.logup_specs_eval {
-            stream.extend(evals.write());
-        }
-
-        stream
-    }
 }
