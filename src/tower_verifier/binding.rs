@@ -11,7 +11,7 @@ pub type InnerConfig = AsmConfig<F, E>;
 
 use openvm_stark_sdk::p3_baby_bear::BabyBear;
 use p3_field::extension::BinomialExtensionField;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 #[derive(DslVariable, Clone)]
 pub struct PointVariable<C: Config> {
@@ -29,6 +29,7 @@ pub struct IOPProverMessageVariable<C: Config> {
     pub evaluations: Array<C, Ext<C::F, C::EF>>,
 }
 
+#[derive(Clone, Deserialize)]
 pub struct Point {
     pub fs: Vec<E>,
 }

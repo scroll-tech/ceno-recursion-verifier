@@ -967,43 +967,23 @@ pub mod tests {
         let pp = PCS::setup(1 << 20, mpcs::SecurityLevel::Conjecture100bits).unwrap();
         let (pp, vp) = pcs_trim::<E, PCS>(pp, 1 << 20).unwrap();
         let pcs_data = pcs_batch_commit::<E, PCS>(&pp, matrices).unwrap();
-        let witin_comm = PCS::get_pure_commitment(&pcs_data);
+        let comm = PCS::get_pure_commitment(&pcs_data);
 
-        let points = vec![E::random_vec(10, &mut rng)];
-        let evals = points
-            .iter()
-            .map(|p| mles_1.iter().map(|mle| mle.evaluate(p)).collect_vec())
-            .collect::<Vec<_>>();
+        let point = E::random_vec(10, &mut rng);
+        let evals = mles_1.iter().map(|mle| mle.evaluate(&point)).collect_vec();
+
         // let evals = mles_1
         //     .iter()
         //     .map(|mle| points.iter().map(|p| mle.evaluate(&p)).collect_vec())
         //     .collect::<Vec<_>>();
         let mut transcript = BasicTranscript::<E>::new(&[]);
-        let opening_proof = PCS::batch_open(
-            &pp,
-            &[(0, 1 << 10)],
-            None,
-            &pcs_data,
-            &points,
-            &evals,
-            &[(10, 0)],
-            &mut transcript,
-        )
-        .unwrap();
+        let rounds = vec![(&pcs_data, vec![(point, evals.clone())])];
+        let opening_proof = PCS::batch_open(&pp, rounds, &mut transcript).unwrap();
 
         let mut transcript = BasicTranscript::<E>::new(&[]);
-        PCS::batch_verify(
-            &vp,
-            &[(0, 1 << 10)],
-            &points,
-            None,
-            &witin_comm,
-            &evals,
-            &opening_proof,
-            &[(10, 0)],
-            &mut transcript,
-        )
-        .expect("Native verification failed");
+        let rounds = vec![(comm, vec![(point.len(), (point, evals.clone()))])];
+        PCS::batch_verify(&vp, rounds, &opening_proof, &mut transcript)
+            .expect("Native verification failed");
 
         let mut transcript = BasicTranscript::<E>::new(&[]);
         let batch_coeffs = transcript.sample_and_append_challenge_pows(10, b"batch coeffs");
@@ -1058,12 +1038,12 @@ pub mod tests {
             queries,
             fixed_comm: None,
             witin_comm: BasefoldCommitment {
-                commit: witin_comm.commit().into(),
-                trivial_commits: witin_comm
+                commit: comm.commit().into(),
+                trivial_commits: comm
                     .trivial_commits
                     .iter()
                     .copied()
-                    .map(|c| c.into())
+                    .map(|(i, c)| (i, c.into()))
                     .collect(),
                 log2_max_codeword_size: 20,
                 // This is a dummy value, should be set according to the actual codeword size
@@ -1089,12 +1069,7 @@ pub mod tests {
                 .into_iter()
                 .map(|msg| msg.into())
                 .collect(),
-            point_evals: vec![(
-                Point {
-                    fs: points[0].clone(),
-                },
-                evals[0].clone(),
-            )],
+            point_evals: vec![(Point { fs: point.clone() }, evals.clone())],
         };
         let (program, witness) = build_batch_verifier_query_phase(query_input);
 
