@@ -88,6 +88,8 @@ impl Hintable<InnerConfig> for BatchOpening {
     }
 }
 
+impl VecAutoHintable for BatchOpening {}
+
 /// TODO: use `openvm_native_recursion::fri::types::FriCommitPhaseProofStepVariable` instead
 #[derive(Deserialize)]
 pub struct CommitPhaseProofStep {
@@ -147,16 +149,13 @@ impl Hintable<InnerConfig> for CommitPhaseProofStep {
 
 #[derive(Deserialize)]
 pub struct QueryOpeningProof {
-    pub witin_base_proof: BatchOpening,
-    pub fixed_base_proof: Option<BatchOpening>,
+    pub input_proofs: Vec<BatchOpening>,
     pub commit_phase_openings: Vec<CommitPhaseProofStep>,
 }
 
 #[derive(DslVariable, Clone)]
 pub struct QueryOpeningProofVariable<C: Config> {
-    pub witin_base_proof: BatchOpeningVariable<C>,
-    pub fixed_is_some: Usize<C::N>, // 0 <==> false
-    pub fixed_base_proof: BatchOpeningVariable<C>,
+    pub input_proofs: Array<C, BatchOpeningVariable<C>>,
     pub commit_phase_openings: Array<C, CommitPhaseProofStepVariable<C>>,
 }
 
@@ -169,32 +168,17 @@ impl Hintable<InnerConfig> for QueryOpeningProof {
     type HintVariable = QueryOpeningProofVariable<InnerConfig>;
 
     fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
-        let witin_base_proof = BatchOpening::read(builder);
-        let fixed_is_some = Usize::Var(usize::read(builder));
-        let fixed_base_proof = BatchOpening::read(builder);
+        let input_proofs = Vec::<BatchOpening>::read(builder);
         let commit_phase_openings = Vec::<CommitPhaseProofStep>::read(builder);
         QueryOpeningProofVariable {
-            witin_base_proof,
-            fixed_is_some,
-            fixed_base_proof,
+            input_proofs,
             commit_phase_openings,
         }
     }
 
     fn write(&self) -> Vec<Vec<<InnerConfig as Config>::N>> {
         let mut stream = Vec::new();
-        stream.extend(self.witin_base_proof.write());
-        if let Some(fixed_base_proof) = &self.fixed_base_proof {
-            stream.extend(<usize as Hintable<InnerConfig>>::write(&1));
-            stream.extend(fixed_base_proof.write());
-        } else {
-            stream.extend(<usize as Hintable<InnerConfig>>::write(&0));
-            let tmp_proof = BatchOpening {
-                opened_values: Vec::new(),
-                opening_proof: Vec::new(),
-            };
-            stream.extend(tmp_proof.write());
-        }
+        stream.extend(self.input_proofs.write());
         stream.extend(self.commit_phase_openings.write());
         stream
     }
@@ -1013,11 +997,11 @@ pub mod tests {
             .query_opening_proof
             .iter()
             .map(|query| QueryOpeningProof {
-                witin_base_proof: BatchOpening {
-                    opened_values: query.witin_base_proof.opened_values.clone(),
-                    opening_proof: query.witin_base_proof.opening_proof.clone(),
-                },
-                fixed_base_proof: None,
+                input_proofs: query
+                    .input_proofs
+                    .iter()
+                    .map(|proof| proof.clone().into())
+                    .collect(),
                 commit_phase_openings: query
                     .commit_phase_openings
                     .iter()
