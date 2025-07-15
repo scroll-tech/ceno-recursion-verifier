@@ -1,3 +1,4 @@
+use mpcs::BasefoldProof as InnerBasefoldProof;
 use openvm_native_compiler::{asm::AsmConfig, prelude::*};
 use openvm_native_recursion::hints::{Hintable, VecAutoHintable};
 use openvm_stark_sdk::p3_baby_bear::BabyBear;
@@ -118,6 +119,23 @@ impl Hintable<InnerConfig> for BasefoldProof {
         stream.extend(self.query_opening_proof.write());
         stream.extend(self.sumcheck_proof.write());
         stream
+    }
+}
+
+impl From<InnerBasefoldProof<E>> for BasefoldProof {
+    fn from(proof: InnerBasefoldProof<E>) -> Self {
+        BasefoldProof {
+            commits: proof.commits.iter().map(|c| c.clone().into()).collect(),
+            final_message: proof.final_message.into(),
+            query_opening_proof: proof
+                .query_opening_proof
+                .iter()
+                .map(|proof| proof.clone().into())
+                .collect(),
+            sumcheck_proof: proof.sumcheck_proof.map_or(vec![], |proof| {
+                proof.into_iter().map(|proof| proof.into()).collect()
+            }),
+        }
     }
 }
 

@@ -1,6 +1,7 @@
 // Note: check all XXX comments!
 
 use ff_ext::{BabyBearExt4, ExtensionField, PoseidonField};
+use mpcs::QueryOpeningProof as InnerQueryOpeningProof;
 use openvm_native_compiler::{asm::AsmConfig, prelude::*};
 use openvm_native_recursion::{
     hints::{Hintable, VecAutoHintable},
@@ -151,6 +152,23 @@ impl Hintable<InnerConfig> for CommitPhaseProofStep {
 pub struct QueryOpeningProof {
     pub input_proofs: Vec<BatchOpening>,
     pub commit_phase_openings: Vec<CommitPhaseProofStep>,
+}
+
+impl From<InnerQueryOpeningProof<E>> for QueryOpeningProof {
+    fn from(proof: InnerQueryOpeningProof<E>) -> Self {
+        Self {
+            input_proofs: proof
+                .input_proofs
+                .into_iter()
+                .map(|proof| proof.into())
+                .collect(),
+            commit_phase_openings: proof
+                .commit_phase_openings
+                .into_iter()
+                .map(|proof| proof.into())
+                .collect(),
+        }
+    }
 }
 
 #[derive(DslVariable, Clone)]
