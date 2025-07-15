@@ -836,6 +836,8 @@ pub mod tests {
     type E = BabyBearExt4;
     type PCS = BasefoldDefault<E>;
 
+    use crate::basefold_verifier::basefold::{Round, RoundOpening};
+    use crate::basefold_verifier::query_phase::PointAndEvals;
     use crate::{
         basefold_verifier::{
             basefold::BasefoldCommitment,
@@ -980,7 +982,23 @@ pub mod tests {
             batch_coeffs,
             indices: queries,
             proof: opening_proof.into(),
-            rounds,
+            rounds: rounds
+                .iter()
+                .map(|round| Round {
+                    commit: round.0.into(),
+                    openings: round
+                        .1
+                        .iter()
+                        .map(|opening| RoundOpening {
+                            num_var: opening.0,
+                            point_and_evals: PointAndEvals {
+                                point: Point { fs: opening.1 .0 },
+                                evals: opening.1 .1,
+                            },
+                        })
+                        .collect(),
+                })
+                .collect(),
         };
         let (program, witness) = build_batch_verifier_query_phase(query_input);
 
