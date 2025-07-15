@@ -159,8 +159,8 @@ pub struct QueryOpeningProofVariable<C: Config> {
     pub commit_phase_openings: Array<C, CommitPhaseProofStepVariable<C>>,
 }
 
-type QueryOpeningProofs = Vec<QueryOpeningProof>;
-type QueryOpeningProofsVariable<C> = Array<C, QueryOpeningProofVariable<C>>;
+pub(crate) type QueryOpeningProofs = Vec<QueryOpeningProof>;
+pub(crate) type QueryOpeningProofsVariable<C> = Array<C, QueryOpeningProofVariable<C>>;
 
 impl VecAutoHintable for QueryOpeningProof {}
 

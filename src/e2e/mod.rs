@@ -388,7 +388,7 @@ pub fn parse_zkvm_proof_import(
         serde_json::from_value(serde_json::to_value(zkvm_proof.witin_commit).unwrap()).unwrap();
     let fixed_commit = verifier.vk.fixed_commit.clone();
 
-    let pcs_proof = zkvm_proof.fixed_witin_opening_proof;
+    let pcs_proof = zkvm_proof.opening_proof;
 
     // let query_phase_verifier_input = QueryPhaseVerifierInput {
     //     max_num_var,
@@ -413,8 +413,8 @@ pub fn parse_zkvm_proof_import(
             table_proofs: table_proofs_vec,
             witin_commit,
             fixed_commit,
-            num_instances: zkvm_proof.num_instances.clone(),
-            // query_phase_verifier_input,
+            num_instances: vec![], // TODO: Fixme
+                                   // query_phase_verifier_input,
         },
         proving_sequence,
     )
