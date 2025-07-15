@@ -864,49 +864,49 @@ pub mod tests {
         let mut witness_stream: Vec<Vec<F>> = Vec::new();
         witness_stream.extend(input.write());
         witness_stream.push(vec![F::from_canonical_u32(2).inverse()]);
-        witness_stream.push(vec![F::from_canonical_usize(
-            input
-                .circuit_meta
-                .iter()
-                .unique_by(|x| x.witin_num_vars)
-                .count(),
-        )]);
-        witness_stream.push(
-            input
-                .circuit_meta
-                .iter()
-                .enumerate()
-                .sorted_by_key(|(_, CircuitIndexMeta { witin_num_vars, .. })| {
-                    Reverse(witin_num_vars)
-                })
-                .map(|(index, _)| F::from_canonical_usize(index))
-                .collect_vec(),
-        );
-        for (query, idx) in input.queries.iter().zip(input.indices.iter()) {
-            witness_stream.push(vec![F::from_canonical_usize(idx / 2)]);
-            if let Some(fixed_comm) = &input.fixed_comm {
-                let log2_witin_max_codeword_size = input.max_num_var + 1;
-                if log2_witin_max_codeword_size > fixed_comm.log2_max_codeword_size {
-                    witness_stream.push(vec![F::ZERO])
-                } else {
-                    witness_stream.push(vec![F::ONE])
-                }
-            }
-            for i in 0..input.circuit_meta.len() {
-                witness_stream.push(vec![F::from_canonical_usize(
-                    query.witin_base_proof.opened_values[i].len() / 2,
-                )]);
-                if input.circuit_meta[i].fixed_num_vars > 0 {
-                    witness_stream.push(vec![F::from_canonical_usize(
-                        if let Some(fixed_base_proof) = &query.fixed_base_proof {
-                            fixed_base_proof.opened_values[i].len() / 2
-                        } else {
-                            0
-                        },
-                    )]);
-                }
-            }
-        }
+        // witness_stream.push(vec![F::from_canonical_usize(
+        //     input
+        //         .circuit_meta
+        //         .iter()
+        //         .unique_by(|x| x.witin_num_vars)
+        //         .count(),
+        // )]);
+        // witness_stream.push(
+        //     input
+        //         .circuit_meta
+        //         .iter()
+        //         .enumerate()
+        //         .sorted_by_key(|(_, CircuitIndexMeta { witin_num_vars, .. })| {
+        //             Reverse(witin_num_vars)
+        //         })
+        //         .map(|(index, _)| F::from_canonical_usize(index))
+        //         .collect_vec(),
+        // );
+        // for (query, idx) in input.queries.iter().zip(input.indices.iter()) {
+        //     witness_stream.push(vec![F::from_canonical_usize(idx / 2)]);
+        //     if let Some(fixed_comm) = &input.fixed_comm {
+        //         let log2_witin_max_codeword_size = input.max_num_var + 1;
+        //         if log2_witin_max_codeword_size > fixed_comm.log2_max_codeword_size {
+        //             witness_stream.push(vec![F::ZERO])
+        //         } else {
+        //             witness_stream.push(vec![F::ONE])
+        //         }
+        //     }
+        //     for i in 0..input.circuit_meta.len() {
+        //         witness_stream.push(vec![F::from_canonical_usize(
+        //             query.witin_base_proof.opened_values[i].len() / 2,
+        //         )]);
+        //         if input.circuit_meta[i].fixed_num_vars > 0 {
+        //             witness_stream.push(vec![F::from_canonical_usize(
+        //                 if let Some(fixed_base_proof) = &query.fixed_base_proof {
+        //                     fixed_base_proof.opened_values[i].len() / 2
+        //                 } else {
+        //                     0
+        //                 },
+        //             )]);
+        //         }
+        //     }
+        // }
 
         (program, witness_stream)
     }
@@ -931,12 +931,12 @@ pub mod tests {
         //     .map(|mle| points.iter().map(|p| mle.evaluate(&p)).collect_vec())
         //     .collect::<Vec<_>>();
         let mut transcript = BasicTranscript::<E>::new(&[]);
-        let rounds = vec![(&pcs_data, vec![(point, evals.clone())])];
+        let rounds = vec![(&pcs_data, vec![(point.clone(), evals.clone())])];
         let opening_proof = PCS::batch_open(&pp, rounds, &mut transcript).unwrap();
 
         let mut transcript = BasicTranscript::<E>::new(&[]);
         let rounds = vec![(comm, vec![(point.len(), (point, evals.clone()))])];
-        PCS::batch_verify(&vp, rounds, &opening_proof, &mut transcript)
+        PCS::batch_verify(&vp, rounds.clone(), &opening_proof, &mut transcript)
             .expect("Native verification failed");
 
         let mut transcript = BasicTranscript::<E>::new(&[]);
@@ -971,8 +971,8 @@ pub mod tests {
 
         let queries: Vec<_> = transcript.sample_bits_and_append_vec(
             b"query indices",
-            BasefoldRSParams::get_number_queries(),
-            max_num_var + BasefoldRSParams::get_rate_log(),
+            <BasefoldRSParams as BasefoldSpec<E>>::get_number_queries(),
+            max_num_var + <BasefoldRSParams as BasefoldSpec<E>>::get_rate_log(),
         );
 
         let query_input = QueryPhaseVerifierInput {
@@ -985,15 +985,17 @@ pub mod tests {
             rounds: rounds
                 .iter()
                 .map(|round| Round {
-                    commit: round.0.into(),
+                    commit: round.0.clone().into(),
                     openings: round
                         .1
                         .iter()
                         .map(|opening| RoundOpening {
                             num_var: opening.0,
                             point_and_evals: PointAndEvals {
-                                point: Point { fs: opening.1 .0 },
-                                evals: opening.1 .1,
+                                point: Point {
+                                    fs: opening.1.clone().0,
+                                },
+                                evals: opening.1.clone().1,
                             },
                         })
                         .collect(),
