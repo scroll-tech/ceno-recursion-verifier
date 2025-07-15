@@ -184,6 +184,7 @@ impl Hintable<InnerConfig> for QueryOpeningProof {
     }
 }
 
+#[derive(Deserialize)]
 // NOTE: Different from PointAndEval in tower_verifier!
 pub struct PointAndEvals {
     pub point: Point,
@@ -217,17 +218,11 @@ pub struct PointAndEvalsVariable<C: Config> {
 pub struct QueryPhaseVerifierInput {
     // pub t_inv_halves: Vec<Vec<<E as ExtensionField>::BaseField>>,
     pub max_num_var: usize,
-    pub indices: Vec<usize>,
-    pub final_message: Vec<Vec<E>>,
     pub batch_coeffs: Vec<E>,
-    pub queries: QueryOpeningProofs,
-    pub fixed_comm: Option<BasefoldCommitment>,
-    pub witin_comm: BasefoldCommitment,
-    pub circuit_meta: Vec<CircuitIndexMeta>,
-    pub commits: Vec<HashDigest>,
     pub fold_challenges: Vec<E>,
-    pub sumcheck_messages: Vec<IOPProverMessage>,
-    pub point_evals: Vec<(Point, Vec<E>)>,
+    pub indices: Vec<usize>,
+    pub proof: BasefoldProof,
+    pub rounds: Vec<Round>,
 }
 
 impl Hintable<InnerConfig> for QueryPhaseVerifierInput {
@@ -236,34 +231,20 @@ impl Hintable<InnerConfig> for QueryPhaseVerifierInput {
     fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
         // let t_inv_halves = Vec::<Vec<F>>::read(builder);
         let max_num_var = Usize::Var(usize::read(builder));
-        let indices = Vec::<usize>::read(builder);
-        let final_message = Vec::<Vec<E>>::read(builder);
         let batch_coeffs = Vec::<E>::read(builder);
-        let queries = QueryOpeningProofs::read(builder);
-        let fixed_is_some = Usize::Var(usize::read(builder));
-        let fixed_comm = BasefoldCommitment::read(builder);
-        let witin_comm = BasefoldCommitment::read(builder);
-        let circuit_meta = Vec::<CircuitIndexMeta>::read(builder);
-        let commits = Vec::<HashDigest>::read(builder);
         let fold_challenges = Vec::<E>::read(builder);
-        let sumcheck_messages = Vec::<IOPProverMessage>::read(builder);
-        let point_evals = Vec::<PointAndEvals>::read(builder);
+        let indices = Vec::<usize>::read(builder);
+        let proof = BasefoldProof::read(builder);
+        let rounds = Vec::<Round>::read(builder);
 
         QueryPhaseVerifierInputVariable {
             // t_inv_halves,
             max_num_var,
-            indices,
-            final_message,
             batch_coeffs,
-            queries,
-            fixed_is_some,
-            fixed_comm,
-            witin_comm,
-            circuit_meta,
-            commits,
             fold_challenges,
-            sumcheck_messages,
-            point_evals,
+            indices,
+            proof,
+            rounds,
         }
     }
 
@@ -271,37 +252,11 @@ impl Hintable<InnerConfig> for QueryPhaseVerifierInput {
         let mut stream = Vec::new();
         // stream.extend(self.t_inv_halves.write());
         stream.extend(<usize as Hintable<InnerConfig>>::write(&self.max_num_var));
-        stream.extend(self.indices.write());
-        stream.extend(self.final_message.write());
         stream.extend(self.batch_coeffs.write());
-        stream.extend(self.queries.write());
-        if let Some(fixed_comm) = &self.fixed_comm {
-            stream.extend(<usize as Hintable<InnerConfig>>::write(&1));
-            stream.extend(fixed_comm.write());
-        } else {
-            stream.extend(<usize as Hintable<InnerConfig>>::write(&0));
-            let tmp_comm = BasefoldCommitment {
-                commit: Default::default(),
-                log2_max_codeword_size: 0,
-                trivial_commits: vec![],
-            };
-            stream.extend(tmp_comm.write());
-        }
-        stream.extend(self.witin_comm.write());
-        stream.extend(self.circuit_meta.write());
-        stream.extend(self.commits.write());
+        stream.extend(self.indices.write());
         stream.extend(self.fold_challenges.write());
-        stream.extend(self.sumcheck_messages.write());
-        stream.extend(
-            self.point_evals
-                .iter()
-                .map(|(p, e)| PointAndEvals {
-                    point: p.clone(),
-                    evals: e.clone(),
-                })
-                .collect::<Vec<_>>()
-                .write(),
-        );
+        stream.extend(self.proof.write());
+        stream.extend(self.rounds.write());
         stream
     }
 }
@@ -310,18 +265,11 @@ impl Hintable<InnerConfig> for QueryPhaseVerifierInput {
 pub struct QueryPhaseVerifierInputVariable<C: Config> {
     // pub t_inv_halves: Array<C, Array<C, Felt<C::F>>>,
     pub max_num_var: Usize<C::N>,
-    pub indices: Array<C, Var<C::N>>,
-    pub final_message: Array<C, Array<C, Ext<C::F, C::EF>>>,
     pub batch_coeffs: Array<C, Ext<C::F, C::EF>>,
-    pub queries: QueryOpeningProofsVariable<C>,
-    pub fixed_is_some: Usize<C::N>, // 0 <==> false
-    pub fixed_comm: BasefoldCommitmentVariable<C>,
-    pub witin_comm: BasefoldCommitmentVariable<C>,
-    pub circuit_meta: Array<C, CircuitIndexMetaVariable<C>>,
-    pub commits: Array<C, HashDigestVariable<C>>,
     pub fold_challenges: Array<C, Ext<C::F, C::EF>>,
-    pub sumcheck_messages: Array<C, IOPProverMessageVariable<C>>,
-    pub point_evals: Array<C, PointAndEvalsVariable<C>>,
+    pub indices: Array<C, Var<C::N>>,
+    pub proof: BasefoldProofVariable<C>,
+    pub rounds: Array<C, RoundVariable<C>>,
 }
 
 pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
