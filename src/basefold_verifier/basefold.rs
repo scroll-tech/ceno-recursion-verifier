@@ -1,4 +1,4 @@
-use mpcs::BasefoldProof as InnerBasefoldProof;
+use mpcs::basefold::BasefoldProof as InnerBasefoldProof;
 use openvm_native_compiler::{asm::AsmConfig, prelude::*};
 use openvm_native_recursion::hints::{Hintable, VecAutoHintable};
 use openvm_stark_sdk::p3_baby_bear::BabyBear;
@@ -26,7 +26,6 @@ pub type HashDigest = MmcsCommitment;
 pub struct BasefoldCommitment {
     pub commit: HashDigest,
     pub log2_max_codeword_size: usize,
-    pub trivial_commits: Vec<(usize, HashDigest)>,
 }
 
 use mpcs::BasefoldCommitment as InnerBasefoldCommitment;
@@ -38,11 +37,6 @@ impl From<InnerBasefoldCommitment<E>> for BasefoldCommitment {
                 value: value.commit().into(),
             },
             log2_max_codeword_size: value.log2_max_codeword_size,
-            trivial_commits: value
-                .trivial_commits
-                .into_iter()
-                .map(|(i, c)| (i, c.into()))
-                .collect(),
         }
     }
 }
