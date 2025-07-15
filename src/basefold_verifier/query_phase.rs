@@ -803,10 +803,12 @@ pub mod tests {
         pcs_batch_commit, pcs_setup, pcs_trim, util::hash::write_digest_to_transcript,
         BasefoldDefault, PolynomialCommitmentScheme,
     };
+    use mpcs::{BasefoldRSParams, BasefoldSpec, PCSFriParam};
     use openvm_circuit::arch::{instructions::program::Program, SystemConfig, VmExecutor};
     use openvm_native_circuit::{Native, NativeConfig};
     use openvm_native_compiler::asm::AsmBuilder;
     use openvm_native_recursion::hints::Hintable;
+    use openvm_stark_backend::p3_challenger::GrindingChallenger;
     use openvm_stark_sdk::p3_baby_bear::BabyBear;
     use p3_field::Field;
     use p3_field::FieldAlgebra;
@@ -941,67 +943,26 @@ pub mod tests {
         }
         transcript.append_field_element_exts_iter(opening_proof.final_message.iter().flatten());
 
-        let queries = opening_proof
-            .query_opening_proof
-            .iter()
-            .map(|query| QueryOpeningProof {
-                input_proofs: query
-                    .input_proofs
-                    .iter()
-                    .map(|proof| proof.clone().into())
-                    .collect(),
-                commit_phase_openings: query
-                    .commit_phase_openings
-                    .iter()
-                    .map(|step| CommitPhaseProofStep {
-                        sibling_value: step.sibling_value.clone(),
-                        opening_proof: step.opening_proof.clone(),
-                    })
-                    .collect(),
-            })
-            .collect();
+        // check pow
+        let pow_bits = vp.get_pow_bits_by_level(mpcs::PowStrategy::FriPow);
+        if pow_bits > 0 {
+            assert!(transcript.check_witness(pow_bits, opening_proof.pow_witness));
+        }
+
+        let queries: Vec<_> = transcript.sample_bits_and_append_vec(
+            b"query indices",
+            BasefoldRSParams::get_number_queries(),
+            max_num_var + BasefoldRSParams::get_rate_log(),
+        );
 
         let query_input = QueryPhaseVerifierInput {
             // t_inv_halves: vp.encoding_params.t_inv_halves,
             max_num_var: 10,
-            indices: opening_proof.query_indices,
-            final_message: opening_proof.final_message,
-            batch_coeffs,
-            queries,
-            fixed_comm: None,
-            witin_comm: BasefoldCommitment {
-                commit: comm.commit().into(),
-                trivial_commits: comm
-                    .trivial_commits
-                    .iter()
-                    .copied()
-                    .map(|(i, c)| (i, c.into()))
-                    .collect(),
-                log2_max_codeword_size: 20,
-                // This is a dummy value, should be set according to the actual codeword size
-            },
-            circuit_meta: vec![CircuitIndexMeta {
-                witin_num_vars: 10,
-                fixed_num_vars: 0,
-                witin_num_polys: 10,
-                fixed_num_polys: 0,
-            }],
-            commits: opening_proof
-                .commits
-                .iter()
-                .copied()
-                .map(|c| c.into())
-                .collect(),
             fold_challenges,
-            sumcheck_messages: opening_proof
-                .sumcheck_proof
-                .as_ref()
-                .unwrap()
-                .clone()
-                .into_iter()
-                .map(|msg| msg.into())
-                .collect(),
-            point_evals: vec![(Point { fs: point.clone() }, evals.clone())],
+            batch_coeffs,
+            indices: queries,
+            proof: opening_proof.into(),
+            rounds,
         };
         let (program, witness) = build_batch_verifier_query_phase(query_input);
 
