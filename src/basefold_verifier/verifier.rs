@@ -21,7 +21,7 @@ pub(crate) fn batch_verifier<C: Config + Debug>(
     challenger: &mut DuplexChallengerVariable<C>,
 ) {
     builder.assert_nonzero(&proof.final_message.len());
-    let expected_final_message_size: Var<C::N> = builder.eval(Usize::<C::N>::from(2usize)); // TODO: support flexible code rate etc.
+    let expected_final_message_size: Var<C::N> = builder.eval(Usize::<C::N>::from(1usize)); // TODO: support flexible code rate etc.
     iter_zip!(builder, proof.final_message).for_each(|ptr_vec, builder| {
         let final_message_len = builder.iter_ptr_get(&proof.final_message, ptr_vec[0]).len();
         let final_message_len: Var<C::N> = builder.eval(final_message_len);
