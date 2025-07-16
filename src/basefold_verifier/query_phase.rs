@@ -348,7 +348,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
     // 2. It does not contain the same index twice (checked via a correspondence array)
     // 3. Indexed witin_num_vars are sorted in decreasing order
     // Infer witin_num_vars through index
-    let folding_len = input.circuit_meta.len();
+    let folding_len = input.rounds.len();
     let zero: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
     let folding_sort_surjective: Array<C, Ext<C::F, C::EF>> =
         builder.dyn_array(folding_len.clone());
