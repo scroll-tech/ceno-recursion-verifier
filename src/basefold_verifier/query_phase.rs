@@ -1,6 +1,7 @@
 // Note: check all XXX comments!
 
 use ff_ext::{BabyBearExt4, ExtensionField, PoseidonField};
+use mpcs::QueryOpeningProof as InnerQueryOpeningProof;
 use openvm_native_compiler::{asm::AsmConfig, prelude::*};
 use openvm_native_recursion::{
     hints::{Hintable, VecAutoHintable},
@@ -88,6 +89,8 @@ impl Hintable<InnerConfig> for BatchOpening {
     }
 }
 
+impl VecAutoHintable for BatchOpening {}
+
 /// TODO: use `openvm_native_recursion::fri::types::FriCommitPhaseProofStepVariable` instead
 #[derive(Deserialize)]
 pub struct CommitPhaseProofStep {
@@ -147,21 +150,35 @@ impl Hintable<InnerConfig> for CommitPhaseProofStep {
 
 #[derive(Deserialize)]
 pub struct QueryOpeningProof {
-    pub witin_base_proof: BatchOpening,
-    pub fixed_base_proof: Option<BatchOpening>,
+    pub input_proofs: Vec<BatchOpening>,
     pub commit_phase_openings: Vec<CommitPhaseProofStep>,
+}
+
+impl From<InnerQueryOpeningProof<E>> for QueryOpeningProof {
+    fn from(proof: InnerQueryOpeningProof<E>) -> Self {
+        Self {
+            input_proofs: proof
+                .input_proofs
+                .into_iter()
+                .map(|proof| proof.into())
+                .collect(),
+            commit_phase_openings: proof
+                .commit_phase_openings
+                .into_iter()
+                .map(|proof| proof.into())
+                .collect(),
+        }
+    }
 }
 
 #[derive(DslVariable, Clone)]
 pub struct QueryOpeningProofVariable<C: Config> {
-    pub witin_base_proof: BatchOpeningVariable<C>,
-    pub fixed_is_some: Usize<C::N>, // 0 <==> false
-    pub fixed_base_proof: BatchOpeningVariable<C>,
+    pub input_proofs: Array<C, BatchOpeningVariable<C>>,
     pub commit_phase_openings: Array<C, CommitPhaseProofStepVariable<C>>,
 }
 
-type QueryOpeningProofs = Vec<QueryOpeningProof>;
-type QueryOpeningProofsVariable<C> = Array<C, QueryOpeningProofVariable<C>>;
+pub(crate) type QueryOpeningProofs = Vec<QueryOpeningProof>;
+pub(crate) type QueryOpeningProofsVariable<C> = Array<C, QueryOpeningProofVariable<C>>;
 
 impl VecAutoHintable for QueryOpeningProof {}
 
@@ -169,37 +186,23 @@ impl Hintable<InnerConfig> for QueryOpeningProof {
     type HintVariable = QueryOpeningProofVariable<InnerConfig>;
 
     fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
-        let witin_base_proof = BatchOpening::read(builder);
-        let fixed_is_some = Usize::Var(usize::read(builder));
-        let fixed_base_proof = BatchOpening::read(builder);
+        let input_proofs = Vec::<BatchOpening>::read(builder);
         let commit_phase_openings = Vec::<CommitPhaseProofStep>::read(builder);
         QueryOpeningProofVariable {
-            witin_base_proof,
-            fixed_is_some,
-            fixed_base_proof,
+            input_proofs,
             commit_phase_openings,
         }
     }
 
     fn write(&self) -> Vec<Vec<<InnerConfig as Config>::N>> {
         let mut stream = Vec::new();
-        stream.extend(self.witin_base_proof.write());
-        if let Some(fixed_base_proof) = &self.fixed_base_proof {
-            stream.extend(<usize as Hintable<InnerConfig>>::write(&1));
-            stream.extend(fixed_base_proof.write());
-        } else {
-            stream.extend(<usize as Hintable<InnerConfig>>::write(&0));
-            let tmp_proof = BatchOpening {
-                opened_values: Vec::new(),
-                opening_proof: Vec::new(),
-            };
-            stream.extend(tmp_proof.write());
-        }
+        stream.extend(self.input_proofs.write());
         stream.extend(self.commit_phase_openings.write());
         stream
     }
 }
 
+#[derive(Deserialize)]
 // NOTE: Different from PointAndEval in tower_verifier!
 pub struct PointAndEvals {
     pub point: Point,
@@ -233,17 +236,11 @@ pub struct PointAndEvalsVariable<C: Config> {
 pub struct QueryPhaseVerifierInput {
     // pub t_inv_halves: Vec<Vec<<E as ExtensionField>::BaseField>>,
     pub max_num_var: usize,
-    pub indices: Vec<usize>,
-    pub final_message: Vec<Vec<E>>,
     pub batch_coeffs: Vec<E>,
-    pub queries: QueryOpeningProofs,
-    pub fixed_comm: Option<BasefoldCommitment>,
-    pub witin_comm: BasefoldCommitment,
-    pub circuit_meta: Vec<CircuitIndexMeta>,
-    pub commits: Vec<HashDigest>,
     pub fold_challenges: Vec<E>,
-    pub sumcheck_messages: Vec<IOPProverMessage>,
-    pub point_evals: Vec<(Point, Vec<E>)>,
+    pub indices: Vec<usize>,
+    pub proof: BasefoldProof,
+    pub rounds: Vec<Round>,
 }
 
 impl Hintable<InnerConfig> for QueryPhaseVerifierInput {
@@ -252,34 +249,20 @@ impl Hintable<InnerConfig> for QueryPhaseVerifierInput {
     fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
         // let t_inv_halves = Vec::<Vec<F>>::read(builder);
         let max_num_var = Usize::Var(usize::read(builder));
-        let indices = Vec::<usize>::read(builder);
-        let final_message = Vec::<Vec<E>>::read(builder);
         let batch_coeffs = Vec::<E>::read(builder);
-        let queries = QueryOpeningProofs::read(builder);
-        let fixed_is_some = Usize::Var(usize::read(builder));
-        let fixed_comm = BasefoldCommitment::read(builder);
-        let witin_comm = BasefoldCommitment::read(builder);
-        let circuit_meta = Vec::<CircuitIndexMeta>::read(builder);
-        let commits = Vec::<HashDigest>::read(builder);
         let fold_challenges = Vec::<E>::read(builder);
-        let sumcheck_messages = Vec::<IOPProverMessage>::read(builder);
-        let point_evals = Vec::<PointAndEvals>::read(builder);
+        let indices = Vec::<usize>::read(builder);
+        let proof = BasefoldProof::read(builder);
+        let rounds = Vec::<Round>::read(builder);
 
         QueryPhaseVerifierInputVariable {
             // t_inv_halves,
             max_num_var,
-            indices,
-            final_message,
             batch_coeffs,
-            queries,
-            fixed_is_some,
-            fixed_comm,
-            witin_comm,
-            circuit_meta,
-            commits,
             fold_challenges,
-            sumcheck_messages,
-            point_evals,
+            indices,
+            proof,
+            rounds,
         }
     }
 
@@ -287,37 +270,11 @@ impl Hintable<InnerConfig> for QueryPhaseVerifierInput {
         let mut stream = Vec::new();
         // stream.extend(self.t_inv_halves.write());
         stream.extend(<usize as Hintable<InnerConfig>>::write(&self.max_num_var));
-        stream.extend(self.indices.write());
-        stream.extend(self.final_message.write());
         stream.extend(self.batch_coeffs.write());
-        stream.extend(self.queries.write());
-        if let Some(fixed_comm) = &self.fixed_comm {
-            stream.extend(<usize as Hintable<InnerConfig>>::write(&1));
-            stream.extend(fixed_comm.write());
-        } else {
-            stream.extend(<usize as Hintable<InnerConfig>>::write(&0));
-            let tmp_comm = BasefoldCommitment {
-                commit: Default::default(),
-                log2_max_codeword_size: 0,
-                trivial_commits: vec![],
-            };
-            stream.extend(tmp_comm.write());
-        }
-        stream.extend(self.witin_comm.write());
-        stream.extend(self.circuit_meta.write());
-        stream.extend(self.commits.write());
+        stream.extend(self.indices.write());
         stream.extend(self.fold_challenges.write());
-        stream.extend(self.sumcheck_messages.write());
-        stream.extend(
-            self.point_evals
-                .iter()
-                .map(|(p, e)| PointAndEvals {
-                    point: p.clone(),
-                    evals: e.clone(),
-                })
-                .collect::<Vec<_>>()
-                .write(),
-        );
+        stream.extend(self.proof.write());
+        stream.extend(self.rounds.write());
         stream
     }
 }
@@ -326,18 +283,11 @@ impl Hintable<InnerConfig> for QueryPhaseVerifierInput {
 pub struct QueryPhaseVerifierInputVariable<C: Config> {
     // pub t_inv_halves: Array<C, Array<C, Felt<C::F>>>,
     pub max_num_var: Usize<C::N>,
-    pub indices: Array<C, Var<C::N>>,
-    pub final_message: Array<C, Array<C, Ext<C::F, C::EF>>>,
     pub batch_coeffs: Array<C, Ext<C::F, C::EF>>,
-    pub queries: QueryOpeningProofsVariable<C>,
-    pub fixed_is_some: Usize<C::N>, // 0 <==> false
-    pub fixed_comm: BasefoldCommitmentVariable<C>,
-    pub witin_comm: BasefoldCommitmentVariable<C>,
-    pub circuit_meta: Array<C, CircuitIndexMetaVariable<C>>,
-    pub commits: Array<C, HashDigestVariable<C>>,
     pub fold_challenges: Array<C, Ext<C::F, C::EF>>,
-    pub sumcheck_messages: Array<C, IOPProverMessageVariable<C>>,
-    pub point_evals: Array<C, PointAndEvalsVariable<C>>,
+    pub indices: Array<C, Var<C::N>>,
+    pub proof: BasefoldProofVariable<C>,
+    pub rounds: Array<C, RoundVariable<C>>,
 }
 
 pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
@@ -365,18 +315,18 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
     }
 
     // encode_small
-    let final_rmm_values_len = builder.get(&input.final_message, 0).len();
+    let final_rmm_values_len = builder.get(&input.proof.final_message, 0).len();
     let final_rmm_values = builder.dyn_array(final_rmm_values_len.clone());
 
     builder
         .range(0, final_rmm_values_len.clone())
         .for_each(|i_vec, builder| {
             let i = i_vec[0];
-            let row_len = input.final_message.len();
+            let row_len = input.proof.final_message.len();
             let sum = builder.constant(C::EF::ZERO);
             builder.range(0, row_len).for_each(|j_vec, builder| {
                 let j = j_vec[0];
-                let row = builder.get(&input.final_message, j);
+                let row = builder.get(&input.proof.final_message, j);
                 let row_j = builder.get(&row, i);
                 builder.assign(&sum, sum + row_j);
             });
@@ -398,7 +348,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
     // 2. It does not contain the same index twice (checked via a correspondence array)
     // 3. Indexed witin_num_vars are sorted in decreasing order
     // Infer witin_num_vars through index
-    let folding_len = input.circuit_meta.len();
+    let folding_len = input.rounds.len();
     let zero: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
     let folding_sort_surjective: Array<C, Ext<C::F, C::EF>> =
         builder.dyn_array(folding_len.clone());
@@ -867,15 +817,16 @@ pub mod tests {
     use ceno_transcript::{BasicTranscript, Transcript};
     use ff_ext::{BabyBearExt4, FromUniformBytes};
     use itertools::Itertools;
-    use mpcs::pcs_batch_verify;
     use mpcs::{
-        pcs_batch_commit, pcs_batch_open, pcs_setup, pcs_trim,
-        util::hash::write_digest_to_transcript, BasefoldDefault, PolynomialCommitmentScheme,
+        pcs_batch_commit, pcs_setup, pcs_trim, util::hash::write_digest_to_transcript,
+        BasefoldDefault, PolynomialCommitmentScheme,
     };
+    use mpcs::{BasefoldRSParams, BasefoldSpec, PCSFriParam};
     use openvm_circuit::arch::{instructions::program::Program, SystemConfig, VmExecutor};
     use openvm_native_circuit::{Native, NativeConfig};
     use openvm_native_compiler::asm::AsmBuilder;
     use openvm_native_recursion::hints::Hintable;
+    use openvm_stark_backend::p3_challenger::GrindingChallenger;
     use openvm_stark_sdk::p3_baby_bear::BabyBear;
     use p3_field::Field;
     use p3_field::FieldAlgebra;
@@ -885,6 +836,8 @@ pub mod tests {
     type E = BabyBearExt4;
     type PCS = BasefoldDefault<E>;
 
+    use crate::basefold_verifier::basefold::{Round, RoundOpening};
+    use crate::basefold_verifier::query_phase::PointAndEvals;
     use crate::{
         basefold_verifier::{
             basefold::BasefoldCommitment,
@@ -911,49 +864,49 @@ pub mod tests {
         let mut witness_stream: Vec<Vec<F>> = Vec::new();
         witness_stream.extend(input.write());
         witness_stream.push(vec![F::from_canonical_u32(2).inverse()]);
-        witness_stream.push(vec![F::from_canonical_usize(
-            input
-                .circuit_meta
-                .iter()
-                .unique_by(|x| x.witin_num_vars)
-                .count(),
-        )]);
-        witness_stream.push(
-            input
-                .circuit_meta
-                .iter()
-                .enumerate()
-                .sorted_by_key(|(_, CircuitIndexMeta { witin_num_vars, .. })| {
-                    Reverse(witin_num_vars)
-                })
-                .map(|(index, _)| F::from_canonical_usize(index))
-                .collect_vec(),
-        );
-        for (query, idx) in input.queries.iter().zip(input.indices.iter()) {
-            witness_stream.push(vec![F::from_canonical_usize(idx / 2)]);
-            if let Some(fixed_comm) = &input.fixed_comm {
-                let log2_witin_max_codeword_size = input.max_num_var + 1;
-                if log2_witin_max_codeword_size > fixed_comm.log2_max_codeword_size {
-                    witness_stream.push(vec![F::ZERO])
-                } else {
-                    witness_stream.push(vec![F::ONE])
-                }
-            }
-            for i in 0..input.circuit_meta.len() {
-                witness_stream.push(vec![F::from_canonical_usize(
-                    query.witin_base_proof.opened_values[i].len() / 2,
-                )]);
-                if input.circuit_meta[i].fixed_num_vars > 0 {
-                    witness_stream.push(vec![F::from_canonical_usize(
-                        if let Some(fixed_base_proof) = &query.fixed_base_proof {
-                            fixed_base_proof.opened_values[i].len() / 2
-                        } else {
-                            0
-                        },
-                    )]);
-                }
-            }
-        }
+        // witness_stream.push(vec![F::from_canonical_usize(
+        //     input
+        //         .circuit_meta
+        //         .iter()
+        //         .unique_by(|x| x.witin_num_vars)
+        //         .count(),
+        // )]);
+        // witness_stream.push(
+        //     input
+        //         .circuit_meta
+        //         .iter()
+        //         .enumerate()
+        //         .sorted_by_key(|(_, CircuitIndexMeta { witin_num_vars, .. })| {
+        //             Reverse(witin_num_vars)
+        //         })
+        //         .map(|(index, _)| F::from_canonical_usize(index))
+        //         .collect_vec(),
+        // );
+        // for (query, idx) in input.queries.iter().zip(input.indices.iter()) {
+        //     witness_stream.push(vec![F::from_canonical_usize(idx / 2)]);
+        //     if let Some(fixed_comm) = &input.fixed_comm {
+        //         let log2_witin_max_codeword_size = input.max_num_var + 1;
+        //         if log2_witin_max_codeword_size > fixed_comm.log2_max_codeword_size {
+        //             witness_stream.push(vec![F::ZERO])
+        //         } else {
+        //             witness_stream.push(vec![F::ONE])
+        //         }
+        //     }
+        //     for i in 0..input.circuit_meta.len() {
+        //         witness_stream.push(vec![F::from_canonical_usize(
+        //             query.witin_base_proof.opened_values[i].len() / 2,
+        //         )]);
+        //         if input.circuit_meta[i].fixed_num_vars > 0 {
+        //             witness_stream.push(vec![F::from_canonical_usize(
+        //                 if let Some(fixed_base_proof) = &query.fixed_base_proof {
+        //                     fixed_base_proof.opened_values[i].len() / 2
+        //                 } else {
+        //                     0
+        //                 },
+        //             )]);
+        //         }
+        //     }
+        // }
 
         (program, witness_stream)
     }
@@ -965,46 +918,26 @@ pub mod tests {
         let mles_1 = m1.to_mles();
         let matrices = BTreeMap::from_iter(once((0, m1)));
 
-        let pp = pcs_setup::<E, PCS>(1 << 20).unwrap();
+        let pp = PCS::setup(1 << 20, mpcs::SecurityLevel::Conjecture100bits).unwrap();
         let (pp, vp) = pcs_trim::<E, PCS>(pp, 1 << 20).unwrap();
         let pcs_data = pcs_batch_commit::<E, PCS>(&pp, matrices).unwrap();
-        let witin_comm = PCS::get_pure_commitment(&pcs_data);
+        let comm = PCS::get_pure_commitment(&pcs_data);
 
-        let points = vec![E::random_vec(10, &mut rng)];
-        let evals = points
-            .iter()
-            .map(|p| mles_1.iter().map(|mle| mle.evaluate(p)).collect_vec())
-            .collect::<Vec<_>>();
+        let point = E::random_vec(10, &mut rng);
+        let evals = mles_1.iter().map(|mle| mle.evaluate(&point)).collect_vec();
+
         // let evals = mles_1
         //     .iter()
         //     .map(|mle| points.iter().map(|p| mle.evaluate(&p)).collect_vec())
         //     .collect::<Vec<_>>();
         let mut transcript = BasicTranscript::<E>::new(&[]);
-        let opening_proof = pcs_batch_open::<E, PCS>(
-            &pp,
-            &[(0, 1 << 10)],
-            None,
-            &pcs_data,
-            &points,
-            &evals,
-            &[(10, 0)],
-            &mut transcript,
-        )
-        .unwrap();
+        let rounds = vec![(&pcs_data, vec![(point.clone(), evals.clone())])];
+        let opening_proof = PCS::batch_open(&pp, rounds, &mut transcript).unwrap();
 
         let mut transcript = BasicTranscript::<E>::new(&[]);
-        pcs_batch_verify::<E, PCS>(
-            &vp,
-            &[(0, 1 << 10)],
-            &points,
-            None,
-            &witin_comm,
-            &evals,
-            &opening_proof,
-            &[(10, 0)],
-            &mut transcript,
-        )
-        .expect("Native verification failed");
+        let rounds = vec![(comm, vec![(point.len(), (point, evals.clone()))])];
+        PCS::batch_verify(&vp, rounds.clone(), &opening_proof, &mut transcript)
+            .expect("Native verification failed");
 
         let mut transcript = BasicTranscript::<E>::new(&[]);
         let batch_coeffs = transcript.sample_and_append_challenge_pows(10, b"batch coeffs");
@@ -1030,72 +963,44 @@ pub mod tests {
         }
         transcript.append_field_element_exts_iter(opening_proof.final_message.iter().flatten());
 
-        let queries = opening_proof
-            .query_opening_proof
-            .iter()
-            .map(|query| QueryOpeningProof {
-                witin_base_proof: BatchOpening {
-                    opened_values: query.witin_base_proof.opened_values.clone(),
-                    opening_proof: query.witin_base_proof.opening_proof.clone(),
-                },
-                fixed_base_proof: None,
-                commit_phase_openings: query
-                    .commit_phase_openings
-                    .iter()
-                    .map(|step| CommitPhaseProofStep {
-                        sibling_value: step.sibling_value.clone(),
-                        opening_proof: step.opening_proof.clone(),
-                    })
-                    .collect(),
-            })
-            .collect();
+        // check pow
+        let pow_bits = vp.get_pow_bits_by_level(mpcs::PowStrategy::FriPow);
+        if pow_bits > 0 {
+            assert!(transcript.check_witness(pow_bits, opening_proof.pow_witness));
+        }
+
+        let queries: Vec<_> = transcript.sample_bits_and_append_vec(
+            b"query indices",
+            <BasefoldRSParams as BasefoldSpec<E>>::get_number_queries(),
+            max_num_var + <BasefoldRSParams as BasefoldSpec<E>>::get_rate_log(),
+        );
 
         let query_input = QueryPhaseVerifierInput {
             // t_inv_halves: vp.encoding_params.t_inv_halves,
             max_num_var: 10,
-            indices: opening_proof.query_indices,
-            final_message: opening_proof.final_message,
-            batch_coeffs,
-            queries,
-            fixed_comm: None,
-            witin_comm: BasefoldCommitment {
-                commit: witin_comm.commit().into(),
-                trivial_commits: witin_comm
-                    .trivial_commits
-                    .iter()
-                    .copied()
-                    .map(|c| c.into())
-                    .collect(),
-                log2_max_codeword_size: 20,
-                // This is a dummy value, should be set according to the actual codeword size
-            },
-            circuit_meta: vec![CircuitIndexMeta {
-                witin_num_vars: 10,
-                fixed_num_vars: 0,
-                witin_num_polys: 10,
-                fixed_num_polys: 0,
-            }],
-            commits: opening_proof
-                .commits
-                .iter()
-                .copied()
-                .map(|c| c.into())
-                .collect(),
             fold_challenges,
-            sumcheck_messages: opening_proof
-                .sumcheck_proof
-                .as_ref()
-                .unwrap()
-                .clone()
-                .into_iter()
-                .map(|msg| msg.into())
+            batch_coeffs,
+            indices: queries,
+            proof: opening_proof.into(),
+            rounds: rounds
+                .iter()
+                .map(|round| Round {
+                    commit: round.0.clone().into(),
+                    openings: round
+                        .1
+                        .iter()
+                        .map(|opening| RoundOpening {
+                            num_var: opening.0,
+                            point_and_evals: PointAndEvals {
+                                point: Point {
+                                    fs: opening.1.clone().0,
+                                },
+                                evals: opening.1.clone().1,
+                            },
+                        })
+                        .collect(),
+                })
                 .collect(),
-            point_evals: vec![(
-                Point {
-                    fs: points[0].clone(),
-                },
-                evals[0].clone(),
-            )],
         };
         let (program, witness) = build_batch_verifier_query_phase(query_input);
 
