@@ -3,7 +3,7 @@ use ff_ext::{BabyBearExt4, ExtensionField, PoseidonField};
 use openvm_native_compiler::{asm::AsmConfig, prelude::*};
 use openvm_native_compiler_derive::iter_zip;
 use openvm_native_recursion::{
-    challenger::duplex::DuplexChallengerVariable,
+    challenger::{duplex::DuplexChallengerVariable, FeltChallenger},
     hints::{Hintable, VecAutoHintable},
     vars::HintSlice,
 };
@@ -44,5 +44,11 @@ pub(crate) fn batch_verifier<C: Config + Debug>(
                 .len();
             builder.assign(&total_num_polys, total_num_polys + evals_num);
         });
+    });
+
+    let batch_coeffs: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(total_num_polys);
+    iter_zip!(builder, batch_coeffs).for_each(|ptr_vec_batch_coeffs, builder| {
+        let coeff = challenger.sample_ext(builder);
+        builder.iter_ptr_set(&batch_coeffs, ptr_vec_batch_coeffs[0], coeff);
     });
 }
