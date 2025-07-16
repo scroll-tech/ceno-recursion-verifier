@@ -31,4 +31,18 @@ pub(crate) fn batch_verifier<C: Config + Debug>(
     // TODO: get this number from some config instead of hardcoding
     let expected_num_queries: Var<C::N> = builder.eval(Usize::<C::N>::from(100usize));
     builder.assert_eq::<Var<C::N>>(proof.query_opening_proof.len(), expected_num_queries);
+
+    // Compute the total number of polynomials across all rounds
+    let total_num_polys: Var<C::N> = builder.eval(Usize::<C::N>::from(0));
+    iter_zip!(builder, rounds).for_each(|ptr_vec, builder| {
+        let openings = builder.iter_ptr_get(&rounds, ptr_vec[0]).openings;
+        iter_zip!(builder, openings).for_each(|ptr_vec_openings, builder| {
+            let evals_num = builder
+                .iter_ptr_get(&openings, ptr_vec_openings[0])
+                .point_and_evals
+                .evals
+                .len();
+            builder.assign(&total_num_polys, total_num_polys + evals_num);
+        });
+    });
 }
