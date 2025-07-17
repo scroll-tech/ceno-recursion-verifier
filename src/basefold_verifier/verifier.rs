@@ -1,10 +1,15 @@
+use crate::basefold_verifier::query_phase::{
+    batch_verifier_query_phase, QueryPhaseVerifierInputVariable,
+};
+
 use super::{basefold::*, extension_mmcs::*, mmcs::*, rs::*, structs::*, utils::*};
 use ff_ext::{BabyBearExt4, ExtensionField, PoseidonField};
 use openvm_native_compiler::{asm::AsmConfig, prelude::*};
 use openvm_native_compiler_derive::iter_zip;
 use openvm_native_recursion::{
     challenger::{
-        duplex::DuplexChallengerVariable, CanObserveDigest, CanObserveVariable, FeltChallenger,
+        duplex::DuplexChallengerVariable, CanObserveDigest, CanObserveVariable,
+        CanSampleBitsVariable, FeltChallenger,
     },
     hints::{Hintable, VecAutoHintable},
     vars::HintSlice,
@@ -134,4 +139,25 @@ pub(crate) fn batch_verifier<C: Config + Debug>(
         let elem_felts = builder.ext2felt(elem);
         challenger.observe_slice(builder, elem_felts);
     });
+
+    let queries: Array<C, Var<C::N>> = builder.dyn_array(100); // TODO: avoid hardcoding
+    builder.range(0, 100).for_each(|ptr_vec, builder| {
+        let number_of_bits = builder.eval_expr(max_num_var + Usize::from(1));
+        let query = challenger.sample_bits(builder, number_of_bits);
+        // TODO: the index will need to be split back to bits in query phase, so it's
+        // probably better to avoid converting bits to integer altogether
+        let number_of_bits = builder.eval(max_num_var + Usize::from(1));
+        let query = bin_to_dec(builder, &query, number_of_bits);
+        builder.iter_ptr_set(&queries, ptr_vec[0], query);
+    });
+
+    let input = QueryPhaseVerifierInputVariable {
+        max_num_var: builder.eval(max_num_var),
+        batch_coeffs,
+        fold_challenges,
+        indices: queries,
+        proof,
+        rounds,
+    };
+    batch_verifier_query_phase(builder, input);
 }
