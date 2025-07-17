@@ -125,4 +125,13 @@ pub(crate) fn batch_verifier<C: Config + Debug>(
                 challenger.observe_digest(builder, commit.value.into());
             });
     });
+
+    iter_zip!(builder, proof.final_message).for_each(|ptr_vec_sumcheck_message, builder| {
+        // Each final message should contain a single element, since the final
+        // message size log is assumed to be zero
+        let elems = builder.iter_ptr_get(&proof.final_message, ptr_vec_sumcheck_message[0]);
+        let elem = builder.get(&elems, 0);
+        let elem_felts = builder.ext2felt(elem);
+        challenger.observe_slice(builder, elem_felts);
+    });
 }
