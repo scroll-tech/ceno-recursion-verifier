@@ -3,7 +3,9 @@ use ff_ext::{BabyBearExt4, ExtensionField, PoseidonField};
 use openvm_native_compiler::{asm::AsmConfig, prelude::*};
 use openvm_native_compiler_derive::iter_zip;
 use openvm_native_recursion::{
-    challenger::{duplex::DuplexChallengerVariable, FeltChallenger},
+    challenger::{
+        duplex::DuplexChallengerVariable, CanObserveDigest, CanObserveVariable, FeltChallenger,
+    },
     hints::{Hintable, VecAutoHintable},
     vars::HintSlice,
 };
@@ -98,4 +100,29 @@ pub(crate) fn batch_verifier<C: Config + Debug>(
     });
     // Check that at least one max_num_var_round is equal to max_num_var
     builder.assert_eq::<Var<C::N>>(diff_product, Usize::from(0));
+
+    // TODO: num rounds should be max num var - base message size log, but
+    // base message size log is 0 for now
+    let num_rounds = max_num_var;
+
+    let fold_challenges: Array<C, Ext<_, _>> = builder.dyn_array(max_num_var);
+    builder.range(0, num_rounds).for_each(|ptr_vec, builder| {
+        let sumcheck_message = builder
+            .iter_ptr_get(&proof.sumcheck_proof, ptr_vec[0])
+            .evaluations;
+        iter_zip!(builder, sumcheck_message).for_each(|ptr_vec_sumcheck_message, builder| {
+            let elem = builder.iter_ptr_get(&sumcheck_message, ptr_vec_sumcheck_message[0]);
+            let elem_felts = builder.ext2felt(elem);
+            challenger.observe_slice(builder, elem_felts);
+        });
+
+        let challenge = challenger.sample_ext(builder);
+        builder.iter_ptr_set(&fold_challenges, ptr_vec[0], challenge);
+        builder
+            .if_ne(ptr_vec[0], num_rounds - Usize::from(1))
+            .then(|builder| {
+                let commit = builder.iter_ptr_get(&proof.commits, ptr_vec[0]);
+                challenger.observe_digest(builder, commit.value.into());
+            });
+    });
 }
