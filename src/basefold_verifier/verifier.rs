@@ -51,4 +51,51 @@ pub(crate) fn batch_verifier<C: Config + Debug>(
         let coeff = challenger.sample_ext(builder);
         builder.iter_ptr_set(&batch_coeffs, ptr_vec_batch_coeffs[0], coeff);
     });
+
+    // Instead of computing the max num var, we let the prover provide it, and
+    // check that it is greater than or equal to every num var, and that it is
+    // equal to at least one of the num vars by multiplying all the differences
+    // together and check if the product is zero.
+    let max_num_var = builder.hint_var();
+    let diff_product: Var<C::N> = builder.eval(Usize::from(1));
+    let max_num_var_plus_one: Var<C::N> = builder.eval(max_num_var + Usize::from(1));
+    iter_zip!(builder, rounds).for_each(|ptr_vec, builder| {
+        let round = builder.iter_ptr_get(&rounds, ptr_vec[0]);
+        // Need to compute the max num var for each round separately. This time
+        // don't need to provide by hint because we have
+        // commit.log2_max_codeword_size = max_num_var + rate_log
+        // We need to ensure that rate_log < commit.log2_max_codeword_size
+        // TODO: rate_log is temporarily hardcoded to 1
+        builder.assert_less_than_slow_small_rhs(
+            Usize::from(1),
+            round.commit.log2_max_codeword_size.clone(),
+        );
+        let max_num_var_round: Var<C::N> =
+            builder.eval(round.commit.log2_max_codeword_size - Usize::from(1));
+        // Although max_num_var_round_plus_one is the same as log2_max_codeword_size
+        // in the current code, it may not be so when the log rate is updated. So
+        // let's keep the code more general for now.
+        let max_num_var_round_plus_one: Var<C::N> =
+            builder.eval(max_num_var_round + Usize::from(1));
+        let diff_product_round: Var<C::N> = builder.eval(Usize::from(1));
+        iter_zip!(builder, round.openings).for_each(|ptr_vec_opening, builder| {
+            let opening = builder.iter_ptr_get(&round.openings, ptr_vec_opening[0]);
+            builder.assert_less_than_slow_small_rhs(opening.num_var, max_num_var_round_plus_one);
+            builder.assign(
+                &diff_product_round,
+                diff_product_round * (max_num_var_round - opening.num_var),
+            );
+        });
+        // Check that at least one opening.num_var is equal to max_num_var_round
+        builder.assert_eq::<Var<C::N>>(diff_product_round, Usize::from(0));
+
+        // Now work with the outer max num var
+        builder.assert_less_than_slow_small_rhs(max_num_var_round, max_num_var_plus_one);
+        builder.assign(
+            &diff_product,
+            diff_product * (max_num_var - max_num_var_round),
+        );
+    });
+    // Check that at least one max_num_var_round is equal to max_num_var
+    builder.assert_eq::<Var<C::N>>(diff_product, Usize::from(0));
 }
