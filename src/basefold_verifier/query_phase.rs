@@ -340,9 +340,10 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
         width: builder.eval(Usize::from(1)),
     };
     let final_codeword = encode_small(builder, final_rmm);
-    // can't use witin_comm.log2_max_codeword_size since it's untrusted
-    let log2_witin_max_codeword_size: Var<C::N> =
+
+    let log2_max_codeword_size: Var<C::N> =
         builder.eval(input.max_num_var.clone() + get_rate_log::<C>());
+
 
     builder
         .range(0, input.indices.len())
@@ -350,22 +351,54 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
             let i = i_vec[0];
             // i >>= 1;
             let idx = builder.get(&input.indices, i);
+            let idx = builder.unsafe_cast_var_to_felt(idx);
+            let idx_bits = builder.num2bits_f(
+                idx,
+                C::N::bits() as u32,
+            );
+            // TODO: assert idx_bits[log2_max_codeword_size..] == 0
+            builder
+                .range(log2_max_codeword_size, idx_bits.len())
+                .for_each(|i_vec, builder| {
+                    let bit = builder.get(&idx_bits, i_vec[0]);
+                    builder.assert_eq::<Var<_>>(bit, Usize::from(0));
+                });
+            let idx_bits = idx_bits.slice(builder, 0, log2_max_codeword_size.clone());
+
             let query = builder.get(&input.proof.query_opening_proof, i);
 
-            iter_zip!(query.input_proofs, input.rounds,).for_each(|ptr_vec| {
+            iter_zip!(query.input_proofs, input.rounds).for_each(|ptr_vec| {
                 let batch_opening = builder.iter_ptr_get(&query.input_proofs, ptr_vec[0]);
                 let round = builder.iter_ptr_get(&input.rounds, ptr_vec[1]);
                 let opened_values = batch_opening.opened_values;
+                let perm_opened_values = builder.dyn_array(opened_values.len());
+                let dimensions = builder.dyn_array(opened_values.len());
                 let opening_proof = batch_opening.opening_proof;
-                // get dimension
 
-                // i >>= 1
+                // reorder (opened values, dimension) according to the permutation
+                builder.range(0, opened_values.len()).for_each(|j_vec, builder| {
+                    let j = j_vec[0];
+                    let mat_j = builder.get(&opened_values, j);
+                    let num_var_j = builder.get(&round.openings, j).num_var;
+                    let height_j = builder.eval(num_var_j + get_rate_log::<C>() - Usize::from(1));
+
+                    let permuted_index = builder.get(&perm, j);
+                    
+                    builder.set_value(&perm_opened_values, permuted_index, mat_j);
+                    builder.set_value(&dimensions, permuted_index, height_j);
+                });
+
+                // i >>= (log2_max_codeword_size - commit.log2_max_codeword_size);
+                let bits_shift: Var<C::N> = builder.eval(
+                    log2_max_codeword_size.clone() - round.commit.log2_max_codeword_size,
+                );
+                let reduced_idx_bits = idx_bits.slice(builder, bits_shift, log2_max_codeword_size.clone());
 
                 // verify input mmcs
                 let mmcs_verifier_input = MmcsVerifierInputVariable {
                     commit: round.commit.commit.clone(),
                     dimensions: dimensions,
-                    index_bits: idx_bits.clone().slice(builder, 1, idx_len), // Remove the first bit because two entries are grouped into one leaf in the Merkle tree
+                    index_bits: reduced_idx_bits,
                     opened_values: opened_values,
                     proof: opening_proof,
                 };
@@ -375,27 +408,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
 
             let opening_ext = query.commit_phase_openings;
 
-            // verify base oracle query proof
-            // refer to prover documentation for the reason of right shift by 1
-            // The index length is the logarithm of the maximal codeword size.
-            let idx_len: Var<C::N> = builder.eval(input.max_num_var.clone() + get_rate_log::<C>());
-            let idx_felt = builder.unsafe_cast_var_to_felt(idx);
-            let idx_bits = builder.num2bits_f(idx_felt, C::N::bits() as u32);
-            builder
-                .range(idx_len, idx_bits.len())
-                .for_each(|i_vec, builder| {
-                    let bit = builder.get(&idx_bits, i_vec[0]);
-                    builder.assert_eq::<Var<_>>(bit, Usize::from(0));
-                });
-
-            // Right shift
-            let idx_len_minus_one: Var<C::N> = builder.eval(idx_len - Usize::from(1));
-            let idx_half = builder.hint_var();
-            let lsb = builder.get(&idx_bits, 0);
-            builder.assert_var_eq(Usize::from(2) * idx_half + lsb, idx);
-
-            builder.assign(&idx_len, idx_len_minus_one);
-            builder.assign(&idx, idx_half);
+            // get codeword lo and hi
 
             // base_codeword_lo_hi
             let base_codeword_lo = builder.dyn_array(folding_len.clone());
@@ -492,17 +505,19 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
             let cumul_num_vars_count: Var<C::N> = builder.eval(next_unique_num_vars_count);
             let n_d_i_log: Var<C::N> = builder.eval(n_d_next_log);
             // let n_d_i: Var<C::N> = builder.eval(n_d_next);
-            // zip_eq
+
+            // check commit phases
+            let commits = &input.proof.commits;
             builder.assert_eq::<Var<C::N>>(
-                input.commits.len() + Usize::from(1),
+                commits.len() + Usize::from(1),
                 input.fold_challenges.len(),
             );
-            builder.assert_eq::<Var<C::N>>(input.commits.len(), opening_ext.len());
+            builder.assert_eq::<Var<C::N>>(commits.len(), opening_ext.len());
             builder
-                .range(0, input.commits.len())
+                .range(0, commits.len())
                 .for_each(|j_vec, builder| {
                     let j = j_vec[0];
-                    let pi_comm = builder.get(&input.commits, j);
+                    let pi_comm = builder.get(&commits, j);
                     let j_plus_one = builder.eval_expr(j + RVar::from(1));
                     let j_plus_two = builder.eval(j + RVar::from(2));
                     let r = builder.get(&input.fold_challenges, j_plus_one);
