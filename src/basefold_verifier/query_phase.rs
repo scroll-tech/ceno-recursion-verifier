@@ -273,8 +273,8 @@ impl Hintable<InnerConfig> for QueryPhaseVerifierInput {
         // stream.extend(self.t_inv_halves.write());
         stream.extend(<usize as Hintable<InnerConfig>>::write(&self.max_num_var));
         stream.extend(self.batch_coeffs.write());
-        stream.extend(self.indices.write());
         stream.extend(self.fold_challenges.write());
+        stream.extend(self.indices.write());
         stream.extend(self.proof.write());
         stream.extend(self.rounds.write());
         stream
@@ -722,7 +722,7 @@ pub mod tests {
         let mut rng = thread_rng();
         let m1 = ceno_witness::RowMajorMatrix::<F>::rand(&mut rng, 1 << 10, 10);
         let mles_1 = m1.to_mles();
-        let matrices = BTreeMap::from_iter(once((0, m1)));
+        let matrices = vec![m1];
 
         let pp = PCS::setup(1 << 20, mpcs::SecurityLevel::Conjecture100bits).unwrap();
         let (pp, vp) = pcs_trim::<E, PCS>(pp, 1 << 20).unwrap();
