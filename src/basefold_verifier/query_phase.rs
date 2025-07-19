@@ -351,27 +351,25 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
     let log2_max_codeword_size: Var<C::N> =
         builder.eval(input.max_num_var.clone() + get_rate_log::<C>());
 
-    builder
-        .range(0, input.indices.len())
-        .for_each(|i_vec, builder| {
-            let i = i_vec[0];
-            // i >>= 1;
-            let idx = builder.get(&input.indices, i);
+    iter_zip!(builder, input.indices, input.proof.query_opening_proof).for_each(
+        |ptr_vec, builder| {
+            // TODO: change type of input.indices to be `Array<C, Array<C, Var<C::N>>>`
+            let idx = builder.iter_ptr_get(&input.indices, ptr_vec[0]);
             let idx = builder.unsafe_cast_var_to_felt(idx);
             let idx_bits = builder.num2bits_f(idx, C::N::bits() as u32);
-            // TODO: assert idx_bits[log2_max_codeword_size..] == 0
+            // assert idx_bits[log2_max_codeword_size..] == 0
             builder
                 .range(log2_max_codeword_size, idx_bits.len())
                 .for_each(|i_vec, builder| {
                     let bit = builder.get(&idx_bits, i_vec[0]);
                     builder.assert_eq::<Var<_>>(bit, Usize::from(0));
                 });
-            let mut idx_bits = idx_bits.slice(builder, 0, log2_max_codeword_size.clone());
+            let mut idx_bits = idx_bits.slice(builder, 1, idx_bits.len());
 
             let reduced_codeword_by_height: Array<C, PackedCodeword<C>> =
                 builder.dyn_array(log2_max_codeword_size.clone());
 
-            let query = builder.get(&input.proof.query_opening_proof, i);
+            let query = builder.iter_ptr_get(&input.proof.query_opening_proof, ptr_vec[1]);
 
             iter_zip!(builder, query.input_proofs, input.rounds).for_each(|ptr_vec, builder| {
                 let batch_opening = builder.iter_ptr_get(&query.input_proofs, ptr_vec[0]);
@@ -391,25 +389,26 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
                         let height_j =
                             builder.eval(num_var_j + get_rate_log::<C>() - Usize::from(1));
 
+                        // TODO: use permutation to get the index
                         // let permuted_index = builder.get(&perm, j);
-                        let permuted_index = j;
+                        let permuted_j = j;
 
-                        builder.set_value(&perm_opened_values, permuted_index, mat_j);
-                        builder.set_value(&dimensions, permuted_index, height_j);
+                        builder.set_value(&perm_opened_values, permuted_j, mat_j);
+                        builder.set_value(&dimensions, permuted_j, height_j);
                     });
 
                 // i >>= (log2_max_codeword_size - commit.log2_max_codeword_size);
                 let bits_shift: Var<C::N> = builder
                     .eval(log2_max_codeword_size.clone() - round.commit.log2_max_codeword_size);
                 let reduced_idx_bits =
-                    idx_bits.slice(builder, bits_shift, log2_max_codeword_size.clone());
+                    idx_bits.slice(builder, bits_shift, idx_bits.len());
 
                 // verify input mmcs
                 let mmcs_verifier_input = MmcsVerifierInputVariable {
                     commit: round.commit.commit.clone(),
                     dimensions: dimensions,
                     index_bits: reduced_idx_bits,
-                    opened_values: opened_values,
+                    opened_values: perm_opened_values,
                     proof: opening_proof,
                 };
 
@@ -512,7 +511,8 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
             );
             // let final_value = builder.get(&final_codeword.values, idx.clone());
             // builder.assert_eq::<Ext<C::F, C::EF>>(final_value, folded);
-        });
+        },
+    );
 
     /*
     // 1. check initial claim match with first round sumcheck value
@@ -780,6 +780,7 @@ pub mod tests {
             <BasefoldRSParams as BasefoldSpec<E>>::get_number_queries(),
             max_num_var + <BasefoldRSParams as BasefoldSpec<E>>::get_rate_log(),
         );
+        println!("queries: {:?}", queries);
 
         let query_input = QueryPhaseVerifierInput {
             // t_inv_halves: vp.encoding_params.t_inv_halves,

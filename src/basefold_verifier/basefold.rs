@@ -47,12 +47,10 @@ impl Hintable<InnerConfig> for BasefoldCommitment {
     fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
         let commit = HashDigest::read(builder);
         let log2_max_codeword_size = Usize::Var(usize::read(builder));
-        // let trivial_commits = Vec::<HashDigest>::read(builder);
 
         BasefoldCommitmentVariable {
             commit,
             log2_max_codeword_size,
-            // trivial_commits,
         }
     }
 
@@ -62,7 +60,6 @@ impl Hintable<InnerConfig> for BasefoldCommitment {
         stream.extend(<usize as Hintable<InnerConfig>>::write(
             &self.log2_max_codeword_size,
         ));
-        // stream.extend(self.trivial_commits.write());
         stream
     }
 }
