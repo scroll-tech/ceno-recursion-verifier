@@ -400,8 +400,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
                 // i >>= (log2_max_codeword_size - commit.log2_max_codeword_size);
                 let bits_shift: Var<C::N> = builder
                     .eval(log2_max_codeword_size.clone() - round.commit.log2_max_codeword_size);
-                let reduced_idx_bits =
-                    idx_bits.slice(builder, bits_shift, idx_bits.len());
+                let reduced_idx_bits = idx_bits.slice(builder, bits_shift, idx_bits.len());
 
                 // verify input mmcs
                 let mmcs_verifier_input = MmcsVerifierInputVariable {
@@ -414,7 +413,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
 
                 mmcs_verify_batch(builder, mmcs_verifier_input);
 
-                // compute reduced codeword
+                // TODO: compute reduced codeword
             });
 
             let opening_ext = query.commit_phase_openings;
@@ -455,7 +454,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
                 input.fold_challenges.len(),
             );
             builder.assert_eq::<Var<C::N>>(commits.len(), opening_ext.len());
-            iter_zip!(builder, commits, opening_ext, fold_challenges,).for_each(
+            iter_zip!(builder, commits, opening_ext, fold_challenges).for_each(
                 |ptr_vec, builder| {
                     let commit = builder.iter_ptr_get(&commits, ptr_vec[0]);
                     let commit_phase_step = builder.iter_ptr_get(&opening_ext, ptr_vec[1]);
