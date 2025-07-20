@@ -364,12 +364,13 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
                     let bit = builder.get(&idx_bits, i_vec[0]);
                     builder.assert_eq::<Var<_>>(bit, Usize::from(0));
                 });
-            let mut idx_bits = idx_bits.slice(builder, 1, idx_bits.len());
+            let idx_bits = idx_bits.slice(builder, 1, log2_max_codeword_size.clone());
 
             let reduced_codeword_by_height: Array<C, PackedCodeword<C>> =
                 builder.dyn_array(log2_max_codeword_size.clone());
 
             let query = builder.iter_ptr_get(&input.proof.query_opening_proof, ptr_vec[1]);
+            let batch_coeffs_offset: Var<C::N> = builder.constant(C::N::ZERO);
 
             iter_zip!(builder, query.input_proofs, input.rounds).for_each(|ptr_vec, builder| {
                 let batch_opening = builder.iter_ptr_get(&query.input_proofs, ptr_vec[0]);
@@ -413,19 +414,51 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
 
                 mmcs_verify_batch(builder, mmcs_verifier_input);
 
-                // TODO: compute reduced codeword
+                // TODO: optimize this procedure
+                iter_zip!(builder, opened_values, round.openings).for_each(|ptr_vec, builder| {
+                    let opened_value = builder.iter_ptr_get(&opened_values, ptr_vec[0]);
+                    let opening = builder.iter_ptr_get(&round.openings, ptr_vec[1]);
+                    let log2_height: Var<C::N> =
+                        builder.eval(opening.num_var + get_rate_log::<C>() - Usize::from(1));
+                    let width = opening.point_and_evals.evals.len();
+
+                    let batch_coeffs_next_offset: Var<C::N> =
+                        builder.eval(batch_coeffs_offset + width.clone());
+                    let coeffs = input.batch_coeffs.slice(
+                        builder,
+                        batch_coeffs_offset.clone(),
+                        batch_coeffs_next_offset.clone(),
+                    );
+                    let low_values = opened_value.slice(builder, 0, width.clone());
+                    let high_values =
+                        opened_value.slice(builder, width.clone(), opened_value.len());
+                    let low: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
+                    let high: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
+
+                    iter_zip!(builder, coeffs, low_values, high_values).for_each(
+                        |ptr_vec, builder| {
+                            let coeff = builder.iter_ptr_get(&coeffs, ptr_vec[0]);
+                            let low_value = builder.iter_ptr_get(&low_values, ptr_vec[1]);
+                            let high_value = builder.iter_ptr_get(&high_values, ptr_vec[2]);
+
+                            builder.assign(&low, low + coeff * low_value);
+                            builder.assign(&high, high + coeff * high_value);
+                        },
+                    );
+                    let codeword = PackedCodeword { low, high };
+                    builder.set_value(&reduced_codeword_by_height, log2_height, codeword);
+                    builder.assign(&batch_coeffs_offset, batch_coeffs_next_offset);
+                });
             });
 
             let opening_ext = query.commit_phase_openings;
 
             // fold 1st codeword
-            let mut cur_num_var: Var<C::N> = builder.eval(input.max_num_var.clone());
+            let cur_num_var: Var<C::N> = builder.eval(input.max_num_var.clone());
             let log2_height: Var<C::N> =
-                builder.eval(cur_num_var - get_basecode_msg_size_log::<C>() - Usize::from(1));
+                builder.eval(cur_num_var + get_rate_log::<C>() - Usize::from(1));
 
-            // first folding challenge
             let r = builder.get(&input.fold_challenges, 0);
-            // get codeword lo and hi
             let codeword = builder.get(&reduced_codeword_by_height, log2_height);
             let coeff = verifier_folding_coeffs_level(
                 builder,
@@ -444,72 +477,81 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
             );
 
             // check commit phases
-            let fold_challenges =
-                input
-                    .fold_challenges
-                    .slice(builder, 1, input.fold_challenges.len());
             let commits = &input.proof.commits;
             builder.assert_eq::<Var<C::N>>(
                 commits.len() + Usize::from(1),
                 input.fold_challenges.len(),
             );
             builder.assert_eq::<Var<C::N>>(commits.len(), opening_ext.len());
-            iter_zip!(builder, commits, opening_ext, fold_challenges).for_each(
-                |ptr_vec, builder| {
-                    let commit = builder.iter_ptr_get(&commits, ptr_vec[0]);
-                    let commit_phase_step = builder.iter_ptr_get(&opening_ext, ptr_vec[1]);
-                    let r = builder.iter_ptr_get(&fold_challenges, ptr_vec[2]);
+            builder.range(0, commits.len()).for_each(|i_vec, builder| {
+                let i = i_vec[0];
+                let commit = builder.get(&commits, i);
+                let commit_phase_step = builder.get(&opening_ext, i);
+                let i_plus_one = builder.eval_expr(i + Usize::from(1));
 
-                    let sibling_value = commit_phase_step.sibling_value;
-                    let proof = commit_phase_step.opening_proof;
+                let sibling_value = commit_phase_step.sibling_value;
+                let proof = commit_phase_step.opening_proof;
 
-                    builder.assign(&cur_num_var, cur_num_var - Usize::from(1));
-                    builder.assign(&log2_height, log2_height - Usize::from(1));
+                builder.assign(&cur_num_var, cur_num_var - Usize::from(1));
+                builder.assign(&log2_height, log2_height - Usize::from(1));
 
-                    let idx_sibling = builder.get(&idx_bits, 0);
-                    // TODO: absorb smaller codeword
-                    let new_involved_codeword: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
+                let folded_idx = builder.get(&idx_bits, i);
+                // TODO: absorb smaller codeword
+                let new_involved_codeword: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
 
-                    // leafs
-                    let leafs = builder.dyn_array(2);
-                    let folded_idx = builder.eval_expr(RVar::from(1) - idx_sibling);
-                    builder.assign(&folded, folded + new_involved_codeword);
-                    builder.set_value(&leafs, idx_sibling, sibling_value);
-                    builder.set_value(&leafs, folded_idx, folded);
+                // leafs
+                let leafs = builder.dyn_array(2);
+                let sibling_idx = builder.eval_expr(RVar::from(1) - folded_idx);
+                builder.assign(&folded, folded + new_involved_codeword);
+                builder.set_value(&leafs, folded_idx, folded);
+                builder.set_value(&leafs, sibling_idx, sibling_value);
 
-                    // idx >>= 1
-                    idx_bits = idx_bits.slice(builder, 1, idx_bits.len());
+                // idx >>= 1
+                let idx_pair = idx_bits.slice(builder, i_plus_one, idx_bits.len());
 
-                    // mmcs_ext.verify_batch
-                    let dimensions = builder.dyn_array(1);
-                    let opened_values = builder.dyn_array(1);
-                    builder.set_value(&opened_values, 0, leafs.clone());
-                    let ext_mmcs_verifier_input = ExtMmcsVerifierInputVariable {
-                        commit: commit.clone(),
-                        dimensions,
-                        index_bits: idx_bits.clone(),
-                        opened_values,
-                        proof,
-                    };
-                    // FIXME: the Merkle roots do not match
-                    ext_mmcs_verify_batch::<C>(builder, ext_mmcs_verifier_input);
+                // mmcs_ext.verify_batch
+                let dimensions = builder.dyn_array(1);
+                let opened_values = builder.dyn_array(1);
+                builder.set_value(&opened_values, 0, leafs.clone());
+                builder.set_value(&dimensions, 0, log2_height.clone());
+                let ext_mmcs_verifier_input = ExtMmcsVerifierInputVariable {
+                    commit: commit.clone(),
+                    dimensions,
+                    index_bits: idx_pair.clone(),
+                    opened_values,
+                    proof,
+                };
+                ext_mmcs_verify_batch::<C>(builder, ext_mmcs_verifier_input);
 
-                    let coeff = verifier_folding_coeffs_level(
-                        builder,
-                        &two_adic_generators_inverses,
-                        log2_height,
-                        &idx_bits,
-                        inv_2,
+                let r = builder.get(&input.fold_challenges, i_plus_one);
+                let coeff = verifier_folding_coeffs_level(
+                    builder,
+                    &two_adic_generators_inverses,
+                    log2_height,
+                    &idx_pair,
+                    inv_2,
+                );
+                let left = builder.get(&leafs, 0);
+                let right = builder.get(&leafs, 1);
+                let new_folded =
+                    codeword_fold_with_challenge(builder, left, right, r, coeff, inv_2);
+                builder.assign(&folded, new_folded);
+            });
+
+            // assert that final_value[i] = folded
+            let final_idx: Var<C::N> = builder.constant(C::N::ZERO);
+            builder
+                .range(commits.len(), idx_bits.len())
+                .for_each(|i_vec, builder| {
+                    let i = i_vec[0];
+                    let bit = builder.get(&idx_bits, i);
+                    builder.assign(
+                        &final_idx,
+                        final_idx * SymbolicVar::from(C::N::from_canonical_u16(2)) + bit,
                     );
-                    let left = builder.get(&leafs, 0);
-                    let right = builder.get(&leafs, 1);
-                    let new_folded =
-                        codeword_fold_with_challenge(builder, left, right, r.clone(), coeff, inv_2);
-                    builder.assign(&folded, new_folded);
-                },
-            );
-            // let final_value = builder.get(&final_codeword.values, idx.clone());
-            // builder.assert_eq::<Ext<C::F, C::EF>>(final_value, folded);
+                });
+            let final_value = builder.get(&final_codeword.values, final_idx);
+            builder.assert_eq::<Ext<C::F, C::EF>>(final_value, folded);
         },
     );
 
@@ -779,7 +821,6 @@ pub mod tests {
             <BasefoldRSParams as BasefoldSpec<E>>::get_number_queries(),
             max_num_var + <BasefoldRSParams as BasefoldSpec<E>>::get_rate_log(),
         );
-        println!("queries: {:?}", queries);
 
         let query_input = QueryPhaseVerifierInput {
             // t_inv_halves: vp.encoding_params.t_inv_halves,
