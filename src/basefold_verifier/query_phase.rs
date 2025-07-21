@@ -298,7 +298,7 @@ pub struct PackedCodeword<C: Config> {
     pub high: Ext<C::F, C::EF>,
 }
 
-pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
+pub(crate) fn batch_verifier_query_phase<C: Config>(
     builder: &mut Builder<C>,
     input: QueryPhaseVerifierInputVariable<C>,
 ) {
