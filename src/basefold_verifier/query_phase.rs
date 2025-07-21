@@ -648,6 +648,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
 
 #[cfg(test)]
 pub mod tests {
+    use ceno_mle::mle;
     use ceno_transcript::{BasicTranscript, Transcript};
     use ff_ext::{BabyBearExt4, FromUniformBytes};
     use itertools::Itertools;
@@ -697,39 +698,64 @@ pub mod tests {
     #[test]
     fn test_verify_query_phase_batch() {
         let mut rng = thread_rng();
-        let m1 = ceno_witness::RowMajorMatrix::<F>::rand(&mut rng, 1 << 10, 10);
-        let mles_1 = m1.to_mles();
-        let matrices = vec![m1];
 
+        // setup PCS
         let pp = PCS::setup(1 << 20, mpcs::SecurityLevel::Conjecture100bits).unwrap();
         let (pp, vp) = pcs_trim::<E, PCS>(pp, 1 << 20).unwrap();
+
+        let (matrices, mles): (Vec<_>, Vec<_>) = vec![(14, 20), (13, 30), (12, 10), (11, 15)]
+            .into_iter()
+            .map(|(num_vars, width)| {
+                let m = ceno_witness::RowMajorMatrix::<F>::rand(&mut rng, 1 << num_vars, width);
+                let mles = m.to_mles();
+
+                (m, mles)
+            })
+            .unzip();
+
+        // commit to matrices
         let pcs_data = pcs_batch_commit::<E, PCS>(&pp, matrices).unwrap();
         let comm = PCS::get_pure_commitment(&pcs_data);
 
-        let point = E::random_vec(10, &mut rng);
-        let evals = mles_1.iter().map(|mle| mle.evaluate(&point)).collect_vec();
+        let point_and_evals = mles
+            .iter()
+            .map(|mles| {
+                let point = E::random_vec(mles[0].num_vars(), &mut rng);
+                let evals = mles.iter().map(|mle| mle.evaluate(&point)).collect_vec();
 
-        // let evals = mles_1
-        //     .iter()
-        //     .map(|mle| points.iter().map(|p| mle.evaluate(&p)).collect_vec())
-        //     .collect::<Vec<_>>();
+                (point, evals)
+            })
+            .collect_vec();
+
+        // batch open
         let mut transcript = BasicTranscript::<E>::new(&[]);
-        let rounds = vec![(&pcs_data, vec![(point.clone(), evals.clone())])];
+        let rounds = vec![(&pcs_data, point_and_evals.clone())];
         let opening_proof = PCS::batch_open(&pp, rounds, &mut transcript).unwrap();
 
+        // batch verify
         let mut transcript = BasicTranscript::<E>::new(&[]);
-        let rounds = vec![(comm, vec![(point.len(), (point, evals.clone()))])];
+        let rounds = vec![(
+            comm,
+            point_and_evals
+                .iter()
+                .map(|(point, evals)| (point.len(), (point.clone(), evals.clone())))
+                .collect_vec(),
+        )];
         PCS::batch_verify(&vp, rounds.clone(), &opening_proof, &mut transcript)
             .expect("Native verification failed");
 
         let mut transcript = BasicTranscript::<E>::new(&[]);
         let batch_coeffs = transcript.sample_and_append_challenge_pows(10, b"batch coeffs");
 
-        let max_num_var = 10;
+        let max_num_var = point_and_evals
+            .iter()
+            .map(|(point, _)| point.len())
+            .max()
+            .unwrap();
         let num_rounds = max_num_var; // The final message is of length 1
 
         // prepare folding challenges via sumcheck round msg + FRI commitment
-        let mut fold_challenges: Vec<E> = Vec::with_capacity(10);
+        let mut fold_challenges: Vec<E> = Vec::with_capacity(num_rounds);
         let commits = &opening_proof.commits;
 
         let sumcheck_messages = opening_proof.sumcheck_proof.as_ref().unwrap();
@@ -759,26 +785,23 @@ pub mod tests {
         );
 
         let query_input = QueryPhaseVerifierInput {
-            // t_inv_halves: vp.encoding_params.t_inv_halves,
-            max_num_var: 10,
+            max_num_var,
             fold_challenges,
             batch_coeffs,
             indices: queries,
             proof: opening_proof.into(),
             rounds: rounds
-                .iter()
+                .into_iter()
                 .map(|round| Round {
-                    commit: round.0.clone().into(),
+                    commit: round.0.into(),
                     openings: round
                         .1
-                        .iter()
-                        .map(|opening| RoundOpening {
-                            num_var: opening.0,
+                        .into_iter()
+                        .map(|(num_var, (point, evals))| RoundOpening {
+                            num_var,
                             point_and_evals: PointAndEvals {
-                                point: Point {
-                                    fs: opening.1.clone().0,
-                                },
-                                evals: opening.1.clone().1,
+                                point: Point { fs: point },
+                                evals,
                             },
                         })
                         .collect(),
