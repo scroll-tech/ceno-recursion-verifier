@@ -602,23 +602,29 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
             builder.assert_eq::<Ext<C::F, C::EF>>(left, right);
         });
 
-    /*
     // 3. check final evaluation are correct
     let final_evals = builder
-        .get(&input.sumcheck_messages, fold_len_minus_one.clone())
+        .get(&input.proof.sumcheck_proof, fold_len_minus_one.clone())
         .evaluations;
     let final_challenge = builder.get(&input.fold_challenges, fold_len_minus_one.clone());
     let left = interpolate_uni_poly(builder, &final_evals, final_challenge);
     let right: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
-    builder
-        .range(0, input.final_message.len())
-        .for_each(|i_vec, builder| {
-            let i = i_vec[0];
-            let final_message = builder.get(&input.final_message, i);
-            let point = builder.get(&input.point_evals, i).point;
-            // coeff is the eq polynomial evaluated at the first challenge.len() variables
+    let one: Var<C::N> = builder.constant(C::N::ONE);
+    let j: Var<C::N> = builder.constant(C::N::ZERO);
+    // \sum_i eq(p, [r,i]) * f(r,i)
+    iter_zip!(builder, input.rounds,).for_each(|ptr_vec, builder| {
+        let round = builder.iter_ptr_get(&input.rounds, ptr_vec[0]);
+        // TODO: filter out openings with num_var >= get_basecode_msg_size_log::<C>()
+        iter_zip!(builder, round.openings).for_each(|ptr_vec, builder| {
+            let opening = builder.iter_ptr_get(&round.openings, ptr_vec[0]);
+            let point_and_evals = &opening.point_and_evals;
+            let point = &point_and_evals.point;
+
             let num_vars_evaluated: Var<C::N> =
                 builder.eval(point.fs.len() - get_basecode_msg_size_log::<C>());
+            let final_message = builder.get(&input.proof.final_message, j);
+
+            // coeff is the eq polynomial evaluated at the first challenge.len() variables
             let ylo = builder.eval(input.fold_challenges.len() - num_vars_evaluated);
             let coeff = eq_eval_with_index(
                 builder,
@@ -628,31 +634,21 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
                 Usize::Var(ylo),
                 Usize::Var(num_vars_evaluated),
             );
-            // We assume that the final message is of size 1, so the eq poly is just
-            // vec![one].
-            // let eq = build_eq_x_r_vec_sequential_with_offset::<C>(
-            //     builder,
-            //     &point.fs,
-            //     Usize::Var(num_vars_evaluated),
-            // );
-            // eq_coeff = eq * coeff
-            // let eq_coeff = builder.dyn_array(eq.len());
-            // builder.range(0, eq.len()).for_each(|j_vec, builder| {
-            //     let j = j_vec[0];
-            //     let next_eq = builder.get(&eq, j);
-            //     let next_eq_coeff: Ext<C::F, C::EF> = builder.eval(next_eq * coeff);
-            //     builder.set_value(&eq_coeff, j, next_eq_coeff);
-            // });
-            // let dot_prod = dot_product(builder, &final_message, &eq_coeff);
 
-            // Again assuming final message is a single element
+            // compute \sum_i eq(p[..num_vars_evaluated], r) * eq(p[num_vars_evaluated..], i) * f(r,i)
+            //
+            // We always assume that num_vars_evaluated is equal to p.len()
+            // so that the above sum only has one item and the final evaluation vector has only one element.
+            builder.assert_eq::<Var<C::N>>(final_message.len(), one);
             let final_message = builder.get(&final_message, 0);
-            // Again, eq polynomial is just one
             let dot_prod: Ext<C::F, C::EF> = builder.eval(final_message * coeff);
             builder.assign(&right, right + dot_prod);
+
+            builder.assign(&j, j + Usize::from(1));
         });
+    });
+    builder.assert_eq::<Var<C::N>>(j, input.proof.final_message.len());
     builder.assert_eq::<Ext<C::F, C::EF>>(left, right);
-         */
 }
 
 #[cfg(test)]
