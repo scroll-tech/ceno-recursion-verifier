@@ -648,9 +648,6 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
 
 #[cfg(test)]
 pub mod tests {
-    use std::{cmp::Reverse, collections::BTreeMap, iter::once};
-
-    use ceno_mle::mle::MultilinearExtension;
     use ceno_transcript::{BasicTranscript, Transcript};
     use ff_ext::{BabyBearExt4, FromUniformBytes};
     use itertools::Itertools;
