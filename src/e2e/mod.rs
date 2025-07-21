@@ -53,45 +53,24 @@ pub fn parse_zkvm_proof_import(
 
     let mut opcode_num_instances_lookup: HashMap<usize, usize> = HashMap::new();
     let mut table_num_instances_lookup: HashMap<usize, usize> = HashMap::new();
-    for (index, num_instances) in &zkvm_proof.num_instances {
-        if let Some(_opcode_proof) = zkvm_proof.opcode_proofs.get(index) {
-            opcode_num_instances_lookup.insert(index.clone(), num_instances.clone());
-        } else if let Some(_table_proof) = zkvm_proof.table_proofs.get(index) {
-            table_num_instances_lookup.insert(index.clone(), num_instances.clone());
-        } else {
-            unreachable!("respective proof of index {} should exist", index)
-        }
+    for (index, chip_proof) in &zkvm_proof.chip_proofs {
+        opcode_num_instances_lookup.insert(index.clone(), chip_proof.num_instances.clone());
     }
 
     let mut order_idx: usize = 0;
     let mut opcode_order_idx: usize = 0;
     let mut table_order_idx: usize = 0;
     let mut proving_sequence: Vec<SubcircuitParams> = vec![];
-    for (index, _) in &zkvm_proof.num_instances {
+    for (index, _) in &zkvm_proof.chip_proofs {
         let name = subcircuit_names[*index].clone();
-        if zkvm_proof.opcode_proofs.get(index).is_some() {
-            proving_sequence.push(SubcircuitParams {
-                id: *index,
-                order_idx: order_idx.clone(),
-                type_order_idx: opcode_order_idx.clone(),
-                name: name.clone(),
-                num_instances: opcode_num_instances_lookup.get(index).unwrap().clone(),
-                is_opcode: true,
-            });
-            opcode_order_idx += 1;
-        } else if zkvm_proof.table_proofs.get(index).is_some() {
-            proving_sequence.push(SubcircuitParams {
-                id: *index,
-                order_idx: order_idx.clone(),
-                type_order_idx: table_order_idx.clone(),
-                name: name.clone(),
-                num_instances: table_num_instances_lookup.get(index).unwrap().clone(),
-                is_opcode: false,
-            });
-            table_order_idx += 1;
-        } else {
-            unreachable!("respective proof of index {} should exist", index)
-        }
+        proving_sequence.push(SubcircuitParams {
+            id: *index,
+            order_idx: order_idx.clone(),
+            type_order_idx: opcode_order_idx.clone(),
+            name: name.clone(),
+            num_instances: opcode_num_instances_lookup.get(index).unwrap().clone(),
+            is_opcode: true,
+        });
 
         order_idx += 1;
     }

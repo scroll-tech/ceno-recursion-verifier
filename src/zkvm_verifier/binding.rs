@@ -170,15 +170,15 @@ impl Hintable<InnerConfig> for ZKVMProofInput {
             cmt_vec.push(f);
         });
         let mut witin_commit_trivial_commits: Vec<Vec<F>> = vec![];
-        for trivial_commit in &self.witin_commit.trivial_commits {
-            let mut t_cmt_vec: Vec<F> = vec![];
-            trivial_commit.1.iter().for_each(|x| {
-                let f: F =
-                    serde_json::from_value(serde_json::to_value(x.clone()).unwrap()).unwrap();
-                t_cmt_vec.push(f);
-            });
-            witin_commit_trivial_commits.push(t_cmt_vec);
-        }
+        // for trivial_commit in &self.witin_commit.trivial_commits {
+        //     let mut t_cmt_vec: Vec<F> = vec![];
+        //     trivial_commit.1.iter().for_each(|x| {
+        //         let f: F =
+        //             serde_json::from_value(serde_json::to_value(x.clone()).unwrap()).unwrap();
+        //         t_cmt_vec.push(f);
+        //     });
+        //     witin_commit_trivial_commits.push(t_cmt_vec);
+        // }
         let witin_commit_log2_max_codeword_size =
             F::from_canonical_u32(self.witin_commit.log2_max_codeword_size as u32);
         stream.extend(cmt_vec.write());
@@ -202,15 +202,15 @@ impl Hintable<InnerConfig> for ZKVMProofInput {
                     fixed_commit_vec.push(f);
                 });
 
-            for trivial_commit in &self.fixed_commit.as_ref().unwrap().trivial_commits {
-                let mut t_cmt_vec: Vec<F> = vec![];
-                trivial_commit.1.iter().for_each(|x| {
-                    let f: F =
-                        serde_json::from_value(serde_json::to_value(x.clone()).unwrap()).unwrap();
-                    t_cmt_vec.push(f);
-                });
-                fixed_commit_trivial_commits.push(t_cmt_vec);
-            }
+            // for trivial_commit in &self.fixed_commit.as_ref().unwrap().trivial_commits {
+            //     let mut t_cmt_vec: Vec<F> = vec![];
+            //     trivial_commit.1.iter().for_each(|x| {
+            //         let f: F =
+            //             serde_json::from_value(serde_json::to_value(x.clone()).unwrap()).unwrap();
+            //         t_cmt_vec.push(f);
+            //     });
+            //     fixed_commit_trivial_commits.push(t_cmt_vec);
+            // }
             fixed_commit_log2_max_codeword_size = F::from_canonical_u32(
                 self.fixed_commit.as_ref().unwrap().log2_max_codeword_size as u32,
             );
