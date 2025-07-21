@@ -138,27 +138,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e16d2d3311acee920a9eb8d33b8cbc1787ce4a264e85f964c2404b969bdcd487"
 
 [[package]]
-name = "ark-ec"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "43d68f2d516162846c1238e755a7c4d131b892b70cc70c471a8e3ca3ed818fce"
-dependencies = [
- "ahash",
- "ark-ff 0.5.0",
- "ark-poly",
- "ark-serialize 0.5.0",
- "ark-std 0.5.0",
- "educe",
- "fnv",
- "hashbrown 0.15.4",
- "itertools 0.13.0",
- "num-bigint 0.4.6",
- "num-integer",
- "num-traits",
- "zeroize",
-]
-
-[[package]]
 name = "ark-ff"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -537,9 +516,9 @@ checksum = "37b2a672a2cb129a2e41c10b1224bb368f9f37a2b16b612598138befd7b37eb5"
 
 [[package]]
 name = "cc"
-version = "1.2.27"
+version = "1.2.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d487aa071b5f64da6f19a3e848e3578944b726ee5a4854b82172f02aa876bfdc"
+checksum = "5c1599538de2394445747c8cf7935946e3cc27e9625f889d979bfb2aaf569362"
 dependencies = [
  "shlex",
 ]
@@ -547,7 +526,6 @@ dependencies = [
 [[package]]
 name = "ceno-examples"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=feat%2Fexport_ff_ext#c2e55fe1a25872cea1ddd916c8ae023d70f29c0c"
 dependencies = [
  "glob",
 ]
@@ -598,12 +576,13 @@ dependencies = [
 [[package]]
 name = "ceno_emul"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=feat%2Fexport_ff_ext#c2e55fe1a25872cea1ddd916c8ae023d70f29c0c"
 dependencies = [
  "anyhow",
  "ceno_rt",
  "elf",
+ "ff_ext",
  "itertools 0.13.0",
+ "multilinear_extensions",
  "num-bigint 0.4.6",
  "num-derive",
  "num-traits",
@@ -619,7 +598,6 @@ dependencies = [
 [[package]]
 name = "ceno_host"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=feat%2Fexport_ff_ext#c2e55fe1a25872cea1ddd916c8ae023d70f29c0c"
 dependencies = [
  "anyhow",
  "ceno_emul",
@@ -632,7 +610,6 @@ dependencies = [
 [[package]]
 name = "ceno_rt"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=feat%2Fexport_ff_ext#c2e55fe1a25872cea1ddd916c8ae023d70f29c0c"
 dependencies = [
  "getrandom 0.2.16",
  "rkyv",
@@ -641,7 +618,6 @@ dependencies = [
 [[package]]
 name = "ceno_zkvm"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=feat%2Fexport_ff_ext#c2e55fe1a25872cea1ddd916c8ae023d70f29c0c"
 dependencies = [
  "base64",
  "bincode",
@@ -649,8 +625,10 @@ dependencies = [
  "ceno_emul",
  "ceno_host",
  "clap",
+ "either",
  "ff_ext",
  "generic_static",
+ "gkr_iop",
  "glob",
  "itertools 0.13.0",
  "mpcs",
@@ -725,9 +703,9 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "4.5.40"
+version = "4.5.41"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "40b6887a1d8685cebccf115538db5c0efe625ccac9696ad45c409d96566e910f"
+checksum = "be92d32e80243a54711e5d7ce823c35c41c9d929dc4ab58e1276f625841aadf9"
 dependencies = [
  "clap_builder",
  "clap_derive",
@@ -735,9 +713,9 @@ dependencies = [
 
 [[package]]
 name = "clap_builder"
-version = "4.5.40"
+version = "4.5.41"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e0c66c08ce9f0c698cbce5c0279d0bb6ac936d8674174fe48f736533b964f59e"
+checksum = "707eab41e9622f9139419d573eca0900137718000c517d47da73045f54331c3d"
 dependencies = [
  "anstream",
  "anstyle",
@@ -747,9 +725,9 @@ dependencies = [
 
 [[package]]
 name = "clap_derive"
-version = "4.5.40"
+version = "4.5.41"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d2c7947ae4cc3d851207c1adb5b5e260ff0cca11446b1d6d1423788e442257ce"
+checksum = "ef4f52386a59ca4c860f7393bcf8abd8dfd91ecccc0f774635ff68e92eeef491"
 dependencies = [
  "heck",
  "proc-macro2",
@@ -1028,6 +1006,9 @@ name = "either"
 version = "1.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "48c757948c5ede0e46177b7add2e67155f70e33c07fea8284df6576da70b3719"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "elf"
@@ -1153,8 +1134,8 @@ dependencies = [
 [[package]]
 name = "ff_ext"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=feat%2Fexport_ff_ext#c2e55fe1a25872cea1ddd916c8ae023d70f29c0c"
 dependencies = [
+ "once_cell",
  "p3",
  "rand_core",
  "serde",
@@ -1238,6 +1219,40 @@ name = "gimli"
 version = "0.31.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "07e28edb80900c19c28f1072f2e8aeca7fa06b23cd4169cefe1af5aa3260783f"
+
+[[package]]
+name = "gkr_iop"
+version = "0.1.0"
+dependencies = [
+ "ark-std 0.5.0",
+ "bincode",
+ "ceno_emul",
+ "clap",
+ "either",
+ "ff_ext",
+ "itertools 0.13.0",
+ "mpcs",
+ "multilinear_extensions",
+ "ndarray",
+ "p3",
+ "p3-field",
+ "p3-goldilocks",
+ "p3-util",
+ "rand",
+ "rayon",
+ "serde",
+ "strum",
+ "strum_macros",
+ "sumcheck",
+ "thiserror",
+ "thread_local",
+ "tiny-keccak",
+ "tracing",
+ "tracing-forest",
+ "tracing-subscriber",
+ "transcript",
+ "witness",
+]
 
 [[package]]
 name = "glam"
@@ -1607,6 +1622,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "matrixmultiply"
+version = "0.3.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a06de3016e9fae57a36fd14dba131fccf49f74b40b7fbdb472f96e361ec71a08"
+dependencies = [
+ "autocfg",
+ "rawpointer",
+]
+
+[[package]]
 name = "memchr"
 version = "2.7.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1676,11 +1701,11 @@ dependencies = [
 [[package]]
 name = "mpcs"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=feat%2Fexport_ff_ext#c2e55fe1a25872cea1ddd916c8ae023d70f29c0c"
 dependencies = [
  "aes",
  "bincode",
  "bitvec",
+ "clap",
  "ctr",
  "ff_ext",
  "generic-array",
@@ -1706,8 +1731,8 @@ dependencies = [
 [[package]]
 name = "multilinear_extensions"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=feat%2Fexport_ff_ext#c2e55fe1a25872cea1ddd916c8ae023d70f29c0c"
 dependencies = [
+ "either",
  "ff_ext",
  "itertools 0.13.0",
  "p3",
@@ -1738,41 +1763,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "ndarray"
+version = "0.16.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "882ed72dce9365842bf196bdeedf5055305f11fc8c03dee7bb0194a6cad34841"
+dependencies = [
+ "matrixmultiply",
+ "num-complex",
+ "num-integer",
+ "num-traits",
+ "portable-atomic",
+ "portable-atomic-util",
+ "rawpointer",
+]
+
+[[package]]
 name = "nibble_vec"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "77a5d83df9f36fe23f0c3648c6bbb8b0298bb5f1939c8f2704431371f4b84d43"
 dependencies = [
  "smallvec",
-]
-
-[[package]]
-name = "nimue"
-version = "0.2.0"
-source = "git+https://github.com/arkworks-rs/nimue?rev=3a83250#3a83250d9e30046be464753901430710232561fc"
-dependencies = [
- "ark-ec",
- "ark-ff 0.5.0",
- "ark-serialize 0.5.0",
- "digest",
- "hex",
- "keccak",
- "log",
- "rand",
- "zeroize",
-]
-
-[[package]]
-name = "nimue-pow"
-version = "0.1.0"
-source = "git+https://github.com/arkworks-rs/nimue?rev=3a83250#3a83250d9e30046be464753901430710232561fc"
-dependencies = [
- "blake3",
- "bytemuck",
- "keccak",
- "nimue",
- "rand",
- "rayon",
 ]
 
 [[package]]
@@ -1805,6 +1816,15 @@ dependencies = [
  "num-integer",
  "num-traits",
  "rand",
+]
+
+[[package]]
+name = "num-complex"
+version = "0.4.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "73f88a1307638156682bada9d7604135552957b7818057dcef22705b4d509495"
+dependencies = [
+ "num-traits",
 ]
 
 [[package]]
@@ -1909,7 +1929,7 @@ checksum = "d6790f58c7ff633d8771f42965289203411a5e5c68388703c06e14f24770b41e"
 [[package]]
 name = "openvm"
 version = "1.1.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#0a8b3571c5e123ba47c224afc02df08afc79784a"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#96c432c2fdbe7e1516315c3de6beba22b2714f43"
 dependencies = [
  "bytemuck",
  "num-bigint 0.4.6",
@@ -1922,7 +1942,7 @@ dependencies = [
 [[package]]
 name = "openvm-circuit"
 version = "1.1.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#0a8b3571c5e123ba47c224afc02df08afc79784a"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#96c432c2fdbe7e1516315c3de6beba22b2714f43"
 dependencies = [
  "backtrace",
  "cfg-if",
@@ -1953,7 +1973,7 @@ dependencies = [
 [[package]]
 name = "openvm-circuit-derive"
 version = "1.1.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#0a8b3571c5e123ba47c224afc02df08afc79784a"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#96c432c2fdbe7e1516315c3de6beba22b2714f43"
 dependencies = [
  "itertools 0.14.0",
  "quote",
@@ -1963,7 +1983,7 @@ dependencies = [
 [[package]]
 name = "openvm-circuit-primitives"
 version = "1.1.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#0a8b3571c5e123ba47c224afc02df08afc79784a"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#96c432c2fdbe7e1516315c3de6beba22b2714f43"
 dependencies = [
  "derive-new 0.6.0",
  "itertools 0.14.0",
@@ -1978,7 +1998,7 @@ dependencies = [
 [[package]]
 name = "openvm-circuit-primitives-derive"
 version = "1.1.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#0a8b3571c5e123ba47c224afc02df08afc79784a"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#96c432c2fdbe7e1516315c3de6beba22b2714f43"
 dependencies = [
  "itertools 0.14.0",
  "quote",
@@ -1988,7 +2008,7 @@ dependencies = [
 [[package]]
 name = "openvm-custom-insn"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#0a8b3571c5e123ba47c224afc02df08afc79784a"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#96c432c2fdbe7e1516315c3de6beba22b2714f43"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1998,7 +2018,7 @@ dependencies = [
 [[package]]
 name = "openvm-instructions"
 version = "1.1.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#0a8b3571c5e123ba47c224afc02df08afc79784a"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#96c432c2fdbe7e1516315c3de6beba22b2714f43"
 dependencies = [
  "backtrace",
  "derive-new 0.6.0",
@@ -2015,7 +2035,7 @@ dependencies = [
 [[package]]
 name = "openvm-instructions-derive"
 version = "1.1.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#0a8b3571c5e123ba47c224afc02df08afc79784a"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#96c432c2fdbe7e1516315c3de6beba22b2714f43"
 dependencies = [
  "quote",
  "syn 2.0.104",
@@ -2024,7 +2044,7 @@ dependencies = [
 [[package]]
 name = "openvm-native-circuit"
 version = "1.1.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#0a8b3571c5e123ba47c224afc02df08afc79784a"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#96c432c2fdbe7e1516315c3de6beba22b2714f43"
 dependencies = [
  "derive-new 0.6.0",
  "derive_more 1.0.0",
@@ -2051,7 +2071,7 @@ dependencies = [
 [[package]]
 name = "openvm-native-compiler"
 version = "1.1.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#0a8b3571c5e123ba47c224afc02df08afc79784a"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#96c432c2fdbe7e1516315c3de6beba22b2714f43"
 dependencies = [
  "backtrace",
  "itertools 0.14.0",
@@ -2073,7 +2093,7 @@ dependencies = [
 [[package]]
 name = "openvm-native-compiler-derive"
 version = "1.1.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#0a8b3571c5e123ba47c224afc02df08afc79784a"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#96c432c2fdbe7e1516315c3de6beba22b2714f43"
 dependencies = [
  "quote",
  "syn 2.0.104",
@@ -2082,7 +2102,7 @@ dependencies = [
 [[package]]
 name = "openvm-native-recursion"
 version = "1.1.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#0a8b3571c5e123ba47c224afc02df08afc79784a"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#96c432c2fdbe7e1516315c3de6beba22b2714f43"
 dependencies = [
  "cfg-if",
  "itertools 0.14.0",
@@ -2106,7 +2126,7 @@ dependencies = [
 [[package]]
 name = "openvm-platform"
 version = "1.1.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#0a8b3571c5e123ba47c224afc02df08afc79784a"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#96c432c2fdbe7e1516315c3de6beba22b2714f43"
 dependencies = [
  "getrandom 0.2.16",
  "libm",
@@ -2117,7 +2137,7 @@ dependencies = [
 [[package]]
 name = "openvm-poseidon2-air"
 version = "1.1.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#0a8b3571c5e123ba47c224afc02df08afc79784a"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#96c432c2fdbe7e1516315c3de6beba22b2714f43"
 dependencies = [
  "derivative",
  "lazy_static",
@@ -2134,7 +2154,7 @@ dependencies = [
 [[package]]
 name = "openvm-rv32im-circuit"
 version = "1.1.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#0a8b3571c5e123ba47c224afc02df08afc79784a"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#96c432c2fdbe7e1516315c3de6beba22b2714f43"
 dependencies = [
  "derive-new 0.6.0",
  "derive_more 1.0.0",
@@ -2157,7 +2177,7 @@ dependencies = [
 [[package]]
 name = "openvm-rv32im-guest"
 version = "1.1.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#0a8b3571c5e123ba47c224afc02df08afc79784a"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#96c432c2fdbe7e1516315c3de6beba22b2714f43"
 dependencies = [
  "openvm-custom-insn",
  "strum_macros",
@@ -2166,7 +2186,7 @@ dependencies = [
 [[package]]
 name = "openvm-rv32im-transpiler"
 version = "1.1.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#0a8b3571c5e123ba47c224afc02df08afc79784a"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#96c432c2fdbe7e1516315c3de6beba22b2714f43"
 dependencies = [
  "openvm-instructions",
  "openvm-instructions-derive",
@@ -2242,7 +2262,7 @@ dependencies = [
 [[package]]
 name = "openvm-transpiler"
 version = "1.1.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#0a8b3571c5e123ba47c224afc02df08afc79784a"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_multi_observe#96c432c2fdbe7e1516315c3de6beba22b2714f43"
 dependencies = [
  "elf",
  "eyre",
@@ -2271,7 +2291,6 @@ checksum = "b15813163c1d831bf4a13c3610c05c0d03b39feb07f7e09fa234dac9b15aaf39"
 [[package]]
 name = "p3"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=feat%2Fexport_ff_ext#c2e55fe1a25872cea1ddd916c8ae023d70f29c0c"
 dependencies = [
  "p3-baby-bear",
  "p3-challenger",
@@ -2704,9 +2723,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f84267b20a16ea918e43c6a88433c2d54fa145c92a811b5b047ccbe153674483"
 
 [[package]]
+name = "portable-atomic-util"
+version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d8a2f0d8d040d7848a709caf78912debcc3f33ee4b3cac47d73d1e1069e83507"
+dependencies = [
+ "portable-atomic",
+]
+
+[[package]]
 name = "poseidon"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=feat%2Fexport_ff_ext#c2e55fe1a25872cea1ddd916c8ae023d70f29c0c"
 dependencies = [
  "criterion",
  "ff_ext",
@@ -2895,6 +2922,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "rawpointer"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "60a357793950651c4ed0f3f52338f53b2f809f32d83a07f72909fa13e4c6c1e3"
+
+[[package]]
 name = "rayon"
 version = "1.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3058,15 +3091,15 @@ dependencies = [
 
 [[package]]
 name = "rustix"
-version = "1.0.7"
+version = "1.0.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c71e83d6afe7ff64890ec6b71d6a69bb8a610ab78ce364b3352876bb4c801266"
+checksum = "11181fbabf243db407ef8df94a6ce0b2f9a733bd8be4ad02b4eda9602296cac8"
 dependencies = [
  "bitflags",
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.59.0",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -3309,9 +3342,9 @@ checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 [[package]]
 name = "sumcheck"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=feat%2Fexport_ff_ext#c2e55fe1a25872cea1ddd916c8ae023d70f29c0c"
 dependencies = [
  "crossbeam-channel",
+ "either",
  "ff_ext",
  "itertools 0.13.0",
  "multilinear_extensions",
@@ -3319,6 +3352,7 @@ dependencies = [
  "rayon",
  "serde",
  "sumcheck_macro",
+ "thiserror",
  "tracing",
  "transcript",
 ]
@@ -3326,7 +3360,6 @@ dependencies = [
 [[package]]
 name = "sumcheck_macro"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=feat%2Fexport_ff_ext#c2e55fe1a25872cea1ddd916c8ae023d70f29c0c"
 dependencies = [
  "itertools 0.13.0",
  "p3",
@@ -3514,7 +3547,7 @@ dependencies = [
  "serde_spanned",
  "toml_datetime",
  "toml_write",
- "winnow 0.7.11",
+ "winnow 0.7.12",
 ]
 
 [[package]]
@@ -3600,7 +3633,6 @@ dependencies = [
 [[package]]
 name = "transcript"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=feat%2Fexport_ff_ext#c2e55fe1a25872cea1ddd916c8ae023d70f29c0c"
 dependencies = [
  "crossbeam-channel",
  "ff_ext",
@@ -3778,7 +3810,6 @@ dependencies = [
 [[package]]
 name = "whir"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=feat%2Fexport_ff_ext#c2e55fe1a25872cea1ddd916c8ae023d70f29c0c"
 dependencies = [
  "bincode",
  "blake2",
@@ -3791,8 +3822,6 @@ dependencies = [
  "itertools 0.14.0",
  "lazy_static",
  "multilinear_extensions",
- "nimue",
- "nimue-pow",
  "p3",
  "poseidon",
  "rand",
@@ -3997,9 +4026,9 @@ dependencies = [
 
 [[package]]
 name = "winnow"
-version = "0.7.11"
+version = "0.7.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "74c7b26e3480b707944fc872477815d29a8e429d2f93a1ce000f5fa84a15cbcd"
+checksum = "f3edebf492c8125044983378ecb5766203ad3b4c2f7a922bd7dd207f6d443e95"
 dependencies = [
  "memchr",
 ]
@@ -4016,7 +4045,6 @@ dependencies = [
 [[package]]
 name = "witness"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=feat%2Fexport_ff_ext#c2e55fe1a25872cea1ddd916c8ae023d70f29c0c"
 dependencies = [
  "ff_ext",
  "multilinear_extensions",
@@ -4024,6 +4052,7 @@ dependencies = [
  "rand",
  "rayon",
  "serde",
+ "tracing",
 ]
 
 [[package]]
