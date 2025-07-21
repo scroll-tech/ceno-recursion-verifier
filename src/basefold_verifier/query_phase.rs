@@ -714,8 +714,7 @@ pub mod tests {
         (program, witness_stream)
     }
 
-    #[test]
-    fn test_verify_query_phase_batch() {
+    fn construct_test(dimensions: Vec<(usize, usize)>) {
         let mut rng = thread_rng();
 
         // setup PCS
@@ -723,7 +722,7 @@ pub mod tests {
         let (pp, vp) = pcs_trim::<E, PCS>(pp, 1 << 20).unwrap();
 
         let mut num_total_polys = 0;
-        let (matrices, mles): (Vec<_>, Vec<_>) = vec![(14, 20), (14, 30), (13, 30), (12, 10), (11, 15)]
+        let (matrices, mles): (Vec<_>, Vec<_>) = dimensions
             .into_iter()
             .map(|(num_vars, width)| {
                 let m = ceno_witness::RowMajorMatrix::<F>::rand(&mut rng, 1 << num_vars, width);
@@ -845,5 +844,29 @@ pub mod tests {
         for seg in results {
             println!("=> cycle count: {:?}", seg.metrics.cycle_count);
         }
+    }
+
+    #[test]
+    fn test_simple_batch() {
+        for num_var in 5..20 {
+            construct_test(vec![(num_var, 20)]);
+        }
+    }
+
+    #[test]
+    fn test_decreasing_batch() {
+        construct_test(vec![
+            (14, 20),
+            (14, 40),
+            (13, 30),
+            (12, 30),
+            (11, 10),
+            (10, 15),
+        ]);
+    }
+
+    #[test]
+    fn test_random_batch() {
+        construct_test(vec![(10, 20), (12, 30), (11, 10), (12, 15)]);
     }
 }
