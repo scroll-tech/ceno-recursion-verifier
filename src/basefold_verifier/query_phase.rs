@@ -703,11 +703,13 @@ pub mod tests {
         let pp = PCS::setup(1 << 20, mpcs::SecurityLevel::Conjecture100bits).unwrap();
         let (pp, vp) = pcs_trim::<E, PCS>(pp, 1 << 20).unwrap();
 
+        let mut num_total_polys = 0;
         let (matrices, mles): (Vec<_>, Vec<_>) = vec![(14, 20), (13, 30), (12, 10), (11, 15)]
             .into_iter()
             .map(|(num_vars, width)| {
                 let m = ceno_witness::RowMajorMatrix::<F>::rand(&mut rng, 1 << num_vars, width);
                 let mles = m.to_mles();
+                num_total_polys += width;
 
                 (m, mles)
             })
@@ -745,7 +747,7 @@ pub mod tests {
             .expect("Native verification failed");
 
         let mut transcript = BasicTranscript::<E>::new(&[]);
-        let batch_coeffs = transcript.sample_and_append_challenge_pows(10, b"batch coeffs");
+        let batch_coeffs = transcript.sample_and_append_challenge_pows(num_total_polys, b"batch coeffs");
 
         let max_num_var = point_and_evals
             .iter()
