@@ -87,7 +87,7 @@ pub(crate) fn batch_verifier<C: Config>(
         let diff_product_round: Var<C::N> = builder.eval(Usize::from(1));
         iter_zip!(builder, round.openings).for_each(|ptr_vec_opening, builder| {
             let opening = builder.iter_ptr_get(&round.openings, ptr_vec_opening[0]);
-            builder.assert_less_than_slow_small_rhs(opening.num_var, max_num_var_round_plus_one);
+            builder.assert_less_than_slow_bit_decomp(opening.num_var, max_num_var_round_plus_one);
             builder.assign(
                 &diff_product_round,
                 diff_product_round * (max_num_var_round - opening.num_var),
@@ -97,7 +97,7 @@ pub(crate) fn batch_verifier<C: Config>(
         builder.assert_eq::<Var<C::N>>(diff_product_round, Usize::from(0));
 
         // Now work with the outer max num var
-        builder.assert_less_than_slow_small_rhs(max_num_var_round, max_num_var_plus_one);
+        builder.assert_less_than_slow_bit_decomp(max_num_var_round, max_num_var_plus_one);
         builder.assign(
             &diff_product,
             diff_product * (max_num_var - max_num_var_round),
@@ -111,10 +111,8 @@ pub(crate) fn batch_verifier<C: Config>(
     let num_rounds = max_num_var;
 
     let fold_challenges: Array<C, Ext<_, _>> = builder.dyn_array(max_num_var);
-    builder.range(0, num_rounds).for_each(|ptr_vec, builder| {
-        let sumcheck_message = builder
-            .iter_ptr_get(&proof.sumcheck_proof, ptr_vec[0])
-            .evaluations;
+    builder.range(0, num_rounds).for_each(|index_vec, builder| {
+        let sumcheck_message = builder.get(&proof.sumcheck_proof, index_vec[0]).evaluations;
         iter_zip!(builder, sumcheck_message).for_each(|ptr_vec_sumcheck_message, builder| {
             let elem = builder.iter_ptr_get(&sumcheck_message, ptr_vec_sumcheck_message[0]);
             let elem_felts = builder.ext2felt(elem);
@@ -122,11 +120,11 @@ pub(crate) fn batch_verifier<C: Config>(
         });
 
         let challenge = challenger.sample_ext(builder);
-        builder.iter_ptr_set(&fold_challenges, ptr_vec[0], challenge);
+        builder.set(&fold_challenges, index_vec[0], challenge);
         builder
-            .if_ne(ptr_vec[0], num_rounds - Usize::from(1))
+            .if_ne(index_vec[0], num_rounds - Usize::from(1))
             .then(|builder| {
-                let commit = builder.iter_ptr_get(&proof.commits, ptr_vec[0]);
+                let commit = builder.iter_ptr_get(&proof.commits, index_vec[0]);
                 challenger.observe_digest(builder, commit.value.into());
             });
     });
@@ -141,14 +139,14 @@ pub(crate) fn batch_verifier<C: Config>(
     });
 
     let queries: Array<C, Var<C::N>> = builder.dyn_array(100); // TODO: avoid hardcoding
-    builder.range(0, 100).for_each(|ptr_vec, builder| {
+    builder.range(0, 100).for_each(|index_vec, builder| {
         let number_of_bits = builder.eval_expr(max_num_var + Usize::from(1));
         let query = challenger.sample_bits(builder, number_of_bits);
         // TODO: the index will need to be split back to bits in query phase, so it's
         // probably better to avoid converting bits to integer altogether
         let number_of_bits = builder.eval(max_num_var + Usize::from(1));
         let query = bin_to_dec(builder, &query, number_of_bits);
-        builder.iter_ptr_set(&queries, ptr_vec[0], query);
+        builder.set(&queries, index_vec[0], query);
     });
 
     let input = QueryPhaseVerifierInputVariable {
@@ -251,15 +249,29 @@ pub mod tests {
         let program = builder.compile_isa();
 
         // prepare input
+        let max_num_var = input
+            .rounds
+            .iter()
+            .map(|round| {
+                round
+                    .openings
+                    .iter()
+                    .map(|opening| opening.num_var)
+                    .max()
+                    .unwrap()
+            })
+            .max()
+            .unwrap();
         let mut witness_stream: Vec<Vec<F>> = Vec::new();
         witness_stream.extend(input.write());
-        witness_stream.push(vec![F::from_canonical_u32(2).inverse()]);
+        witness_stream.push(vec![F::from_canonical_u32(max_num_var as u32)]);
+        // witness_stream.push(vec![F::from_canonical_u32(2).inverse()]);
 
         (program, witness_stream)
     }
 
     #[test]
-    fn test_verify_query_phase_batch() {
+    fn test_basefold_verify() {
         let mut rng = thread_rng();
         let m1 = ceno_witness::RowMajorMatrix::<F>::rand(&mut rng, 1 << 10, 10);
         let mles_1 = m1.to_mles();
