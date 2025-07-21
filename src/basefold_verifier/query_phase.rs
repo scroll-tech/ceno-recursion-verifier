@@ -302,12 +302,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
     builder: &mut Builder<C>,
     input: QueryPhaseVerifierInputVariable<C>,
 ) {
-    // Nondeterministically supply inv_2
-    let inv_2 = builder.hint_felt();
-    builder.assert_eq::<Felt<C::F>>(
-        inv_2 * C::F::from_canonical_usize(2),
-        C::F::from_canonical_usize(1),
-    );
+    let inv_2 = builder.constant(C::F::from_canonical_u32(0x3c000001));
     let two_adic_generators_inverses: Array<C, Felt<C::F>> = builder.dyn_array(28);
     for (index, val) in [
         0x1usize, 0x78000000, 0x67055c21, 0x5ee99486, 0xbb4c4e4, 0x2d4cc4da, 0x669d6090,
@@ -680,14 +675,7 @@ pub mod tests {
 
     use crate::basefold_verifier::basefold::{Round, RoundOpening};
     use crate::basefold_verifier::query_phase::PointAndEvals;
-    use crate::{
-        basefold_verifier::{
-            basefold::BasefoldCommitment,
-            query_phase::{BatchOpening, CommitPhaseProofStep, QueryOpeningProof},
-            structs::CircuitIndexMeta,
-        },
-        tower_verifier::binding::{Point, PointAndEval},
-    };
+    use crate::tower_verifier::binding::{Point, PointAndEval};
 
     use super::{batch_verifier_query_phase, QueryPhaseVerifierInput};
 
@@ -705,50 +693,6 @@ pub mod tests {
         // prepare input
         let mut witness_stream: Vec<Vec<F>> = Vec::new();
         witness_stream.extend(input.write());
-        witness_stream.push(vec![F::from_canonical_u32(2).inverse()]);
-        // witness_stream.push(vec![F::from_canonical_usize(
-        //     input
-        //         .circuit_meta
-        //         .iter()
-        //         .unique_by(|x| x.witin_num_vars)
-        //         .count(),
-        // )]);
-        // witness_stream.push(
-        //     input
-        //         .circuit_meta
-        //         .iter()
-        //         .enumerate()
-        //         .sorted_by_key(|(_, CircuitIndexMeta { witin_num_vars, .. })| {
-        //             Reverse(witin_num_vars)
-        //         })
-        //         .map(|(index, _)| F::from_canonical_usize(index))
-        //         .collect_vec(),
-        // );
-        // for (query, idx) in input.queries.iter().zip(input.indices.iter()) {
-        //     witness_stream.push(vec![F::from_canonical_usize(idx / 2)]);
-        //     if let Some(fixed_comm) = &input.fixed_comm {
-        //         let log2_witin_max_codeword_size = input.max_num_var + 1;
-        //         if log2_witin_max_codeword_size > fixed_comm.log2_max_codeword_size {
-        //             witness_stream.push(vec![F::ZERO])
-        //         } else {
-        //             witness_stream.push(vec![F::ONE])
-        //         }
-        //     }
-        //     for i in 0..input.circuit_meta.len() {
-        //         witness_stream.push(vec![F::from_canonical_usize(
-        //             query.witin_base_proof.opened_values[i].len() / 2,
-        //         )]);
-        //         if input.circuit_meta[i].fixed_num_vars > 0 {
-        //             witness_stream.push(vec![F::from_canonical_usize(
-        //                 if let Some(fixed_base_proof) = &query.fixed_base_proof {
-        //                     fixed_base_proof.opened_values[i].len() / 2
-        //                 } else {
-        //                     0
-        //                 },
-        //             )]);
-        //         }
-        //     }
-        // }
 
         (program, witness_stream)
     }
