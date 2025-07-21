@@ -22,9 +22,9 @@ use openvm_stark_sdk::config::setup_tracing_with_log_level;
 use openvm_stark_sdk::{
     config::baby_bear_poseidon2::BabyBearPoseidon2Config, p3_baby_bear::BabyBear,
 };
-use std::thread;
 use std::collections::HashMap;
 use std::fs::File;
+use std::thread;
 
 type SC = BabyBearPoseidon2Config;
 type EF = <SC as StarkGenericConfig>::Challenge;
@@ -129,7 +129,8 @@ pub fn parse_zkvm_proof_import(
         for v_vec in &opcode_proof.r_out_evals {
             let mut arr: Vec<E> = vec![];
             for v in v_vec {
-                let v_e: E = serde_json::from_value(serde_json::to_value(v.clone()).unwrap()).unwrap();
+                let v_e: E =
+                    serde_json::from_value(serde_json::to_value(v.clone()).unwrap()).unwrap();
                 arr.push(v_e);
             }
             record_r_out_evals.push(arr);
@@ -138,7 +139,8 @@ pub fn parse_zkvm_proof_import(
         for v_vec in &opcode_proof.w_out_evals {
             let mut arr: Vec<E> = vec![];
             for v in v_vec {
-                let v_e: E = serde_json::from_value(serde_json::to_value(v.clone()).unwrap()).unwrap();
+                let v_e: E =
+                    serde_json::from_value(serde_json::to_value(v.clone()).unwrap()).unwrap();
                 arr.push(v_e);
             }
             record_w_out_evals.push(arr);
@@ -147,7 +149,8 @@ pub fn parse_zkvm_proof_import(
         for v_vec in &opcode_proof.lk_out_evals {
             let mut arr: Vec<E> = vec![];
             for v in v_vec {
-                let v_e: E = serde_json::from_value(serde_json::to_value(v.clone()).unwrap()).unwrap();
+                let v_e: E =
+                    serde_json::from_value(serde_json::to_value(v.clone()).unwrap()).unwrap();
                 arr.push(v_e);
             }
             record_lk_out_evals.push(arr);
@@ -227,7 +230,7 @@ pub fn parse_zkvm_proof_import(
                 });
             }
         }
-        
+
         let mut wits_in_evals: Vec<E> = vec![];
         for v in &opcode_proof.wits_in_evals {
             let v_e: E = serde_json::from_value(serde_json::to_value(v.clone()).unwrap()).unwrap();
@@ -266,7 +269,8 @@ pub fn parse_zkvm_proof_import(
         for v_vec in &table_proof.r_out_evals {
             let mut arr: Vec<E> = vec![];
             for v in v_vec {
-                let v_e: E = serde_json::from_value(serde_json::to_value(v.clone()).unwrap()).unwrap();
+                let v_e: E =
+                    serde_json::from_value(serde_json::to_value(v.clone()).unwrap()).unwrap();
                 arr.push(v_e);
             }
             record_r_out_evals.push(arr);
@@ -275,7 +279,8 @@ pub fn parse_zkvm_proof_import(
         for v_vec in &table_proof.w_out_evals {
             let mut arr: Vec<E> = vec![];
             for v in v_vec {
-                let v_e: E = serde_json::from_value(serde_json::to_value(v.clone()).unwrap()).unwrap();
+                let v_e: E =
+                    serde_json::from_value(serde_json::to_value(v.clone()).unwrap()).unwrap();
                 arr.push(v_e);
             }
             record_w_out_evals.push(arr);
@@ -284,7 +289,8 @@ pub fn parse_zkvm_proof_import(
         for v_vec in &table_proof.lk_out_evals {
             let mut arr: Vec<E> = vec![];
             for v in v_vec {
-                let v_e: E = serde_json::from_value(serde_json::to_value(v.clone()).unwrap()).unwrap();
+                let v_e: E =
+                    serde_json::from_value(serde_json::to_value(v.clone()).unwrap()).unwrap();
                 arr.push(v_e);
             }
             record_lk_out_evals.push(arr);
@@ -411,7 +417,7 @@ pub fn inner_test_thread() {
 
     let verifier = ZKVMVerifier::new(vk);
     let (zkvm_proof_input, proving_sequence) = parse_zkvm_proof_import(zkvm_proof, &verifier);
-    
+
     // OpenVM DSL
     let mut builder = AsmBuilder::<F, EF>::default();
 
