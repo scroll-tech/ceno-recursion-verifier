@@ -346,6 +346,20 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
     let log2_max_codeword_size: Var<C::N> =
         builder.eval(input.max_num_var.clone() + get_rate_log::<C>());
 
+    // this array is shared among all indices
+    let reduced_codeword_by_height: Array<C, PackedCodeword<C>> =
+        builder.dyn_array(log2_max_codeword_size.clone());
+
+    let zero: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
+    // initialize reduced_codeword_by_height with zeroes
+    iter_zip!(builder, reduced_codeword_by_height).for_each(|ptr_vec, builder| {
+        let zero_codeword = PackedCodeword {
+            low: zero.clone(),
+            high: zero.clone(),
+        };
+        builder.set_value(&reduced_codeword_by_height, ptr_vec[0], zero_codeword);
+    });
+
     iter_zip!(builder, input.indices, input.proof.query_opening_proof).for_each(
         |ptr_vec, builder| {
             // TODO: change type of input.indices to be `Array<C, Array<C, Var<C::N>>>`
@@ -360,9 +374,6 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
                     builder.assert_eq::<Var<_>>(bit, Usize::from(0));
                 });
             let idx_bits = idx_bits.slice(builder, 1, log2_max_codeword_size.clone());
-
-            let reduced_codeword_by_height: Array<C, PackedCodeword<C>> =
-                builder.dyn_array(log2_max_codeword_size.clone());
 
             let query = builder.iter_ptr_get(&input.proof.query_opening_proof, ptr_vec[1]);
             let batch_coeffs_offset: Var<C::N> = builder.constant(C::N::ZERO);
@@ -491,13 +502,21 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
                 builder.assign(&log2_height, log2_height - Usize::from(1));
 
                 let folded_idx = builder.get(&idx_bits, i);
-                // TODO: absorb smaller codeword
-                let new_involved_codeword: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
+                let new_involved_packed_codeword =
+                    builder.get(&reduced_codeword_by_height, log2_height.clone());
+
+                builder.if_eq(folded_idx, Usize::from(0)).then_or_else(
+                    |builder| {
+                        builder.assign(&folded, folded + new_involved_packed_codeword.low);
+                    },
+                    |builder| {
+                        builder.assign(&folded, folded + new_involved_packed_codeword.high);
+                    },
+                );
 
                 // leafs
                 let leafs = builder.dyn_array(2);
                 let sibling_idx = builder.eval_expr(RVar::from(1) - folded_idx);
-                builder.assign(&folded, folded + new_involved_codeword);
                 builder.set_value(&leafs, folded_idx, folded);
                 builder.set_value(&leafs, sibling_idx, sibling_value);
 
@@ -648,13 +667,12 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
 
 #[cfg(test)]
 pub mod tests {
-    use ceno_mle::mle;
     use ceno_transcript::{BasicTranscript, Transcript};
     use ff_ext::{BabyBearExt4, FromUniformBytes};
     use itertools::Itertools;
     use mpcs::{
-        pcs_batch_commit, pcs_setup, pcs_trim, util::hash::write_digest_to_transcript,
-        BasefoldDefault, PolynomialCommitmentScheme,
+        pcs_batch_commit, pcs_trim, util::hash::write_digest_to_transcript, BasefoldDefault,
+        PolynomialCommitmentScheme,
     };
     use mpcs::{BasefoldRSParams, BasefoldSpec, PCSFriParam};
     use openvm_circuit::arch::{instructions::program::Program, SystemConfig, VmExecutor};
@@ -663,8 +681,6 @@ pub mod tests {
     use openvm_native_recursion::hints::Hintable;
     use openvm_stark_backend::p3_challenger::GrindingChallenger;
     use openvm_stark_sdk::p3_baby_bear::BabyBear;
-    use p3_field::Field;
-    use p3_field::FieldAlgebra;
     use rand::thread_rng;
 
     type F = BabyBear;
@@ -673,11 +689,10 @@ pub mod tests {
 
     use crate::basefold_verifier::basefold::{Round, RoundOpening};
     use crate::basefold_verifier::query_phase::PointAndEvals;
-    use crate::tower_verifier::binding::{Point, PointAndEval};
+    use crate::tower_verifier::binding::Point;
 
     use super::{batch_verifier_query_phase, QueryPhaseVerifierInput};
 
-    #[allow(dead_code)]
     pub fn build_batch_verifier_query_phase(
         input: QueryPhaseVerifierInput,
     ) -> (Program<BabyBear>, Vec<Vec<BabyBear>>) {
