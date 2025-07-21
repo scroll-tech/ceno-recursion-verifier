@@ -290,7 +290,7 @@ pub struct QueryPhaseVerifierInputVariable<C: Config> {
     pub rounds: Array<C, RoundVariable<C>>,
 }
 
-pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
+pub(crate) fn batch_verifier_query_phase<C: Config>(
     builder: &mut Builder<C>,
     input: QueryPhaseVerifierInputVariable<C>,
 ) {

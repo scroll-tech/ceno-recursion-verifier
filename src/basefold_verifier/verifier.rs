@@ -21,7 +21,7 @@ pub type F = BabyBear;
 pub type E = BabyBearExt4;
 pub type InnerConfig = AsmConfig<F, E>;
 
-pub(crate) fn batch_verifier<C: Config + Debug>(
+pub(crate) fn batch_verifier<C: Config>(
     builder: &mut Builder<C>,
     rounds: Array<C, RoundVariable<C>>,
     proof: BasefoldProofVariable<C>,

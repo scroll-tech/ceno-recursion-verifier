@@ -5,6 +5,7 @@ use crate::arithmetics::{
     challenger_multi_observe, eval_ceno_expr_with_instance, print_ext_arr, print_felt_arr,
     PolyEvaluator, UniPolyExtrapolator,
 };
+use crate::basefold_verifier::verifier::batch_verifier;
 use crate::e2e::SubcircuitParams;
 use crate::tower_verifier::program::verify_tower_proof;
 use crate::transcript::transcript_observe_label;
@@ -265,20 +266,9 @@ pub fn verify_zkvm_proof<C: Config>(
         logup_sum - dummy_table_item_multiplicity * dummy_table_item.inverse(),
     );
 
-    /* TODO: MPCS
-    PCS::batch_verify(
-        &self.vk.vp,
-        &vm_proof.num_instances,
-        &rt_points,
-        self.vk.fixed_commit.as_ref(),
-        &vm_proof.witin_commit,
-        &evaluations,
-        &vm_proof.fixed_witin_opening_proof,
-        &self.vk.circuit_num_polys,
-        &mut transcript,
-    )
-    .map_err(ZKVMError::PCSError)?;
-    */
+    // TODO: prepare rounds
+
+    batch_verifier(builder, rounds, zkvm_proof_input.pcs_proof, &mut challenger);
 
     let empty_arr: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(0);
     let initial_global_state = eval_ceno_expr_with_instance(
