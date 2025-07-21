@@ -4,13 +4,13 @@ use ceno_mle::expression::{Expression, Fixed, Instance};
 use ceno_zkvm::structs::{ChallengeId, WitnessId};
 use ff_ext::ExtensionField;
 use ff_ext::{BabyBearExt4, SmallField};
+use itertools::Either;
 use openvm_native_compiler::prelude::*;
 use openvm_native_compiler_derive::iter_zip;
 use openvm_native_recursion::challenger::ChallengerVariable;
 use openvm_native_recursion::challenger::{
     duplex::DuplexChallengerVariable, CanObserveVariable, FeltChallenger,
 };
-use itertools::Either;
 use p3_field::{FieldAlgebra, FieldExtensionAlgebra};
 type E = BabyBearExt4;
 const HASH_RATE: usize = 8;
@@ -161,7 +161,8 @@ impl<C: Config> PolyEvaluator<C> {
 
             builder.range(0, idx_bound).for_each(|idx_vec, builder| {
                 let left_idx: Usize<C::N> = builder.eval(idx_vec[0] * Usize::from(2));
-                let right_idx: Usize<C::N> = builder.eval(idx_vec[0] * Usize::from(2) + Usize::from(1));
+                let right_idx: Usize<C::N> =
+                    builder.eval(idx_vec[0] * Usize::from(2) + Usize::from(1));
                 let left = builder.get(&evals_ext, left_idx);
                 let right = builder.get(&evals_ext, right_idx);
 
@@ -418,7 +419,11 @@ pub fn eq_eval_less_or_equal_than<C: Config>(
             builder.assign(&ans, ans - v1 * running_product2 * a_i * b_i);
         });
 
-        builder.assign(&running_product2, running_product2 * (a_i * b_i * bit_ext + (one_ext - a_i) * (one_ext - b_i) * (one_ext - bit_ext)));
+        builder.assign(
+            &running_product2,
+            running_product2
+                * (a_i * b_i * bit_ext + (one_ext - a_i) * (one_ext - b_i) * (one_ext - bit_ext)),
+        );
         builder.assign(&idx, idx - C::N::ONE);
     });
 
@@ -602,15 +607,9 @@ pub fn evaluate_ceno_expr<C: Config, T>(
             structural_wit_in(builder, *witness_id, *max_len, *offset, *multi_factor)
         }
         Expression::Instance(i) => instance(builder, *i),
-        Expression::Constant(scalar) => {
-            match scalar {
-                Either::Left(s) => {
-                    constant(builder, E::from_base(*s))
-                },
-                Either::Right(s) => {
-                    constant(builder, *s)
-                },
-            }
+        Expression::Constant(scalar) => match scalar {
+            Either::Left(s) => constant(builder, E::from_base(*s)),
+            Either::Right(s) => constant(builder, *s),
         },
         Expression::Sum(a, b) => {
             let a = evaluate_ceno_expr(

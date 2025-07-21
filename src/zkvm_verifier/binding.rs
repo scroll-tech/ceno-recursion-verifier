@@ -378,9 +378,15 @@ impl Hintable<InnerConfig> for ZKVMOpcodeProofInput {
         let log2_num_instances = ceil_log2(next_pow2_instance);
         stream.extend(<usize as Hintable<InnerConfig>>::write(&log2_num_instances));
 
-        stream.extend(<usize as Hintable<InnerConfig>>::write(&self.record_r_out_evals_len));
-        stream.extend(<usize as Hintable<InnerConfig>>::write(&self.record_w_out_evals_len));
-        stream.extend(<usize as Hintable<InnerConfig>>::write(&self.record_lk_out_evals_len));
+        stream.extend(<usize as Hintable<InnerConfig>>::write(
+            &self.record_r_out_evals_len,
+        ));
+        stream.extend(<usize as Hintable<InnerConfig>>::write(
+            &self.record_w_out_evals_len,
+        ));
+        stream.extend(<usize as Hintable<InnerConfig>>::write(
+            &self.record_lk_out_evals_len,
+        ));
 
         stream.extend(self.record_r_out_evals.write());
         stream.extend(self.record_w_out_evals.write());
@@ -463,9 +469,15 @@ impl Hintable<InnerConfig> for ZKVMTableProofInput {
         let log2_num_instances = ceil_log2(self.num_instances);
         stream.extend(<usize as Hintable<InnerConfig>>::write(&log2_num_instances));
 
-        stream.extend(<usize as Hintable<InnerConfig>>::write(&self.record_r_out_evals_len));
-        stream.extend(<usize as Hintable<InnerConfig>>::write(&self.record_w_out_evals_len));
-        stream.extend(<usize as Hintable<InnerConfig>>::write(&self.record_lk_out_evals_len));
+        stream.extend(<usize as Hintable<InnerConfig>>::write(
+            &self.record_r_out_evals_len,
+        ));
+        stream.extend(<usize as Hintable<InnerConfig>>::write(
+            &self.record_w_out_evals_len,
+        ));
+        stream.extend(<usize as Hintable<InnerConfig>>::write(
+            &self.record_lk_out_evals_len,
+        ));
 
         stream.extend(self.record_r_out_evals.write());
         stream.extend(self.record_w_out_evals.write());
