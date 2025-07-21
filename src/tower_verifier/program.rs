@@ -1,9 +1,8 @@
-use super::binding::{
-    IOPProverMessageVariable, PointAndEvalVariable, PointVariable,
-};
+use super::binding::{IOPProverMessageVariable, PointAndEvalVariable, PointVariable};
 use crate::arithmetics::{
-    challenger_multi_observe, dot_product, eq_eval, evaluate_at_point_degree_1, extend, exts_to_felts,
-    fixed_dot_product, gen_alpha_pows, is_smaller_than, reverse, UniPolyExtrapolator, print_ext_arr,
+    challenger_multi_observe, dot_product, eq_eval, evaluate_at_point_degree_1, extend,
+    exts_to_felts, fixed_dot_product, gen_alpha_pows, is_smaller_than, print_ext_arr, reverse,
+    UniPolyExtrapolator,
 };
 use crate::transcript::transcript_observe_label;
 use crate::zkvm_verifier::binding::TowerProofInputVariable;
@@ -220,19 +219,13 @@ pub fn verify_tower_proof<C: Config>(
     let one: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
     let zero: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
 
-    builder.assert_usize_eq(
-        proof.prod_specs_eval.len(),
-        num_prod_spec.clone(),
-    );
+    builder.assert_usize_eq(proof.prod_specs_eval.len(), num_prod_spec.clone());
     iter_zip!(builder, prod_out_evals).for_each(|ptr_vec, builder| {
         let ptr = ptr_vec[0];
         let evals = builder.iter_ptr_get(&prod_out_evals, ptr);
         builder.assert_usize_eq(evals.len(), num_fanin.clone());
     });
-    builder.assert_usize_eq(
-        proof.logup_specs_eval.len(),
-        num_logup_spec.clone(),
-    );
+    builder.assert_usize_eq(proof.logup_specs_eval.len(), num_logup_spec.clone());
     iter_zip!(builder, logup_out_evals).for_each(|ptr_vec, builder| {
         let ptr = ptr_vec[0];
         let evals = builder.iter_ptr_get(&logup_out_evals, ptr);
@@ -277,12 +270,7 @@ pub fn verify_tower_proof<C: Config>(
     let prod_spec_point_n_eval: Array<C, PointAndEvalVariable<C>> =
         builder.dyn_array(num_prod_spec.clone());
 
-    iter_zip!(
-        builder,
-        prod_out_evals,
-        prod_spec_point_n_eval
-    )
-    .for_each(|ptr_vec, builder| {
+    iter_zip!(builder, prod_out_evals, prod_spec_point_n_eval).for_each(|ptr_vec, builder| {
         let ptr = ptr_vec[0];
         let evals = builder.iter_ptr_get(&prod_out_evals, ptr);
         let e = evaluate_at_point_degree_1(builder, &evals, &initial_rt);
@@ -380,8 +368,7 @@ pub fn verify_tower_proof<C: Config>(
 
     let curr_pt = initial_rt.clone();
     let curr_eval = initial_claim.clone();
-    let op_range: RVar<C::N> =
-        builder.eval_expr(max_num_variables - Usize::from(1));
+    let op_range: RVar<C::N> = builder.eval_expr(max_num_variables - Usize::from(1));
     let round: Felt<C::F> = builder.constant(C::F::ZERO);
 
     let mut next_rt = PointAndEvalVariable {
@@ -440,8 +427,7 @@ pub fn verify_tower_proof<C: Config>(
                     builder.if_eq(skip, var_zero.clone()).then(|builder| {
                         builder.if_ne(round_var, round_limit).then_or_else(
                             |builder| {
-                                let prod_slice =
-                                    builder.get(&proof.prod_specs_eval, spec_index);
+                                let prod_slice = builder.get(&proof.prod_specs_eval, spec_index);
                                 let prod_round_slice = builder.get(&prod_slice, round_var);
                                 builder.assign(&prod, one * one);
                                 for j in 0..NUM_FANIN {
@@ -461,11 +447,8 @@ pub fn verify_tower_proof<C: Config>(
                 });
 
             let num_variables_len = num_variables.len();
-            let logup_num_variables_slice = num_variables.slice(
-                builder,
-                num_prod_spec.clone(),
-                num_variables_len.clone(),
-            );
+            let logup_num_variables_slice =
+                num_variables.slice(builder, num_prod_spec.clone(), num_variables_len.clone());
 
             builder
                 .range(0, num_logup_spec.clone())
@@ -490,8 +473,7 @@ pub fn verify_tower_proof<C: Config>(
                     builder.if_eq(skip, var_zero).then(|builder| {
                         builder.if_ne(round_var, round_limit).then_or_else(
                             |builder| {
-                                let prod_slice =
-                                    builder.get(&proof.logup_specs_eval, spec_index);
+                                let prod_slice = builder.get(&proof.logup_specs_eval, spec_index);
                                 let prod_round_slice = builder.get(&prod_slice, round_var);
 
                                 let p1 = builder.get(&prod_round_slice, 0);
@@ -550,14 +532,12 @@ pub fn verify_tower_proof<C: Config>(
                     builder.cycle_tracker_start("derive next layer for prod specs");
                     let spec_index = i_vec[0];
                     let skip = builder.get(&should_skip, spec_index.clone());
-                    let max_round =
-                        builder.get(&num_variables, spec_index.clone());
+                    let max_round = builder.get(&num_variables, spec_index.clone());
                     let round_limit: RVar<C::N> = builder.eval_expr(max_round - RVar::from(1));
 
                     // now skip is 0 if and only if current round_var is smaller than round_limit.
                     builder.if_eq(skip, var_zero.clone()).then(|builder| {
-                        let prod_slice =
-                            builder.get(&proof.prod_specs_eval, spec_index);
+                        let prod_slice = builder.get(&proof.prod_specs_eval, spec_index);
                         let prod_round_slice = builder.get(&prod_slice, round_var);
                         let evals = fixed_dot_product(builder, &coeffs, &prod_round_slice, zero);
 
@@ -591,11 +571,8 @@ pub fn verify_tower_proof<C: Config>(
 
             let next_logup_spec_evals: Ext<<C as Config>::F, <C as Config>::EF> =
                 builder.eval(zero + zero);
-            let logup_num_variables_slice = num_variables.slice(
-                builder,
-                num_prod_spec.clone(),
-                num_variables_len.clone(),
-            );
+            let logup_num_variables_slice =
+                num_variables.slice(builder, num_prod_spec.clone(), num_variables_len.clone());
 
             builder
                 .range(0, num_logup_spec.clone())
@@ -615,8 +592,7 @@ pub fn verify_tower_proof<C: Config>(
 
                     // now skip is 0 if and only if current round_var is smaller than round_limit.
                     builder.if_eq(skip, var_zero).then(|builder| {
-                        let prod_slice =
-                            builder.get(&proof.logup_specs_eval, spec_index);
+                        let prod_slice = builder.get(&proof.logup_specs_eval, spec_index);
                         let prod_round_slice = builder.get(&prod_slice, round_var);
                         let p1 = builder.get(&prod_round_slice, 0);
                         let p2 = builder.get(&prod_round_slice, 1);
