@@ -51,29 +51,10 @@ pub fn parse_zkvm_proof_import(
 ) -> (ZKVMProofInput, Vec<SubcircuitParams>) {
     let subcircuit_names = verifier.vk.circuit_vks.keys().collect_vec();
 
-    let mut opcode_num_instances_lookup: HashMap<usize, usize> = HashMap::new();
-    let mut table_num_instances_lookup: HashMap<usize, usize> = HashMap::new();
-    for (index, chip_proof) in &zkvm_proof.chip_proofs {
-        opcode_num_instances_lookup.insert(index.clone(), chip_proof.num_instances.clone());
-    }
-
     let mut order_idx: usize = 0;
     let mut opcode_order_idx: usize = 0;
     let mut table_order_idx: usize = 0;
     let mut proving_sequence: Vec<SubcircuitParams> = vec![];
-    for (index, _) in &zkvm_proof.chip_proofs {
-        let name = subcircuit_names[*index].clone();
-        proving_sequence.push(SubcircuitParams {
-            id: *index,
-            order_idx: order_idx.clone(),
-            type_order_idx: opcode_order_idx.clone(),
-            name: name.clone(),
-            num_instances: opcode_num_instances_lookup.get(index).unwrap().clone(),
-            is_opcode: true,
-        });
-
-        order_idx += 1;
-    }
 
     let raw_pi = zkvm_proof
         .raw_pi
@@ -100,7 +81,8 @@ pub fn parse_zkvm_proof_import(
         .collect::<Vec<E>>();
 
     let mut opcode_proofs_vec: Vec<ZKVMOpcodeProofInput> = vec![];
-    for (opcode_id, opcode_proof) in &zkvm_proof.opcode_proofs {
+    /*
+    for (opcode_id, opcode_proof) in &zkvm_proof.chip_proofs {
         let mut record_r_out_evals: Vec<Vec<E>> = vec![];
         let mut record_w_out_evals: Vec<Vec<E>> = vec![];
         let mut record_lk_out_evals: Vec<Vec<E>> = vec![];
@@ -362,6 +344,7 @@ pub fn parse_zkvm_proof_import(
             wits_in_evals,
         });
     }
+    */
 
     let witin_commit: BasefoldCommitment<BabyBearExt4> =
         serde_json::from_value(serde_json::to_value(zkvm_proof.witin_commit).unwrap()).unwrap();
@@ -373,8 +356,8 @@ pub fn parse_zkvm_proof_import(
         ZKVMProofInput {
             raw_pi,
             pi_evals,
-            opcode_proofs: opcode_proofs_vec,
-            table_proofs: table_proofs_vec,
+            opcode_proofs: vec![],
+            table_proofs: vec![],
             witin_commit,
             fixed_commit,
             num_instances: vec![], // TODO: Fixme
