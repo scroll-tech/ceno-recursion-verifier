@@ -346,19 +346,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
     let log2_max_codeword_size: Var<C::N> =
         builder.eval(input.max_num_var.clone() + get_rate_log::<C>());
 
-    // this array is shared among all indices
-    let reduced_codeword_by_height: Array<C, PackedCodeword<C>> =
-        builder.dyn_array(log2_max_codeword_size.clone());
-
     let zero: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
-    // initialize reduced_codeword_by_height with zeroes
-    iter_zip!(builder, reduced_codeword_by_height).for_each(|ptr_vec, builder| {
-        let zero_codeword = PackedCodeword {
-            low: zero.clone(),
-            high: zero.clone(),
-        };
-        builder.set_value(&reduced_codeword_by_height, ptr_vec[0], zero_codeword);
-    });
 
     iter_zip!(builder, input.indices, input.proof.query_opening_proof).for_each(
         |ptr_vec, builder| {
@@ -375,6 +363,16 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
                 });
             let idx_bits = idx_bits.slice(builder, 1, log2_max_codeword_size.clone());
 
+            let reduced_codeword_by_height: Array<C, PackedCodeword<C>> =
+                builder.dyn_array(log2_max_codeword_size.clone());
+            // initialize reduced_codeword_by_height with zeroes
+            iter_zip!(builder, reduced_codeword_by_height).for_each(|ptr_vec, builder| {
+                let zero_codeword = PackedCodeword {
+                    low: zero.clone(),
+                    high: zero.clone(),
+                };
+                builder.set_value(&reduced_codeword_by_height, ptr_vec[0], zero_codeword);
+            });
             let query = builder.iter_ptr_get(&input.proof.query_opening_proof, ptr_vec[1]);
             let batch_coeffs_offset: Var<C::N> = builder.constant(C::N::ZERO);
 
@@ -451,8 +449,14 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
                             builder.assign(&high, high + coeff * high_value);
                         },
                     );
-                    let codeword = PackedCodeword { low, high };
-                    builder.set_value(&reduced_codeword_by_height, log2_height, codeword);
+                    let codeword: PackedCodeword<C> = PackedCodeword { low, high };
+                    let codeword_acc = builder.get(&reduced_codeword_by_height, log2_height);
+
+                    // reduced_openings[log2_height] += codeword
+                    builder.assign(&codeword_acc.low, codeword_acc.low + codeword.low);
+                    builder.assign(&codeword_acc.high, codeword_acc.high + codeword.high);
+
+                    builder.set_value(&reduced_codeword_by_height, log2_height, codeword_acc);
                     builder.assign(&batch_coeffs_offset, batch_coeffs_next_offset);
                 });
             });
@@ -719,7 +723,7 @@ pub mod tests {
         let (pp, vp) = pcs_trim::<E, PCS>(pp, 1 << 20).unwrap();
 
         let mut num_total_polys = 0;
-        let (matrices, mles): (Vec<_>, Vec<_>) = vec![(14, 20), (13, 30), (12, 10), (11, 15)]
+        let (matrices, mles): (Vec<_>, Vec<_>) = vec![(14, 20), (14, 30), (13, 30), (12, 10), (11, 15)]
             .into_iter()
             .map(|(num_vars, width)| {
                 let m = ceno_witness::RowMajorMatrix::<F>::rand(&mut rng, 1 << num_vars, width);
@@ -762,7 +766,8 @@ pub mod tests {
             .expect("Native verification failed");
 
         let mut transcript = BasicTranscript::<E>::new(&[]);
-        let batch_coeffs = transcript.sample_and_append_challenge_pows(num_total_polys, b"batch coeffs");
+        let batch_coeffs =
+            transcript.sample_and_append_challenge_pows(num_total_polys, b"batch coeffs");
 
         let max_num_var = point_and_evals
             .iter()
