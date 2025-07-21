@@ -583,19 +583,18 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
     };
     builder.assert_eq::<Ext<C::F, C::EF>>(expected_sum, sum);
 
-    /*
     // 2. check every round of sumcheck match with prev claims
     let fold_len_minus_one: Var<C::N> = builder.eval(input.fold_challenges.len() - Usize::from(1));
     builder
         .range(0, fold_len_minus_one)
         .for_each(|i_vec, builder| {
             let i = i_vec[0];
-            let evals = builder.get(&input.sumcheck_messages, i).evaluations;
+            let evals = builder.get(&input.proof.sumcheck_proof, i).evaluations;
             let challenge = builder.get(&input.fold_challenges, i);
             let left = interpolate_uni_poly(builder, &evals, challenge);
             let i_plus_one = builder.eval_expr(i + Usize::from(1));
             let next_evals = builder
-                .get(&input.sumcheck_messages, i_plus_one)
+                .get(&input.proof.sumcheck_proof, i_plus_one)
                 .evaluations;
             let eval0 = builder.get(&next_evals, 0);
             let eval1 = builder.get(&next_evals, 1);
@@ -603,6 +602,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
             builder.assert_eq::<Ext<C::F, C::EF>>(left, right);
         });
 
+    /*
     // 3. check final evaluation are correct
     let final_evals = builder
         .get(&input.sumcheck_messages, fold_len_minus_one.clone())
