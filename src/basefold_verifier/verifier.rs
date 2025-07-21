@@ -161,3 +161,168 @@ pub(crate) fn batch_verifier<C: Config + Debug>(
     };
     batch_verifier_query_phase(builder, input);
 }
+
+#[cfg(test)]
+pub mod tests {
+    use std::{cmp::Reverse, collections::BTreeMap, iter::once};
+
+    use ceno_mle::mle::MultilinearExtension;
+    use ceno_transcript::{BasicTranscript, Transcript};
+    use ff_ext::{BabyBearExt4, FromUniformBytes};
+    use itertools::Itertools;
+    use mpcs::{
+        pcs_batch_commit, pcs_setup, pcs_trim, util::hash::write_digest_to_transcript,
+        BasefoldDefault, PolynomialCommitmentScheme,
+    };
+    use mpcs::{BasefoldRSParams, BasefoldSpec, PCSFriParam};
+    use openvm_circuit::arch::{instructions::program::Program, SystemConfig, VmExecutor};
+    use openvm_native_circuit::{Native, NativeConfig};
+    use openvm_native_compiler::asm::AsmBuilder;
+    use openvm_native_recursion::challenger::duplex::DuplexChallengerVariable;
+    use openvm_native_recursion::hints::Hintable;
+    use openvm_stark_backend::p3_challenger::GrindingChallenger;
+    use openvm_stark_sdk::config::baby_bear_poseidon2::Challenger;
+    use openvm_stark_sdk::p3_baby_bear::BabyBear;
+    use p3_field::Field;
+    use p3_field::FieldAlgebra;
+    use rand::thread_rng;
+    use serde::Deserialize;
+
+    type F = BabyBear;
+    type E = BabyBearExt4;
+    type PCS = BasefoldDefault<E>;
+
+    use super::{batch_verifier, BasefoldProof, BasefoldProofVariable, InnerConfig, RoundVariable};
+    use crate::basefold_verifier::basefold::{Round, RoundOpening};
+    use crate::basefold_verifier::query_phase::PointAndEvals;
+    use crate::{
+        basefold_verifier::{
+            basefold::BasefoldCommitment,
+            query_phase::{BatchOpening, CommitPhaseProofStep, QueryOpeningProof},
+            structs::CircuitIndexMeta,
+        },
+        tower_verifier::binding::{Point, PointAndEval},
+    };
+    use openvm_native_compiler::{asm::AsmConfig, prelude::*};
+
+    #[derive(Deserialize)]
+    pub struct VerifierInput {
+        pub proof: BasefoldProof,
+        pub rounds: Vec<Round>,
+    }
+
+    impl Hintable<InnerConfig> for VerifierInput {
+        type HintVariable = VerifierInputVariable<InnerConfig>;
+
+        fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
+            let proof = BasefoldProof::read(builder);
+            let rounds = Vec::<Round>::read(builder);
+
+            VerifierInputVariable { proof, rounds }
+        }
+
+        fn write(&self) -> Vec<Vec<<InnerConfig as Config>::N>> {
+            let mut stream = Vec::new();
+            stream.extend(self.proof.write());
+            stream.extend(self.rounds.write());
+            stream
+        }
+    }
+
+    #[derive(DslVariable, Clone)]
+    pub struct VerifierInputVariable<C: Config> {
+        pub proof: BasefoldProofVariable<C>,
+        pub rounds: Array<C, RoundVariable<C>>,
+    }
+
+    #[allow(dead_code)]
+    pub fn build_batch_verifier(input: VerifierInput) -> (Program<BabyBear>, Vec<Vec<BabyBear>>) {
+        // build test program
+        let mut builder = AsmBuilder::<F, E>::default();
+        let mut challenger = DuplexChallengerVariable::new(&mut builder);
+        let verifier_input = VerifierInput::read(&mut builder);
+        batch_verifier(
+            &mut builder,
+            verifier_input.rounds,
+            verifier_input.proof,
+            &mut challenger,
+        );
+        builder.halt();
+        let program = builder.compile_isa();
+
+        // prepare input
+        let mut witness_stream: Vec<Vec<F>> = Vec::new();
+        witness_stream.extend(input.write());
+        witness_stream.push(vec![F::from_canonical_u32(2).inverse()]);
+
+        (program, witness_stream)
+    }
+
+    #[test]
+    fn test_verify_query_phase_batch() {
+        let mut rng = thread_rng();
+        let m1 = ceno_witness::RowMajorMatrix::<F>::rand(&mut rng, 1 << 10, 10);
+        let mles_1 = m1.to_mles();
+        let matrices = vec![m1];
+
+        let pp = PCS::setup(1 << 20, mpcs::SecurityLevel::Conjecture100bits).unwrap();
+        let (pp, vp) = pcs_trim::<E, PCS>(pp, 1 << 20).unwrap();
+        let pcs_data = pcs_batch_commit::<E, PCS>(&pp, matrices).unwrap();
+        let comm = PCS::get_pure_commitment(&pcs_data);
+
+        let point = E::random_vec(10, &mut rng);
+        let evals = mles_1.iter().map(|mle| mle.evaluate(&point)).collect_vec();
+
+        // let evals = mles_1
+        //     .iter()
+        //     .map(|mle| points.iter().map(|p| mle.evaluate(&p)).collect_vec())
+        //     .collect::<Vec<_>>();
+        let mut transcript = BasicTranscript::<E>::new(&[]);
+        let rounds = vec![(&pcs_data, vec![(point.clone(), evals.clone())])];
+        let opening_proof = PCS::batch_open(&pp, rounds, &mut transcript).unwrap();
+
+        let mut transcript = BasicTranscript::<E>::new(&[]);
+        let rounds = vec![(comm, vec![(point.len(), (point, evals.clone()))])];
+        PCS::batch_verify(&vp, rounds.clone(), &opening_proof, &mut transcript)
+            .expect("Native verification failed");
+
+        let input = VerifierInput {
+            rounds: rounds
+                .iter()
+                .map(|round| Round {
+                    commit: round.0.clone().into(),
+                    openings: round
+                        .1
+                        .iter()
+                        .map(|opening| RoundOpening {
+                            num_var: opening.0,
+                            point_and_evals: PointAndEvals {
+                                point: Point {
+                                    fs: opening.1.clone().0,
+                                },
+                                evals: opening.1.clone().1,
+                            },
+                        })
+                        .collect(),
+                })
+                .collect(),
+            proof: opening_proof.into(),
+        };
+
+        let (program, witness) = build_batch_verifier(input);
+
+        let system_config = SystemConfig::default()
+            .with_public_values(4)
+            .with_max_segment_len((1 << 25) - 100);
+        let config = NativeConfig::new(system_config, Native);
+
+        let executor = VmExecutor::<BabyBear, NativeConfig>::new(config);
+        executor.execute(program.clone(), witness.clone()).unwrap();
+
+        // _debug
+        let results = executor.execute_segments(program, witness).unwrap();
+        for seg in results {
+            println!("=> cycle count: {:?}", seg.metrics.cycle_count);
+        }
+    }
+}
