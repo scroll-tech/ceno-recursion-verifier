@@ -555,36 +555,35 @@ pub(crate) fn batch_verifier_query_phase<C: Config + Debug>(
         },
     );
 
-    /*
     // 1. check initial claim match with first round sumcheck value
-    let points = builder.dyn_array(input.batch_coeffs.len());
-    let next_point_index: Var<C::N> = builder.eval(Usize::from(0));
-    builder
-        .range(0, input.rounds.len())
-        .for_each(|i_vec, builder| {
-            let i = i_vec[0];
-            let evals = builder.get(&input.point_evals, i).evals;
-            let witin_num_vars = builder.get(&input.circuit_meta, i).witin_num_vars;
-            // we need to scale up with scalar for witin_num_vars < max_num_var
-            let scale_log = builder.eval(input.max_num_var.clone() - witin_num_vars);
-            let scale = pow_2(builder, scale_log);
-            // Transform scale into a field element
-            let scale = builder.unsafe_cast_var_to_felt(scale);
-            builder.range(0, evals.len()).for_each(|j_vec, builder| {
-                let j = j_vec[0];
-                let eval = builder.get(&evals, j);
-                let scaled_eval: Ext<C::F, C::EF> = builder.eval(eval * scale);
-                builder.set_value(&points, next_point_index, scaled_eval);
-                builder.assign(&next_point_index, next_point_index + Usize::from(1));
+    let batch_coeffs_offset: Var<C::N> = builder.constant(C::N::ZERO);
+    let expected_sum: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
+    iter_zip!(builder, input.rounds).for_each(|ptr_vec, builder| {
+        let round = builder.iter_ptr_get(&input.rounds, ptr_vec[0]);
+        iter_zip!(builder, round.openings).for_each(|ptr_vec, builder| {
+            let opening = builder.iter_ptr_get(&round.openings, ptr_vec[0]);
+            // TODO: filter out openings with num_var >= get_basecode_msg_size_log::<C>()
+            let var_diff: Var<C::N> = builder.eval(input.max_num_var.get_var() - opening.num_var);
+            let scalar_var = pow_2(builder, var_diff);
+            let scalar = builder.unsafe_cast_var_to_felt(scalar_var);
+            iter_zip!(builder, opening.point_and_evals.evals).for_each(|ptr_vec, builder| {
+                let eval = builder.iter_ptr_get(&opening.point_and_evals.evals, ptr_vec[0]);
+                let coeff = builder.get(&input.batch_coeffs, batch_coeffs_offset);
+                let val: Ext<C::F, C::EF> = builder.eval(eval * coeff * scalar);
+                builder.assign(&expected_sum, expected_sum + val);
+                builder.assign(&batch_coeffs_offset, batch_coeffs_offset + Usize::from(1));
             });
         });
-    let left = dot_product(builder, &input.batch_coeffs, &points);
-    let next_sumcheck_evals = builder.get(&input.sumcheck_messages, 0).evaluations;
-    let eval0 = builder.get(&next_sumcheck_evals, 0);
-    let eval1 = builder.get(&next_sumcheck_evals, 1);
-    let right: Ext<C::F, C::EF> = builder.eval(eval0 + eval1);
-    builder.assert_eq::<Ext<C::F, C::EF>>(left, right);
+    });
+    let sum: Ext<C::F, C::EF> = {
+        let sumcheck_evals = builder.get(&input.proof.sumcheck_proof, 0).evaluations;
+        let eval0 = builder.get(&sumcheck_evals, 0);
+        let eval1 = builder.get(&sumcheck_evals, 1);
+        builder.eval(eval0 + eval1)
+    };
+    builder.assert_eq::<Ext<C::F, C::EF>>(expected_sum, sum);
 
+    /*
     // 2. check every round of sumcheck match with prev claims
     let fold_len_minus_one: Var<C::N> = builder.eval(input.fold_challenges.len() - Usize::from(1));
     builder
