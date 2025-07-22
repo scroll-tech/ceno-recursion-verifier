@@ -1,5 +1,6 @@
 use mpcs::basefold::BasefoldProof as InnerBasefoldProof;
 use openvm_native_compiler::{asm::AsmConfig, prelude::*};
+use openvm_native_compiler_derive::iter_zip;
 use openvm_native_recursion::hints::{Hintable, VecAutoHintable};
 use openvm_stark_sdk::p3_baby_bear::BabyBear;
 use p3_field::extension::BinomialExtensionField;

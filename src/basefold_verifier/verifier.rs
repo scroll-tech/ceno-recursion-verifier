@@ -10,7 +10,7 @@ use openvm_native_compiler_derive::iter_zip;
 use openvm_native_recursion::{
     challenger::{
         duplex::DuplexChallengerVariable, CanObserveDigest, CanObserveVariable,
-        CanSampleBitsVariable, FeltChallenger,
+        CanSampleBitsVariable, CanSampleVariable, FeltChallenger,
     },
     hints::{Hintable, VecAutoHintable},
     vars::HintSlice,
@@ -135,7 +135,7 @@ pub(crate) fn batch_verifier<C: Config>(
         builder
             .if_ne(index_vec[0], num_rounds - Usize::from(1))
             .then(|builder| {
-                let commit = builder.iter_ptr_get(&proof.commits, index_vec[0]);
+                let commit = builder.get(&proof.commits, index_vec[0]);
                 challenger.observe_digest(builder, commit.value.into());
             });
     });
