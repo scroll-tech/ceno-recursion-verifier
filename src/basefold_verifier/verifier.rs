@@ -151,13 +151,14 @@ pub(crate) fn batch_verifier<C: Config>(
 
     transcript_observe_label(builder, challenger, b"query indices");
     let queries: Array<C, Var<C::N>> = builder.dyn_array(100); // TODO: avoid hardcoding
+    let zero = builder.eval(Usize::from(0));
     builder.range(0, 100).for_each(|index_vec, builder| {
         let number_of_bits = builder.eval_expr(max_num_var + Usize::from(1));
         let query = challenger.sample_bits(builder, number_of_bits);
         // TODO: the index will need to be split back to bits in query phase, so it's
         // probably better to avoid converting bits to integer altogether
         let number_of_bits = builder.eval(max_num_var + Usize::from(1));
-        let query = bin_to_dec(builder, &query, number_of_bits);
+        let query = bin_to_dec_le(builder, &query, zero, number_of_bits);
         builder.set(&queries, index_vec[0], query);
     });
 
