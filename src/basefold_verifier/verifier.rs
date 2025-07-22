@@ -149,6 +149,8 @@ pub(crate) fn batch_verifier<C: Config>(
         builder.set(&queries, index_vec[0], query);
     });
 
+    let perms = builder.dyn_array(1); // FIXME: use the right permutation
+
     let input = QueryPhaseVerifierInputVariable {
         max_num_var: builder.eval(max_num_var),
         batch_coeffs,
@@ -156,6 +158,7 @@ pub(crate) fn batch_verifier<C: Config>(
         indices: queries,
         proof,
         rounds,
+        perms,
     };
     batch_verifier_query_phase(builder, input);
 }
