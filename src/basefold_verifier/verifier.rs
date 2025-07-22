@@ -1,10 +1,11 @@
-use crate::basefold_verifier::query_phase::{
-    batch_verifier_query_phase, QueryPhaseVerifierInputVariable,
+use crate::{
+    basefold_verifier::query_phase::{batch_verifier_query_phase, QueryPhaseVerifierInputVariable},
+    transcript::transcript_observe_label,
 };
 
 use super::{basefold::*, extension_mmcs::*, mmcs::*, rs::*, structs::*, utils::*};
 use ff_ext::{BabyBearExt4, ExtensionField, PoseidonField};
-use openvm_native_compiler::{asm::AsmConfig, prelude::*};
+use openvm_native_compiler::{asm::AsmConfig, ir::FromConstant, prelude::*};
 use openvm_native_compiler_derive::iter_zip;
 use openvm_native_recursion::{
     challenger::{
@@ -14,7 +15,9 @@ use openvm_native_recursion::{
     hints::{Hintable, VecAutoHintable},
     vars::HintSlice,
 };
+use openvm_stark_backend::config::Val;
 use openvm_stark_sdk::p3_baby_bear::BabyBear;
+use p3_field::FieldAlgebra;
 use std::fmt::Debug;
 
 pub type F = BabyBear;
@@ -26,6 +29,8 @@ pub(crate) fn batch_verifier<C: Config>(
     rounds: Array<C, RoundVariable<C>>,
     proof: BasefoldProofVariable<C>,
     challenger: &mut DuplexChallengerVariable<C>,
+    // The permutation of the dimensions in decreasing order, whose correctness will be checked in the circuit
+    perms: Array<C, Array<C, Var<C::N>>>,
 ) {
     builder.assert_nonzero(&proof.final_message.len());
     let expected_final_message_size: Var<C::N> = builder.eval(Usize::<C::N>::from(1usize)); // TODO: support early stop?
@@ -53,10 +58,15 @@ pub(crate) fn batch_verifier<C: Config>(
         });
     });
 
+    transcript_observe_label(builder, challenger, b"batch coeffs");
+    let batch_coeff = challenger.sample_ext(builder);
+    let running_coeff =
+        <Ext<C::F, C::EF> as FromConstant<C>>::constant(C::EF::from_canonical_usize(1), builder);
     let batch_coeffs: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(total_num_polys);
+
     iter_zip!(builder, batch_coeffs).for_each(|ptr_vec_batch_coeffs, builder| {
-        let coeff = challenger.sample_ext(builder);
-        builder.iter_ptr_set(&batch_coeffs, ptr_vec_batch_coeffs[0], coeff);
+        builder.iter_ptr_set(&batch_coeffs, ptr_vec_batch_coeffs[0], running_coeff);
+        builder.assign(&running_coeff, running_coeff * batch_coeff);
     });
 
     // Instead of computing the max num var, we let the prover provide it, and
@@ -119,6 +129,7 @@ pub(crate) fn batch_verifier<C: Config>(
             challenger.observe_slice(builder, elem_felts);
         });
 
+        transcript_observe_label(builder, challenger, b"commit round");
         let challenge = challenger.sample_ext(builder);
         builder.set(&fold_challenges, index_vec[0], challenge);
         builder
@@ -138,6 +149,7 @@ pub(crate) fn batch_verifier<C: Config>(
         challenger.observe_slice(builder, elem_felts);
     });
 
+    transcript_observe_label(builder, challenger, b"query indices");
     let queries: Array<C, Var<C::N>> = builder.dyn_array(100); // TODO: avoid hardcoding
     builder.range(0, 100).for_each(|index_vec, builder| {
         let number_of_bits = builder.eval_expr(max_num_var + Usize::from(1));
@@ -148,8 +160,6 @@ pub(crate) fn batch_verifier<C: Config>(
         let query = bin_to_dec(builder, &query, number_of_bits);
         builder.set(&queries, index_vec[0], query);
     });
-
-    let perms = builder.dyn_array(1); // FIXME: use the right permutation
 
     let input = QueryPhaseVerifierInputVariable {
         max_num_var: builder.eval(max_num_var),
@@ -210,6 +220,7 @@ pub mod tests {
     pub struct VerifierInput {
         pub proof: BasefoldProof,
         pub rounds: Vec<Round>,
+        pub perms: Vec<Vec<usize>>,
     }
 
     impl Hintable<InnerConfig> for VerifierInput {
@@ -218,14 +229,20 @@ pub mod tests {
         fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
             let proof = BasefoldProof::read(builder);
             let rounds = Vec::<Round>::read(builder);
+            let perms = Vec::<Vec<usize>>::read(builder);
 
-            VerifierInputVariable { proof, rounds }
+            VerifierInputVariable {
+                proof,
+                rounds,
+                perms,
+            }
         }
 
         fn write(&self) -> Vec<Vec<<InnerConfig as Config>::N>> {
             let mut stream = Vec::new();
             stream.extend(self.proof.write());
             stream.extend(self.rounds.write());
+            stream.extend(self.perms.write());
             stream
         }
     }
@@ -234,6 +251,7 @@ pub mod tests {
     pub struct VerifierInputVariable<C: Config> {
         pub proof: BasefoldProofVariable<C>,
         pub rounds: Array<C, RoundVariable<C>>,
+        pub perms: Array<C, Array<C, Var<C::N>>>,
     }
 
     #[allow(dead_code)]
@@ -247,6 +265,7 @@ pub mod tests {
             verifier_input.rounds,
             verifier_input.proof,
             &mut challenger,
+            verifier_input.perms,
         );
         builder.halt();
         let program = builder.compile_isa();
@@ -300,6 +319,7 @@ pub mod tests {
         let rounds = vec![(comm, vec![(point.len(), (point, evals.clone()))])];
         PCS::batch_verify(&vp, rounds.clone(), &opening_proof, &mut transcript)
             .expect("Native verification failed");
+        let perms = vec![vec![0usize]];
 
         let input = VerifierInput {
             rounds: rounds
@@ -322,6 +342,7 @@ pub mod tests {
                 })
                 .collect(),
             proof: opening_proof.into(),
+            perms,
         };
 
         let (program, witness) = build_batch_verifier(input);
