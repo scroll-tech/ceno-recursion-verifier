@@ -1,6 +1,6 @@
 use crate::{
     basefold_verifier::query_phase::{batch_verifier_query_phase, QueryPhaseVerifierInputVariable},
-    transcript::transcript_observe_label,
+    transcript::{transcript_check_pow_witness, transcript_observe_label},
 };
 
 use super::{basefold::*, extension_mmcs::*, mmcs::*, rs::*, structs::*, utils::*};
@@ -149,6 +149,7 @@ pub(crate) fn batch_verifier<C: Config>(
         challenger.observe_slice(builder, elem_felts);
     });
 
+    transcript_check_pow_witness(builder, challenger, 16, proof.pow_witness); // TODO: avoid hardcoding pow bits
     transcript_observe_label(builder, challenger, b"query indices");
     let queries: Array<C, Var<C::N>> = builder.dyn_array(100); // TODO: avoid hardcoding
     let zero = builder.eval(Usize::from(0));

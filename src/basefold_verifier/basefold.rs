@@ -78,6 +78,7 @@ pub struct BasefoldProof {
     pub final_message: Vec<Vec<E>>,
     pub query_opening_proof: QueryOpeningProofs,
     pub sumcheck_proof: Vec<IOPProverMessage>,
+    pub pow_witness: F,
 }
 
 #[derive(DslVariable, Clone)]
@@ -86,6 +87,7 @@ pub struct BasefoldProofVariable<C: Config> {
     pub final_message: Array<C, Array<C, Ext<C::F, C::EF>>>,
     pub query_opening_proof: QueryOpeningProofsVariable<C>,
     pub sumcheck_proof: Array<C, IOPProverMessageVariable<C>>,
+    pub pow_witness: Felt<C::F>,
 }
 
 impl Hintable<InnerConfig> for BasefoldProof {
@@ -95,11 +97,13 @@ impl Hintable<InnerConfig> for BasefoldProof {
         let final_message = Vec::<Vec<E>>::read(builder);
         let query_opening_proof = QueryOpeningProofs::read(builder);
         let sumcheck_proof = Vec::<IOPProverMessage>::read(builder);
+        let pow_witness = F::read(builder);
         BasefoldProofVariable {
             commits,
             final_message,
             query_opening_proof,
             sumcheck_proof,
+            pow_witness,
         }
     }
 
@@ -109,6 +113,7 @@ impl Hintable<InnerConfig> for BasefoldProof {
         stream.extend(self.final_message.write());
         stream.extend(self.query_opening_proof.write());
         stream.extend(self.sumcheck_proof.write());
+        stream.extend(self.pow_witness.write());
         stream
     }
 }
@@ -126,6 +131,7 @@ impl From<InnerBasefoldProof<E>> for BasefoldProof {
             sumcheck_proof: proof.sumcheck_proof.map_or(vec![], |proof| {
                 proof.into_iter().map(|proof| proof.into()).collect()
             }),
+            pow_witness: proof.pow_witness,
         }
     }
 }
