@@ -52,12 +52,12 @@ serde_json = "1.0"
 [features]
 bench-metrics = ["openvm-circuit/bench-metrics"]
 
-[patch."https://github.com/scroll-tech/ceno.git"]
-ceno_mle = { path = "../ceno/multilinear_extensions", package = "multilinear_extensions" }
-ceno_sumcheck = { path = "../ceno/sumcheck", package = "sumcheck" }
-ceno_transcript = { path = "../ceno/transcript", package = "transcript" }
-ceno_witness = { path = "../ceno/witness", package = "witness" }
-ceno_zkvm = { path = "../ceno/ceno_zkvm" }
-ceno_emul = { path = "../ceno/ceno_emul" }
-mpcs = { path = "../ceno/mpcs" }
-ff_ext = { path = "../ceno/ff_ext" }
+# [patch."https://github.com/scroll-tech/ceno.git"]
+# ceno_mle = { path = "../ceno/multilinear_extensions", package = "multilinear_extensions" }
+# ceno_sumcheck = { path = "../ceno/sumcheck", package = "sumcheck" }
+# ceno_transcript = { path = "../ceno/transcript", package = "transcript" }
+# ceno_witness = { path = "../ceno/witness", package = "witness" }
+# ceno_zkvm = { path = "../ceno/ceno_zkvm" }
+# ceno_emul = { path = "../ceno/ceno_emul" }
+# mpcs = { path = "../ceno/mpcs" }
+# ff_ext = { path = "../ceno/ff_ext" }
