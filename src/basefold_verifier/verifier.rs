@@ -15,10 +15,8 @@ use openvm_native_recursion::{
     hints::{Hintable, VecAutoHintable},
     vars::HintSlice,
 };
-use openvm_stark_backend::config::Val;
 use openvm_stark_sdk::p3_baby_bear::BabyBear;
 use p3_field::FieldAlgebra;
-use std::fmt::Debug;
 
 pub type F = BabyBear;
 pub type E = BabyBearExt4;
@@ -45,14 +43,13 @@ pub(crate) fn batch_verifier<C: Config>(
         );
     });
 
-    // TODO: get this number from some config instead of hardcoding
     builder.assert_eq::<Usize<C::N>>(
         proof.query_opening_proof.len(),
         Usize::from(get_num_queries()),
     );
 
     // Compute the total number of polynomials across all rounds
-    let total_num_polys: Var<C::N> = builder.eval(Usize::<C::N>::from(0));
+    let total_num_polys: Var<C::N> = builder.constant(C::N::ZERO);
     iter_zip!(builder, rounds).for_each(|ptr_vec, builder| {
         let openings = builder.iter_ptr_get(&rounds, ptr_vec[0]).openings;
         iter_zip!(builder, openings).for_each(|ptr_vec_openings, builder| {
@@ -65,6 +62,7 @@ pub(crate) fn batch_verifier<C: Config>(
         });
     });
 
+    // get batch coeffs
     transcript_observe_label(builder, challenger, b"batch coeffs");
     let batch_coeff = challenger.sample_ext(builder);
     let running_coeff =
@@ -77,54 +75,28 @@ pub(crate) fn batch_verifier<C: Config>(
     });
 
     // The max num var is provided by the prover and not guaranteed to be correct.
-    // Check that it is greater than or equal to every num var, and that it is
-    // equal to at least one of the num vars by multiplying all the differences
-    // together and check if the product is zero.
+    // Check that
+    //  1. it is greater than or equal to every num var;
+    //  2. it is equal to at least one of the num vars by multiplying all the differences
+    //      together and assert the product is zero.
     let diff_product: Var<C::N> = builder.eval(Usize::from(1));
-    let max_num_var_plus_one: Var<C::N> = builder.eval(max_num_var + Usize::from(1));
     iter_zip!(builder, rounds).for_each(|ptr_vec, builder| {
         let round = builder.iter_ptr_get(&rounds, ptr_vec[0]);
-        // Need to compute the max num var for each round separately. This time
-        // don't need to provide by hint because we have
-        // commit.log2_max_codeword_size = max_num_var + rate_log
-        // We need to ensure that rate_log < commit.log2_max_codeword_size
-        // TODO: rate_log is temporarily hardcoded to 1
-        builder.assert_less_than_slow_small_rhs(
-            Usize::from(1),
-            round.commit.log2_max_codeword_size.clone(),
-        );
-        let max_num_var_round: Var<C::N> =
-            builder.eval(round.commit.log2_max_codeword_size - Usize::from(1));
-        // Although max_num_var_round_plus_one is the same as log2_max_codeword_size
-        // in the current code, it may not be so when the log rate is updated. So
-        // let's keep the code more general for now.
-        let max_num_var_round_plus_one: Var<C::N> =
-            builder.eval(max_num_var_round + Usize::from(1));
-        let diff_product_round: Var<C::N> = builder.eval(Usize::from(1));
+
         iter_zip!(builder, round.openings).for_each(|ptr_vec_opening, builder| {
             let opening = builder.iter_ptr_get(&round.openings, ptr_vec_opening[0]);
-            builder.assert_less_than_slow_bit_decomp(opening.num_var, max_num_var_round_plus_one);
-            builder.assign(
-                &diff_product_round,
-                diff_product_round * (max_num_var_round - opening.num_var),
-            );
+            let diff: Var<C::N> = builder.eval(max_num_var.clone() - opening.num_var);
+            // num_var is always smaller than 32.
+            builder.range_check_var(diff, 5);
+            builder.assign(&diff_product, diff_product * diff);
         });
-        // Check that at least one opening.num_var is equal to max_num_var_round
-        builder.assert_eq::<Var<C::N>>(diff_product_round, Usize::from(0));
-
-        // Now work with the outer max num var
-        builder.assert_less_than_slow_bit_decomp(max_num_var_round, max_num_var_plus_one);
-        builder.assign(
-            &diff_product,
-            diff_product * (max_num_var - max_num_var_round),
-        );
     });
-    // Check that at least one max_num_var_round is equal to max_num_var
-    builder.assert_eq::<Var<C::N>>(diff_product, Usize::from(0));
+    // Check that at least one num_var is equal to max_num_var
+    let zero: Var<C::N> = builder.eval(C::N::ZERO);
+    builder.assert_eq::<Var<C::N>>(diff_product, zero);
 
-    // TODO: num rounds should be max num var - base message size log, but
-    // base message size log is 0 for now
-    let num_rounds = max_num_var;
+    let num_rounds: Var<C::N> =
+        builder.eval(max_num_var - Usize::from(get_basecode_msg_size_log()));
 
     let fold_challenges: Array<C, Ext<_, _>> = builder.dyn_array(max_num_var);
     builder.range(0, num_rounds).for_each(|index_vec, builder| {
@@ -157,17 +129,18 @@ pub(crate) fn batch_verifier<C: Config>(
 
     transcript_check_pow_witness(builder, challenger, 16, proof.pow_witness); // TODO: avoid hardcoding pow bits
     transcript_observe_label(builder, challenger, b"query indices");
-    let queries: Array<C, Var<C::N>> = builder.dyn_array(100); // TODO: avoid hardcoding
-    let zero = builder.eval(Usize::from(0));
-    builder.range(0, 100).for_each(|index_vec, builder| {
-        let number_of_bits = builder.eval_expr(max_num_var + Usize::from(1));
-        let query = challenger.sample_bits(builder, number_of_bits);
-        // TODO: the index will need to be split back to bits in query phase, so it's
-        // probably better to avoid converting bits to integer altogether
-        let number_of_bits = builder.eval(max_num_var + Usize::from(1));
-        let query = bin_to_dec_le(builder, &query, zero, number_of_bits);
-        builder.set(&queries, index_vec[0], query);
-    });
+    let queries: Array<C, Var<C::N>> = builder.dyn_array(get_num_queries());
+    builder
+        .range(0, get_num_queries())
+        .for_each(|index_vec, builder| {
+            let number_of_bits = builder.eval_expr(max_num_var + Usize::from(get_rate_log()));
+            let query = challenger.sample_bits(builder, number_of_bits);
+            // TODO: the index will need to be split back to bits in query phase, so it's
+            // probably better to avoid converting bits to integer altogether
+            let number_of_bits = builder.eval(max_num_var + Usize::from(get_rate_log()));
+            let query = bin_to_dec_le(builder, &query, zero, number_of_bits);
+            builder.set(&queries, index_vec[0], query);
+        });
 
     let input = QueryPhaseVerifierInputVariable {
         max_num_var: builder.eval(max_num_var),
