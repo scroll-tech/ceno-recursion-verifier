@@ -50,6 +50,7 @@ ceno_sumcheck = { git = "https://github.com/scroll-tech/ceno.git", branch = "bui
 ceno_transcript = { git = "https://github.com/scroll-tech/ceno.git", branch = "build/smaller_field_support_plonky3_539bbc", package = "transcript" }
 ceno_zkvm = { git = "https://github.com/scroll-tech/ceno.git", branch = "build/smaller_field_support_plonky3_539bbc" }
 ceno_emul = { git = "https://github.com/scroll-tech/ceno.git", branch = "build/smaller_field_support_plonky3_539bbc" }
+gkr_iop = { git = "https://github.com/scroll-tech/ceno.git", branch = "build/smaller_field_support_plonky3_539bbc" }
 mpcs = { git = "https://github.com/scroll-tech/ceno.git", branch = "build/smaller_field_support_plonky3_539bbc" }
 ff_ext = { git = "https://github.com/scroll-tech/ceno.git", branch = "build/smaller_field_support_plonky3_539bbc" }
 
