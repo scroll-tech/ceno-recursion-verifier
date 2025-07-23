@@ -1,11 +1,14 @@
 use crate::basefold_verifier::basefold::BasefoldCommitment;
 use crate::basefold_verifier::query_phase::QueryPhaseVerifierInput;
 use crate::tower_verifier::binding::IOPProverMessage;
-use crate::zkvm_verifier::binding::ZKVMProofInput;
-use crate::zkvm_verifier::binding::{TowerProofInput, ZKVMChipProofInput, E, F};
-use crate::zkvm_verifier::verifier::verify_zkvm_proof;
+use crate::zkvm_verifier::binding::{
+    ZKVMProofInput, TowerProofInput, ZKVMOpcodeProofInput, ZKVMTableProofInput, E, F,
+    GKRProofInput, LayerProofInput, SumcheckLayerProofInput,
+};
+use crate::zkvm_verifier::verifier::{verify_zkvm_proof, verify_precompile};
 use ceno_mle::util::ceil_log2;
 use ff_ext::BabyBearExt4;
+use gkr_iop::gkr::layer::sumcheck_layer::{SumcheckLayer, SumcheckLayerProof};
 use itertools::Itertools;
 use mpcs::{Basefold, BasefoldRSParams};
 use openvm_circuit::arch::{instructions::program::Program, SystemConfig, VmExecutor};
@@ -28,7 +31,7 @@ type EF = <SC as StarkGenericConfig>::Challenge;
 
 use ceno_zkvm::{
     scheme::{verifier::ZKVMVerifier, ZKVMProof},
-    structs::ZKVMVerifyingKey,
+    structs::{ComposedConstrainSystem, ZKVMVerifyingKey},
 };
 
 pub fn parse_zkvm_proof_import(
@@ -214,7 +217,6 @@ pub fn parse_zkvm_proof_import(
     }
 }
 
-
 pub fn inner_test_thread() {
     setup_tracing_with_log_level(tracing::Level::WARN);
 
@@ -291,4 +293,155 @@ pub fn test_zkvm_proof_verifier_from_bincode_exports() {
 
     handler.join().expect("Thread panicked");
 }
-*/
+
+pub fn parse_precompile_proof_variables(
+    zkvm_proof: ZKVMProof<BabyBearExt4, Basefold<BabyBearExt4, BasefoldRSParams>>,
+    verifier: &ZKVMVerifier<BabyBearExt4, Basefold<BabyBearExt4, BasefoldRSParams>>,
+) -> (GKRCircuit<BabyBearExt4>, GKRProofInput) {
+    let index: usize = 18;
+    let proof = &zkvm_proof.chip_proofs[&index];
+
+    let circuit_name = &verifier.vk.circuit_index_to_name[&index];
+    let circuit_vk = &verifier.vk.circuit_vks[circuit_name];
+
+    let composed_cs = circuit_vk.get_cs();
+    let ComposedConstrainSystem {
+        zkvm_v1_css: _,
+        gkr_circuit,
+    } = &composed_cs;
+    let gkr_circuit = gkr_circuit.clone().unwrap();
+    let num_instances = proof.num_instances;
+    let next_pow2_instance = num_instances.next_power_of_two().max(2);
+    let log2_num_instances = ceil_log2(next_pow2_instance);
+    let num_var_with_rotation = log2_num_instances + composed_cs.rotation_vars().unwrap_or(0);
+    let gkr_proof = proof.gkr_iop_proof.clone().unwrap();
+
+    let mut gkr_proof_input = GKRProofInput {
+        num_var_with_rotation,
+        layer_proofs: vec![],
+    };
+
+    for layer_proof in gkr_proof.0 {
+        // rotation
+        let (has_rotation, rotation): (usize, SumcheckLayerProofInput) = if let Some(p) = layer_proof.rotation {
+            let mut iop_messages: Vec<IOPProverMessage> = vec![];
+            for m in p.proof.proofs {
+                let mut evaluations: Vec<E> = vec![];
+                for e in m.evaluations {
+                    let v_e: E =
+                        serde_json::from_value(serde_json::to_value(e.clone()).unwrap()).unwrap();
+                    evaluations.push(v_e);
+                }
+                iop_messages.push(IOPProverMessage { evaluations });
+            }
+            let mut evals: Vec<E> = vec![];
+            for e in p.evals {
+                let v_e: E =
+                    serde_json::from_value(serde_json::to_value(e.clone()).unwrap()).unwrap();
+                evals.push(v_e);
+            }
+
+            (1, SumcheckLayerProofInput { proof: iop_messages, evals })
+        } else {
+            (0, SumcheckLayerProofInput::default())
+        };
+
+        // main sumcheck
+        let mut iop_messages: Vec<IOPProverMessage> = vec![];
+        let mut evals: Vec<E> = vec![];
+        for m in layer_proof.main.proof.proofs {
+            let mut evaluations: Vec<E> = vec![];
+            for e in m.evaluations {
+                let v_e: E =
+                    serde_json::from_value(serde_json::to_value(e.clone()).unwrap()).unwrap();
+                evaluations.push(v_e);
+            }
+            iop_messages.push(IOPProverMessage { evaluations });
+        }
+        for e in layer_proof.main.evals {
+            let v_e: E =
+                serde_json::from_value(serde_json::to_value(e.clone()).unwrap()).unwrap();
+            evals.push(v_e);
+        }
+
+        let main = SumcheckLayerProofInput {
+            proof: iop_messages,
+            evals,
+        };
+
+        gkr_proof_input.layer_proofs.push(LayerProofInput { has_rotation, rotation, main });
+    }
+
+    (gkr_circuit, gkr_proof_input)
+}
+
+pub fn precompile_test_thread() {
+    setup_tracing_with_log_level(tracing::Level::WARN);
+
+    let proof_path = "./src/e2e/encoded/proof.bin";
+    let vk_path = "./src/e2e/encoded/vk.bin";
+
+    let zkvm_proof: ZKVMProof<BabyBearExt4, Basefold<BabyBearExt4, BasefoldRSParams>> =
+        bincode::deserialize_from(File::open(proof_path).expect("Failed to open proof file"))
+            .expect("Failed to deserialize proof file");
+
+    let vk: ZKVMVerifyingKey<BabyBearExt4, Basefold<BabyBearExt4, BasefoldRSParams>> =
+        bincode::deserialize_from(File::open(vk_path).expect("Failed to open vk file"))
+            .expect("Failed to deserialize vk file");
+
+    let verifier = ZKVMVerifier::new(vk);
+
+    let (circuit, gkr_proof) = parse_precompile_proof_variables(zkvm_proof, &verifier);
+    
+    // OpenVM DSL
+    let mut builder = AsmBuilder::<F, EF>::default();
+
+    // Obtain witness inputs
+    let gkr_proof_input = GKRProofInput::read(&mut builder);
+    verify_precompile(&mut builder, circuit, gkr_proof_input);
+    builder.halt();
+
+    // Pass in witness stream
+    let mut witness_stream: Vec<
+        Vec<p3_monty_31::MontyField31<openvm_stark_sdk::p3_baby_bear::BabyBearParameters>>,
+    > = Vec::new();
+
+    witness_stream.extend(gkr_proof.write());
+
+    // Compile program
+    let options = CompilerOptions::default().with_cycle_tracker();
+    let mut compiler = AsmCompiler::new(options.word_size);
+    compiler.build(builder.operations);
+    let asm_code = compiler.code();
+
+    let program: Program<
+        p3_monty_31::MontyField31<openvm_stark_sdk::p3_baby_bear::BabyBearParameters>,
+    > = convert_program(asm_code, options);
+    let mut system_config = SystemConfig::default()
+        .with_public_values(4)
+        .with_max_segment_len((1 << 25) - 100);
+    system_config.profiling = true;
+    let config = NativeConfig::new(system_config, Native);
+
+    let executor = VmExecutor::<BabyBear, NativeConfig>::new(config);
+
+    let res = executor
+        .execute_and_then(program, witness_stream, |_, seg| Ok(seg), |err| err)
+        .unwrap();
+
+    for (i, seg) in res.iter().enumerate() {
+        println!("=> segment {:?} metrics: {:?}", i, seg.metrics);
+    }
+}
+
+#[test]
+pub fn test_precompile_verification_from_bincode_exports() {
+    let stack_size = 64 * 1024 * 1024; // 64 MB
+
+    let handler = thread::Builder::new()
+        .stack_size(stack_size)
+        .spawn(precompile_test_thread)
+        .expect("Failed to spawn thread");
+
+    handler.join().expect("Thread panicked");
+}

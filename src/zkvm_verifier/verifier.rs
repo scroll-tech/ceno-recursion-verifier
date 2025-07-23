@@ -12,6 +12,7 @@ use crate::basefold_verifier::utils::pow_2;
 use crate::basefold_verifier::verifier::batch_verify;
 use crate::tower_verifier::program::verify_tower_proof;
 use crate::transcript::transcript_observe_label;
+use crate::zkvm_verifier::binding::GKRProofVariable;
 use crate::{
     arithmetics::{
         build_eq_x_r_vec_sequential, ceil_log2, concat, dot_product as ext_dot_product,
@@ -25,6 +26,8 @@ use ceno_zkvm::e2e::B;
 use ceno_zkvm::structs::VerifyingKey;
 use ceno_zkvm::{circuit_builder::SetTableSpec, scheme::verifier::ZKVMVerifier};
 use ff_ext::BabyBearExt4;
+use gkr_iop::gkr::GKRCircuit;
+use itertools::interleave;
 use itertools::max;
 use itertools::{interleave, Itertools};
 use mpcs::{Basefold, BasefoldRSParams};
@@ -839,3 +842,15 @@ pub fn verify_table_proof<C: Config>(
     rt_tower.fs
 }
 */
+
+pub fn verify_precompile<C: Config>(
+    builder: &mut Builder<C>,
+    gkr_circuit: GKRCircuit<E>,
+    gkr_proof: GKRProofVariable<C>,
+) {
+    // _debug: placeholders for now
+    let challenges: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(2);
+
+
+
+}

@@ -12,6 +12,7 @@ use crate::{
 use ark_std::iterable::Iterable;
 use ff_ext::BabyBearExt4;
 use itertools::Itertools;
+use openvm_circuit::derive;
 use openvm_native_compiler::{
     asm::AsmConfig,
     ir::{Array, Builder, Config, Felt},
@@ -400,6 +401,99 @@ impl Hintable<InnerConfig> for ZKVMChipProofInput {
         stream.extend(self.wits_in_evals.write());
         stream.extend(self.fixed_in_evals.write());
 
+        stream
+    }
+}
+
+#[derive(Default)]
+pub(crate) struct SumcheckLayerProofInput {
+    pub proof: Vec<IOPProverMessage>,
+    pub evals: Vec<E>,
+}
+#[derive(DslVariable, Clone)]
+pub(crate) struct SumcheckLayerProofVariable<C: Config> {
+    pub proof: Array<C, IOPProverMessageVariable<C>>,
+    pub evals: Array<C, Ext<C::F, C::EF>>,
+}
+impl VecAutoHintable for SumcheckLayerProofInput {}
+impl Hintable<InnerConfig> for SumcheckLayerProofInput {
+    type HintVariable = SumcheckLayerProofVariable<InnerConfig>;
+
+    fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
+        let proof = Vec::<IOPProverMessage>::read(builder);
+        let evals = Vec::<E>::read(builder);
+        Self::HintVariable {
+            proof,
+            evals
+        }
+    }
+    fn write(&self) -> Vec<Vec<<InnerConfig as Config>::N>> {
+        let mut stream = Vec::new();
+        stream.extend(self.proof.write());
+        stream.extend(self.evals.write());
+        stream
+    }
+}
+
+pub(crate) struct LayerProofInput {
+    pub has_rotation: usize,
+    pub rotation: SumcheckLayerProofInput,
+    pub main: SumcheckLayerProofInput,
+}
+#[derive(DslVariable, Clone)]
+pub(crate) struct LayerProofVariable<C: Config> {
+    pub has_rotation: Var<C::N>,
+    pub rotation: SumcheckLayerProofVariable<C>,
+    pub main: SumcheckLayerProofVariable<C>,
+}
+impl VecAutoHintable for LayerProofInput {}
+impl Hintable<InnerConfig> for LayerProofInput {
+    type HintVariable = LayerProofVariable<InnerConfig>;
+
+    fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
+        let has_rotation = usize::read(builder);
+        let rotation = SumcheckLayerProofInput::read(builder);
+        let main = SumcheckLayerProofInput::read(builder);
+
+        Self::HintVariable {
+            has_rotation,
+            rotation,
+            main,
+        }
+    }
+    fn write(&self) -> Vec<Vec<<InnerConfig as Config>::N>> {
+        let mut stream = Vec::new();
+        stream.extend(<usize as Hintable<InnerConfig>>::write(&self.has_rotation));
+        stream.extend(self.rotation.write());
+        stream.extend(self.main.write());
+        stream
+    }
+}
+#[derive(Default)]
+pub(crate) struct GKRProofInput {
+    pub num_var_with_rotation: usize,
+    pub layer_proofs: Vec<LayerProofInput>,
+}
+#[derive(DslVariable, Clone)]
+pub(crate) struct GKRProofVariable<C: Config> {
+    pub num_var_with_rotation: Var<C::N>,
+    pub layer_proofs: Array<C, LayerProofVariable<C>>,
+}
+impl Hintable<InnerConfig> for GKRProofInput {
+    type HintVariable = GKRProofVariable<InnerConfig>;
+
+    fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
+        let num_var_with_rotation = usize::read(builder);
+        let layer_proofs = Vec::<LayerProofInput>::read(builder);
+        Self::HintVariable {
+            num_var_with_rotation,
+            layer_proofs,
+        }
+    }
+    fn write(&self) -> Vec<Vec<<InnerConfig as Config>::N>> {
+        let mut stream = Vec::new();
+        stream.extend(<usize as Hintable<InnerConfig>>::write(&self.num_var_with_rotation));
+        stream.extend(self.layer_proofs.write());
         stream
     }
 }
