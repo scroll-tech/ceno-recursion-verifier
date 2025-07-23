@@ -526,6 +526,7 @@ dependencies = [
 [[package]]
 name = "ceno-examples"
 version = "0.1.0"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=build%2Fsmaller_field_support_plonky3_539bbc#1acd5edfd68727e431aad0daead3a1ef80c918f2"
 dependencies = [
  "glob",
 ]
@@ -576,6 +577,7 @@ dependencies = [
 [[package]]
 name = "ceno_emul"
 version = "0.1.0"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=build%2Fsmaller_field_support_plonky3_539bbc#1acd5edfd68727e431aad0daead3a1ef80c918f2"
 dependencies = [
  "anyhow",
  "ceno_rt",
@@ -598,6 +600,7 @@ dependencies = [
 [[package]]
 name = "ceno_host"
 version = "0.1.0"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=build%2Fsmaller_field_support_plonky3_539bbc#1acd5edfd68727e431aad0daead3a1ef80c918f2"
 dependencies = [
  "anyhow",
  "ceno_emul",
@@ -610,6 +613,7 @@ dependencies = [
 [[package]]
 name = "ceno_rt"
 version = "0.1.0"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=build%2Fsmaller_field_support_plonky3_539bbc#1acd5edfd68727e431aad0daead3a1ef80c918f2"
 dependencies = [
  "getrandom 0.2.16",
  "rkyv",
@@ -618,6 +622,7 @@ dependencies = [
 [[package]]
 name = "ceno_zkvm"
 version = "0.1.0"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=build%2Fsmaller_field_support_plonky3_539bbc#1acd5edfd68727e431aad0daead3a1ef80c918f2"
 dependencies = [
  "base64",
  "bincode",
@@ -1136,6 +1141,7 @@ dependencies = [
 [[package]]
 name = "ff_ext"
 version = "0.1.0"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=build%2Fsmaller_field_support_plonky3_539bbc#1acd5edfd68727e431aad0daead3a1ef80c918f2"
 dependencies = [
  "once_cell",
  "p3",
@@ -1225,6 +1231,7 @@ checksum = "07e28edb80900c19c28f1072f2e8aeca7fa06b23cd4169cefe1af5aa3260783f"
 [[package]]
 name = "gkr_iop"
 version = "0.1.0"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=build%2Fsmaller_field_support_plonky3_539bbc#1acd5edfd68727e431aad0daead3a1ef80c918f2"
 dependencies = [
  "ark-std 0.5.0",
  "bincode",
@@ -1711,6 +1718,7 @@ dependencies = [
 [[package]]
 name = "mpcs"
 version = "0.1.0"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=build%2Fsmaller_field_support_plonky3_539bbc#1acd5edfd68727e431aad0daead3a1ef80c918f2"
 dependencies = [
  "aes",
  "bincode",
@@ -1741,6 +1749,7 @@ dependencies = [
 [[package]]
 name = "multilinear_extensions"
 version = "0.1.0"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=build%2Fsmaller_field_support_plonky3_539bbc#1acd5edfd68727e431aad0daead3a1ef80c918f2"
 dependencies = [
  "either",
  "ff_ext",
@@ -2302,6 +2311,7 @@ checksum = "b15813163c1d831bf4a13c3610c05c0d03b39feb07f7e09fa234dac9b15aaf39"
 [[package]]
 name = "p3"
 version = "0.1.0"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=build%2Fsmaller_field_support_plonky3_539bbc#1acd5edfd68727e431aad0daead3a1ef80c918f2"
 dependencies = [
  "p3-baby-bear",
  "p3-challenger",
@@ -2759,6 +2769,7 @@ dependencies = [
 [[package]]
 name = "poseidon"
 version = "0.1.0"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=build%2Fsmaller_field_support_plonky3_539bbc#1acd5edfd68727e431aad0daead3a1ef80c918f2"
 dependencies = [
  "criterion",
  "ff_ext",
@@ -3367,6 +3378,7 @@ checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 [[package]]
 name = "sumcheck"
 version = "0.1.0"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=build%2Fsmaller_field_support_plonky3_539bbc#1acd5edfd68727e431aad0daead3a1ef80c918f2"
 dependencies = [
  "crossbeam-channel",
  "either",
@@ -3385,6 +3397,7 @@ dependencies = [
 [[package]]
 name = "sumcheck_macro"
 version = "0.1.0"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=build%2Fsmaller_field_support_plonky3_539bbc#1acd5edfd68727e431aad0daead3a1ef80c918f2"
 dependencies = [
  "itertools 0.13.0",
  "p3",
@@ -3658,6 +3671,7 @@ dependencies = [
 [[package]]
 name = "transcript"
 version = "0.1.0"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=build%2Fsmaller_field_support_plonky3_539bbc#1acd5edfd68727e431aad0daead3a1ef80c918f2"
 dependencies = [
  "crossbeam-channel",
  "ff_ext",
@@ -3835,6 +3849,7 @@ dependencies = [
 [[package]]
 name = "whir"
 version = "0.1.0"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=build%2Fsmaller_field_support_plonky3_539bbc#1acd5edfd68727e431aad0daead3a1ef80c918f2"
 dependencies = [
  "bincode",
  "blake2",
@@ -4070,6 +4085,7 @@ dependencies = [
 [[package]]
 name = "witness"
 version = "0.1.0"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=build%2Fsmaller_field_support_plonky3_539bbc#1acd5edfd68727e431aad0daead3a1ef80c918f2"
 dependencies = [
  "ff_ext",
  "multilinear_extensions",
