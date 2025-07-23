@@ -350,7 +350,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
     let final_codeword = encode_small(builder, final_rmm);
 
     let log2_max_codeword_size: Var<C::N> =
-        builder.eval(input.max_num_var.clone() + get_rate_log::<C>());
+        builder.eval(input.max_num_var.clone() + Usize::from(get_rate_log()));
 
     let zero: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
 
@@ -402,7 +402,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                             let mat_j = builder.get(&opened_values, j);
                             let num_var_j = builder.get(&round.openings, j).num_var;
                             let height_j =
-                                builder.eval(num_var_j + get_rate_log::<C>() - Usize::from(1));
+                                builder.eval(num_var_j + Usize::from(get_rate_log() - 1));
 
                             let permuted_j = builder.get(&perm, j);
                             // let permuted_j = j;
@@ -433,8 +433,8 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                         |ptr_vec, builder| {
                             let opened_value = builder.iter_ptr_get(&opened_values, ptr_vec[0]);
                             let opening = builder.iter_ptr_get(&round.openings, ptr_vec[1]);
-                            let log2_height: Var<C::N> = builder
-                                .eval(opening.num_var + get_rate_log::<C>() - Usize::from(1));
+                            let log2_height: Var<C::N> =
+                                builder.eval(opening.num_var + Usize::from(get_rate_log() - 1));
                             let width = opening.point_and_evals.evals.len();
 
                             let batch_coeffs_next_offset: Var<C::N> =
@@ -484,7 +484,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
             // fold 1st codeword
             let cur_num_var: Var<C::N> = builder.eval(input.max_num_var.clone());
             let log2_height: Var<C::N> =
-                builder.eval(cur_num_var + get_rate_log::<C>() - Usize::from(1));
+                builder.eval(cur_num_var + Usize::from(get_rate_log() - 1));
 
             let r = builder.get(&input.fold_challenges, 0);
             let codeword = builder.get(&reduced_codeword_by_height, log2_height);
@@ -657,7 +657,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
             let point = &point_and_evals.point;
 
             let num_vars_evaluated: Var<C::N> =
-                builder.eval(point.fs.len() - get_basecode_msg_size_log::<C>());
+                builder.eval(point.fs.len() - Usize::from(get_basecode_msg_size_log()));
             let final_message = builder.get(&input.proof.final_message, j);
 
             // coeff is the eq polynomial evaluated at the first challenge.len() variables

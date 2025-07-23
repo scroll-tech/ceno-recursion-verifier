@@ -34,16 +34,22 @@ pub(crate) fn batch_verifier<C: Config>(
     perms: Array<C, Array<C, Var<C::N>>>,
 ) {
     builder.assert_nonzero(&proof.final_message.len());
-    let expected_final_message_size: Var<C::N> = builder.eval(Usize::<C::N>::from(1usize)); // TODO: support early stop?
+    builder.assert_nonzero(&proof.sumcheck_proof.len());
+
+    // we don't support early stopping for now
     iter_zip!(builder, proof.final_message).for_each(|ptr_vec, builder| {
         let final_message_len = builder.iter_ptr_get(&proof.final_message, ptr_vec[0]).len();
-        builder.assert_eq::<Var<C::N>>(final_message_len, expected_final_message_size);
+        builder.assert_eq::<Usize<C::N>>(
+            final_message_len,
+            Usize::from(1 << get_basecode_msg_size_log()),
+        );
     });
 
-    builder.assert_nonzero(&proof.sumcheck_proof.len());
     // TODO: get this number from some config instead of hardcoding
-    let expected_num_queries: Var<C::N> = builder.eval(Usize::<C::N>::from(100usize));
-    builder.assert_eq::<Var<C::N>>(proof.query_opening_proof.len(), expected_num_queries);
+    builder.assert_eq::<Usize<C::N>>(
+        proof.query_opening_proof.len(),
+        Usize::from(get_num_queries()),
+    );
 
     // Compute the total number of polynomials across all rounds
     let total_num_polys: Var<C::N> = builder.eval(Usize::<C::N>::from(0));
