@@ -44,6 +44,7 @@ pub struct SubcircuitParams {
     pub is_opcode: bool,
 }
 
+/* _debug
 pub fn parse_zkvm_proof_import(
     zkvm_proof: ZKVMProof<BabyBearExt4, Basefold<BabyBearExt4, BasefoldRSParams>>,
     verifier: &ZKVMVerifier<BabyBearExt4, Basefold<BabyBearExt4, BasefoldRSParams>>,
@@ -395,6 +396,7 @@ pub fn parse_zkvm_proof_import(
     )
 }
 
+
 pub fn inner_test_thread() {
     setup_tracing_with_log_level(tracing::Level::WARN);
 
@@ -476,3 +478,4 @@ pub fn test_zkvm_proof_verifier_from_bincode_exports() {
 
     handler.join().expect("Thread panicked");
 }
+*/

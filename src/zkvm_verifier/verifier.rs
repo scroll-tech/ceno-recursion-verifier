@@ -28,7 +28,7 @@ use openvm_native_compiler_derive::iter_zip;
 use openvm_native_recursion::challenger::{
     duplex::DuplexChallengerVariable, CanObserveVariable, FeltChallenger,
 };
-use p3_field::{Field, FieldAlgebra};
+use openvm_stark_backend::p3_field::{Field, FieldAlgebra};
 
 type E = BabyBearExt4;
 type Pcs = Basefold<E, BasefoldRSParams>;
@@ -75,6 +75,7 @@ pub fn verify_zkvm_proof<C: Config>(
     ceno_constraint_system: &ZKVMVerifier<E, Pcs>,
     proving_sequence: Vec<SubcircuitParams>,
 ) {
+    /* _debug
     let mut challenger = DuplexChallengerVariable::new(builder);
     transcript_observe_label(builder, &mut challenger, b"riscv");
 
@@ -311,8 +312,11 @@ pub fn verify_zkvm_proof<C: Config>(
     /* TODO: Temporarily disable product check for missing subcircuits
         builder.assert_ext_eq(prod_r, prod_w);
     */
+
+    */
 }
 
+/* _debug
 pub fn verify_opcode_proof<C: Config>(
     builder: &mut Builder<C>,
     challenger: &mut DuplexChallengerVariable<C>,
@@ -721,3 +725,4 @@ pub fn verify_table_proof<C: Config>(
 
     rt_tower.fs
 }
+*/

@@ -14,7 +14,7 @@ use openvm_native_recursion::challenger::ChallengerVariable;
 use openvm_native_recursion::challenger::{
     duplex::DuplexChallengerVariable, CanObserveVariable, FeltChallenger,
 };
-use p3_field::FieldAlgebra;
+use openvm_stark_backend::p3_field::FieldAlgebra;
 
 // Interpolate a uni-variate degree-`p_i.len()-1` polynomial and evaluate this
 // polynomial at `eval_at`:

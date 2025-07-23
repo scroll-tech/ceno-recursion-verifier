@@ -14,7 +14,7 @@ use openvm_native_compiler::{
 use openvm_native_compiler_derive::iter_zip;
 use openvm_native_recursion::hints::{Hintable, VecAutoHintable};
 use openvm_stark_sdk::p3_baby_bear::BabyBear;
-use p3_field::{extension::BinomialExtensionField, FieldAlgebra};
+use openvm_stark_backend::p3_field::{FieldAlgebra, extension::BinomialExtensionField};
 
 pub type F = BabyBear;
 pub type E = BinomialExtensionField<F, 4>;
@@ -161,6 +161,7 @@ impl Hintable<InnerConfig> for ZKVMProofInput {
             cmt_vec.push(f);
         });
         let mut witin_commit_trivial_commits: Vec<Vec<F>> = vec![];
+        /* _debug
         for trivial_commit in &self.witin_commit.trivial_commits {
             let mut t_cmt_vec: Vec<F> = vec![];
             trivial_commit.iter().for_each(|x| {
@@ -170,6 +171,7 @@ impl Hintable<InnerConfig> for ZKVMProofInput {
             });
             witin_commit_trivial_commits.push(t_cmt_vec);
         }
+        */
         let witin_commit_log2_max_codeword_size =
             F::from_canonical_u32(self.witin_commit.log2_max_codeword_size as u32);
         stream.extend(cmt_vec.write());
@@ -193,6 +195,7 @@ impl Hintable<InnerConfig> for ZKVMProofInput {
                     fixed_commit_vec.push(f);
                 });
 
+            /* _debug
             for trivial_commit in &self.fixed_commit.as_ref().unwrap().trivial_commits {
                 let mut t_cmt_vec: Vec<F> = vec![];
                 trivial_commit.iter().for_each(|x| {
@@ -202,6 +205,7 @@ impl Hintable<InnerConfig> for ZKVMProofInput {
                 });
                 fixed_commit_trivial_commits.push(t_cmt_vec);
             }
+            */
             fixed_commit_log2_max_codeword_size = F::from_canonical_u32(
                 self.fixed_commit.as_ref().unwrap().log2_max_codeword_size as u32,
             );

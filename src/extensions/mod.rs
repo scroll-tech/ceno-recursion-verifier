@@ -43,7 +43,7 @@ use openvm_stark_backend::config::StarkGenericConfig;
 use openvm_stark_sdk::{
     config::baby_bear_poseidon2::BabyBearPoseidon2Config, p3_baby_bear::BabyBear,
 };
-use p3_field::{Field, FieldAlgebra, FieldExtensionAlgebra};
+use openvm_stark_backend::p3_field::{Field, FieldAlgebra};
 use std::collections::HashMap;
 use std::fs::File;
 use std::marker::PhantomData;
