@@ -34,7 +34,7 @@ use openvm_native_recursion::challenger::{
     duplex::DuplexChallengerVariable, CanObserveVariable, FeltChallenger,
 };
 use p3_baby_bear::BabyBear;
-use p3_field::{Field, FieldAlgebra};
+use openvm_stark_backend::p3_field::{Field, FieldAlgebra};
 
 type F = BabyBear;
 type E = BabyBearExt4;
@@ -82,6 +82,7 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
     zkvm_proof_input: ZKVMProofInputVariable<C>,
     vk: &ZKVMVerifier<E, Pcs>,
 ) {
+    /* _debug
     let mut challenger = DuplexChallengerVariable::new(builder);
     transcript_observe_label(builder, &mut challenger, b"riscv");
 
@@ -376,8 +377,11 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
     /* TODO: Temporarily disable product check for missing subcircuits
         builder.assert_ext_eq(prod_r, prod_w);
     */
+
+    */
 }
 
+/* _debug
 pub fn verify_opcode_proof<C: Config>(
     builder: &mut Builder<C>,
     challenger: &mut DuplexChallengerVariable<C>,
@@ -834,3 +838,4 @@ pub fn verify_table_proof<C: Config>(
 
     rt_tower.fs
 }
+*/

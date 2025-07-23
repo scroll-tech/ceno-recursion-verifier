@@ -4,7 +4,7 @@ use openvm_native_recursion::challenger::{
     duplex::DuplexChallengerVariable, CanObserveVariable, FeltChallenger,
 };
 use openvm_native_recursion::challenger::{CanSampleBitsVariable, ChallengerVariable};
-use p3_field::FieldAlgebra;
+use openvm_stark_backend::p3_field::{FieldAlgebra, FieldExtensionAlgebra};
 
 pub fn transcript_observe_label<C: Config>(
     builder: &mut Builder<C>,

@@ -12,6 +12,8 @@ openvm-native-compiler-derive = { git = "https://github.com/scroll-tech/openvm.g
 openvm-native-recursion = { git = "https://github.com/scroll-tech/openvm.git", branch = "feat/native_multi_observe", default-features = false }
 openvm-stark-backend = { git = "https://github.com/openvm-org/stark-backend.git", rev = "f48090c9febd021f8ee0349bc929a775fb1fa3ad", default-features = false }
 openvm-stark-sdk = { git = "https://github.com/openvm-org/stark-backend.git", rev = "f48090c9febd021f8ee0349bc929a775fb1fa3ad", default-features = false }
+openvm-stark-backend = { git = "https://github.com/openvm-org/stark-backend.git", rev = "f48090c9febd021f8ee0349bc929a775fb1fa3ad", default-features = false }
+openvm-stark-sdk = { git = "https://github.com/openvm-org/stark-backend.git", rev = "f48090c9febd021f8ee0349bc929a775fb1fa3ad", default-features = false }
 
 rand = { version = "0.8.5", default-features = false }
 itertools = { version = "0.13.0", default-features = false }

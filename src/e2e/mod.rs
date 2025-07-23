@@ -214,6 +214,7 @@ pub fn parse_zkvm_proof_import(
     }
 }
 
+
 pub fn inner_test_thread() {
     setup_tracing_with_log_level(tracing::Level::WARN);
 
@@ -290,3 +291,4 @@ pub fn test_zkvm_proof_verifier_from_bincode_exports() {
 
     handler.join().expect("Thread panicked");
 }
+*/

@@ -11,7 +11,7 @@ use openvm_native_recursion::challenger::ChallengerVariable;
 use openvm_native_recursion::challenger::{
     duplex::DuplexChallengerVariable, CanObserveVariable, FeltChallenger,
 };
-use p3_field::{FieldAlgebra, FieldExtensionAlgebra};
+use openvm_stark_backend::p3_field::{FieldAlgebra, FieldExtensionAlgebra, extension::BinomialExtensionField};
 type E = BabyBearExt4;
 const HASH_RATE: usize = 8;
 const MAX_NUM_VARS: usize = 25;

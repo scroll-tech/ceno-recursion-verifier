@@ -13,7 +13,7 @@ use openvm_native_recursion::challenger::ChallengerVariable;
 use openvm_native_recursion::challenger::{
     duplex::DuplexChallengerVariable, CanObserveVariable, FeltChallenger,
 };
-use p3_field::FieldAlgebra;
+use openvm_stark_backend::p3_field::FieldAlgebra;
 
 pub(crate) fn interpolate_uni_poly<C: Config>(
     builder: &mut Builder<C>,

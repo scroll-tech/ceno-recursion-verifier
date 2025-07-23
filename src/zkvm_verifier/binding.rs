@@ -20,7 +20,7 @@ use openvm_native_compiler::{
 use openvm_native_compiler_derive::iter_zip;
 use openvm_native_recursion::hints::{Hintable, VecAutoHintable};
 use openvm_stark_sdk::p3_baby_bear::BabyBear;
-use p3_field::{extension::BinomialExtensionField, FieldAlgebra};
+use openvm_stark_backend::p3_field::{FieldAlgebra, extension::BinomialExtensionField};
 
 pub type F = BabyBear;
 pub type E = BinomialExtensionField<F, 4>;
@@ -147,12 +147,79 @@ impl Hintable<InnerConfig> for ZKVMProofInput {
         stream.extend(self.raw_pi.write());
         stream.extend(raw_pi_num_variables.write());
         stream.extend(self.pi_evals.write());
-        stream.extend(self.chip_proofs.write());
-        stream.extend(<usize as Hintable<InnerConfig>>::write(&max_num_var));
-        stream.extend(self.witin_commit.write());
-        stream.extend(witin_perm.write());
-        stream.extend(fixed_perm.write());
-        stream.extend(self.pcs_proof.write());
+        stream.extend(self.opcode_proofs.write());
+        stream.extend(self.table_proofs.write());
+
+        // Write in witin_commit
+        let mut cmt_vec: Vec<F> = vec![];
+        self.witin_commit.commit().iter().for_each(|x| {
+            let f: F = serde_json::from_value(serde_json::to_value(&x).unwrap()).unwrap();
+            cmt_vec.push(f);
+        });
+        let mut witin_commit_trivial_commits: Vec<Vec<F>> = vec![];
+        /* _debug
+        for trivial_commit in &self.witin_commit.trivial_commits {
+            let mut t_cmt_vec: Vec<F> = vec![];
+            trivial_commit.iter().for_each(|x| {
+                let f: F =
+                    serde_json::from_value(serde_json::to_value(x.clone()).unwrap()).unwrap();
+                t_cmt_vec.push(f);
+            });
+            witin_commit_trivial_commits.push(t_cmt_vec);
+        }
+        */
+        let witin_commit_log2_max_codeword_size =
+            F::from_canonical_u32(self.witin_commit.log2_max_codeword_size as u32);
+        stream.extend(cmt_vec.write());
+        stream.extend(witin_commit_trivial_commits.write());
+        stream.extend(witin_commit_log2_max_codeword_size.write());
+
+        // Write in fixed_commit
+        let has_fixed_commit: usize = if self.fixed_commit.is_some() { 1 } else { 0 };
+        let mut fixed_commit_vec: Vec<F> = vec![];
+        let mut fixed_commit_trivial_commits: Vec<Vec<F>> = vec![];
+        let mut fixed_commit_log2_max_codeword_size: F = F::ZERO.clone();
+        if has_fixed_commit > 0 {
+            self.fixed_commit
+                .as_ref()
+                .unwrap()
+                .commit()
+                .iter()
+                .for_each(|x| {
+                    let f: F =
+                        serde_json::from_value(serde_json::to_value(x.clone()).unwrap()).unwrap();
+                    fixed_commit_vec.push(f);
+                });
+
+            /* _debug
+            for trivial_commit in &self.fixed_commit.as_ref().unwrap().trivial_commits {
+                let mut t_cmt_vec: Vec<F> = vec![];
+                trivial_commit.iter().for_each(|x| {
+                    let f: F =
+                        serde_json::from_value(serde_json::to_value(x.clone()).unwrap()).unwrap();
+                    t_cmt_vec.push(f);
+                });
+                fixed_commit_trivial_commits.push(t_cmt_vec);
+            }
+            */
+            fixed_commit_log2_max_codeword_size = F::from_canonical_u32(
+                self.fixed_commit.as_ref().unwrap().log2_max_codeword_size as u32,
+            );
+        }
+        stream.extend(<usize as Hintable<InnerConfig>>::write(&has_fixed_commit));
+        stream.extend(fixed_commit_vec.write());
+        stream.extend(fixed_commit_trivial_commits.write());
+        stream.extend(fixed_commit_log2_max_codeword_size.write());
+
+        // Write num_instances
+        let mut num_instances_vec: Vec<Vec<F>> = vec![];
+        for (circuit_size, num_var) in &self.num_instances {
+            num_instances_vec.push(vec![
+                F::from_canonical_usize(*circuit_size),
+                F::from_canonical_usize(*num_var),
+            ]);
+        }
+        stream.extend(num_instances_vec.write());
 
         stream
     }
