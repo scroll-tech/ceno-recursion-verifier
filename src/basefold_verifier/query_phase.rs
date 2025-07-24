@@ -360,7 +360,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
         builder.eval(input.max_num_var.clone() + Usize::from(get_rate_log()));
 
     let zero: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
-    let alpha = builder.get(&input.batch_coeffs, 0);
+    let alpha = builder.get(&input.batch_coeffs, 1);
 
     iter_zip!(builder, input.indices, input.proof.query_opening_proof).for_each(
         |ptr_vec, builder| {
