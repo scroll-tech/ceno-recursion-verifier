@@ -28,8 +28,6 @@ pub(crate) fn batch_verifier<C: Config>(
     rounds: Array<C, RoundVariable<C>>,
     proof: BasefoldProofVariable<C>,
     challenger: &mut DuplexChallengerVariable<C>,
-    // The permutation of the dimensions in decreasing order, whose correctness will be checked in the circuit
-    perms: Array<C, Array<C, Var<C::N>>>,
 ) {
     builder.assert_nonzero(&proof.final_message.len());
     builder.assert_nonzero(&proof.sumcheck_proof.len());
@@ -149,7 +147,6 @@ pub(crate) fn batch_verifier<C: Config>(
         indices: queries,
         proof,
         rounds,
-        perms,
     };
     batch_verifier_query_phase(builder, input);
 }
@@ -252,7 +249,6 @@ pub mod tests {
             verifier_input.rounds,
             verifier_input.proof,
             &mut challenger,
-            verifier_input.perms,
         );
         builder.halt();
         let program = builder.compile_isa();
