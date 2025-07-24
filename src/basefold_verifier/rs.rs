@@ -93,12 +93,16 @@ impl<C: Config> DenseMatrixVariable<C> {
     }
 }
 
-pub fn get_rate_log<C: Config>() -> Usize<C::N> {
-    Usize::from(1)
+pub fn get_rate_log() -> usize {
+    1
 }
 
-pub fn get_basecode_msg_size_log<C: Config>() -> Usize<C::N> {
-    Usize::from(0)
+pub fn get_basecode_msg_size_log() -> usize {
+    0
+}
+
+pub fn get_num_queries() -> usize {
+    100
 }
 
 pub fn verifier_folding_coeffs_level<C: Config>(

@@ -1,5 +1,9 @@
+use std::collections::BTreeMap;
+
+use itertools::Itertools;
 use mpcs::basefold::BasefoldProof as InnerBasefoldProof;
 use openvm_native_compiler::{asm::AsmConfig, prelude::*};
+use openvm_native_compiler_derive::iter_zip;
 use openvm_native_recursion::hints::{Hintable, VecAutoHintable};
 use openvm_stark_sdk::p3_baby_bear::BabyBear;
 use p3_field::extension::BinomialExtensionField;
@@ -78,6 +82,7 @@ pub struct BasefoldProof {
     pub final_message: Vec<Vec<E>>,
     pub query_opening_proof: QueryOpeningProofs,
     pub sumcheck_proof: Vec<IOPProverMessage>,
+    pub pow_witness: F,
 }
 
 #[derive(DslVariable, Clone)]
@@ -86,6 +91,7 @@ pub struct BasefoldProofVariable<C: Config> {
     pub final_message: Array<C, Array<C, Ext<C::F, C::EF>>>,
     pub query_opening_proof: QueryOpeningProofsVariable<C>,
     pub sumcheck_proof: Array<C, IOPProverMessageVariable<C>>,
+    pub pow_witness: Felt<C::F>,
 }
 
 impl Hintable<InnerConfig> for BasefoldProof {
@@ -95,11 +101,13 @@ impl Hintable<InnerConfig> for BasefoldProof {
         let final_message = Vec::<Vec<E>>::read(builder);
         let query_opening_proof = QueryOpeningProofs::read(builder);
         let sumcheck_proof = Vec::<IOPProverMessage>::read(builder);
+        let pow_witness = F::read(builder);
         BasefoldProofVariable {
             commits,
             final_message,
             query_opening_proof,
             sumcheck_proof,
+            pow_witness,
         }
     }
 
@@ -109,6 +117,7 @@ impl Hintable<InnerConfig> for BasefoldProof {
         stream.extend(self.final_message.write());
         stream.extend(self.query_opening_proof.write());
         stream.extend(self.sumcheck_proof.write());
+        stream.extend(self.pow_witness.write());
         stream
     }
 }
@@ -126,6 +135,7 @@ impl From<InnerBasefoldProof<E>> for BasefoldProof {
             sumcheck_proof: proof.sumcheck_proof.map_or(vec![], |proof| {
                 proof.into_iter().map(|proof| proof.into()).collect()
             }),
+            pow_witness: proof.pow_witness,
         }
     }
 }
@@ -173,6 +183,7 @@ pub struct Round {
 pub struct RoundVariable<C: Config> {
     pub commit: BasefoldCommitmentVariable<C>,
     pub openings: Array<C, RoundOpeningVariable<C>>,
+    pub perm: Array<C, Var<C::N>>,
 }
 
 impl Hintable<InnerConfig> for Round {
@@ -180,13 +191,33 @@ impl Hintable<InnerConfig> for Round {
     fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
         let commit = BasefoldCommitment::read(builder);
         let openings = Vec::<RoundOpening>::read(builder);
-        RoundVariable { commit, openings }
+        let perm = Vec::<usize>::read(builder);
+        RoundVariable {
+            commit,
+            openings,
+            perm,
+        }
     }
 
     fn write(&self) -> Vec<Vec<<InnerConfig as Config>::N>> {
+        let mut perm = vec![0; self.openings.len()];
+        self.openings
+            .iter()
+            .enumerate()
+            // the original order
+            .map(|(i, opening)| (i, opening.num_var))
+            .sorted_by(|(_, nv_a), (_, nv_b)| Ord::cmp(nv_b, nv_a))
+            .enumerate()
+            // j is the new index where i is the original index
+            .map(|(j, (i, _))| (i, j))
+            .for_each(|(i, j)| {
+                perm[i] = j;
+            });
         let mut stream = vec![];
         stream.extend(self.commit.write());
         stream.extend(self.openings.write());
+        stream.extend(perm.write());
+
         stream
     }
 }

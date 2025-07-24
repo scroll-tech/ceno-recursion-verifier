@@ -7,3 +7,4 @@ pub(crate) mod rs;
 pub(crate) mod structs;
 // pub(crate) mod field;
 pub(crate) mod utils;
+pub(crate) mod verifier;
