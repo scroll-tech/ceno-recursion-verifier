@@ -416,7 +416,6 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
 
                 mmcs_verify_batch(builder, mmcs_verifier_input);
 
-                builder.halt();
                 // TODO: optimize this procedure
                 iter_zip!(builder, opened_values, round.openings).for_each(|ptr_vec, builder| {
                     let opened_value = builder.iter_ptr_get(&opened_values, ptr_vec[0]);
