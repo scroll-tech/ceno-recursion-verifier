@@ -372,8 +372,11 @@ pub fn verify_opcode_proof<C: Config>(
     );
     builder.cycle_tracker_end("verify tower proof for opcode");
 
-    let logup_p_eval = builder.get(&logup_p_evals, 0).eval;
-    builder.assert_ext_eq(logup_p_eval, one);
+    // verify LogUp witness nominator p(x) ?= constant vector 1
+    iter_zip!(builder, logup_p_evals).for_each(|ptr_vec, builder| {
+        let logup_p_eval = builder.iter_ptr_get(&logup_p_evals, ptr_vec[0]).eval;
+        builder.assert_ext_eq(logup_p_eval, one);
+    });
 
     // verify zero statement (degree > 1) + sel sumcheck
     let rt = builder.get(&record_evals, 0);
