@@ -59,7 +59,7 @@ impl
 
 #[derive(DslVariable, Clone)]
 pub struct BatchOpeningVariable<C: Config> {
-    pub opened_values: Array<C, Array<C, Felt<C::F>>>,
+    pub opened_values: HintSlice<C>,
     pub opening_proof: HintSlice<C>,
 }
 
@@ -67,7 +67,7 @@ impl Hintable<InnerConfig> for BatchOpening {
     type HintVariable = BatchOpeningVariable<InnerConfig>;
 
     fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
-        let opened_values = Vec::<Vec<F>>::read(builder);
+        let opened_values = read_hint_slice(builder);
         let opening_proof = read_hint_slice(builder);
 
         BatchOpeningVariable {
@@ -78,7 +78,14 @@ impl Hintable<InnerConfig> for BatchOpening {
 
     fn write(&self) -> Vec<Vec<<InnerConfig as Config>::N>> {
         let mut stream = Vec::new();
-        stream.extend(self.opened_values.write());
+        stream.extend(vec![
+            vec![F::from_canonical_usize(self.opened_values.len())],
+            self.opened_values
+                .iter()
+                .flatten()
+                .copied()
+                .collect::<Vec<_>>(),
+        ]);
         stream.extend(vec![
             vec![F::from_canonical_usize(self.opening_proof.len())],
             self.opening_proof
@@ -322,6 +329,8 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
         let generator = builder.constant(C::F::from_canonical_usize(*val).inverse());
         builder.set_value(&two_adic_generators_inverses, index, generator);
     }
+    let one = builder.constant(C::N::ONE);
+    let two: Var<C::N> = builder.constant(C::N::from_canonical_usize(2));
 
     // encode_small
     let final_message = &input.proof.final_message;
@@ -353,6 +362,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
         builder.eval(input.max_num_var.clone() + get_rate_log::<C>());
 
     let zero: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
+    let alpha = builder.get(&input.batch_coeffs, 0);
 
     iter_zip!(builder, input.indices, input.proof.query_opening_proof).for_each(
         |ptr_vec, builder| {
@@ -388,18 +398,101 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                     let round = builder.iter_ptr_get(&input.rounds, ptr_vec[1]);
                     let perm = builder.iter_ptr_get(&input.perms, ptr_vec[2]);
                     let opened_values = batch_opening.opened_values;
-                    let perm_opened_values = builder.dyn_array(opened_values.len());
-                    let dimensions = builder.dyn_array(opened_values.len());
+                    let perm_opened_values = builder.dyn_array(opened_values.length.clone());
+                    let dimensions = builder.dyn_array(opened_values.length.clone());
                     let opening_proof = batch_opening.opening_proof;
+
+                    let opened_values_buffer: Array<C, Array<C, Felt<C::F>>> =
+                        builder.dyn_array(opened_values.length);
+
+                    // TODO: optimize this procedure
+                    iter_zip!(builder, opened_values_buffer, round.openings).for_each(
+                        |ptr_vec, builder| {
+                            let opening = builder.iter_ptr_get(&round.openings, ptr_vec[1]);
+                            let log2_height: Var<C::N> = builder
+                                .eval(opening.num_var + get_rate_log::<C>() - Usize::from(1));
+                            let width = opening.point_and_evals.evals.len();
+                            let opened_value_len: Var<C::N> = builder.eval(width.clone() * two);
+                            let opened_value_buffer = builder.dyn_array(opened_value_len);
+
+                            builder.iter_ptr_set(
+                                &opened_values_buffer,
+                                ptr_vec[0],
+                                opened_value_buffer.clone(),
+                            );
+
+                            let batch_coeffs_next_offset: Var<C::N> =
+                                builder.eval(batch_coeffs_offset + width.clone());
+                            let coeffs = input.batch_coeffs.slice(
+                                builder,
+                                batch_coeffs_offset.clone(),
+                                batch_coeffs_next_offset.clone(),
+                            );
+                            let low_values = opened_value_buffer.slice(builder, 0, width.clone());
+                            let high_values = opened_value_buffer.slice(
+                                builder,
+                                width.clone(),
+                                opened_value_buffer.len(),
+                            );
+
+                            // The linear combination is by (alpha^offset, ..., alpha^(offset+width-1)), which is equal to
+                            // alpha^offset * (1, ..., alpha^(width-1))
+                            // Let universal_coeff = alpha^offset
+                            let universal_coeff = builder.get(&coeffs, 0);
+                            // Will need to negate the values of low and high
+                            // because `fri_single_reduced_opening_eval` is
+                            // computing \sum_i alpha^i (0 - opened_value[i]).
+                            // Let's negate it here only once.
+                            builder.assign(&universal_coeff, -universal_coeff);
+
+                            // FIXME: avoid repeated allocating all zeros by reusing
+                            // a large array of zeros. This requires computing
+                            // the maximal width of all openings and evals.
+                            let all_zeros = builder.dyn_array(width);
+
+                            let low = builder.fri_single_reduced_opening_eval(
+                                alpha,
+                                opened_values.id.get_var(),
+                                one,
+                                &low_values,
+                                &all_zeros,
+                            );
+                            let high = builder.fri_single_reduced_opening_eval(
+                                alpha,
+                                opened_values.id.get_var(),
+                                one,
+                                &high_values,
+                                &all_zeros,
+                            );
+                            builder.assign(&low, low * universal_coeff);
+                            builder.assign(&high, high * universal_coeff);
+
+                            let codeword: PackedCodeword<C> = PackedCodeword { low, high };
+                            let codeword_acc =
+                                builder.get(&reduced_codeword_by_height, log2_height);
+
+                            // reduced_openings[log2_height] += codeword
+                            builder.assign(&codeword_acc.low, codeword_acc.low + codeword.low);
+                            builder.assign(&codeword_acc.high, codeword_acc.high + codeword.high);
+
+                            builder.set_value(
+                                &reduced_codeword_by_height,
+                                log2_height,
+                                codeword_acc,
+                            );
+                            builder.assign(&batch_coeffs_offset, batch_coeffs_next_offset);
+                        },
+                    );
 
                     // TODO: ensure that perm is indeed a permutation of 0, ..., opened_values.len()-1
 
                     // reorder (opened values, dimension) according to the permutation
                     builder
-                        .range(0, opened_values.len())
+                        .range(0, opened_values_buffer.len())
                         .for_each(|j_vec, builder| {
                             let j = j_vec[0];
-                            let mat_j = builder.get(&opened_values, j);
+
+                            let mat_j = builder.get(&opened_values_buffer, j);
                             let num_var_j = builder.get(&round.openings, j).num_var;
                             let height_j =
                                 builder.eval(num_var_j + get_rate_log::<C>() - Usize::from(1));
@@ -427,55 +520,6 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                     };
 
                     mmcs_verify_batch(builder, mmcs_verifier_input);
-
-                    // TODO: optimize this procedure
-                    iter_zip!(builder, opened_values, round.openings).for_each(
-                        |ptr_vec, builder| {
-                            let opened_value = builder.iter_ptr_get(&opened_values, ptr_vec[0]);
-                            let opening = builder.iter_ptr_get(&round.openings, ptr_vec[1]);
-                            let log2_height: Var<C::N> = builder
-                                .eval(opening.num_var + get_rate_log::<C>() - Usize::from(1));
-                            let width = opening.point_and_evals.evals.len();
-
-                            let batch_coeffs_next_offset: Var<C::N> =
-                                builder.eval(batch_coeffs_offset + width.clone());
-                            let coeffs = input.batch_coeffs.slice(
-                                builder,
-                                batch_coeffs_offset.clone(),
-                                batch_coeffs_next_offset.clone(),
-                            );
-                            let low_values = opened_value.slice(builder, 0, width.clone());
-                            let high_values =
-                                opened_value.slice(builder, width.clone(), opened_value.len());
-                            let low: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
-                            let high: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
-
-                            iter_zip!(builder, coeffs, low_values, high_values).for_each(
-                                |ptr_vec, builder| {
-                                    let coeff = builder.iter_ptr_get(&coeffs, ptr_vec[0]);
-                                    let low_value = builder.iter_ptr_get(&low_values, ptr_vec[1]);
-                                    let high_value = builder.iter_ptr_get(&high_values, ptr_vec[2]);
-
-                                    builder.assign(&low, low + coeff * low_value);
-                                    builder.assign(&high, high + coeff * high_value);
-                                },
-                            );
-                            let codeword: PackedCodeword<C> = PackedCodeword { low, high };
-                            let codeword_acc =
-                                builder.get(&reduced_codeword_by_height, log2_height);
-
-                            // reduced_openings[log2_height] += codeword
-                            builder.assign(&codeword_acc.low, codeword_acc.low + codeword.low);
-                            builder.assign(&codeword_acc.high, codeword_acc.high + codeword.high);
-
-                            builder.set_value(
-                                &reduced_codeword_by_height,
-                                log2_height,
-                                codeword_acc,
-                            );
-                            builder.assign(&batch_coeffs_offset, batch_coeffs_next_offset);
-                        },
-                    );
                 },
             );
 
