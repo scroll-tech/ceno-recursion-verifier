@@ -329,7 +329,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
         let generator = builder.constant(C::F::from_canonical_usize(*val).inverse());
         builder.set_value(&two_adic_generators_inverses, index, generator);
     }
-    let one = builder.constant(C::N::ONE);
+    let zero_flag = builder.constant(C::N::ZERO);
     let two: Var<C::N> = builder.constant(C::N::from_canonical_usize(2));
 
     // encode_small
@@ -412,9 +412,9 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                             let log2_height: Var<C::N> = builder
                                 .eval(opening.num_var + get_rate_log::<C>() - Usize::from(1));
                             let width = opening.point_and_evals.evals.len();
+
                             let opened_value_len: Var<C::N> = builder.eval(width.clone() * two);
                             let opened_value_buffer = builder.dyn_array(opened_value_len);
-
                             builder.iter_ptr_set(
                                 &opened_values_buffer,
                                 ptr_vec[0],
@@ -436,7 +436,8 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                             // Will need to negate the values of low and high
                             // because `fri_single_reduced_opening_eval` is
                             // computing \sum_i alpha^i (0 - opened_value[i]).
-                            // Let's negate it here only once.
+                            // We want \sum_i alpha^(i + offset) opened_value[i]
+                            // Let's negate it here.
                             builder.assign(&universal_coeff, -universal_coeff);
 
                             // FIXME: avoid repeated allocating all zeros by reusing
@@ -447,14 +448,14 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                             let low = builder.fri_single_reduced_opening_eval(
                                 alpha,
                                 opened_values.id.get_var(),
-                                one,
+                                zero_flag,
                                 &low_values,
                                 &all_zeros,
                             );
                             let high = builder.fri_single_reduced_opening_eval(
                                 alpha,
                                 opened_values.id.get_var(),
-                                one,
+                                zero_flag,
                                 &high_values,
                                 &all_zeros,
                             );
