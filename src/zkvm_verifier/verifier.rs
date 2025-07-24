@@ -19,16 +19,23 @@ use crate::{
         eq_eval_less_or_equal_than, eval_wellform_address_vec, gen_alpha_pows, max_usize_arr,
         max_usize_vec, nested_product, next_pow2_instance_padding, product, sum as ext_sum,
     },
-    tower_verifier::{binding::PointVariable, program::iop_verifier_state_verify},
+    tower_verifier::{binding::{PointVariable, PointAndEvalVariable}, program::iop_verifier_state_verify},
 };
 use ceno_mle::expression::{Instance, StructuralWitIn};
 use ceno_zkvm::e2e::B;
 use ceno_zkvm::structs::VerifyingKey;
+use ceno_mle::mle::{Point, PointAndEval};
+use ceno_mle::virtual_poly::build_eq_x_r_sequential;
 use ceno_zkvm::{circuit_builder::SetTableSpec, scheme::verifier::ZKVMVerifier};
 use ff_ext::BabyBearExt4;
-use gkr_iop::gkr::GKRCircuit;
-use itertools::interleave;
-use itertools::max;
+use gkr_iop::{
+    gkr::{
+        layer::Layer,
+        GKRCircuit
+    },
+    evaluation::EvalExpression,
+};
+use itertools::{interleave, max, Itertools, izip};
 use itertools::{interleave, Itertools};
 use mpcs::{Basefold, BasefoldRSParams};
 use openvm_native_compiler::prelude::*;
@@ -843,14 +850,190 @@ pub fn verify_table_proof<C: Config>(
 }
 */
 
+pub fn generate_layer_challenges<C: Config>(
+    builder: &mut Builder<C>,
+    challenger: &mut DuplexChallengerVariable<C>,
+    challenges: &Array<C, Ext<C::F, C::EF>>,
+    n_challenges: usize,
+) -> Array<C, Ext<C::F, C::EF>> {
+    let r = builder.dyn_array(n_challenges + 2);
+
+    let alpha = builder.get(challenges, 0);
+    let beta = builder.get(challenges, 1);
+
+    builder.set(&r, 0, alpha);
+    builder.set(&r, 1, beta);
+
+    transcript_observe_label(builder, challenger, b"layer challenge");
+    let c = gen_alpha_pows(builder, challenger, Usize::from(n_challenges));
+
+    for i in 0..n_challenges {
+        let idx = i + 2;
+        let e = builder.get(&c, i);
+        builder.set(&r, idx, e);
+    }
+
+    r
+}
+
+#[derive(DslVariable, Clone)]
+pub struct ClaimAndPoint<C: Config> {
+    evals: Array<C, Ext<C::F, C::EF>>,
+    has_point: Usize<C::N>,
+    point: PointVariable<C>,
+}
+
+pub fn evaluate_gkr_expression<C: Config>(
+    builder: &mut Builder<C>,
+    expr: &EvalExpression<E>,
+    claims: &Array<C, PointAndEvalVariable<C>>,
+    challenges: &Array<C, Ext<C::F, C::EF>>,
+) -> PointAndEvalVariable<C> {
+    match expr {
+        EvalExpression::Zero => {
+            let point = builder.get(claims, 0).point.clone();
+            let eval: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
+            PointAndEvalVariable { point, eval }
+        }
+        EvalExpression::Single(i) => {
+            builder.get(claims, *i).clone()
+        },
+        EvalExpression::Linear(i, c0, c1) => {
+            let point = builder.get(claims, *i);
+
+            let eval = point.eval.clone();
+            let point = point.point.clone();
+
+            let empty_arr: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(0);
+            let c0_eval = eval_ceno_expr_with_instance(builder, &empty_arr, &empty_arr, &empty_arr, &empty_arr, challenges, c0);
+            let c1_eval = eval_ceno_expr_with_instance(builder, &empty_arr, &empty_arr, &empty_arr, &empty_arr, challenges, c1);
+
+            builder.assign(&eval, eval * c0_eval + c1_eval);
+
+            PointAndEvalVariable { point, eval }
+        },
+        EvalExpression::Partition(parts, indices) => {
+            assert!(izip!(indices.iter(), indices.iter().skip(1)).all(|(a, b)| a.0 < b.0));
+            let empty_arr: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(0);
+            let vars = indices
+                .iter()
+                .map(|(_, c)| eval_ceno_expr_with_instance(builder, &empty_arr, &empty_arr, &empty_arr, &empty_arr, challenges, c))
+                .collect_vec();
+            let vars_arr: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(vars.len());
+            for (i, e) in vars.iter().enumerate() {
+                builder.set(&vars_arr, i, *e);
+            }
+            let parts = parts
+                .iter()
+                .map(|part| evaluate_gkr_expression(builder, part, claims, challenges))
+                .collect_vec();
+
+            assert_eq!(parts.len(), 1 << indices.len());
+
+            // _debug
+            // assert!(parts.iter().all(|part| part.point == parts[0].point));
+
+            let mut new_point: Vec<Ext<C::F, C::EF>> = vec![];
+            builder.range(0, parts[0].point.fs.len()).for_each(|idx_vec, builder| {
+                let e = builder.get(&parts[0].point.fs, idx_vec[0]);
+                new_point.push(e);
+            });
+            for (index_in_point, c) in indices {
+                let eval = eval_ceno_expr_with_instance(builder, &empty_arr, &empty_arr, &empty_arr, &empty_arr, challenges, c);
+                new_point.insert(*index_in_point, eval);
+            }
+
+            let new_point_arr: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(new_point.len());
+            for (i, e) in new_point.iter().enumerate() {
+                builder.set(&new_point_arr, i, *e);
+            }
+            let eq = build_eq_x_r_vec_sequential(builder, &vars_arr);
+
+            let parts_arr: Array<C, PointAndEvalVariable<C>> = builder.dyn_array(parts.len());
+            for (i, pt) in parts.iter().enumerate() {
+                builder.set(&parts_arr, i, pt.clone());
+            }
+
+            let acc: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
+            iter_zip!(builder, parts_arr, eq).for_each(|ptr_vec, builder| {
+                let prt = builder.iter_ptr_get(&parts_arr, ptr_vec[0]);
+                let eq_v = builder.iter_ptr_get(&eq, ptr_vec[1]);
+                builder.assign(&acc, acc + prt.eval * eq_v);
+            });
+
+            PointAndEvalVariable { 
+                point: PointVariable { fs: new_point_arr }, 
+                eval: acc,
+            }
+        }
+    }
+}
+
+pub fn extract_claim_and_point<C: Config>(
+    builder: &mut Builder<C>,
+    layer: &Layer<E>,
+    claims: &Array<C, PointAndEvalVariable<C>>,
+    challenges: &Array<C, Ext<C::F, C::EF>>,
+) -> Array<C, ClaimAndPoint<C>> {
+    let r = builder.dyn_array(layer.out_eq_and_eval_exprs.len());
+
+    let claims_and_points = layer.out_eq_and_eval_exprs.iter().enumerate().map(|(i, (_, out_evals))| {
+        let evals = out_evals
+            .iter()
+            .map(|out_eval| {
+                let r = evaluate_gkr_expression(builder, out_eval, claims, challenges);
+                r.eval
+            })
+            .collect_vec();
+        let evals_arr: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(evals.len());
+        for (i, e) in evals.iter().enumerate() {
+            builder.set(&evals_arr, i, *e);
+        }
+        let point = out_evals.first().map(|out_eval| {
+            let r = evaluate_gkr_expression(builder, out_eval, claims, challenges);
+            r.point
+        });
+
+        if point.is_some() {
+            ClaimAndPoint {
+                evals: evals_arr,
+                has_point: Usize::from(1),
+                point: point.unwrap(),            
+            }
+        } else {
+            ClaimAndPoint {
+                evals: evals_arr,
+                has_point: Usize::from(0),
+                point: PointVariable { fs: builder.dyn_array(0) },
+            }
+        }
+    })
+    .collect_vec();
+
+    for (i, ptc) in claims_and_points.into_iter().enumerate() {
+        builder.set(&r, i, ptc);
+    }
+
+    r
+}
+
 pub fn verify_precompile<C: Config>(
     builder: &mut Builder<C>,
     gkr_circuit: GKRCircuit<E>,
     gkr_proof: GKRProofVariable<C>,
 ) {
-    // _debug: placeholders for now
-    let challenges: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(2);
+    let mut challenger = DuplexChallengerVariable::new(builder);
 
+    // _debug: placeholders
+    let challenges: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(2);
+    let n_evaluations = gkr_circuit.n_evaluations;
+    let claims: Array<C, PointAndEvalVariable<C>> = builder.dyn_array(n_evaluations);
+
+    for (i, layer) in gkr_circuit.layers.iter().enumerate() {
+        let layer_proof = builder.get(&gkr_proof.layer_proofs, i);
+        let layer_challenges: Array<C, Ext<C::F, C::EF>> = generate_layer_challenges(builder, &mut challenger, &challenges, layer.n_challenges);
+        let eval_and_dedup_points: Array<C, ClaimAndPoint<C>> = extract_claim_and_point(builder, layer, &claims, &layer_challenges);
+    }
 
 
 }
