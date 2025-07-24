@@ -2,28 +2,19 @@ use openvm_native_compiler::{asm::AsmConfig, prelude::*};
 use openvm_native_recursion::hints::{Hintable, VecAutoHintable};
 use openvm_stark_sdk::p3_baby_bear::BabyBear;
 use p3_field::extension::BinomialExtensionField;
-use p3_field::FieldAlgebra;
 use serde::Deserialize;
 
-use super::structs::DIMENSIONS;
+use super::structs::DEGREE;
 
 pub const DIGEST_ELEMS: usize = 8;
 
 pub type F = BabyBear;
-pub type E = BinomialExtensionField<F, DIMENSIONS>;
+pub type E = BinomialExtensionField<F, DEGREE>;
 pub type InnerConfig = AsmConfig<F, E>;
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Default)]
 pub struct Hash {
     pub value: [F; DIGEST_ELEMS],
-}
-
-impl Default for Hash {
-    fn default() -> Self {
-        Hash {
-            value: [F::ZERO; DIGEST_ELEMS],
-        }
-    }
 }
 
 impl From<p3_symmetric::Hash<F, F, DIGEST_ELEMS>> for Hash {
@@ -43,22 +34,13 @@ impl Hintable<InnerConfig> for Hash {
     type HintVariable = HashVariable<InnerConfig>;
 
     fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
-        let value = builder.dyn_array(DIGEST_ELEMS);
-        for i in 0..DIGEST_ELEMS {
-            let tmp = F::read(builder);
-            builder.set(&value, i, tmp);
-        }
+        let value = builder.hint_felts_fixed(DIGEST_ELEMS);
 
         HashVariable { value }
     }
 
     fn write(&self) -> Vec<Vec<<InnerConfig as Config>::N>> {
-        let mut stream = Vec::new();
-        // Write out each entries
-        for i in 0..DIGEST_ELEMS {
-            stream.extend(self.value[i].write());
-        }
-        stream
+        self.value.to_vec().write()
     }
 }
 
@@ -67,8 +49,6 @@ mod tests {
     use openvm_circuit::arch::{SystemConfig, VmExecutor};
     use openvm_native_circuit::{Native, NativeConfig};
     use openvm_native_compiler::asm::AsmBuilder;
-    type F = BabyBear;
-    type E = BinomialExtensionField<F, 4>;
 
     use crate::basefold_verifier::basefold::HashDigest;
 

@@ -13,7 +13,7 @@ use super::structs::*;
 use super::utils::{pow_felt, pow_felt_bits};
 
 pub type F = BabyBear;
-pub type E = BinomialExtensionField<F, DIMENSIONS>;
+pub type E = BinomialExtensionField<F, DEGREE>;
 pub type InnerConfig = AsmConfig<F, E>;
 
 pub struct DenseMatrix {

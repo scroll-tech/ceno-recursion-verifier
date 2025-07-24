@@ -19,10 +19,10 @@ use crate::{
     tower_verifier::binding::{IOPProverMessage, IOPProverMessageVariable},
 };
 
-use super::{mmcs::*, structs::DIMENSIONS};
+use super::{mmcs::*, structs::DEGREE};
 
 pub type F = BabyBear;
-pub type E = BinomialExtensionField<F, DIMENSIONS>;
+pub type E = BinomialExtensionField<F, DEGREE>;
 pub type InnerConfig = AsmConfig<F, E>;
 
 pub type HashDigest = MmcsCommitment;

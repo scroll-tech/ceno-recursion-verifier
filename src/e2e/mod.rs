@@ -1,9 +1,7 @@
 use crate::basefold_verifier::query_phase::QueryPhaseVerifierInput;
 use crate::tower_verifier::binding::IOPProverMessage;
 use crate::zkvm_verifier::binding::ZKVMProofInput;
-use crate::zkvm_verifier::binding::{
-    TowerProofInput, ZKVMOpcodeProofInput, ZKVMTableProofInput, E, F,
-};
+use crate::zkvm_verifier::binding::{TowerProofInput, ZKVMChipProofInput, E, F};
 use crate::zkvm_verifier::verifier::verify_zkvm_proof;
 use ceno_mle::util::ceil_log2;
 use ff_ext::BabyBearExt4;
@@ -80,7 +78,7 @@ pub fn parse_zkvm_proof_import(
         })
         .collect::<Vec<E>>();
 
-    let mut opcode_proofs_vec: Vec<ZKVMOpcodeProofInput> = vec![];
+    let mut opcode_proofs_vec: Vec<ZKVMChipProofInput> = vec![];
     /*
     for (opcode_id, opcode_proof) in &zkvm_proof.chip_proofs {
         let mut record_r_out_evals: Vec<Vec<E>> = vec![];

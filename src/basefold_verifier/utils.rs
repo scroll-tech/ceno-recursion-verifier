@@ -1,5 +1,6 @@
 use openvm_native_compiler::ir::*;
 use openvm_native_recursion::vars::HintSlice;
+use p3_baby_bear::BabyBear;
 use p3_field::FieldAlgebra;
 
 use crate::basefold_verifier::mmcs::MmcsProof;
@@ -304,4 +305,11 @@ pub(crate) fn read_hint_slice<C: Config>(builder: &mut Builder<C>) -> HintSlice<
     let length = Usize::from(builder.hint_var());
     let id = Usize::from(builder.hint_load());
     HintSlice { length, id }
+}
+
+pub(crate) fn write_mmcs_proof(proof: &MmcsProof) -> Vec<Vec<BabyBear>> {
+    vec![
+        vec![BabyBear::from_canonical_usize(proof.len())],
+        proof.iter().flatten().copied().collect::<Vec<_>>(),
+    ]
 }

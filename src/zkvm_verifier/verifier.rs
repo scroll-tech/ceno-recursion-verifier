@@ -1,10 +1,9 @@
-use super::binding::{
-    ZKVMOpcodeProofInputVariable, ZKVMProofInputVariable, ZKVMTableProofInputVariable,
-};
+use super::binding::{ZKVMChipProofInputVariable, ZKVMProofInputVariable};
 use crate::arithmetics::{
     challenger_multi_observe, eval_ceno_expr_with_instance, print_ext_arr, print_felt_arr,
     PolyEvaluator, UniPolyExtrapolator,
 };
+use crate::basefold_verifier::mmcs::MmcsCommitmentVariable;
 use crate::basefold_verifier::verifier::batch_verify;
 use crate::e2e::SubcircuitParams;
 use crate::tower_verifier::program::verify_tower_proof;
@@ -20,18 +19,21 @@ use crate::{
 use ceno_mle::expression::{Instance, StructuralWitIn};
 use ceno_zkvm::{circuit_builder::SetTableSpec, scheme::verifier::ZKVMVerifier};
 use ff_ext::BabyBearExt4;
-use itertools::interleave;
 use itertools::max;
+use itertools::{interleave, Itertools};
 use mpcs::{Basefold, BasefoldRSParams};
 use openvm_native_compiler::prelude::*;
 use openvm_native_compiler_derive::iter_zip;
 use openvm_native_recursion::challenger::{
     duplex::DuplexChallengerVariable, CanObserveVariable, FeltChallenger,
 };
+use p3_baby_bear::BabyBear;
 use p3_field::{Field, FieldAlgebra};
 
+type F = BabyBear;
 type E = BabyBearExt4;
 type Pcs = Basefold<E, BasefoldRSParams>;
+
 const NUM_FANIN: usize = 2;
 const MAINCONSTRAIN_SUMCHECK_BATCH_SIZE: usize = 3; // read/write/lookup
 const SEL_DEGREE: usize = 2;
@@ -69,10 +71,10 @@ pub fn transcript_group_sample_ext<C: Config>(
     e
 }
 
-pub fn verify_zkvm_proof<C: Config>(
+pub fn verify_zkvm_proof<C: Config<F = F>>(
     builder: &mut Builder<C>,
     zkvm_proof_input: ZKVMProofInputVariable<C>,
-    ceno_constraint_system: &ZKVMVerifier<E, Pcs>,
+    vk: &ZKVMVerifier<E, Pcs>,
     proving_sequence: Vec<SubcircuitParams>,
 ) {
     let mut challenger = DuplexChallengerVariable::new(builder);
@@ -101,18 +103,31 @@ pub fn verify_zkvm_proof<C: Config>(
         },
     );
 
-    challenger_multi_observe(builder, &mut challenger, &zkvm_proof_input.fixed_commit);
-    iter_zip!(builder, zkvm_proof_input.fixed_commit_trivial_commits).for_each(
-        |ptr_vec, builder| {
-            let trivial_cmt =
-                builder.iter_ptr_get(&zkvm_proof_input.fixed_commit_trivial_commits, ptr_vec[0]);
-            challenger_multi_observe(builder, &mut challenger, &trivial_cmt);
-        },
-    );
-    challenger.observe(
-        builder,
-        zkvm_proof_input.fixed_commit_log2_max_codeword_size,
-    );
+    let fixed_commit = if let Some(fixed_commit) = vk.vk.fixed_commit {
+        let commit: crate::basefold_verifier::hash::Hash = fixed_commit.commit().into();
+        let commit_array: Array<C, Felt<C::F>> = builder.dyn_array(commit.value.len());
+        commit.value.into_iter().enumerate().for_each(|(i, v)| {
+            let v = builder.constant(v);
+            builder.commit_public_value(v);
+
+            builder.set_value(&commit_array, i, v);
+        });
+        challenger_multi_observe(builder, &mut challenger, &commit_array);
+
+        let log2_max_codeword_size = builder.constant(C::F::from_canonical_usize(
+            fixed_commit.log2_max_codeword_size,
+        ));
+        challenger.observe(builder, log2_max_codeword_size);
+
+        Some((
+            MmcsCommitmentVariable {
+                value: commit_array,
+            },
+            log2_max_codeword_size,
+        ))
+    } else {
+        None
+    };
 
     let zero_f: Felt<C::F> = builder.constant(C::F::ZERO);
     iter_zip!(builder, zkvm_proof_input.num_instances).for_each(|ptr_vec, builder| {
@@ -127,14 +142,6 @@ pub fn verify_zkvm_proof<C: Config>(
     });
 
     challenger_multi_observe(builder, &mut challenger, &zkvm_proof_input.witin_commit);
-
-    iter_zip!(builder, zkvm_proof_input.witin_commit_trivial_commits).for_each(
-        |ptr_vec, builder| {
-            let trivial_cmt =
-                builder.iter_ptr_get(&zkvm_proof_input.witin_commit_trivial_commits, ptr_vec[0]);
-            challenger_multi_observe(builder, &mut challenger, &trivial_cmt);
-        },
-    );
     challenger.observe(
         builder,
         zkvm_proof_input.witin_commit_log2_max_codeword_size,
@@ -160,7 +167,7 @@ pub fn verify_zkvm_proof<C: Config>(
     for subcircuit_params in proving_sequence {
         if subcircuit_params.is_opcode {
             let opcode_proof = builder.get(
-                &zkvm_proof_input.opcode_proofs,
+                &zkvm_proof_input.chip_proofs,
                 subcircuit_params.type_order_idx,
             );
             let id_f: Felt<C::F> =
@@ -175,7 +182,7 @@ pub fn verify_zkvm_proof<C: Config>(
                 &zkvm_proof_input.pi_evals,
                 &challenges,
                 &subcircuit_params,
-                &ceno_constraint_system,
+                &vk,
                 &mut unipoly_extrapolator,
             );
             builder.cycle_tracker_end("Verify opcode proof");
@@ -184,7 +191,7 @@ pub fn verify_zkvm_proof<C: Config>(
             evaluations.push(opcode_proof.wits_in_evals);
 
             // getting the number of dummy padding item that we used in this opcode circuit
-            let cs = ceno_constraint_system.vk.circuit_vks[&subcircuit_params.name].get_cs();
+            let cs = vk.vk.circuit_vks[&subcircuit_params.name].get_cs();
             let num_instances = subcircuit_params.num_instances;
             let num_lks = cs.zkvm_v1_css.lk_expressions.len();
             let num_padded_instance = next_pow2_instance_padding(num_instances) - num_instances;
@@ -214,7 +221,7 @@ pub fn verify_zkvm_proof<C: Config>(
             });
         } else {
             let table_proof = builder.get(
-                &zkvm_proof_input.table_proofs,
+                &zkvm_proof_input.chip_proofs,
                 subcircuit_params.type_order_idx,
             );
             let id_f: Felt<C::F> =
@@ -230,14 +237,14 @@ pub fn verify_zkvm_proof<C: Config>(
                 &zkvm_proof_input.pi_evals,
                 &challenges,
                 &subcircuit_params,
-                ceno_constraint_system,
+                vk,
                 &mut unipoly_extrapolator,
                 &mut poly_evaluator,
             );
 
             rt_points.push(input_opening_point);
             evaluations.push(table_proof.wits_in_evals);
-            let cs = ceno_constraint_system.vk.circuit_vks[&subcircuit_params.name].get_cs();
+            let cs = vk.vk.circuit_vks[&subcircuit_params.name].get_cs();
             if cs.num_fixed() > 0 {
                 evaluations.push(table_proof.fixed_in_evals);
             }
@@ -278,7 +285,7 @@ pub fn verify_zkvm_proof<C: Config>(
         &empty_arr,
         &zkvm_proof_input.pi_evals,
         &challenges,
-        &ceno_constraint_system.vk.initial_global_state_expr,
+        &vk.vk.initial_global_state_expr,
     );
     builder.assign(&prod_w, prod_w * initial_global_state);
 
@@ -289,7 +296,7 @@ pub fn verify_zkvm_proof<C: Config>(
         &empty_arr,
         &zkvm_proof_input.pi_evals,
         &challenges,
-        &ceno_constraint_system.vk.finalize_global_state_expr,
+        &vk.vk.finalize_global_state_expr,
     );
     builder.assign(&prod_r, prod_r * finalize_global_state);
 
@@ -301,7 +308,7 @@ pub fn verify_zkvm_proof<C: Config>(
 pub fn verify_opcode_proof<C: Config>(
     builder: &mut Builder<C>,
     challenger: &mut DuplexChallengerVariable<C>,
-    opcode_proof: &ZKVMOpcodeProofInputVariable<C>,
+    opcode_proof: &ZKVMChipProofInputVariable<C>,
     pi_evals: &Array<C, Ext<C::F, C::EF>>,
     challenges: &Array<C, Ext<C::F, C::EF>>,
     subcircuit_params: &SubcircuitParams,
@@ -520,7 +527,7 @@ pub fn verify_opcode_proof<C: Config>(
 pub fn verify_table_proof<C: Config>(
     builder: &mut Builder<C>,
     challenger: &mut DuplexChallengerVariable<C>,
-    table_proof: &ZKVMTableProofInputVariable<C>,
+    table_proof: &ZKVMChipProofInputVariable<C>,
     raw_pi: &Array<C, Array<C, Felt<C::F>>>,
     raw_pi_num_variables: &Array<C, Var<C::N>>,
     pi_evals: &Array<C, Ext<C::F, C::EF>>,
