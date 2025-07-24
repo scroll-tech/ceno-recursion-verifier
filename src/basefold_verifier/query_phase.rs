@@ -394,7 +394,6 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                         let height_j = builder.eval(num_var_j + Usize::from(get_rate_log() - 1));
 
                         let permuted_j = builder.get(&round.perm, j);
-                        // let permuted_j = j;
 
                         builder.set_value(&perm_opened_values, permuted_j, mat_j);
                         builder.set_value(&dimensions, permuted_j, height_j);
