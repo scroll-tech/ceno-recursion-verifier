@@ -430,20 +430,22 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
 
                             // The linear combination is by (alpha^offset, ..., alpha^(offset+width-1)), which is equal to
                             // alpha^offset * (1, ..., alpha^(width-1))
-                            // Let universal_coeff = alpha^offset
-                            let universal_coeff =
+                            let alpha_offset =
                                 builder.get(&input.batch_coeffs, batch_coeffs_offset.clone());
                             // Will need to negate the values of low and high
                             // because `fri_single_reduced_opening_eval` is
                             // computing \sum_i alpha^i (0 - opened_value[i]).
                             // We want \sum_i alpha^(i + offset) opened_value[i]
                             // Let's negate it here.
-                            builder.assign(&universal_coeff, -universal_coeff);
+                            builder.assign(&alpha_offset, -alpha_offset);
 
                             // FIXME: avoid repeated allocating all zeros by reusing
                             // a large array of zeros. This requires computing
                             // the maximal width of all openings and evals.
                             let all_zeros = builder.dyn_array(width.clone());
+                            iter_zip!(builder, all_zeros).for_each(|ptr_vec, builder| {
+                                builder.set_value(&all_zeros, ptr_vec[0], zero.clone());
+                            });
 
                             let low = builder.fri_single_reduced_opening_eval(
                                 alpha,
@@ -459,8 +461,8 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                                 &high_values,
                                 &all_zeros,
                             );
-                            builder.assign(&low, low * universal_coeff);
-                            builder.assign(&high, high * universal_coeff);
+                            builder.assign(&low, low * alpha_offset);
+                            builder.assign(&high, high * alpha_offset);
 
                             let codeword: PackedCodeword<C> = PackedCodeword { low, high };
                             let codeword_acc =
