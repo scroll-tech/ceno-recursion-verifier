@@ -423,11 +423,6 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
 
                             let batch_coeffs_next_offset: Var<C::N> =
                                 builder.eval(batch_coeffs_offset + width.clone());
-                            let coeffs = input.batch_coeffs.slice(
-                                builder,
-                                batch_coeffs_offset.clone(),
-                                batch_coeffs_next_offset.clone(),
-                            );
                             let low_values = opened_value_buffer.slice(builder, 0, width.clone());
                             let high_values = opened_value_buffer.slice(
                                 builder,
@@ -438,7 +433,8 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                             // The linear combination is by (alpha^offset, ..., alpha^(offset+width-1)), which is equal to
                             // alpha^offset * (1, ..., alpha^(width-1))
                             // Let universal_coeff = alpha^offset
-                            let universal_coeff = builder.get(&coeffs, 0);
+                            let universal_coeff =
+                                builder.get(&input.batch_coeffs, batch_coeffs_offset.clone());
                             // Will need to negate the values of low and high
                             // because `fri_single_reduced_opening_eval` is
                             // computing \sum_i alpha^i (0 - opened_value[i]).
