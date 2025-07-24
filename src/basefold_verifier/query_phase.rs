@@ -393,7 +393,6 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
             iter_zip!(builder, query.input_proofs, input.rounds).for_each(|ptr_vec, builder| {
                 let batch_opening = builder.iter_ptr_get(&query.input_proofs, ptr_vec[0]);
                 let round = builder.iter_ptr_get(&input.rounds, ptr_vec[1]);
-                let perm = builder.iter_ptr_get(&round.perm, ptr_vec[2]);
                 let opened_values = batch_opening.opened_values;
                 let perm_opened_values = builder.dyn_array(opened_values.length.clone());
                 let dimensions = builder.dyn_array(opened_values.length.clone());
