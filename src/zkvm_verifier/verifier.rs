@@ -5,7 +5,7 @@ use crate::arithmetics::{
     challenger_multi_observe, eval_ceno_expr_with_instance, print_ext_arr, print_felt_arr,
     PolyEvaluator, UniPolyExtrapolator,
 };
-use crate::basefold_verifier::verifier::batch_verifier;
+use crate::basefold_verifier::verifier::batch_verify;
 use crate::e2e::SubcircuitParams;
 use crate::tower_verifier::program::verify_tower_proof;
 use crate::transcript::transcript_observe_label;

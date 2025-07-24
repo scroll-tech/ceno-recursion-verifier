@@ -15,38 +15,39 @@ use openvm_native_recursion::{
     hints::{Hintable, VecAutoHintable},
     vars::HintSlice,
 };
-use openvm_stark_backend::config::Val;
 use openvm_stark_sdk::p3_baby_bear::BabyBear;
 use p3_field::FieldAlgebra;
-use std::fmt::Debug;
 
 pub type F = BabyBear;
 pub type E = BabyBearExt4;
 pub type InnerConfig = AsmConfig<F, E>;
 
-pub(crate) fn batch_verifier<C: Config>(
+pub fn batch_verify<C: Config>(
     builder: &mut Builder<C>,
     max_num_var: Var<C::N>,
     rounds: Array<C, RoundVariable<C>>,
     proof: BasefoldProofVariable<C>,
     challenger: &mut DuplexChallengerVariable<C>,
-    // The permutation of the dimensions in decreasing order, whose correctness will be checked in the circuit
-    perms: Array<C, Array<C, Var<C::N>>>,
 ) {
     builder.assert_nonzero(&proof.final_message.len());
-    let expected_final_message_size: Var<C::N> = builder.eval(Usize::<C::N>::from(1usize)); // TODO: support early stop?
+    builder.assert_nonzero(&proof.sumcheck_proof.len());
+
+    // we don't support early stopping for now
     iter_zip!(builder, proof.final_message).for_each(|ptr_vec, builder| {
         let final_message_len = builder.iter_ptr_get(&proof.final_message, ptr_vec[0]).len();
-        builder.assert_eq::<Var<C::N>>(final_message_len, expected_final_message_size);
+        builder.assert_eq::<Usize<C::N>>(
+            final_message_len,
+            Usize::from(1 << get_basecode_msg_size_log()),
+        );
     });
 
-    builder.assert_nonzero(&proof.sumcheck_proof.len());
-    // TODO: get this number from some config instead of hardcoding
-    let expected_num_queries: Var<C::N> = builder.eval(Usize::<C::N>::from(100usize));
-    builder.assert_eq::<Var<C::N>>(proof.query_opening_proof.len(), expected_num_queries);
+    builder.assert_eq::<Usize<C::N>>(
+        proof.query_opening_proof.len(),
+        Usize::from(get_num_queries()),
+    );
 
     // Compute the total number of polynomials across all rounds
-    let total_num_polys: Var<C::N> = builder.eval(Usize::<C::N>::from(0));
+    let total_num_polys: Var<C::N> = builder.constant(C::N::ZERO);
     iter_zip!(builder, rounds).for_each(|ptr_vec, builder| {
         let openings = builder.iter_ptr_get(&rounds, ptr_vec[0]).openings;
         iter_zip!(builder, openings).for_each(|ptr_vec_openings, builder| {
@@ -59,6 +60,7 @@ pub(crate) fn batch_verifier<C: Config>(
         });
     });
 
+    // get batch coeffs
     transcript_observe_label(builder, challenger, b"batch coeffs");
     let batch_coeff = challenger.sample_ext(builder);
     let running_coeff =
@@ -71,54 +73,28 @@ pub(crate) fn batch_verifier<C: Config>(
     });
 
     // The max num var is provided by the prover and not guaranteed to be correct.
-    // Check that it is greater than or equal to every num var, and that it is
-    // equal to at least one of the num vars by multiplying all the differences
-    // together and check if the product is zero.
+    // Check that
+    //  1. it is greater than or equal to every num var;
+    //  2. it is equal to at least one of the num vars by multiplying all the differences
+    //      together and assert the product is zero.
     let diff_product: Var<C::N> = builder.eval(Usize::from(1));
-    let max_num_var_plus_one: Var<C::N> = builder.eval(max_num_var + Usize::from(1));
     iter_zip!(builder, rounds).for_each(|ptr_vec, builder| {
         let round = builder.iter_ptr_get(&rounds, ptr_vec[0]);
-        // Need to compute the max num var for each round separately. This time
-        // don't need to provide by hint because we have
-        // commit.log2_max_codeword_size = max_num_var + rate_log
-        // We need to ensure that rate_log < commit.log2_max_codeword_size
-        // TODO: rate_log is temporarily hardcoded to 1
-        builder.assert_less_than_slow_small_rhs(
-            Usize::from(1),
-            round.commit.log2_max_codeword_size.clone(),
-        );
-        let max_num_var_round: Var<C::N> =
-            builder.eval(round.commit.log2_max_codeword_size - Usize::from(1));
-        // Although max_num_var_round_plus_one is the same as log2_max_codeword_size
-        // in the current code, it may not be so when the log rate is updated. So
-        // let's keep the code more general for now.
-        let max_num_var_round_plus_one: Var<C::N> =
-            builder.eval(max_num_var_round + Usize::from(1));
-        let diff_product_round: Var<C::N> = builder.eval(Usize::from(1));
+
         iter_zip!(builder, round.openings).for_each(|ptr_vec_opening, builder| {
             let opening = builder.iter_ptr_get(&round.openings, ptr_vec_opening[0]);
-            builder.assert_less_than_slow_bit_decomp(opening.num_var, max_num_var_round_plus_one);
-            builder.assign(
-                &diff_product_round,
-                diff_product_round * (max_num_var_round - opening.num_var),
-            );
+            let diff: Var<C::N> = builder.eval(max_num_var.clone() - opening.num_var);
+            // num_var is always smaller than 32.
+            builder.range_check_var(diff, 5);
+            builder.assign(&diff_product, diff_product * diff);
         });
-        // Check that at least one opening.num_var is equal to max_num_var_round
-        builder.assert_eq::<Var<C::N>>(diff_product_round, Usize::from(0));
-
-        // Now work with the outer max num var
-        builder.assert_less_than_slow_bit_decomp(max_num_var_round, max_num_var_plus_one);
-        builder.assign(
-            &diff_product,
-            diff_product * (max_num_var - max_num_var_round),
-        );
     });
-    // Check that at least one max_num_var_round is equal to max_num_var
-    builder.assert_eq::<Var<C::N>>(diff_product, Usize::from(0));
+    // Check that at least one num_var is equal to max_num_var
+    let zero: Var<C::N> = builder.eval(C::N::ZERO);
+    builder.assert_eq::<Var<C::N>>(diff_product, zero);
 
-    // TODO: num rounds should be max num var - base message size log, but
-    // base message size log is 0 for now
-    let num_rounds = max_num_var;
+    let num_rounds: Var<C::N> =
+        builder.eval(max_num_var - Usize::from(get_basecode_msg_size_log()));
 
     let fold_challenges: Array<C, Ext<_, _>> = builder.dyn_array(max_num_var);
     builder.range(0, num_rounds).for_each(|index_vec, builder| {
@@ -151,17 +127,18 @@ pub(crate) fn batch_verifier<C: Config>(
 
     transcript_check_pow_witness(builder, challenger, 16, proof.pow_witness); // TODO: avoid hardcoding pow bits
     transcript_observe_label(builder, challenger, b"query indices");
-    let queries: Array<C, Var<C::N>> = builder.dyn_array(100); // TODO: avoid hardcoding
-    let zero = builder.eval(Usize::from(0));
-    builder.range(0, 100).for_each(|index_vec, builder| {
-        let number_of_bits = builder.eval_expr(max_num_var + Usize::from(1));
-        let query = challenger.sample_bits(builder, number_of_bits);
-        // TODO: the index will need to be split back to bits in query phase, so it's
-        // probably better to avoid converting bits to integer altogether
-        let number_of_bits = builder.eval(max_num_var + Usize::from(1));
-        let query = bin_to_dec_le(builder, &query, zero, number_of_bits);
-        builder.set(&queries, index_vec[0], query);
-    });
+    let queries: Array<C, Var<C::N>> = builder.dyn_array(get_num_queries());
+    builder
+        .range(0, get_num_queries())
+        .for_each(|index_vec, builder| {
+            let number_of_bits = builder.eval_expr(max_num_var + Usize::from(get_rate_log()));
+            let query = challenger.sample_bits(builder, number_of_bits);
+            // TODO: the index will need to be split back to bits in query phase, so it's
+            // probably better to avoid converting bits to integer altogether
+            let number_of_bits = builder.eval(max_num_var + Usize::from(get_rate_log()));
+            let query = bin_to_dec_le(builder, &query, zero, number_of_bits);
+            builder.set(&queries, index_vec[0], query);
+        });
 
     let input = QueryPhaseVerifierInputVariable {
         max_num_var: builder.eval(max_num_var),
@@ -170,7 +147,6 @@ pub(crate) fn batch_verifier<C: Config>(
         indices: queries,
         proof,
         rounds,
-        perms,
     };
     batch_verifier_query_phase(builder, input);
 }
@@ -205,7 +181,7 @@ pub mod tests {
     type E = BabyBearExt4;
     type PCS = BasefoldDefault<E>;
 
-    use super::{batch_verifier, BasefoldProof, BasefoldProofVariable, InnerConfig, RoundVariable};
+    use super::{batch_verify, BasefoldProof, BasefoldProofVariable, InnerConfig, RoundVariable};
     use crate::basefold_verifier::basefold::{Round, RoundOpening};
     use crate::basefold_verifier::query_phase::PointAndEvals;
     use crate::{
@@ -223,7 +199,6 @@ pub mod tests {
         pub max_num_var: usize,
         pub proof: BasefoldProof,
         pub rounds: Vec<Round>,
-        pub perms: Vec<Vec<usize>>,
     }
 
     impl Hintable<InnerConfig> for VerifierInput {
@@ -233,13 +208,11 @@ pub mod tests {
             let max_num_var = usize::read(builder);
             let proof = BasefoldProof::read(builder);
             let rounds = Vec::<Round>::read(builder);
-            let perms = Vec::<Vec<usize>>::read(builder);
 
             VerifierInputVariable {
                 max_num_var,
                 proof,
                 rounds,
-                perms,
             }
         }
 
@@ -248,7 +221,6 @@ pub mod tests {
             stream.extend(<usize as Hintable<InnerConfig>>::write(&self.max_num_var));
             stream.extend(self.proof.write());
             stream.extend(self.rounds.write());
-            stream.extend(self.perms.write());
             stream
         }
     }
@@ -258,7 +230,6 @@ pub mod tests {
         pub max_num_var: Var<C::N>,
         pub proof: BasefoldProofVariable<C>,
         pub rounds: Array<C, RoundVariable<C>>,
-        pub perms: Array<C, Array<C, Var<C::N>>>,
     }
 
     #[allow(dead_code)]
@@ -267,20 +238,18 @@ pub mod tests {
         let mut builder = AsmBuilder::<F, E>::default();
         let mut challenger = DuplexChallengerVariable::new(&mut builder);
         let verifier_input = VerifierInput::read(&mut builder);
-        batch_verifier(
+        batch_verify(
             &mut builder,
             verifier_input.max_num_var,
             verifier_input.rounds,
             verifier_input.proof,
             &mut challenger,
-            verifier_input.perms,
         );
         builder.halt();
         let program = builder.compile_isa();
 
         let mut witness_stream: Vec<Vec<F>> = Vec::new();
         witness_stream.extend(input.write());
-        // witness_stream.push(vec![F::from_canonical_u32(2).inverse()]);
 
         (program, witness_stream)
     }
@@ -291,23 +260,6 @@ pub mod tests {
         // setup PCS
         let pp = PCS::setup(1 << 20, mpcs::SecurityLevel::Conjecture100bits).unwrap();
         let (pp, vp) = pcs_trim::<E, PCS>(pp, 1 << 20).unwrap();
-
-        // Sort the dimensions decreasingly and compute the permutation array
-        let mut dimensions_with_index = dimensions.iter().enumerate().collect::<Vec<_>>();
-        dimensions_with_index.sort_by(|(_, (a, _)), (_, (b, _))| b.cmp(a));
-        // The perm array should satisfy that: sorted_dimensions[perm[i]] = dimensions[i]
-        // However, if we just pick the indices now, we get the inverse permutation:
-        // sorted_dimensions[i] = dimensions[perm[i]]
-        let perm = dimensions_with_index
-            .iter()
-            .map(|(i, _)| *i)
-            .collect::<Vec<_>>();
-        // So we need to invert the permutation
-        let mut inverted_perm = vec![0usize; perm.len()];
-        for (i, &j) in perm.iter().enumerate() {
-            inverted_perm[j] = i;
-        }
-        let perm = inverted_perm;
 
         let mut num_total_polys = 0;
         let (matrices, mles): (Vec<_>, Vec<_>) = dimensions
@@ -358,31 +310,25 @@ pub mod tests {
             .max()
             .unwrap();
 
-        let perms = vec![perm];
-
         let verifier_input = VerifierInput {
             max_num_var,
             rounds: rounds
-                .iter()
-                .map(|round| Round {
-                    commit: round.0.clone().into(),
-                    openings: round
-                        .1
-                        .iter()
-                        .map(|opening| RoundOpening {
-                            num_var: opening.0,
+                .into_iter()
+                .map(|(commit, openings)| Round {
+                    commit: commit.into(),
+                    openings: openings
+                        .into_iter()
+                        .map(|(num_var, (point, evals))| RoundOpening {
+                            num_var,
                             point_and_evals: PointAndEvals {
-                                point: Point {
-                                    fs: opening.1.clone().0,
-                                },
-                                evals: opening.1.clone().1,
+                                point: Point { fs: point },
+                                evals,
                             },
                         })
                         .collect(),
                 })
                 .collect(),
             proof: opening_proof.into(),
-            perms,
         };
 
         let (program, witness) = build_batch_verifier(verifier_input);
