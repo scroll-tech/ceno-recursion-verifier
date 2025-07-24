@@ -199,7 +199,6 @@ pub mod tests {
         pub max_num_var: usize,
         pub proof: BasefoldProof,
         pub rounds: Vec<Round>,
-        pub perms: Vec<Vec<usize>>,
     }
 
     impl Hintable<InnerConfig> for VerifierInput {
@@ -209,13 +208,11 @@ pub mod tests {
             let max_num_var = usize::read(builder);
             let proof = BasefoldProof::read(builder);
             let rounds = Vec::<Round>::read(builder);
-            let perms = Vec::<Vec<usize>>::read(builder);
 
             VerifierInputVariable {
                 max_num_var,
                 proof,
                 rounds,
-                perms,
             }
         }
 
@@ -224,7 +221,6 @@ pub mod tests {
             stream.extend(<usize as Hintable<InnerConfig>>::write(&self.max_num_var));
             stream.extend(self.proof.write());
             stream.extend(self.rounds.write());
-            stream.extend(self.perms.write());
             stream
         }
     }
@@ -234,7 +230,6 @@ pub mod tests {
         pub max_num_var: Var<C::N>,
         pub proof: BasefoldProofVariable<C>,
         pub rounds: Array<C, RoundVariable<C>>,
-        pub perms: Array<C, Array<C, Var<C::N>>>,
     }
 
     #[allow(dead_code)]
@@ -255,7 +250,6 @@ pub mod tests {
 
         let mut witness_stream: Vec<Vec<F>> = Vec::new();
         witness_stream.extend(input.write());
-        // witness_stream.push(vec![F::from_canonical_u32(2).inverse()]);
 
         (program, witness_stream)
     }
@@ -266,23 +260,6 @@ pub mod tests {
         // setup PCS
         let pp = PCS::setup(1 << 20, mpcs::SecurityLevel::Conjecture100bits).unwrap();
         let (pp, vp) = pcs_trim::<E, PCS>(pp, 1 << 20).unwrap();
-
-        // Sort the dimensions decreasingly and compute the permutation array
-        let mut dimensions_with_index = dimensions.iter().enumerate().collect::<Vec<_>>();
-        dimensions_with_index.sort_by(|(_, (a, _)), (_, (b, _))| b.cmp(a));
-        // The perm array should satisfy that: sorted_dimensions[perm[i]] = dimensions[i]
-        // However, if we just pick the indices now, we get the inverse permutation:
-        // sorted_dimensions[i] = dimensions[perm[i]]
-        let perm = dimensions_with_index
-            .iter()
-            .map(|(i, _)| *i)
-            .collect::<Vec<_>>();
-        // So we need to invert the permutation
-        let mut inverted_perm = vec![0usize; perm.len()];
-        for (i, &j) in perm.iter().enumerate() {
-            inverted_perm[j] = i;
-        }
-        let perm = inverted_perm;
 
         let mut num_total_polys = 0;
         let (matrices, mles): (Vec<_>, Vec<_>) = dimensions
@@ -333,31 +310,27 @@ pub mod tests {
             .max()
             .unwrap();
 
-        let perms = vec![perm];
-
         let verifier_input = VerifierInput {
             max_num_var,
             rounds: rounds
-                .iter()
-                .map(|round| Round {
-                    commit: round.0.clone().into(),
-                    openings: round
-                        .1
-                        .iter()
-                        .map(|opening| RoundOpening {
-                            num_var: opening.0,
+                .into_iter()
+                .map(|(commit, openings)| Round {
+                    commit: commit.into(),
+                    openings: openings
+                        .into_iter()
+                        .map(|(num_var, (point, evals))| RoundOpening {
+                            num_var,
                             point_and_evals: PointAndEvals {
                                 point: Point {
-                                    fs: opening.1.clone().0,
+                                    fs: point,
                                 },
-                                evals: opening.1.clone().1,
+                                evals,
                             },
                         })
                         .collect(),
                 })
                 .collect(),
             proof: opening_proof.into(),
-            perms,
         };
 
         let (program, witness) = build_batch_verifier(verifier_input);
