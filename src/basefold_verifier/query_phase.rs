@@ -421,8 +421,6 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                                 opened_value_buffer.clone(),
                             );
 
-                            let batch_coeffs_next_offset: Var<C::N> =
-                                builder.eval(batch_coeffs_offset + width.clone());
                             let low_values = opened_value_buffer.slice(builder, 0, width.clone());
                             let high_values = opened_value_buffer.slice(
                                 builder,
@@ -444,7 +442,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                             // FIXME: avoid repeated allocating all zeros by reusing
                             // a large array of zeros. This requires computing
                             // the maximal width of all openings and evals.
-                            let all_zeros = builder.dyn_array(width);
+                            let all_zeros = builder.dyn_array(width.clone());
 
                             let low = builder.fri_single_reduced_opening_eval(
                                 alpha,
@@ -476,7 +474,8 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                                 log2_height,
                                 codeword_acc,
                             );
-                            builder.assign(&batch_coeffs_offset, batch_coeffs_next_offset);
+                            builder
+                                .assign(&batch_coeffs_offset, batch_coeffs_offset + width.clone());
                         },
                     );
 
