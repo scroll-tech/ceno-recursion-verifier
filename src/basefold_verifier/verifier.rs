@@ -22,7 +22,7 @@ pub type F = BabyBear;
 pub type E = BabyBearExt4;
 pub type InnerConfig = AsmConfig<F, E>;
 
-pub(crate) fn batch_verifier<C: Config>(
+pub fn batch_verify<C: Config>(
     builder: &mut Builder<C>,
     max_num_var: Var<C::N>,
     rounds: Array<C, RoundVariable<C>>,
@@ -181,7 +181,7 @@ pub mod tests {
     type E = BabyBearExt4;
     type PCS = BasefoldDefault<E>;
 
-    use super::{batch_verifier, BasefoldProof, BasefoldProofVariable, InnerConfig, RoundVariable};
+    use super::{batch_verify, BasefoldProof, BasefoldProofVariable, InnerConfig, RoundVariable};
     use crate::basefold_verifier::basefold::{Round, RoundOpening};
     use crate::basefold_verifier::query_phase::PointAndEvals;
     use crate::{
@@ -243,7 +243,7 @@ pub mod tests {
         let mut builder = AsmBuilder::<F, E>::default();
         let mut challenger = DuplexChallengerVariable::new(&mut builder);
         let verifier_input = VerifierInput::read(&mut builder);
-        batch_verifier(
+        batch_verify(
             &mut builder,
             verifier_input.max_num_var,
             verifier_input.rounds,
