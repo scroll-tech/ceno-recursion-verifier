@@ -245,6 +245,7 @@ pub struct PointAndEvalsVariable<C: Config> {
 pub struct QueryPhaseVerifierInput {
     // pub t_inv_halves: Vec<Vec<<E as ExtensionField>::BaseField>>,
     pub max_num_var: usize,
+    pub max_width: usize,
     pub batch_coeffs: Vec<E>,
     pub fold_challenges: Vec<E>,
     pub indices: Vec<usize>,
@@ -259,6 +260,7 @@ impl Hintable<InnerConfig> for QueryPhaseVerifierInput {
     fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
         // let t_inv_halves = Vec::<Vec<F>>::read(builder);
         let max_num_var = Usize::Var(usize::read(builder));
+        let max_width = Usize::Var(usize::read(builder));
         let batch_coeffs = Vec::<E>::read(builder);
         let fold_challenges = Vec::<E>::read(builder);
         let indices = Vec::<usize>::read(builder);
@@ -270,6 +272,7 @@ impl Hintable<InnerConfig> for QueryPhaseVerifierInput {
         QueryPhaseVerifierInputVariable {
             // t_inv_halves,
             max_num_var,
+            max_width,
             batch_coeffs,
             fold_challenges,
             indices,
@@ -282,6 +285,7 @@ impl Hintable<InnerConfig> for QueryPhaseVerifierInput {
         let mut stream = Vec::new();
         // stream.extend(self.t_inv_halves.write());
         stream.extend(<usize as Hintable<InnerConfig>>::write(&self.max_num_var));
+        stream.extend(<usize as Hintable<InnerConfig>>::write(&self.max_width));
         stream.extend(self.batch_coeffs.write());
         stream.extend(self.fold_challenges.write());
         stream.extend(self.indices.write());
@@ -296,6 +300,7 @@ impl Hintable<InnerConfig> for QueryPhaseVerifierInput {
 pub struct QueryPhaseVerifierInputVariable<C: Config> {
     // pub t_inv_halves: Array<C, Array<C, Felt<C::F>>>,
     pub max_num_var: Usize<C::N>,
+    pub max_width: Usize<C::N>,
     pub batch_coeffs: Array<C, Ext<C::F, C::EF>>,
     pub fold_challenges: Array<C, Ext<C::F, C::EF>>,
     pub indices: Array<C, Var<C::N>>,
@@ -327,6 +332,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
         let generator = builder.constant(C::F::from_canonical_usize(*val).inverse());
         builder.set_value(&two_adic_generators_inverses, index, generator);
     }
+    let zero: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
     let zero_flag = builder.constant(C::N::ZERO);
     let two: Var<C::N> = builder.constant(C::N::from_canonical_usize(2));
 
@@ -334,6 +340,11 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
     let final_message = &input.proof.final_message;
     let final_rmm_values_len = builder.get(final_message, 0).len();
     let final_rmm_values = builder.dyn_array(final_rmm_values_len.clone());
+
+    let all_zeros = builder.dyn_array(input.max_width.clone());
+    iter_zip!(builder, all_zeros).for_each(|ptr_vec, builder| {
+        builder.set_value(&all_zeros, ptr_vec[0], zero.clone());
+    });
 
     builder
         .range(0, final_rmm_values_len.clone())
@@ -359,7 +370,6 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
     let log2_max_codeword_size: Var<C::N> =
         builder.eval(input.max_num_var.clone() + Usize::from(get_rate_log()));
 
-    let zero: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
     let alpha: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
     builder
         .if_ne(input.batch_coeffs.len(), C::N::ONE)
@@ -440,28 +450,21 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                         // We want \sum_i alpha^(i + offset) opened_value[i]
                         // Let's negate it here.
                         builder.assign(&alpha_offset, -alpha_offset);
-
-                        // FIXME: avoid repeated allocating all zeros by reusing
-                        // a large array of zeros. This requires computing
-                        // the maximal width of all openings and evals.
-                        let all_zeros = builder.dyn_array(width.clone());
-                        iter_zip!(builder, all_zeros).for_each(|ptr_vec, builder| {
-                            builder.set_value(&all_zeros, ptr_vec[0], zero.clone());
-                        });
+                        let all_zeros_slice = all_zeros.slice(builder, 0, width.clone());
 
                         let low = builder.fri_single_reduced_opening_eval(
                             alpha,
                             opened_values.id.get_var(),
                             zero_flag,
                             &low_values,
-                            &all_zeros,
+                            &all_zeros_slice,
                         );
                         let high = builder.fri_single_reduced_opening_eval(
                             alpha,
                             opened_values.id.get_var(),
                             zero_flag,
                             &high_values,
-                            &all_zeros,
+                            &all_zeros_slice,
                         );
                         builder.assign(&low, low * alpha_offset);
                         builder.assign(&high, high * alpha_offset);
@@ -844,6 +847,11 @@ pub mod tests {
             .map(|(point, _)| point.len())
             .max()
             .unwrap();
+        let max_width = point_and_evals
+            .iter()
+            .map(|(_, evals)| evals.len())
+            .max()
+            .unwrap();
         let num_rounds = max_num_var; // The final message is of length 1
 
         // prepare folding challenges via sumcheck round msg + FRI commitment
@@ -879,6 +887,7 @@ pub mod tests {
 
         let query_input = QueryPhaseVerifierInput {
             max_num_var,
+            max_width,
             fold_challenges,
             batch_coeffs,
             indices: queries,

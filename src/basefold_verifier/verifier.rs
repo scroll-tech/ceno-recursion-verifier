@@ -25,6 +25,7 @@ pub type InnerConfig = AsmConfig<F, E>;
 pub fn batch_verify<C: Config>(
     builder: &mut Builder<C>,
     max_num_var: Var<C::N>,
+    max_width: Var<C::N>,
     rounds: Array<C, RoundVariable<C>>,
     proof: BasefoldProofVariable<C>,
     challenger: &mut DuplexChallengerVariable<C>,
@@ -72,12 +73,13 @@ pub fn batch_verify<C: Config>(
         builder.assign(&running_coeff, running_coeff * batch_coeff);
     });
 
-    // The max num var is provided by the prover and not guaranteed to be correct.
+    // The max num var and max width are provided by the prover and not guaranteed to be correct.
     // Check that
-    //  1. it is greater than or equal to every num var;
+    //  1. max_num_var is greater than or equal to every num var (same for width);
     //  2. it is equal to at least one of the num vars by multiplying all the differences
-    //      together and assert the product is zero.
-    let diff_product: Var<C::N> = builder.eval(Usize::from(1));
+    //      together and assert the product is zero (same for width).
+    let diff_product_num_var: Var<C::N> = builder.eval(Usize::from(1));
+    let diff_product_width: Var<C::N> = builder.eval(Usize::from(1));
     iter_zip!(builder, rounds).for_each(|ptr_vec, builder| {
         let round = builder.iter_ptr_get(&rounds, ptr_vec[0]);
 
@@ -86,12 +88,19 @@ pub fn batch_verify<C: Config>(
             let diff: Var<C::N> = builder.eval(max_num_var.clone() - opening.num_var);
             // num_var is always smaller than 32.
             builder.range_check_var(diff, 5);
-            builder.assign(&diff_product, diff_product * diff);
+            builder.assign(&diff_product_num_var, diff_product_num_var * diff);
+
+            let diff: Var<C::N> =
+                builder.eval(max_width.clone() - opening.point_and_evals.evals.len());
+            // width is always smaller than 2^20.
+            builder.range_check_var(diff, 20);
+            builder.assign(&diff_product_width, diff_product_width * diff);
         });
     });
     // Check that at least one num_var is equal to max_num_var
     let zero: Var<C::N> = builder.eval(C::N::ZERO);
-    builder.assert_eq::<Var<C::N>>(diff_product, zero);
+    builder.assert_eq::<Var<C::N>>(diff_product_num_var, zero);
+    builder.assert_eq::<Var<C::N>>(diff_product_width, zero);
 
     let num_rounds: Var<C::N> =
         builder.eval(max_num_var - Usize::from(get_basecode_msg_size_log()));
@@ -142,6 +151,7 @@ pub fn batch_verify<C: Config>(
 
     let input = QueryPhaseVerifierInputVariable {
         max_num_var: builder.eval(max_num_var),
+        max_width: builder.eval(max_width),
         batch_coeffs,
         fold_challenges,
         indices: queries,
@@ -197,6 +207,7 @@ pub mod tests {
     #[derive(Deserialize)]
     pub struct VerifierInput {
         pub max_num_var: usize,
+        pub max_width: usize,
         pub proof: BasefoldProof,
         pub rounds: Vec<Round>,
     }
@@ -206,11 +217,13 @@ pub mod tests {
 
         fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
             let max_num_var = usize::read(builder);
+            let max_width = usize::read(builder);
             let proof = BasefoldProof::read(builder);
             let rounds = Vec::<Round>::read(builder);
 
             VerifierInputVariable {
                 max_num_var,
+                max_width,
                 proof,
                 rounds,
             }
@@ -219,6 +232,7 @@ pub mod tests {
         fn write(&self) -> Vec<Vec<<InnerConfig as Config>::N>> {
             let mut stream = Vec::new();
             stream.extend(<usize as Hintable<InnerConfig>>::write(&self.max_num_var));
+            stream.extend(<usize as Hintable<InnerConfig>>::write(&self.max_width));
             stream.extend(self.proof.write());
             stream.extend(self.rounds.write());
             stream
@@ -228,6 +242,7 @@ pub mod tests {
     #[derive(DslVariable, Clone)]
     pub struct VerifierInputVariable<C: Config> {
         pub max_num_var: Var<C::N>,
+        pub max_width: Var<C::N>,
         pub proof: BasefoldProofVariable<C>,
         pub rounds: Array<C, RoundVariable<C>>,
     }
@@ -241,6 +256,7 @@ pub mod tests {
         batch_verify(
             &mut builder,
             verifier_input.max_num_var,
+            verifier_input.max_width,
             verifier_input.rounds,
             verifier_input.proof,
             &mut challenger,
@@ -309,9 +325,15 @@ pub mod tests {
             .map(|(point, _)| point.len())
             .max()
             .unwrap();
+        let max_width = point_and_evals
+            .iter()
+            .map(|(_, evals)| evals.len())
+            .max()
+            .unwrap();
 
         let verifier_input = VerifierInput {
             max_num_var,
+            max_width,
             rounds: rounds
                 .into_iter()
                 .map(|(commit, openings)| Round {
