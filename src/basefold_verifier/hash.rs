@@ -40,7 +40,7 @@ impl Hintable<InnerConfig> for Hash {
     }
 
     fn write(&self) -> Vec<Vec<<InnerConfig as Config>::N>> {
-        self.value.to_vec().write()
+        self.value.map(|felt| vec![felt]).to_vec()
     }
 }
 
