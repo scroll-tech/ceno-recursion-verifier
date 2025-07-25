@@ -188,7 +188,6 @@ pub mod tests {
         basefold_verifier::{
             basefold::BasefoldCommitment,
             query_phase::{BatchOpening, CommitPhaseProofStep, QueryOpeningProof},
-            structs::CircuitIndexMeta,
         },
         tower_verifier::binding::{Point, PointAndEval},
     };
@@ -321,9 +320,7 @@ pub mod tests {
                         .map(|(num_var, (point, evals))| RoundOpening {
                             num_var,
                             point_and_evals: PointAndEvals {
-                                point: Point {
-                                    fs: point,
-                                },
+                                point: Point { fs: point },
                                 evals,
                             },
                         })

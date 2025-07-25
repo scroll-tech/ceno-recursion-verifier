@@ -1,5 +1,5 @@
 use crate::tower_verifier::binding::PointAndEvalVariable;
-use crate::zkvm_verifier::binding::ZKVMOpcodeProofInputVariable;
+use crate::zkvm_verifier::binding::ZKVMChipProofInputVariable;
 use ceno_mle::{Expression, Fixed, Instance};
 use ceno_zkvm::structs::{ChallengeId, WitnessId};
 use ff_ext::ExtensionField;
@@ -422,7 +422,7 @@ pub fn gen_alpha_pows<C: Config>(
 pub fn eq_eval_less_or_equal_than<C: Config>(
     builder: &mut Builder<C>,
     _challenger: &mut DuplexChallengerVariable<C>,
-    opcode_proof: &ZKVMOpcodeProofInputVariable<C>,
+    opcode_proof: &ZKVMChipProofInputVariable<C>,
     a: &Array<C, Ext<C::F, C::EF>>,
     b: &Array<C, Ext<C::F, C::EF>>,
 ) -> Ext<C::F, C::EF> {
