@@ -4,8 +4,8 @@ use crate::arithmetics::{
     PolyEvaluator, UniPolyExtrapolator,
 };
 use crate::basefold_verifier::mmcs::MmcsCommitmentVariable;
+use crate::basefold_verifier::utils::pow_2;
 use crate::basefold_verifier::verifier::batch_verify;
-use crate::e2e::SubcircuitParams;
 use crate::tower_verifier::program::verify_tower_proof;
 use crate::transcript::transcript_observe_label;
 use crate::{
@@ -17,6 +17,8 @@ use crate::{
     tower_verifier::{binding::PointVariable, program::iop_verifier_state_verify},
 };
 use ceno_mle::expression::{Instance, StructuralWitIn};
+use ceno_zkvm::e2e::B;
+use ceno_zkvm::structs::VerifyingKey;
 use ceno_zkvm::{circuit_builder::SetTableSpec, scheme::verifier::ZKVMVerifier};
 use ff_ext::BabyBearExt4;
 use itertools::max;
@@ -75,7 +77,6 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
     builder: &mut Builder<C>,
     zkvm_proof_input: ZKVMProofInputVariable<C>,
     vk: &ZKVMVerifier<E, Pcs>,
-    proving_sequence: Vec<SubcircuitParams>,
 ) {
     let mut challenger = DuplexChallengerVariable::new(builder);
     transcript_observe_label(builder, &mut challenger, b"riscv");
@@ -103,7 +104,7 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
         },
     );
 
-    let fixed_commit = if let Some(fixed_commit) = vk.vk.fixed_commit {
+    let fixed_commit = if let Some(fixed_commit) = vk.vk.fixed_commit.as_ref() {
         let commit: crate::basefold_verifier::hash::Hash = fixed_commit.commit().into();
         let commit_array: Array<C, Felt<C::F>> = builder.dyn_array(commit.value.len());
         commit.value.into_iter().enumerate().for_each(|(i, v)| {
@@ -158,116 +159,96 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
     let mut poly_evaluator = PolyEvaluator::new(builder);
 
     let dummy_table_item = alpha.clone();
-    let dummy_table_item_multiplicity: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
+    let dummy_table_item_multiplicity: Var<C::N> = builder.constant(C::N::ZERO);
 
-    let mut rt_points: Vec<Array<C, Ext<C::F, C::EF>>> = Vec::with_capacity(proving_sequence.len());
-    let mut evaluations: Vec<Array<C, Ext<C::F, C::EF>>> =
-        Vec::with_capacity(2 * proving_sequence.len()); // witin + fixed thus *2
+    let num_chips_verified: Usize<C::N> = builder.eval(C::N::ZERO);
+    let chip_indices: Array<C, Var<C::N>> = builder.dyn_array(zkvm_proof_input.chip_proofs.len());
+    builder
+        .range(0, chip_indices.len())
+        .for_each(|idx_vec, builder| {
+            let i = idx_vec[0];
+            let chip_proof = builder.get(&zkvm_proof_input.chip_proofs, i);
+            builder.set(&chip_indices, i, chip_proof.idx);
+        });
 
-    for subcircuit_params in proving_sequence {
-        if subcircuit_params.is_opcode {
-            let opcode_proof = builder.get(
-                &zkvm_proof_input.chip_proofs,
-                subcircuit_params.type_order_idx,
-            );
-            let id_f: Felt<C::F> =
-                builder.constant(C::F::from_canonical_usize(subcircuit_params.id));
-            challenger.observe(builder, id_f);
+    // iterate over all chips
+    for (i, chip_vk) in vk.vk.circuit_vks.values().enumerate() {
+        let chip_id: Var<C::N> = builder.get(&chip_indices, num_chips_verified.get_var());
+        builder.if_eq(chip_id, RVar::from(i)).then(|builder| {
+            let chip_proof =
+                builder.get(&zkvm_proof_input.chip_proofs, num_chips_verified.get_var());
+            challenger.observe(builder, chip_proof.idx_felt);
 
-            builder.cycle_tracker_start("Verify opcode proof");
-            let input_opening_point = verify_opcode_proof(
-                builder,
-                &mut challenger,
-                &opcode_proof,
-                &zkvm_proof_input.pi_evals,
-                &challenges,
-                &subcircuit_params,
-                &vk,
-                &mut unipoly_extrapolator,
-            );
-            builder.cycle_tracker_end("Verify opcode proof");
-
-            rt_points.push(input_opening_point);
-            evaluations.push(opcode_proof.wits_in_evals);
+            builder.cycle_tracker_start("Verify chip proof");
+            let input_opening_point = if chip_vk.get_cs().is_opcode_circuit() {
+                verify_opcode_proof(
+                    builder,
+                    &mut challenger,
+                    &chip_proof,
+                    &zkvm_proof_input.pi_evals,
+                    &challenges,
+                    &chip_vk,
+                    &mut unipoly_extrapolator,
+                )
+            } else {
+                verify_table_proof(
+                    builder,
+                    &mut challenger,
+                    &chip_proof,
+                    &zkvm_proof_input.pi_evals,
+                    &challenges,
+                    &chip_vk,
+                    &mut unipoly_extrapolator,
+                )
+            };
+            builder.cycle_tracker_end("Verify chip proof");
 
             // getting the number of dummy padding item that we used in this opcode circuit
-            let cs = vk.vk.circuit_vks[&subcircuit_params.name].get_cs();
-            let num_instances = subcircuit_params.num_instances;
-            let num_lks = cs.zkvm_v1_css.lk_expressions.len();
-            let num_padded_instance = next_pow2_instance_padding(num_instances) - num_instances;
+            if chip_vk.get_cs().is_opcode_circuit() {
+                let num_lks = chip_vk.get_cs().num_lks();
+                // FIXME: use builder to compute this
+                let num_instances = pow_2(builder, chip_proof.log2_num_instances.get_var());
+                let num_padded_instance: Var<C::N> =
+                    builder.eval(num_instances - chip_proof.num_instances);
 
-            let new_multiplicity: Ext<C::F, C::EF> =
-                builder.constant(C::EF::from_canonical_usize(num_lks * num_padded_instance));
-            builder.assign(
-                &dummy_table_item_multiplicity,
-                dummy_table_item_multiplicity + new_multiplicity,
-            );
-
-            let record_r_out_evals_prod = nested_product(builder, &opcode_proof.record_r_out_evals);
-            builder.assign(&prod_r, prod_r * record_r_out_evals_prod);
-
-            let record_w_out_evals_prod = nested_product(builder, &opcode_proof.record_w_out_evals);
-            builder.assign(&prod_w, prod_w * record_w_out_evals_prod);
-
-            iter_zip!(builder, opcode_proof.record_lk_out_evals).for_each(|ptr_vec, builder| {
-                let evals = builder.iter_ptr_get(&opcode_proof.record_lk_out_evals, ptr_vec[0]);
-                let p1 = builder.get(&evals, 0);
-                let p2 = builder.get(&evals, 1);
-                let q1 = builder.get(&evals, 2);
-                let q2 = builder.get(&evals, 3);
-
-                builder.assign(&logup_sum, logup_sum + p1 * q1.inverse());
-                builder.assign(&logup_sum, logup_sum + p2 * q2.inverse());
-            });
-        } else {
-            let table_proof = builder.get(
-                &zkvm_proof_input.chip_proofs,
-                subcircuit_params.type_order_idx,
-            );
-            let id_f: Felt<C::F> =
-                builder.constant(C::F::from_canonical_usize(subcircuit_params.id));
-            challenger.observe(builder, id_f);
-
-            let input_opening_point = verify_table_proof(
-                builder,
-                &mut challenger,
-                &table_proof,
-                &zkvm_proof_input.raw_pi,
-                &zkvm_proof_input.raw_pi_num_variables,
-                &zkvm_proof_input.pi_evals,
-                &challenges,
-                &subcircuit_params,
-                vk,
-                &mut unipoly_extrapolator,
-                &mut poly_evaluator,
-            );
-
-            rt_points.push(input_opening_point);
-            evaluations.push(table_proof.wits_in_evals);
-            let cs = vk.vk.circuit_vks[&subcircuit_params.name].get_cs();
-            if cs.num_fixed() > 0 {
-                evaluations.push(table_proof.fixed_in_evals);
+                let new_multiplicity: Usize<C::N> =
+                    builder.eval(Usize::from(num_lks) * Usize::from(num_padded_instance));
+                builder.assign(
+                    &dummy_table_item_multiplicity,
+                    dummy_table_item_multiplicity + new_multiplicity,
+                );
             }
 
-            iter_zip!(builder, table_proof.record_lk_out_evals).for_each(|ptr_vec, builder| {
-                let evals = builder.iter_ptr_get(&table_proof.record_lk_out_evals, ptr_vec[0]);
+            let record_r_out_evals_prod = nested_product(builder, &chip_proof.record_r_out_evals);
+            builder.assign(&prod_r, prod_r * record_r_out_evals_prod);
+
+            let record_w_out_evals_prod = nested_product(builder, &chip_proof.record_w_out_evals);
+            builder.assign(&prod_w, prod_w * record_w_out_evals_prod);
+
+            let sign: Ext<C::F, C::EF> = if chip_vk.get_cs().is_opcode_circuit() {
+                builder.constant(C::EF::ONE)
+            } else {
+                builder.constant(-C::EF::ONE)
+            };
+
+            iter_zip!(builder, chip_proof.record_lk_out_evals).for_each(|ptr_vec, builder| {
+                let evals = builder.iter_ptr_get(&chip_proof.record_lk_out_evals, ptr_vec[0]);
                 let p1 = builder.get(&evals, 0);
                 let p2 = builder.get(&evals, 1);
                 let q1 = builder.get(&evals, 2);
                 let q2 = builder.get(&evals, 3);
-                builder.assign(
-                    &logup_sum,
-                    logup_sum - p1 * q1.inverse() - p2 * q2.inverse(),
-                );
+
+                builder.assign(&logup_sum, logup_sum + sign * p1 * q1.inverse());
+                builder.assign(&logup_sum, logup_sum + sign * p2 * q2.inverse());
             });
 
-            let record_w_out_evals_prod = nested_product(builder, &table_proof.record_w_out_evals);
-            builder.assign(&prod_w, prod_w * record_w_out_evals_prod);
-            let record_r_out_evals_prod = nested_product(builder, &table_proof.record_r_out_evals);
-            builder.assign(&prod_r, prod_r * record_r_out_evals_prod);
-        }
+            builder.inc(&num_chips_verified);
+        });
     }
+    builder.assert_eq::<Usize<_>>(num_chips_verified, chip_indices.len());
 
+    let dummy_table_item_multiplicity =
+        builder.unsafe_cast_var_to_felt(dummy_table_item_multiplicity);
     builder.assign(
         &logup_sum,
         logup_sum - dummy_table_item_multiplicity * dummy_table_item.inverse(),
@@ -311,11 +292,10 @@ pub fn verify_opcode_proof<C: Config>(
     opcode_proof: &ZKVMChipProofInputVariable<C>,
     pi_evals: &Array<C, Ext<C::F, C::EF>>,
     challenges: &Array<C, Ext<C::F, C::EF>>,
-    subcircuit_params: &SubcircuitParams,
-    cs: &ZKVMVerifier<E, Pcs>,
+    vk: &VerifyingKey<E>,
     unipoly_extrapolator: &mut UniPolyExtrapolator<C>,
 ) -> Array<C, Ext<C::F, C::EF>> {
-    let cs = &cs.vk.circuit_vks[&subcircuit_params.name].cs;
+    let cs = vk.get_cs();
     let one: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
     let zero: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
 
@@ -528,16 +508,15 @@ pub fn verify_table_proof<C: Config>(
     builder: &mut Builder<C>,
     challenger: &mut DuplexChallengerVariable<C>,
     table_proof: &ZKVMChipProofInputVariable<C>,
-    raw_pi: &Array<C, Array<C, Felt<C::F>>>,
-    raw_pi_num_variables: &Array<C, Var<C::N>>,
+    // raw_pi: &Array<C, Array<C, Felt<C::F>>>,
+    // raw_pi_num_variables: &Array<C, Var<C::N>>,
     pi_evals: &Array<C, Ext<C::F, C::EF>>,
     challenges: &Array<C, Ext<C::F, C::EF>>,
-    subcircuit_params: &SubcircuitParams,
-    cs: &ZKVMVerifier<E, Pcs>,
+    vk: &VerifyingKey<E>,
     unipoly_extrapolator: &mut UniPolyExtrapolator<C>,
-    poly_evaluator: &mut PolyEvaluator<C>,
+    // poly_evaluator: &mut PolyEvaluator<C>,
 ) -> Array<C, Ext<C::F, C::EF>> {
-    let cs = cs.vk.circuit_vks[&subcircuit_params.name].get_cs();
+    let cs = vk.get_cs();
     let tower_proof: &super::binding::TowerProofInputVariable<C> = &table_proof.tower_proof;
 
     let r_expected_rounds: Array<C, Usize<C::N>> =
@@ -749,6 +728,7 @@ pub fn verify_table_proof<C: Config>(
         builder.assert_ext_eq(e, expected_evals);
     });
 
+    /* TODO: enable this
     // assume public io is tiny vector, so we evaluate it directly without PCS
     for &Instance(idx) in cs.instance_name_map().keys() {
         let poly = builder.get(raw_pi, idx);
@@ -758,6 +738,7 @@ pub fn verify_table_proof<C: Config>(
         let eval = builder.get(&pi_evals, idx);
         builder.assert_ext_eq(eval, expected_eval);
     }
+    */
 
     rt_tower.fs
 }

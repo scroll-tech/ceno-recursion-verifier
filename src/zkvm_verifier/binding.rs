@@ -78,7 +78,6 @@ pub(crate) struct ZKVMProofInput {
     pub pi_evals: Vec<E>,
     pub chip_proofs: Vec<ZKVMChipProofInput>,
     pub witin_commit: BasefoldCommitment<BabyBearExt4>,
-    pub num_instances: Vec<(usize, usize)>,
     pub pcs_proof: BasefoldProof,
 }
 
@@ -130,16 +129,6 @@ impl Hintable<InnerConfig> for ZKVMProofInput {
             F::from_canonical_u32(self.witin_commit.log2_max_codeword_size as u32);
         stream.extend(cmt_vec.write());
         stream.extend(witin_commit_log2_max_codeword_size.write());
-
-        // Write num_instances
-        let mut num_instances_vec: Vec<Vec<F>> = vec![];
-        for (circuit_size, num_var) in &self.num_instances {
-            num_instances_vec.push(vec![
-                F::from_canonical_usize(*circuit_size),
-                F::from_canonical_usize(*num_var),
-            ]);
-        }
-        stream.extend(num_instances_vec.write());
         stream.extend(self.pcs_proof.write());
 
         stream
