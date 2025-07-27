@@ -103,17 +103,15 @@ impl Hintable<InnerConfig> for ZKVMProofInput {
 
     fn write(&self) -> Vec<Vec<<InnerConfig as Config>::N>> {
         let mut stream = Vec::new();
+        let raw_pi_num_variables: Vec<usize> = self.raw_pi
+            .iter()
+            .map(|v| ceil_log2(v.len().next_power_of_two()))
+            .collect();
+
         stream.extend(self.raw_pi.write());
-
-        let mut raw_pi_num_variables: Vec<usize> = vec![];
-        for v in &self.raw_pi {
-            raw_pi_num_variables.push(ceil_log2(v.len().next_power_of_two()));
-        }
         stream.extend(raw_pi_num_variables.write());
-
         stream.extend(self.pi_evals.write());
         stream.extend(self.chip_proofs.write());
-
         stream.extend(
             self.witin_commit
                 .commit()

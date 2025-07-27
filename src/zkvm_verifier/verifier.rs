@@ -137,9 +137,9 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
         let num_instances = builder.unsafe_cast_var_to_felt(chip_proof.num_instances.get_var());
 
         challenger.observe(builder, chip_proof.idx_felt);
-        challenger.observe(builder, zero_f.clone());
+        challenger.observe(builder, zero_f);
         challenger.observe(builder, num_instances);
-        challenger.observe(builder, zero_f.clone());
+        challenger.observe(builder, zero_f);
     });
 
     challenger_multi_observe(builder, &mut challenger, &zkvm_proof_input.witin_commit);
@@ -254,9 +254,7 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
         logup_sum - dummy_table_item_multiplicity * dummy_table_item.inverse(),
     );
 
-    // TODO: prepare rounds and uncomment this
-
-    // batch_verifier(builder, rounds, zkvm_proof_input.pcs_proof, &mut challenger);
+    // batch_verify(builder, rounds, zkvm_proof_input.pcs_proof, &mut challenger);
 
     let empty_arr: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(0);
     let initial_global_state = eval_ceno_expr_with_instance(
