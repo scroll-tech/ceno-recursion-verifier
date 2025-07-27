@@ -114,16 +114,14 @@ impl Hintable<InnerConfig> for ZKVMProofInput {
         stream.extend(self.pi_evals.write());
         stream.extend(self.chip_proofs.write());
 
-        // Write in witin_commit
-        let mut cmt_vec: Vec<F> = vec![];
-        self.witin_commit.commit().iter().for_each(|x| {
-            // let f: F = serde_json::from_value(serde_json::to_value(&x).unwrap()).unwrap();
-            cmt_vec.push(x);
-        });
-        let witin_commit_log2_max_codeword_size =
-            F::from_canonical_u32(self.witin_commit.log2_max_codeword_size as u32);
-        stream.extend(cmt_vec.write());
-        stream.extend(witin_commit_log2_max_codeword_size.write());
+        stream.extend(
+            self.witin_commit
+                .commit()
+                .into_iter()
+                .collect::<Vec<_>>()
+                .write(),
+        );
+        stream.extend(F::from_canonical_usize(self.witin_commit.log2_max_codeword_size).write());
         stream.extend(self.pcs_proof.write());
 
         stream
