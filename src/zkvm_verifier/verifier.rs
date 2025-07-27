@@ -109,7 +109,8 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
         let commit_array: Array<C, Felt<C::F>> = builder.dyn_array(commit.value.len());
         commit.value.into_iter().enumerate().for_each(|(i, v)| {
             let v = builder.constant(v);
-            builder.commit_public_value(v);
+            // TODO: put fixed commit to public values
+            // builder.commit_public_value(v);
 
             builder.set_value(&commit_array, i, v);
         });
@@ -131,15 +132,14 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
     };
 
     let zero_f: Felt<C::F> = builder.constant(C::F::ZERO);
-    iter_zip!(builder, zkvm_proof_input.num_instances).for_each(|ptr_vec, builder| {
-        let ns = builder.iter_ptr_get(&zkvm_proof_input.num_instances, ptr_vec[0]);
-        let circuit_size = builder.get(&ns, 0);
-        let num_var = builder.get(&ns, 1);
+    iter_zip!(builder, zkvm_proof_input.chip_proofs).for_each(|ptr_vec, builder| {
+        let chip_proof = builder.iter_ptr_get(&zkvm_proof_input.chip_proofs, ptr_vec[0]);
+        let num_instances = builder.unsafe_cast_var_to_felt(chip_proof.num_instances.get_var());
 
-        challenger.observe(builder, circuit_size);
-        challenger.observe(builder, zero_f);
-        challenger.observe(builder, num_var);
-        challenger.observe(builder, zero_f);
+        challenger.observe(builder, chip_proof.idx_felt);
+        challenger.observe(builder, zero_f.clone());
+        challenger.observe(builder, num_instances);
+        challenger.observe(builder, zero_f.clone());
     });
 
     challenger_multi_observe(builder, &mut challenger, &zkvm_proof_input.witin_commit);

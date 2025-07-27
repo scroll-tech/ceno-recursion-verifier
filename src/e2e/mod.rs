@@ -279,7 +279,6 @@ pub fn inner_test_thread() {
 }
 
 #[test]
-#[ignore = "e2e does not work for now"]
 pub fn test_zkvm_proof_verifier_from_bincode_exports() {
     let stack_size = 64 * 1024 * 1024; // 64 MB
 

@@ -33,9 +33,6 @@ pub struct ZKVMProofInputVariable<C: Config> {
 
     pub witin_commit: Array<C, Felt<C::F>>,
     pub witin_commit_log2_max_codeword_size: Felt<C::F>,
-
-    pub num_instances: Array<C, Array<C, Felt<C::F>>>,
-
     pub pcs_proof: BasefoldProofVariable<C>,
 }
 
@@ -91,7 +88,6 @@ impl Hintable<InnerConfig> for ZKVMProofInput {
         let chip_proofs = Vec::<ZKVMChipProofInput>::read(builder);
         let witin_commit = Vec::<F>::read(builder);
         let witin_commit_log2_max_codeword_size = F::read(builder);
-        let num_instances = Vec::<Vec<F>>::read(builder);
         let pcs_proof = BasefoldProof::read(builder);
 
         ZKVMProofInputVariable {
@@ -101,7 +97,6 @@ impl Hintable<InnerConfig> for ZKVMProofInput {
             chip_proofs,
             witin_commit,
             witin_commit_log2_max_codeword_size,
-            num_instances,
             pcs_proof,
         }
     }
