@@ -270,71 +270,96 @@ pub mod tests {
         (program, witness_stream)
     }
 
-    fn construct_test(dimensions: Vec<(usize, usize)>) {
+    fn construct_test(dimensions: Vec<Vec<(usize, usize)>>) {
         let mut rng = thread_rng();
 
         // setup PCS
-        let pp = PCS::setup(1 << 20, mpcs::SecurityLevel::Conjecture100bits).unwrap();
-        let (pp, vp) = pcs_trim::<E, PCS>(pp, 1 << 20).unwrap();
+        let pp = PCS::setup(1 << 22, mpcs::SecurityLevel::Conjecture100bits).unwrap();
+        let (pp, vp) = pcs_trim::<E, PCS>(pp, 1 << 22).unwrap();
 
-        let mut num_total_polys = 0;
-        let (matrices, mles): (Vec<_>, Vec<_>) = dimensions
-            .into_iter()
-            .map(|(num_vars, width)| {
-                let m = ceno_witness::RowMajorMatrix::<F>::rand(&mut rng, 1 << num_vars, width);
-                let mles = m.to_mles();
-                num_total_polys += width;
-
-                (m, mles)
-            })
-            .unzip();
-
-        // commit to matrices
-        let pcs_data = pcs_batch_commit::<E, PCS>(&pp, matrices).unwrap();
-        let comm = PCS::get_pure_commitment(&pcs_data);
-
-        let point_and_evals = mles
+        let rounds = dimensions
             .iter()
-            .map(|mles| {
-                let point = E::random_vec(mles[0].num_vars(), &mut rng);
-                let evals = mles.iter().map(|mle| mle.evaluate(&point)).collect_vec();
+            .map(|dimensions| {
+                let mut num_total_polys = 0;
+                let (matrices, mles): (Vec<_>, Vec<_>) = dimensions
+                    .into_iter()
+                    .map(|(num_vars, width)| {
+                        let m = ceno_witness::RowMajorMatrix::<F>::rand(
+                            &mut rng,
+                            1 << num_vars,
+                            *width,
+                        );
+                        let mles = m.to_mles();
+                        num_total_polys += width;
 
-                (point, evals)
+                        (m, mles)
+                    })
+                    .unzip();
+
+                // commit to matrices
+                let pcs_data = pcs_batch_commit::<E, PCS>(&pp, matrices).unwrap();
+
+                let point_and_evals = mles
+                    .iter()
+                    .map(|mles| {
+                        let point = E::random_vec(mles[0].num_vars(), &mut rng);
+                        let evals = mles.iter().map(|mle| mle.evaluate(&point)).collect_vec();
+
+                        (point, evals)
+                    })
+                    .collect_vec();
+                (pcs_data, point_and_evals.clone())
+            })
+            .collect_vec();
+
+        let prover_rounds = rounds
+            .iter()
+            .map(|(comm, other)| (comm, other.clone()))
+            .collect_vec();
+
+        let max_num_var = rounds
+            .iter()
+            .map(|round| round.1.iter().map(|(point, _)| point.len()).max().unwrap())
+            .max()
+            .unwrap();
+        let max_width = rounds
+            .iter()
+            .map(|round| round.1.iter().map(|(_, evals)| evals.len()).max().unwrap())
+            .max()
+            .unwrap();
+
+        let verifier_rounds = rounds
+            .iter()
+            .map(|round| {
+                (
+                    PCS::get_pure_commitment(&round.0),
+                    round
+                        .1
+                        .iter()
+                        .map(|(point, evals)| (point.len(), (point.clone(), evals.clone())))
+                        .collect_vec(),
+                )
             })
             .collect_vec();
 
         // batch open
         let mut transcript = BasicTranscript::<E>::new(&[]);
-        let rounds = vec![(&pcs_data, point_and_evals.clone())];
-        let opening_proof = PCS::batch_open(&pp, rounds, &mut transcript).unwrap();
+        let opening_proof = PCS::batch_open(&pp, prover_rounds, &mut transcript).unwrap();
 
         // batch verify
         let mut transcript = BasicTranscript::<E>::new(&[]);
-        let rounds = vec![(
-            comm,
-            point_and_evals
-                .iter()
-                .map(|(point, evals)| (point.len(), (point.clone(), evals.clone())))
-                .collect_vec(),
-        )];
-        PCS::batch_verify(&vp, rounds.clone(), &opening_proof, &mut transcript)
-            .expect("Native verification failed");
-
-        let max_num_var = point_and_evals
-            .iter()
-            .map(|(point, _)| point.len())
-            .max()
-            .unwrap();
-        let max_width = point_and_evals
-            .iter()
-            .map(|(_, evals)| evals.len())
-            .max()
-            .unwrap();
+        PCS::batch_verify(
+            &vp,
+            verifier_rounds.clone(),
+            &opening_proof,
+            &mut transcript,
+        )
+        .expect("Native verification failed");
 
         let verifier_input = VerifierInput {
             max_num_var,
             max_width,
-            rounds: rounds
+            rounds: verifier_rounds
                 .into_iter()
                 .map(|(commit, openings)| Round {
                     commit: commit.into(),
@@ -373,24 +398,80 @@ pub mod tests {
     #[test]
     fn test_simple_batch() {
         for num_var in 5..20 {
-            construct_test(vec![(num_var, 20)]);
+            construct_test(vec![vec![(num_var, 20)]]);
         }
     }
 
     #[test]
     fn test_decreasing_batch() {
-        construct_test(vec![
+        construct_test(vec![vec![
             (14, 20),
             (14, 40),
             (13, 30),
             (12, 30),
             (11, 10),
             (10, 15),
-        ]);
+        ]]);
     }
 
     #[test]
     fn test_random_batch() {
-        construct_test(vec![(10, 20), (12, 30), (11, 10), (12, 15)]);
+        construct_test(vec![vec![(10, 20), (12, 30), (11, 10), (12, 15)]]);
+    }
+
+    // TODO: e2e generates two rounds, only using the witness part in the current test, need to add the fixed part later
+    #[test]
+    fn test_e2e_fibonacci_batch() {
+        construct_test(vec![
+            vec![
+                (22, 22),
+                (22, 18),
+                (1, 28),
+                (2, 24),
+                (3, 18),
+                (1, 21),
+                (4, 19),
+                (21, 18),
+                (1, 8),
+                (1, 11),
+                (4, 22),
+                (3, 27),
+                (5, 22),
+                (16, 1),
+                (16, 1),
+                (16, 1),
+                (5, 1),
+                (16, 1),
+                (1, 28),
+                (9, 1),
+                (3, 2),
+                (3, 1),
+                (5, 2),
+                (10, 2),
+                (6, 3),
+                (14, 1),
+                (16, 1),
+                (5, 1),
+                (8, 1),
+                (4, 29),
+                (1, 29),
+                (1, 18),
+                (1, 23),
+                (21, 20),
+                (21, 22),
+                (5, 22),
+            ],
+            vec![
+                (16, 3),
+                (16, 3),
+                (16, 3),
+                (5, 3),
+                (16, 3),
+                (9, 6),
+                (3, 1),
+                (10, 2),
+                (6, 3),
+            ],
+        ]);
     }
 }
