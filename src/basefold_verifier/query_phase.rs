@@ -318,6 +318,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
     builder: &mut Builder<C>,
     input: QueryPhaseVerifierInputVariable<C>,
 ) {
+    builder.cycle_tracker_start("Before checking opening proofs");
     let inv_2 = builder.constant(C::F::from_canonical_u32(0x3c000001));
     let two_adic_generators_inverses: Array<C, Felt<C::F>> = builder.dyn_array(28);
     for (index, val) in [
@@ -377,7 +378,9 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
             let batch_coeff = builder.get(&input.batch_coeffs, 1);
             builder.assign(&alpha, batch_coeff);
         });
+    builder.cycle_tracker_end("Before checking opening proofs");
 
+    builder.cycle_tracker_start("Checking opening proofs");
     iter_zip!(builder, input.indices, input.proof.query_opening_proof).for_each(
         |ptr_vec, builder| {
             // TODO: change type of input.indices to be `Array<C, Array<C, Var<C::N>>>`
@@ -629,7 +632,9 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
             builder.assert_eq::<Ext<C::F, C::EF>>(final_value, folded);
         },
     );
+    builder.cycle_tracker_end("Checking opening proofs");
 
+    builder.cycle_tracker_start("Checking sumcheck proofs");
     // 1. check initial claim match with first round sumcheck value
     let batch_coeffs_offset: Var<C::N> = builder.constant(C::N::ZERO);
     let expected_sum: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
@@ -676,7 +681,9 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
             let right: Ext<C::F, C::EF> = builder.eval(eval0 + eval1);
             builder.assert_eq::<Ext<C::F, C::EF>>(left, right);
         });
+    builder.cycle_tracker_end("Checking sumcheck proofs");
 
+    builder.cycle_tracker_start("Checking final evaluations");
     // 3. check final evaluation are correct
     let final_evals = builder
         .get(&input.proof.sumcheck_proof, fold_len_minus_one.clone())
@@ -724,6 +731,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
     });
     builder.assert_eq::<Var<C::N>>(j, input.proof.final_message.len());
     builder.assert_eq::<Ext<C::F, C::EF>>(left, right);
+    builder.cycle_tracker_end("Checking final evaluations");
 }
 
 #[cfg(test)]
