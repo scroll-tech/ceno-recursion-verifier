@@ -299,10 +299,6 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
             perm: zkvm_proof_input.witin_perm.clone(),
         },
     );
-    iter_zip!(builder, zkvm_proof_input.witin_perm).for_each(|ptr_vec, builder| {
-        let perm_j = builder.iter_ptr_get(&zkvm_proof_input.witin_perm, ptr_vec[0]);
-        builder.print_v(perm_j);
-    });
     // TODO: add fixed opening
     batch_verify(
         builder,
