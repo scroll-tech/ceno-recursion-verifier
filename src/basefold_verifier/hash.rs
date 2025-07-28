@@ -12,7 +12,7 @@ pub type F = BabyBear;
 pub type E = BinomialExtensionField<F, DEGREE>;
 pub type InnerConfig = AsmConfig<F, E>;
 
-#[derive(Deserialize, Default)]
+#[derive(Deserialize, Default, Debug)]
 pub struct Hash {
     pub value: [F; DIGEST_ELEMS],
 }

@@ -26,7 +26,7 @@ pub type E = BinomialExtensionField<F, DEGREE>;
 pub type InnerConfig = AsmConfig<F, E>;
 
 pub type HashDigest = MmcsCommitment;
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct BasefoldCommitment {
     pub commit: HashDigest,
     pub log2_max_codeword_size: usize,
@@ -73,7 +73,6 @@ pub type HashDigestVariable<C> = MmcsCommitmentVariable<C>;
 pub struct BasefoldCommitmentVariable<C: Config> {
     pub commit: HashDigestVariable<C>,
     pub log2_max_codeword_size: Usize<C::N>,
-    // pub trivial_commits: Array<C, HashDigestVariable<C>>,
 }
 
 #[derive(Deserialize)]

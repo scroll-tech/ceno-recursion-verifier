@@ -1,5 +1,7 @@
 use crate::arithmetics::next_pow2_instance_padding;
-use crate::basefold_verifier::basefold::{BasefoldProof, BasefoldProofVariable};
+use crate::basefold_verifier::basefold::{
+    BasefoldCommitment, BasefoldCommitmentVariable, BasefoldProof, BasefoldProofVariable,
+};
 use crate::basefold_verifier::query_phase::{
     QueryPhaseVerifierInput, QueryPhaseVerifierInputVariable,
 };
@@ -9,7 +11,7 @@ use crate::{
 };
 use ark_std::iterable::Iterable;
 use ff_ext::BabyBearExt4;
-use mpcs::BasefoldCommitment;
+use itertools::Itertools;
 use openvm_native_compiler::{
     asm::AsmConfig,
     ir::{Array, Builder, Config, Felt},
@@ -30,9 +32,9 @@ pub struct ZKVMProofInputVariable<C: Config> {
     pub raw_pi_num_variables: Array<C, Var<C::N>>,
     pub pi_evals: Array<C, Ext<C::F, C::EF>>,
     pub chip_proofs: Array<C, ZKVMChipProofInputVariable<C>>,
-
-    pub witin_commit: Array<C, Felt<C::F>>,
-    pub witin_commit_log2_max_codeword_size: Felt<C::F>,
+    pub max_num_var: Var<C::N>,
+    pub witin_commit: BasefoldCommitmentVariable<C>,
+    pub witin_perm: Array<C, Var<C::N>>,
     pub pcs_proof: BasefoldProofVariable<C>,
 }
 
@@ -74,7 +76,7 @@ pub(crate) struct ZKVMProofInput {
     // Evaluation of raw_pi.
     pub pi_evals: Vec<E>,
     pub chip_proofs: Vec<ZKVMChipProofInput>,
-    pub witin_commit: BasefoldCommitment<BabyBearExt4>,
+    pub witin_commit: BasefoldCommitment,
     pub pcs_proof: BasefoldProof,
 }
 
@@ -86,8 +88,9 @@ impl Hintable<InnerConfig> for ZKVMProofInput {
         let raw_pi_num_variables = Vec::<usize>::read(builder);
         let pi_evals = Vec::<E>::read(builder);
         let chip_proofs = Vec::<ZKVMChipProofInput>::read(builder);
-        let witin_commit = Vec::<F>::read(builder);
-        let witin_commit_log2_max_codeword_size = F::read(builder);
+        let max_num_var = usize::read(builder);
+        let witin_commit = BasefoldCommitment::read(builder);
+        let witin_perm = Vec::<usize>::read(builder);
         let pcs_proof = BasefoldProof::read(builder);
 
         ZKVMProofInputVariable {
@@ -95,31 +98,46 @@ impl Hintable<InnerConfig> for ZKVMProofInput {
             raw_pi_num_variables,
             pi_evals,
             chip_proofs,
+            max_num_var,
             witin_commit,
-            witin_commit_log2_max_codeword_size,
+            witin_perm,
             pcs_proof,
         }
     }
 
     fn write(&self) -> Vec<Vec<<InnerConfig as Config>::N>> {
         let mut stream = Vec::new();
-        let raw_pi_num_variables: Vec<usize> = self.raw_pi
+        let raw_pi_num_variables: Vec<usize> = self
+            .raw_pi
             .iter()
             .map(|v| ceil_log2(v.len().next_power_of_two()))
             .collect();
+        let witin_num_vars = self
+            .chip_proofs
+            .iter()
+            .map(|proof| ceil_log2(proof.num_instances))
+            .collect::<Vec<_>>();
+        let max_num_var = witin_num_vars.iter().map(|x| *x).max().unwrap_or(0);
+        let mut witin_perm = vec![0; witin_num_vars.len()];
+        witin_num_vars
+            .into_iter()
+            // the original order
+            .enumerate()
+            .sorted_by(|(_, nv_a), (_, nv_b)| Ord::cmp(nv_b, nv_a))
+            .enumerate()
+            // j is the new index where i is the original index
+            .map(|(j, (i, _))| (i, j))
+            .for_each(|(i, j)| {
+                witin_perm[i] = j;
+            });
 
         stream.extend(self.raw_pi.write());
         stream.extend(raw_pi_num_variables.write());
         stream.extend(self.pi_evals.write());
         stream.extend(self.chip_proofs.write());
-        stream.extend(
-            self.witin_commit
-                .commit()
-                .into_iter()
-                .collect::<Vec<_>>()
-                .write(),
-        );
-        stream.extend(F::from_canonical_usize(self.witin_commit.log2_max_codeword_size).write());
+        stream.extend(<usize as Hintable<InnerConfig>>::write(&max_num_var));
+        stream.extend(self.witin_commit.write());
+        stream.extend(witin_perm.write());
         stream.extend(self.pcs_proof.write());
 
         stream

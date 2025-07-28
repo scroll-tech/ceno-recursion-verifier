@@ -3,7 +3,11 @@ use crate::arithmetics::{
     challenger_multi_observe, eval_ceno_expr_with_instance, print_ext_arr, print_felt_arr,
     PolyEvaluator, UniPolyExtrapolator,
 };
+use crate::basefold_verifier::basefold::{
+    BasefoldCommitmentVariable, RoundOpeningVariable, RoundVariable,
+};
 use crate::basefold_verifier::mmcs::MmcsCommitmentVariable;
+use crate::basefold_verifier::query_phase::PointAndEvalsVariable;
 use crate::basefold_verifier::utils::pow_2;
 use crate::basefold_verifier::verifier::batch_verify;
 use crate::tower_verifier::program::verify_tower_proof;
@@ -142,11 +146,20 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
         challenger.observe(builder, zero_f);
     });
 
-    challenger_multi_observe(builder, &mut challenger, &zkvm_proof_input.witin_commit);
-    challenger.observe(
+    challenger_multi_observe(
         builder,
-        zkvm_proof_input.witin_commit_log2_max_codeword_size,
+        &mut challenger,
+        &zkvm_proof_input.witin_commit.commit.value,
     );
+    {
+        let log2_max_codeword_size = builder.unsafe_cast_var_to_felt(
+            zkvm_proof_input
+                .witin_commit
+                .log2_max_codeword_size
+                .get_var(),
+        );
+        challenger.observe(builder, log2_max_codeword_size);
+    }
 
     let alpha = challenger.sample_ext(builder);
     let beta = challenger.sample_ext(builder);
@@ -161,6 +174,9 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
     let dummy_table_item = alpha.clone();
     let dummy_table_item_multiplicity: Var<C::N> = builder.constant(C::N::ZERO);
 
+    let witin_openings: Array<C, RoundOpeningVariable<C>> =
+        builder.dyn_array(zkvm_proof_input.chip_proofs.len());
+    // TODO: handle fixed opening
     let num_chips_verified: Usize<C::N> = builder.eval(C::N::ZERO);
     let chip_indices: Array<C, Var<C::N>> = builder.dyn_array(zkvm_proof_input.chip_proofs.len());
     builder
@@ -242,6 +258,25 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
                 builder.assign(&logup_sum, logup_sum + sign * p2 * q2.inverse());
             });
 
+            // TODO: turn on this check
+            // builder.assert_usize_eq(
+            //     chip_proof.log2_num_instances.clone(),
+            //     input_opening_point.len(),
+            // );
+            builder.set(
+                &witin_openings,
+                num_chips_verified.get_var(),
+                RoundOpeningVariable {
+                    num_var: chip_proof.log2_num_instances.get_var(),
+                    point_and_evals: PointAndEvalsVariable {
+                        point: PointVariable {
+                            fs: input_opening_point,
+                        },
+                        evals: chip_proof.wits_in_evals,
+                    },
+                },
+            );
+
             builder.inc(&num_chips_verified);
         });
     }
@@ -254,7 +289,28 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
         logup_sum - dummy_table_item_multiplicity * dummy_table_item.inverse(),
     );
 
-    // batch_verify(builder, rounds, zkvm_proof_input.pcs_proof, &mut challenger);
+    let rounds = builder.dyn_array(1);
+    builder.set(
+        &rounds,
+        0,
+        RoundVariable {
+            commit: zkvm_proof_input.witin_commit,
+            openings: witin_openings,
+            perm: zkvm_proof_input.witin_perm.clone(),
+        },
+    );
+    iter_zip!(builder, zkvm_proof_input.witin_perm).for_each(|ptr_vec, builder| {
+        let perm_j = builder.iter_ptr_get(&zkvm_proof_input.witin_perm, ptr_vec[0]);
+        builder.print_v(perm_j);
+    });
+    // TODO: add fixed opening
+    batch_verify(
+        builder,
+        zkvm_proof_input.max_num_var,
+        rounds,
+        zkvm_proof_input.pcs_proof,
+        &mut challenger,
+    );
 
     let empty_arr: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(0);
     let initial_global_state = eval_ceno_expr_with_instance(

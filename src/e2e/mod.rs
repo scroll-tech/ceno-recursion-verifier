@@ -1,3 +1,4 @@
+use crate::basefold_verifier::basefold::BasefoldCommitment;
 use crate::basefold_verifier::query_phase::QueryPhaseVerifierInput;
 use crate::tower_verifier::binding::IOPProverMessage;
 use crate::zkvm_verifier::binding::ZKVMProofInput;
@@ -6,7 +7,6 @@ use crate::zkvm_verifier::verifier::verify_zkvm_proof;
 use ceno_mle::util::ceil_log2;
 use ff_ext::BabyBearExt4;
 use itertools::Itertools;
-use mpcs::BasefoldCommitment;
 use mpcs::{Basefold, BasefoldRSParams};
 use openvm_circuit::arch::{instructions::program::Program, SystemConfig, VmExecutor};
 use openvm_native_circuit::{Native, NativeConfig};
@@ -199,8 +199,9 @@ pub fn parse_zkvm_proof_import(
         });
     }
 
-    let witin_commit: BasefoldCommitment<BabyBearExt4> =
+    let witin_commit: mpcs::BasefoldCommitment<BabyBearExt4> =
         serde_json::from_value(serde_json::to_value(zkvm_proof.witin_commit).unwrap()).unwrap();
+    let witin_commit: BasefoldCommitment = witin_commit.into();
 
     let pcs_proof = zkvm_proof.opening_proof.into();
 
