@@ -5,7 +5,7 @@ use crate::zkvm_verifier::binding::{
     ZKVMProofInput, TowerProofInput, ZKVMOpcodeProofInput, ZKVMTableProofInput, E, F,
     GKRProofInput, LayerProofInput, SumcheckLayerProofInput,
 };
-use crate::zkvm_verifier::verifier::{verify_zkvm_proof, verify_precompile};
+use crate::zkvm_verifier::verifier::{verify_zkvm_proof, verify_gkr_circuit};
 use ceno_mle::util::ceil_log2;
 use ff_ext::BabyBearExt4;
 use gkr_iop::gkr::layer::sumcheck_layer::{SumcheckLayer, SumcheckLayerProof};
@@ -398,7 +398,7 @@ pub fn precompile_test_thread() {
 
     // Obtain witness inputs
     let gkr_proof_input = GKRProofInput::read(&mut builder);
-    verify_precompile(&mut builder, circuit, gkr_proof_input);
+    verify_gkr_circuit(&mut builder, circuit, gkr_proof_input);
     builder.halt();
 
     // Pass in witness stream

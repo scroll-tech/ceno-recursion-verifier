@@ -411,9 +411,10 @@ pub(crate) struct SumcheckLayerProofInput {
     pub evals: Vec<E>,
 }
 #[derive(DslVariable, Clone)]
-pub(crate) struct SumcheckLayerProofVariable<C: Config> {
+pub struct SumcheckLayerProofVariable<C: Config> {
     pub proof: Array<C, IOPProverMessageVariable<C>>,
     pub evals: Array<C, Ext<C::F, C::EF>>,
+    pub evals_len_div_3: Var<C::N>,
 }
 impl VecAutoHintable for SumcheckLayerProofInput {}
 impl Hintable<InnerConfig> for SumcheckLayerProofInput {
@@ -422,15 +423,20 @@ impl Hintable<InnerConfig> for SumcheckLayerProofInput {
     fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
         let proof = Vec::<IOPProverMessage>::read(builder);
         let evals = Vec::<E>::read(builder);
+        let evals_len_div_3 = usize::read(builder);
+        
         Self::HintVariable {
             proof,
-            evals
+            evals,
+            evals_len_div_3,
         }
     }
     fn write(&self) -> Vec<Vec<<InnerConfig as Config>::N>> {
         let mut stream = Vec::new();
         stream.extend(self.proof.write());
         stream.extend(self.evals.write());
+        let evals_len_div_3 = self.evals.len() / 3;
+        stream.extend(<usize as Hintable<InnerConfig>>::write(&evals_len_div_3));
         stream
     }
 }
@@ -441,7 +447,7 @@ pub(crate) struct LayerProofInput {
     pub main: SumcheckLayerProofInput,
 }
 #[derive(DslVariable, Clone)]
-pub(crate) struct LayerProofVariable<C: Config> {
+pub struct LayerProofVariable<C: Config> {
     pub has_rotation: Var<C::N>,
     pub rotation: SumcheckLayerProofVariable<C>,
     pub main: SumcheckLayerProofVariable<C>,
@@ -475,7 +481,7 @@ pub(crate) struct GKRProofInput {
     pub layer_proofs: Vec<LayerProofInput>,
 }
 #[derive(DslVariable, Clone)]
-pub(crate) struct GKRProofVariable<C: Config> {
+pub struct GKRProofVariable<C: Config> {
     pub num_var_with_rotation: Var<C::N>,
     pub layer_proofs: Array<C, LayerProofVariable<C>>,
 }
