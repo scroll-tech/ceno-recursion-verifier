@@ -320,7 +320,7 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
         logup_sum - dummy_table_item_multiplicity * dummy_table_item.inverse(),
     );
 
-    let rounds = builder.dyn_array(1);
+    let rounds = builder.dyn_array(2);
     builder.set(
         &rounds,
         0,

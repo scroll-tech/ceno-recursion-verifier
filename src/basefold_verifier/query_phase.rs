@@ -368,6 +368,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
             let query = builder.iter_ptr_get(&input.proof.query_opening_proof, ptr_vec[1]);
             let batch_coeffs_offset: Var<C::N> = builder.constant(C::N::ZERO);
 
+            builder.assert_usize_eq(query.input_proofs.len(), input.rounds.len());
             iter_zip!(builder, query.input_proofs, input.rounds).for_each(|ptr_vec, builder| {
                 let batch_opening = builder.iter_ptr_get(&query.input_proofs, ptr_vec[0]);
                 let round = builder.iter_ptr_get(&input.rounds, ptr_vec[1]);
@@ -561,6 +562,9 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
             builder.assert_eq::<Ext<C::F, C::EF>>(final_value, folded);
         },
     );
+
+    // TODO: remove this checkpoint
+    builder.halt();
 
     // 1. check initial claim match with first round sumcheck value
     let batch_coeffs_offset: Var<C::N> = builder.constant(C::N::ZERO);
