@@ -30,6 +30,8 @@ pub fn batch_verify<C: Config>(
     proof: BasefoldProofVariable<C>,
     challenger: &mut DuplexChallengerVariable<C>,
 ) {
+    builder.cycle_tracker_start("prior query phase");
+
     builder.assert_nonzero(&proof.final_message.len());
     builder.assert_nonzero(&proof.sumcheck_proof.len());
 
@@ -158,7 +160,10 @@ pub fn batch_verify<C: Config>(
         proof,
         rounds,
     };
+    builder.cycle_tracker_end("prior query phase");
+    builder.cycle_tracker_start("query phase");
     batch_verifier_query_phase(builder, input);
+    builder.cycle_tracker_end("query phase");
 }
 
 #[cfg(test)]
@@ -169,6 +174,7 @@ pub mod tests {
     use ceno_transcript::{BasicTranscript, Transcript};
     use ff_ext::{BabyBearExt4, FromUniformBytes};
     use itertools::Itertools;
+    use metrics_tracing_context::MetricsLayer;
     use mpcs::{
         pcs_batch_commit, pcs_setup, pcs_trim, util::hash::write_digest_to_transcript,
         BasefoldDefault, PolynomialCommitmentScheme,
@@ -177,6 +183,7 @@ pub mod tests {
     use openvm_circuit::arch::{instructions::program::Program, SystemConfig, VmExecutor};
     use openvm_native_circuit::{Native, NativeConfig};
     use openvm_native_compiler::asm::AsmBuilder;
+    use openvm_native_compiler::conversion::CompilerOptions;
     use openvm_native_recursion::challenger::duplex::DuplexChallengerVariable;
     use openvm_native_recursion::hints::Hintable;
     use openvm_stark_backend::p3_challenger::GrindingChallenger;
@@ -186,6 +193,8 @@ pub mod tests {
     use p3_field::FieldAlgebra;
     use rand::thread_rng;
     use serde::Deserialize;
+    use tracing_forest::ForestLayer;
+    use tracing_subscriber::{layer::SubscriberExt, EnvFilter, Registry};
 
     type F = BabyBear;
     type E = BabyBearExt4;
@@ -251,8 +260,10 @@ pub mod tests {
     pub fn build_batch_verifier(input: VerifierInput) -> (Program<BabyBear>, Vec<Vec<BabyBear>>) {
         // build test program
         let mut builder = AsmBuilder::<F, E>::default();
+        builder.cycle_tracker_start("Prepare data");
         let mut challenger = DuplexChallengerVariable::new(&mut builder);
         let verifier_input = VerifierInput::read(&mut builder);
+        builder.cycle_tracker_end("Prepare data");
         batch_verify(
             &mut builder,
             verifier_input.max_num_var,
@@ -262,7 +273,10 @@ pub mod tests {
             &mut challenger,
         );
         builder.halt();
-        let program = builder.compile_isa();
+        let program = builder.compile_isa_with_options(CompilerOptions {
+            enable_cycle_tracker: true,
+            ..Default::default()
+        });
 
         let mut witness_stream: Vec<Vec<F>> = Vec::new();
         witness_stream.extend(input.write());
@@ -384,6 +398,15 @@ pub mod tests {
             .with_public_values(4)
             .with_max_segment_len((1 << 25) - 100);
         let config = NativeConfig::new(system_config, Native);
+
+        // Set up tracing:
+        let env_filter =
+            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info,p3_=warn"));
+        let subscriber = Registry::default()
+            .with(env_filter)
+            .with(ForestLayer::default())
+            .with(MetricsLayer::new());
+        tracing::subscriber::set_global_default(subscriber).unwrap();
 
         let executor = VmExecutor::<BabyBear, NativeConfig>::new(config);
         executor.execute(program.clone(), witness.clone()).unwrap();
