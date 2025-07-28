@@ -120,17 +120,22 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
         });
         challenger_multi_observe(builder, &mut challenger, &commit_array);
 
-        let log2_max_codeword_size = builder.constant(C::F::from_canonical_usize(
+        // FIXME: do not hardcode this in the program
+        let log2_max_codeword_size_felt = builder.constant(C::F::from_canonical_usize(
             fixed_commit.log2_max_codeword_size,
         ));
-        challenger.observe(builder, log2_max_codeword_size);
+        let log2_max_codeword_size: Var<C::N> = builder.constant(C::N::from_canonical_usize(
+            fixed_commit.log2_max_codeword_size,
+        ));
 
-        Some((
-            MmcsCommitmentVariable {
+        challenger.observe(builder, log2_max_codeword_size_felt);
+
+        Some(BasefoldCommitmentVariable {
+            commit: MmcsCommitmentVariable {
                 value: commit_array,
             },
-            log2_max_codeword_size,
-        ))
+            log2_max_codeword_size: log2_max_codeword_size.into(),
+        })
     } else {
         None
     };
@@ -174,10 +179,19 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
     let dummy_table_item = alpha.clone();
     let dummy_table_item_multiplicity: Var<C::N> = builder.constant(C::N::ZERO);
 
+    let num_fixed_opening = vk
+        .vk
+        .circuit_vks
+        .values()
+        .filter(|c| c.get_cs().num_fixed() > 0)
+        .count();
     let witin_openings: Array<C, RoundOpeningVariable<C>> =
         builder.dyn_array(zkvm_proof_input.chip_proofs.len());
-    // TODO: handle fixed opening
+    let fixed_openings: Array<C, RoundOpeningVariable<C>> =
+        builder.dyn_array(Usize::from(num_fixed_opening));
     let num_chips_verified: Usize<C::N> = builder.eval(C::N::ZERO);
+    let num_chips_have_fixed: Usize<C::N> = builder.eval(C::N::ZERO);
+
     let chip_indices: Array<C, Var<C::N>> = builder.dyn_array(zkvm_proof_input.chip_proofs.len());
     builder
         .range(0, chip_indices.len())
@@ -270,16 +284,33 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
                     num_var: chip_proof.log2_num_instances.get_var(),
                     point_and_evals: PointAndEvalsVariable {
                         point: PointVariable {
-                            fs: input_opening_point,
+                            fs: input_opening_point.clone(),
                         },
                         evals: chip_proof.wits_in_evals,
                     },
                 },
             );
+            if chip_vk.get_cs().num_fixed() > 0 {
+                builder.set(
+                    &fixed_openings,
+                    num_chips_have_fixed.get_var(),
+                    RoundOpeningVariable {
+                        num_var: chip_proof.log2_num_instances.get_var(),
+                        point_and_evals: PointAndEvalsVariable {
+                            point: PointVariable {
+                                fs: input_opening_point,
+                            },
+                            evals: chip_proof.fixed_in_evals,
+                        },
+                    },
+                );
+                builder.inc(&num_chips_have_fixed);
+            }
 
             builder.inc(&num_chips_verified);
         });
     }
+    builder.assert_usize_eq(num_chips_have_fixed, Usize::from(num_fixed_opening));
     builder.assert_eq::<Usize<_>>(num_chips_verified, chip_indices.len());
 
     let dummy_table_item_multiplicity =
@@ -299,7 +330,17 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
             perm: zkvm_proof_input.witin_perm.clone(),
         },
     );
-    // TODO: add fixed opening
+    if num_fixed_opening > 0 {
+        builder.set(
+            &rounds,
+            1,
+            RoundVariable {
+                commit: fixed_commit.unwrap(),
+                openings: fixed_openings,
+                perm: zkvm_proof_input.fixed_perm,
+            },
+        );
+    }
     batch_verify(
         builder,
         zkvm_proof_input.max_num_var,

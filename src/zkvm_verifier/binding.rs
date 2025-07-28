@@ -35,6 +35,7 @@ pub struct ZKVMProofInputVariable<C: Config> {
     pub max_num_var: Var<C::N>,
     pub witin_commit: BasefoldCommitmentVariable<C>,
     pub witin_perm: Array<C, Var<C::N>>,
+    pub fixed_perm: Array<C, Var<C::N>>,
     pub pcs_proof: BasefoldProofVariable<C>,
 }
 
@@ -91,6 +92,7 @@ impl Hintable<InnerConfig> for ZKVMProofInput {
         let max_num_var = usize::read(builder);
         let witin_commit = BasefoldCommitment::read(builder);
         let witin_perm = Vec::<usize>::read(builder);
+        let fixed_perm = Vec::<usize>::read(builder);
         let pcs_proof = BasefoldProof::read(builder);
 
         ZKVMProofInputVariable {
@@ -101,6 +103,7 @@ impl Hintable<InnerConfig> for ZKVMProofInput {
             max_num_var,
             witin_commit,
             witin_perm,
+            fixed_perm,
             pcs_proof,
         }
     }
@@ -115,21 +118,31 @@ impl Hintable<InnerConfig> for ZKVMProofInput {
         let witin_num_vars = self
             .chip_proofs
             .iter()
-            .map(|proof| ceil_log2(proof.num_instances))
+            .map(|proof| ceil_log2(proof.num_instances).max(1))
+            .collect::<Vec<_>>();
+        let fixed_num_vars = self
+            .chip_proofs
+            .iter()
+            .filter(|proof| proof.fixed_in_evals.len() > 0)
+            .map(|proof| ceil_log2(proof.num_instances).max(1))
             .collect::<Vec<_>>();
         let max_num_var = witin_num_vars.iter().map(|x| *x).max().unwrap_or(0);
-        let mut witin_perm = vec![0; witin_num_vars.len()];
-        witin_num_vars
-            .into_iter()
-            // the original order
-            .enumerate()
-            .sorted_by(|(_, nv_a), (_, nv_b)| Ord::cmp(nv_b, nv_a))
-            .enumerate()
-            // j is the new index where i is the original index
-            .map(|(j, (i, _))| (i, j))
-            .for_each(|(i, j)| {
-                witin_perm[i] = j;
-            });
+        let get_perm = |v: Vec<usize>| {
+            let mut perm = vec![0; v.len()];
+            v.into_iter()
+                // the original order
+                .enumerate()
+                .sorted_by(|(_, nv_a), (_, nv_b)| Ord::cmp(nv_b, nv_a))
+                .enumerate()
+                // j is the new index where i is the original index
+                .map(|(j, (i, _))| (i, j))
+                .for_each(|(i, j)| {
+                    perm[i] = j;
+                });
+            perm
+        };
+        let witin_perm = get_perm(witin_num_vars);
+        let fixed_perm = get_perm(fixed_num_vars);
 
         stream.extend(self.raw_pi.write());
         stream.extend(raw_pi_num_variables.write());
@@ -138,6 +151,7 @@ impl Hintable<InnerConfig> for ZKVMProofInput {
         stream.extend(<usize as Hintable<InnerConfig>>::write(&max_num_var));
         stream.extend(self.witin_commit.write());
         stream.extend(witin_perm.write());
+        stream.extend(fixed_perm.write());
         stream.extend(self.pcs_proof.write());
 
         stream
