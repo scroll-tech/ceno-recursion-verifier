@@ -272,11 +272,10 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
                 builder.assign(&logup_sum, logup_sum + sign * p2 * q2.inverse());
             });
 
-            // TODO: turn on this check
-            // builder.assert_usize_eq(
-            //     chip_proof.log2_num_instances.clone(),
-            //     input_opening_point.len(),
-            // );
+            builder.assert_usize_eq(
+                chip_proof.log2_num_instances.clone(),
+                input_opening_point.len(),
+            );
             builder.set(
                 &witin_openings,
                 num_chips_verified.get_var(),
