@@ -490,7 +490,6 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                 builder.set_value(&reduced_codeword_by_height, ptr_vec[0], zero_codeword);
             });
             let query = builder.iter_ptr_get(&input.proof.query_opening_proof, ptr_vec[1]);
-            let batch_coeffs_offset: Var<C::N> = builder.constant(C::N::ZERO);
             builder.cycle_tracker_end("Prepare");
 
             builder.cycle_tracker_start("MMCS Verify Loop Rounds");
@@ -563,7 +562,6 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                         builder.assign(&codeword_acc.high, codeword_acc.high + codeword.high);
 
                         builder.set_value(&reduced_codeword_by_height, log2_height, codeword_acc);
-                        builder.assign(&batch_coeffs_offset, batch_coeffs_offset + width.clone());
                         builder.cycle_tracker_end("MMCS Verify Loop Round Compute Batching Inner");
                     });
                     builder.cycle_tracker_end("MMCS Verify Loop Round Compute Batching");
