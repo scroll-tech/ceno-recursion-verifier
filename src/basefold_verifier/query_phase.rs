@@ -553,6 +553,8 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                         round_context.log2_heights,
                         round_context.minus_alpha_offsets,
                         round_context.all_zero_slices,
+                        round_context.opened_values_buffer,
+                        round.perm,
                     )
                     .for_each(|ptr_vec, builder| {
                         builder
@@ -595,31 +597,16 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                         builder.assign(&codeword_acc.high, codeword_acc.high + codeword.high);
 
                         builder.set_value(&reduced_codeword_by_height, log2_height, codeword_acc);
+
+                        // reorder opened values according to the permutation
+                        let mat_j =
+                            builder.iter_ptr_get(&round_context.opened_values_buffer, ptr_vec[5]);
+                        let permuted_j = builder.iter_ptr_get(&round.perm, ptr_vec[6]);
+                        // let permuted_j = j;
+                        builder.set_value(&perm_opened_values, permuted_j, mat_j);
                         builder.cycle_tracker_end("MMCS Verify Loop Round Compute Batching Inner");
                     });
                     builder.cycle_tracker_end("MMCS Verify Loop Round Compute Batching");
-
-                    // TODO: ensure that perm is indeed a permutation of 0, ..., opened_values.len()-1
-                    // Note that this should be done outside the loop over queries
-
-                    // reorder (opened values, dimension) according to the permutation
-                    builder.cycle_tracker_start("MMCS Verify Loop Round Reordering");
-                    builder
-                        .range(0, round.openings.len())
-                        .for_each(|j_vec, builder| {
-                            let j = j_vec[0];
-
-                            let mat_j = builder.get(&round_context.opened_values_buffer, j);
-
-                            let permuted_j = builder.get(&round.perm, j);
-                            // let permuted_j = j;
-
-                            builder.set_value(&perm_opened_values, permuted_j, mat_j);
-                        });
-                    builder.cycle_tracker_end("MMCS Verify Loop Round Reordering");
-                    // TODO: ensure that dimensions is indeed sorted decreasingly
-                    // Note that this should be done outside the loop over queries
-
                     // i >>= (log2_max_codeword_size - commit.log2_max_codeword_size);
                     let bits_shift: Var<C::N> = builder
                         .eval(log2_max_codeword_size.clone() - round.commit.log2_max_codeword_size);
