@@ -1,6 +1,5 @@
 // Note: check all XXX comments!
 
-use ark_std::log2;
 use ff_ext::{BabyBearExt4, ExtensionField, PoseidonField};
 use mpcs::basefold::QueryOpeningProof as InnerQueryOpeningProof;
 use openvm_native_compiler::{asm::AsmConfig, prelude::*};
@@ -13,11 +12,10 @@ use openvm_stark_sdk::p3_baby_bear::BabyBear;
 use p3_commit::ExtensionMmcs;
 use p3_field::{Field, FieldAlgebra};
 use serde::Deserialize;
-use std::fmt::Debug;
 
-use super::{basefold::*, extension_mmcs::*, mmcs::*, rs::*, structs::*, utils::*};
+use super::{basefold::*, extension_mmcs::*, mmcs::*, rs::*, utils::*};
 use crate::{
-    arithmetics::{build_eq_x_r_vec_sequential_with_offset, eq_eval_with_index},
+    arithmetics::eq_eval_with_index,
     tower_verifier::{binding::*, program::interpolate_uni_poly},
 };
 
@@ -79,14 +77,8 @@ impl Hintable<InnerConfig> for BatchOpening {
     fn write(&self) -> Vec<Vec<<InnerConfig as Config>::N>> {
         let mut stream = Vec::new();
         stream.extend(self.opened_values.write());
-        stream.extend(vec![
-            vec![F::from_canonical_usize(self.opening_proof.len())],
-            self.opening_proof
-                .iter()
-                .flatten()
-                .copied()
-                .collect::<Vec<_>>(),
-        ]);
+        stream.extend(write_mmcs_proof(&self.opening_proof));
+
         stream
     }
 }
@@ -376,6 +368,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
             let query = builder.iter_ptr_get(&input.proof.query_opening_proof, ptr_vec[1]);
             let batch_coeffs_offset: Var<C::N> = builder.constant(C::N::ZERO);
 
+            builder.assert_usize_eq(query.input_proofs.len(), input.rounds.len());
             iter_zip!(builder, query.input_proofs, input.rounds).for_each(|ptr_vec, builder| {
                 let batch_opening = builder.iter_ptr_get(&query.input_proofs, ptr_vec[0]);
                 let round = builder.iter_ptr_get(&input.rounds, ptr_vec[1]);
