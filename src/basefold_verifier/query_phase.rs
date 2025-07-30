@@ -378,6 +378,14 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
             let batch_coeff = builder.get(&input.batch_coeffs, 1);
             builder.assign(&alpha, batch_coeff);
         });
+
+    let initial_cur_num_var: Var<C::N> = builder.eval(input.max_num_var.clone());
+    let initial_log2_height: Var<C::N> =
+        builder.eval(initial_cur_num_var + Usize::from(get_rate_log() - 1));
+    builder.assert_eq::<Var<C::N>>(
+        input.proof.commits.len() + Usize::from(1),
+        input.fold_challenges.len(),
+    );
     builder.cycle_tracker_end("Before checking opening proofs");
 
     builder.cycle_tracker_start("Checking opening proofs");
@@ -519,7 +527,6 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                 // TODO: ensure that dimensions is indeed sorted decreasingly
 
                 // i >>= (log2_max_codeword_size - commit.log2_max_codeword_size);
-                builder.cycle_tracker_start("MMCS Verify Loop Round Prepare MMCS Input");
                 let bits_shift: Var<C::N> = builder
                     .eval(log2_max_codeword_size.clone() - round.commit.log2_max_codeword_size);
                 let reduced_idx_bits = idx_bits.slice(builder, bits_shift, idx_bits.len());
@@ -532,10 +539,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                     opened_values: perm_opened_values,
                     proof: opening_proof,
                 };
-                builder.cycle_tracker_end("MMCS Verify Loop Round Prepare MMCS Input");
-                builder.cycle_tracker_start("MMCS Verify Loop Round MMCS");
                 mmcs_verify_batch(builder, mmcs_verifier_input);
-                builder.cycle_tracker_end("MMCS Verify Loop Round MMCS");
                 builder.cycle_tracker_end("MMCS Verify Loop Round");
             });
             builder.cycle_tracker_end("MMCS Verify Loop Rounds");
@@ -544,9 +548,8 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
             let opening_ext = query.commit_phase_openings;
 
             // fold 1st codeword
-            let cur_num_var: Var<C::N> = builder.eval(input.max_num_var.clone());
-            let log2_height: Var<C::N> =
-                builder.eval(cur_num_var + Usize::from(get_rate_log() - 1));
+            let cur_num_var: Var<C::N> = builder.eval(initial_cur_num_var);
+            let log2_height: Var<C::N> = builder.eval(initial_log2_height);
 
             let r = builder.get(&input.fold_challenges, 0);
             let codeword = builder.get(&reduced_codeword_by_height, log2_height);
@@ -568,10 +571,6 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
 
             // check commit phases
             let commits = &input.proof.commits;
-            builder.assert_eq::<Var<C::N>>(
-                commits.len() + Usize::from(1),
-                input.fold_challenges.len(),
-            );
             builder.assert_eq::<Var<C::N>>(commits.len(), opening_ext.len());
             builder.cycle_tracker_end("Initial folding");
             builder.cycle_tracker_start("FRI rounds");
