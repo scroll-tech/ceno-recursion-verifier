@@ -314,6 +314,12 @@ pub struct PackedCodeword<C: Config> {
     pub high: Ext<C::F, C::EF>,
 }
 
+#[derive(DslVariable, Clone)]
+pub struct RoundContextVariable<C: Config> {
+    pub(crate) opened_values_buffer: Array<C, Array<C, Felt<C::F>>>,
+    pub(crate) log2_heights: Array<C, Var<C::N>>,
+}
+
 pub(crate) fn batch_verifier_query_phase<C: Config>(
     builder: &mut Builder<C>,
     input: QueryPhaseVerifierInputVariable<C>,
@@ -388,6 +394,38 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
     );
     builder.cycle_tracker_end("Before checking opening proofs");
 
+    builder.cycle_tracker_start("Build round context");
+    let rounds_context: Array<C, RoundContextVariable<C>> = builder.dyn_array(input.rounds.len());
+    iter_zip!(builder, input.rounds, rounds_context).for_each(|ptr_vec, builder| {
+        let round = builder.iter_ptr_get(&input.rounds, ptr_vec[0]);
+        let opened_values_buffer: Array<C, Array<C, Felt<C::F>>> =
+            builder.dyn_array(round.openings.len());
+        let log2_heights = builder.dyn_array(round.openings.len());
+        iter_zip!(builder, opened_values_buffer, log2_heights, round.openings).for_each(
+            |ptr_vec, builder| {
+                let opening = builder.iter_ptr_get(&round.openings, ptr_vec[2]);
+                let log2_height: Var<C::N> =
+                    builder.eval(opening.num_var + Usize::from(get_rate_log() - 1));
+                builder.iter_ptr_set(&log2_heights, ptr_vec[1], log2_height);
+                let width = opening.point_and_evals.evals.len();
+
+                let opened_value_len: Var<C::N> = builder.eval(width.clone() * two);
+                let opened_value_buffer = builder.dyn_array(opened_value_len);
+                builder.iter_ptr_set(
+                    &opened_values_buffer,
+                    ptr_vec[0],
+                    opened_value_buffer.clone(),
+                );
+            },
+        );
+        let round_context = RoundContextVariable {
+            opened_values_buffer,
+            log2_heights,
+        };
+        builder.iter_ptr_set(&rounds_context, ptr_vec[1], round_context);
+    });
+    builder.cycle_tracker_end("Build round context");
+
     builder.cycle_tracker_start("Checking opening proofs");
     iter_zip!(builder, input.indices, input.proof.query_opening_proof).for_each(
         |ptr_vec, builder| {
@@ -421,127 +459,133 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
             builder.cycle_tracker_end("Prepare");
 
             builder.cycle_tracker_start("MMCS Verify Loop Rounds");
-            iter_zip!(builder, query.input_proofs, input.rounds).for_each(|ptr_vec, builder| {
-                builder.cycle_tracker_start("MMCS Verify Loop Round");
-                builder.cycle_tracker_start("MMCS Verify Loop Round Prepare");
-                let batch_opening = builder.iter_ptr_get(&query.input_proofs, ptr_vec[0]);
-                let round = builder.iter_ptr_get(&input.rounds, ptr_vec[1]);
-                let opened_values = batch_opening.opened_values;
-                let perm_opened_values = builder.dyn_array(opened_values.length.clone());
-                let dimensions = builder.dyn_array(opened_values.length.clone());
-                let opening_proof = batch_opening.opening_proof;
+            iter_zip!(builder, query.input_proofs, input.rounds, rounds_context).for_each(
+                |ptr_vec, builder| {
+                    builder.cycle_tracker_start("MMCS Verify Loop Round");
+                    builder.cycle_tracker_start("MMCS Verify Loop Round Prepare");
+                    let batch_opening = builder.iter_ptr_get(&query.input_proofs, ptr_vec[0]);
+                    let round = builder.iter_ptr_get(&input.rounds, ptr_vec[1]);
+                    let opened_values = batch_opening.opened_values;
+                    let perm_opened_values = builder.dyn_array(opened_values.length.clone());
+                    let dimensions = builder.dyn_array(opened_values.length.clone());
+                    let opening_proof = batch_opening.opening_proof;
 
-                let opened_values_buffer: Array<C, Array<C, Felt<C::F>>> =
-                    builder.dyn_array(opened_values.length);
-                builder.cycle_tracker_end("MMCS Verify Loop Round Prepare");
+                    let round_context = builder.iter_ptr_get(&rounds_context, ptr_vec[2]);
+                    let opened_values_buffer = round_context.opened_values_buffer;
+                    builder.cycle_tracker_end("MMCS Verify Loop Round Prepare");
 
-                builder.cycle_tracker_start("MMCS Verify Loop Round Compute Batching");
-                // TODO: optimize this procedure
-                iter_zip!(builder, opened_values_buffer, round.openings).for_each(
-                    |ptr_vec, builder| {
-                        builder
-                            .cycle_tracker_start("MMCS Verify Loop Round Compute Batching Inner");
-                        let opening = builder.iter_ptr_get(&round.openings, ptr_vec[1]);
-                        let log2_height: Var<C::N> =
-                            builder.eval(opening.num_var + Usize::from(get_rate_log() - 1));
-                        let width = opening.point_and_evals.evals.len();
+                    builder.cycle_tracker_start("MMCS Verify Loop Round Compute Batching");
+                    // TODO: optimize this procedure
+                    iter_zip!(builder, opened_values_buffer, round.openings).for_each(
+                        |ptr_vec, builder| {
+                            builder.cycle_tracker_start(
+                                "MMCS Verify Loop Round Compute Batching Inner",
+                            );
+                            let opening = builder.iter_ptr_get(&round.openings, ptr_vec[1]);
+                            let log2_height: Var<C::N> =
+                                builder.eval(opening.num_var + Usize::from(get_rate_log() - 1));
+                            let width = opening.point_and_evals.evals.len();
 
-                        let opened_value_len: Var<C::N> = builder.eval(width.clone() * two);
-                        let opened_value_buffer = builder.dyn_array(opened_value_len);
-                        builder.iter_ptr_set(
-                            &opened_values_buffer,
-                            ptr_vec[0],
-                            opened_value_buffer.clone(),
-                        );
+                            let opened_value_buffer =
+                                builder.iter_ptr_get(&opened_values_buffer, ptr_vec[0]);
 
-                        let low_values = opened_value_buffer.slice(builder, 0, width.clone());
-                        let high_values = opened_value_buffer.slice(
-                            builder,
-                            width.clone(),
-                            opened_value_buffer.len(),
-                        );
+                            let low_values = opened_value_buffer.slice(builder, 0, width.clone());
+                            let high_values = opened_value_buffer.slice(
+                                builder,
+                                width.clone(),
+                                opened_value_buffer.len(),
+                            );
 
-                        // The linear combination is by (alpha^offset, ..., alpha^(offset+width-1)), which is equal to
-                        // alpha^offset * (1, ..., alpha^(width-1))
-                        let alpha_offset =
-                            builder.get(&input.batch_coeffs, batch_coeffs_offset.clone());
-                        // Will need to negate the values of low and high
-                        // because `fri_single_reduced_opening_eval` is
-                        // computing \sum_i alpha^i (0 - opened_value[i]).
-                        // We want \sum_i alpha^(i + offset) opened_value[i]
-                        // Let's negate it here.
-                        builder.assign(&alpha_offset, -alpha_offset);
-                        let all_zeros_slice = all_zeros.slice(builder, 0, width.clone());
+                            // The linear combination is by (alpha^offset, ..., alpha^(offset+width-1)), which is equal to
+                            // alpha^offset * (1, ..., alpha^(width-1))
+                            let alpha_offset =
+                                builder.get(&input.batch_coeffs, batch_coeffs_offset.clone());
+                            // Will need to negate the values of low and high
+                            // because `fri_single_reduced_opening_eval` is
+                            // computing \sum_i alpha^i (0 - opened_value[i]).
+                            // We want \sum_i alpha^(i + offset) opened_value[i]
+                            // Let's negate it here.
+                            builder.assign(&alpha_offset, -alpha_offset);
+                            let all_zeros_slice = all_zeros.slice(builder, 0, width.clone());
 
-                        let low = builder.fri_single_reduced_opening_eval(
-                            alpha,
-                            opened_values.id.get_var(),
-                            zero_flag,
-                            &low_values,
-                            &all_zeros_slice,
-                        );
-                        let high = builder.fri_single_reduced_opening_eval(
-                            alpha,
-                            opened_values.id.get_var(),
-                            zero_flag,
-                            &high_values,
-                            &all_zeros_slice,
-                        );
-                        builder.assign(&low, low * alpha_offset);
-                        builder.assign(&high, high * alpha_offset);
+                            let low = builder.fri_single_reduced_opening_eval(
+                                alpha,
+                                opened_values.id.get_var(),
+                                zero_flag,
+                                &low_values,
+                                &all_zeros_slice,
+                            );
+                            let high = builder.fri_single_reduced_opening_eval(
+                                alpha,
+                                opened_values.id.get_var(),
+                                zero_flag,
+                                &high_values,
+                                &all_zeros_slice,
+                            );
+                            builder.assign(&low, low * alpha_offset);
+                            builder.assign(&high, high * alpha_offset);
 
-                        let codeword: PackedCodeword<C> = PackedCodeword { low, high };
-                        let codeword_acc = builder.get(&reduced_codeword_by_height, log2_height);
+                            let codeword: PackedCodeword<C> = PackedCodeword { low, high };
+                            let codeword_acc =
+                                builder.get(&reduced_codeword_by_height, log2_height);
 
-                        // reduced_openings[log2_height] += codeword
-                        builder.assign(&codeword_acc.low, codeword_acc.low + codeword.low);
-                        builder.assign(&codeword_acc.high, codeword_acc.high + codeword.high);
+                            // reduced_openings[log2_height] += codeword
+                            builder.assign(&codeword_acc.low, codeword_acc.low + codeword.low);
+                            builder.assign(&codeword_acc.high, codeword_acc.high + codeword.high);
 
-                        builder.set_value(&reduced_codeword_by_height, log2_height, codeword_acc);
-                        builder.assign(&batch_coeffs_offset, batch_coeffs_offset + width.clone());
-                        builder.cycle_tracker_end("MMCS Verify Loop Round Compute Batching Inner");
-                    },
-                );
-                builder.cycle_tracker_end("MMCS Verify Loop Round Compute Batching");
+                            builder.set_value(
+                                &reduced_codeword_by_height,
+                                log2_height,
+                                codeword_acc,
+                            );
+                            builder
+                                .assign(&batch_coeffs_offset, batch_coeffs_offset + width.clone());
+                            builder
+                                .cycle_tracker_end("MMCS Verify Loop Round Compute Batching Inner");
+                        },
+                    );
+                    builder.cycle_tracker_end("MMCS Verify Loop Round Compute Batching");
 
-                // TODO: ensure that perm is indeed a permutation of 0, ..., opened_values.len()-1
+                    // TODO: ensure that perm is indeed a permutation of 0, ..., opened_values.len()-1
 
-                // reorder (opened values, dimension) according to the permutation
-                builder.cycle_tracker_start("MMCS Verify Loop Round Reordering");
-                builder
-                    .range(0, opened_values_buffer.len())
-                    .for_each(|j_vec, builder| {
-                        let j = j_vec[0];
+                    // reorder (opened values, dimension) according to the permutation
+                    builder.cycle_tracker_start("MMCS Verify Loop Round Reordering");
+                    builder
+                        .range(0, opened_values_buffer.len())
+                        .for_each(|j_vec, builder| {
+                            let j = j_vec[0];
 
-                        let mat_j = builder.get(&opened_values_buffer, j);
-                        let num_var_j = builder.get(&round.openings, j).num_var;
-                        let height_j = builder.eval(num_var_j + Usize::from(get_rate_log() - 1));
+                            let mat_j = builder.get(&opened_values_buffer, j);
+                            let num_var_j = builder.get(&round.openings, j).num_var;
+                            let height_j =
+                                builder.eval(num_var_j + Usize::from(get_rate_log() - 1));
 
-                        let permuted_j = builder.get(&round.perm, j);
-                        // let permuted_j = j;
+                            let permuted_j = builder.get(&round.perm, j);
+                            // let permuted_j = j;
 
-                        builder.set_value(&perm_opened_values, permuted_j, mat_j);
-                        builder.set_value(&dimensions, permuted_j, height_j);
-                    });
-                builder.cycle_tracker_end("MMCS Verify Loop Round Reordering");
-                // TODO: ensure that dimensions is indeed sorted decreasingly
+                            builder.set_value(&perm_opened_values, permuted_j, mat_j);
+                            builder.set_value(&dimensions, permuted_j, height_j);
+                        });
+                    builder.cycle_tracker_end("MMCS Verify Loop Round Reordering");
+                    // TODO: ensure that dimensions is indeed sorted decreasingly
 
-                // i >>= (log2_max_codeword_size - commit.log2_max_codeword_size);
-                let bits_shift: Var<C::N> = builder
-                    .eval(log2_max_codeword_size.clone() - round.commit.log2_max_codeword_size);
-                let reduced_idx_bits = idx_bits.slice(builder, bits_shift, idx_bits.len());
+                    // i >>= (log2_max_codeword_size - commit.log2_max_codeword_size);
+                    let bits_shift: Var<C::N> = builder
+                        .eval(log2_max_codeword_size.clone() - round.commit.log2_max_codeword_size);
+                    let reduced_idx_bits = idx_bits.slice(builder, bits_shift, idx_bits.len());
 
-                // verify input mmcs
-                let mmcs_verifier_input = MmcsVerifierInputVariable {
-                    commit: round.commit.commit.clone(),
-                    dimensions: dimensions,
-                    index_bits: reduced_idx_bits,
-                    opened_values: perm_opened_values,
-                    proof: opening_proof,
-                };
-                mmcs_verify_batch(builder, mmcs_verifier_input);
-                builder.cycle_tracker_end("MMCS Verify Loop Round");
-            });
+                    // verify input mmcs
+                    let mmcs_verifier_input = MmcsVerifierInputVariable {
+                        commit: round.commit.commit.clone(),
+                        dimensions: dimensions,
+                        index_bits: reduced_idx_bits,
+                        opened_values: perm_opened_values,
+                        proof: opening_proof,
+                    };
+                    mmcs_verify_batch(builder, mmcs_verifier_input);
+                    builder.cycle_tracker_end("MMCS Verify Loop Round");
+                },
+            );
             builder.cycle_tracker_end("MMCS Verify Loop Rounds");
 
             builder.cycle_tracker_start("Initial folding");
