@@ -321,6 +321,7 @@ pub struct RoundContextVariable<C: Config> {
     pub(crate) high_values_buffer: Array<C, Array<C, Felt<C::F>>>,
     pub(crate) log2_heights: Array<C, Var<C::N>>,
     pub(crate) minus_alpha_offsets: Array<C, Ext<C::F, C::EF>>,
+    pub(crate) all_zero_slices: Array<C, Array<C, Ext<C::F, C::EF>>>,
 }
 
 pub(crate) fn batch_verifier_query_phase<C: Config>(
@@ -410,6 +411,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
             builder.dyn_array(round.openings.len());
         let log2_heights = builder.dyn_array(round.openings.len());
         let minus_alpha_offsets = builder.dyn_array(round.openings.len());
+        let all_zero_slices = builder.dyn_array(round.openings.len());
 
         iter_zip!(
             builder,
@@ -419,6 +421,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
             low_values_buffer,
             high_values_buffer,
             minus_alpha_offsets,
+            all_zero_slices,
         )
         .for_each(|ptr_vec, builder| {
             let opening = builder.iter_ptr_get(&round.openings, ptr_vec[2]);
@@ -449,6 +452,9 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
             builder.assign(&alpha_offset, -alpha_offset);
             builder.iter_ptr_set(&minus_alpha_offsets, ptr_vec[5], alpha_offset);
             builder.assign(&batch_coeffs_offset, batch_coeffs_offset + width.clone());
+
+            let all_zero_slice = all_zeros.slice(builder, 0, width);
+            builder.iter_ptr_set(&all_zero_slices, ptr_vec[6], all_zero_slice);
         });
         let round_context = RoundContextVariable {
             opened_values_buffer,
@@ -456,6 +462,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
             high_values_buffer,
             log2_heights,
             minus_alpha_offsets,
+            all_zero_slices,
         };
         builder.iter_ptr_set(&rounds_context, ptr_vec[1], round_context);
     });
@@ -519,14 +526,13 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                         high_values_buffer,
                         round_context.log2_heights,
                         round_context.minus_alpha_offsets,
+                        round_context.all_zero_slices,
                     )
                     .for_each(|ptr_vec, builder| {
                         builder
                             .cycle_tracker_start("MMCS Verify Loop Round Compute Batching Inner");
-                        let opening = builder.iter_ptr_get(&round.openings, ptr_vec[0]);
                         let log2_height: Var<C::N> =
                             builder.iter_ptr_get(&round_context.log2_heights, ptr_vec[3]);
-                        let width = opening.point_and_evals.evals.len();
 
                         let low_values = builder.iter_ptr_get(&low_values_buffer, ptr_vec[1]);
                         let high_values = builder.iter_ptr_get(&high_values_buffer, ptr_vec[2]);
@@ -535,7 +541,8 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                         // alpha^offset * (1, ..., alpha^(width-1))
                         let minus_alpha_offset =
                             builder.iter_ptr_get(&round_context.minus_alpha_offsets, ptr_vec[4]);
-                        let all_zeros_slice = all_zeros.slice(builder, 0, width.clone());
+                        let all_zeros_slice =
+                            builder.iter_ptr_get(&round_context.all_zero_slices, ptr_vec[5]);
 
                         let low = builder.fri_single_reduced_opening_eval(
                             alpha,
