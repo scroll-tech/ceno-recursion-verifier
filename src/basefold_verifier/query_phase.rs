@@ -512,17 +512,14 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                     let opening_proof = batch_opening.opening_proof;
 
                     let round_context = builder.iter_ptr_get(&rounds_context, ptr_vec[2]);
-                    let opened_values_buffer = round_context.opened_values_buffer;
-                    let low_values_buffer = round_context.low_values_buffer;
-                    let high_values_buffer = round_context.high_values_buffer;
                     builder.cycle_tracker_end("MMCS Verify Loop Round Prepare");
 
                     builder.cycle_tracker_start("MMCS Verify Loop Round Compute Batching");
                     // TODO: optimize this procedure
                     iter_zip!(
                         builder,
-                        low_values_buffer,
-                        high_values_buffer,
+                        round_context.low_values_buffer,
+                        round_context.high_values_buffer,
                         round_context.log2_heights,
                         round_context.minus_alpha_offsets,
                         round_context.all_zero_slices,
@@ -530,8 +527,10 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                     .for_each(|ptr_vec, builder| {
                         builder
                             .cycle_tracker_start("MMCS Verify Loop Round Compute Batching Inner");
-                        let low_values = builder.iter_ptr_get(&low_values_buffer, ptr_vec[0]);
-                        let high_values = builder.iter_ptr_get(&high_values_buffer, ptr_vec[1]);
+                        let low_values =
+                            builder.iter_ptr_get(&round_context.low_values_buffer, ptr_vec[0]);
+                        let high_values =
+                            builder.iter_ptr_get(&round_context.high_values_buffer, ptr_vec[1]);
                         let log2_height: Var<C::N> =
                             builder.iter_ptr_get(&round_context.log2_heights, ptr_vec[2]);
                         // The linear combination is by (alpha^offset, ..., alpha^(offset+width-1)), which is equal to
@@ -575,11 +574,11 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                     // reorder (opened values, dimension) according to the permutation
                     builder.cycle_tracker_start("MMCS Verify Loop Round Reordering");
                     builder
-                        .range(0, opened_values_buffer.len())
+                        .range(0, round.openings.len())
                         .for_each(|j_vec, builder| {
                             let j = j_vec[0];
 
-                            let mat_j = builder.get(&opened_values_buffer, j);
+                            let mat_j = builder.get(&round_context.opened_values_buffer, j);
                             let num_var_j = builder.get(&round.openings, j).num_var;
                             let height_j =
                                 builder.eval(num_var_j + Usize::from(get_rate_log() - 1));
