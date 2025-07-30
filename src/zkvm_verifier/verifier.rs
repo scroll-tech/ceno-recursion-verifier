@@ -276,33 +276,31 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
                 chip_proof.log2_num_instances.clone(),
                 input_opening_point.len(),
             );
-            builder.set(
-                &witin_openings,
-                num_chips_verified.get_var(),
-                RoundOpeningVariable {
+
+            let witin_round: RoundOpeningVariable<C> = builder.eval(RoundOpeningVariable {
+                num_var: chip_proof.log2_num_instances.get_var(),
+                point_and_evals: PointAndEvalsVariable {
+                    point: PointVariable {
+                        fs: input_opening_point.clone(),
+                    },
+                    evals: chip_proof.wits_in_evals,
+                },
+            });
+            builder.set_value(&witin_openings, num_chips_verified.get_var(), witin_round);
+
+            if chip_vk.get_cs().num_fixed() > 0 {
+                let fixed_round: RoundOpeningVariable<C> = builder.eval(RoundOpeningVariable {
                     num_var: chip_proof.log2_num_instances.get_var(),
                     point_and_evals: PointAndEvalsVariable {
                         point: PointVariable {
                             fs: input_opening_point.clone(),
                         },
-                        evals: chip_proof.wits_in_evals,
+                        evals: chip_proof.fixed_in_evals,
                     },
-                },
-            );
-            if chip_vk.get_cs().num_fixed() > 0 {
-                builder.set(
-                    &fixed_openings,
-                    num_chips_have_fixed.get_var(),
-                    RoundOpeningVariable {
-                        num_var: chip_proof.log2_num_instances.get_var(),
-                        point_and_evals: PointAndEvalsVariable {
-                            point: PointVariable {
-                                fs: input_opening_point,
-                            },
-                            evals: chip_proof.fixed_in_evals,
-                        },
-                    },
-                );
+                });
+
+                builder.set_value(&fixed_openings, num_chips_have_fixed.get_var(), fixed_round);
+
                 builder.inc(&num_chips_have_fixed);
             }
 
@@ -319,7 +317,11 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
         logup_sum - dummy_table_item_multiplicity * dummy_table_item.inverse(),
     );
 
-    let rounds = builder.dyn_array(2);
+    let rounds = if num_fixed_opening > 0 {
+        builder.dyn_array(2)
+    } else {
+        builder.dyn_array(1)
+    };
     builder.set(
         &rounds,
         0,

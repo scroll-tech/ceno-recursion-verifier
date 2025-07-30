@@ -563,9 +563,6 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
         },
     );
 
-    // TODO: remove this checkpoint
-    builder.halt();
-
     // 1. check initial claim match with first round sumcheck value
     let batch_coeffs_offset: Var<C::N> = builder.constant(C::N::ZERO);
     let expected_sum: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
