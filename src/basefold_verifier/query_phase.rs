@@ -3,6 +3,7 @@
 use ark_std::log2;
 use ff_ext::{BabyBearExt4, ExtensionField, PoseidonField};
 use mpcs::basefold::QueryOpeningProof as InnerQueryOpeningProof;
+use openvm_circuit::system::memory::dimensions;
 use openvm_native_compiler::{asm::AsmConfig, prelude::*};
 use openvm_native_compiler_derive::iter_zip;
 use openvm_native_recursion::{
@@ -323,6 +324,7 @@ pub struct RoundContextVariable<C: Config> {
     pub(crate) minus_alpha_offsets: Array<C, Ext<C::F, C::EF>>,
     pub(crate) all_zero_slices: Array<C, Array<C, Ext<C::F, C::EF>>>,
     pub(crate) opening_heights: Array<C, Var<C::N>>,
+    pub(crate) dimensions: Array<C, Var<C::N>>,
 }
 
 pub(crate) fn batch_verifier_query_phase<C: Config>(
@@ -414,6 +416,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
         let minus_alpha_offsets = builder.dyn_array(round.openings.len());
         let all_zero_slices = builder.dyn_array(round.openings.len());
         let opening_heights = builder.dyn_array(round.openings.len());
+        let dimensions = builder.dyn_array(round.openings.len());
 
         iter_zip!(
             builder,
@@ -425,6 +428,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
             minus_alpha_offsets,
             all_zero_slices,
             opening_heights,
+            dimensions,
         )
         .for_each(|ptr_vec, builder| {
             let opening = builder.iter_ptr_get(&round.openings, ptr_vec[2]);
@@ -463,6 +467,24 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
             let height: Var<C::N> = builder.eval(num_var + Usize::from(get_rate_log() - 1));
             builder.iter_ptr_set(&opening_heights, ptr_vec[7], height);
         });
+
+        // TODO: ensure that perm is indeed a permutation of 0, ..., opened_values.len()-1
+        // Note that this should be done outside the loop over queries
+
+        // reorder (opened values, dimension) according to the permutation
+        builder.cycle_tracker_start("MMCS Verify Loop Round Reordering");
+        builder
+            .range(0, round.openings.len())
+            .for_each(|j_vec, builder| {
+                let height_j = builder.get(&opening_heights, j_vec[0]);
+                let permuted_j = builder.get(&round.perm, j_vec[0]);
+                // let permuted_j = j;
+                builder.set_value(&dimensions, permuted_j, height_j);
+            });
+        builder.cycle_tracker_end("MMCS Verify Loop Round Reordering");
+        // TODO: ensure that dimensions is indeed sorted decreasingly
+        // Note that this should be done outside the loop over queries
+
         let round_context = RoundContextVariable {
             opened_values_buffer,
             low_values_buffer,
@@ -471,6 +493,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
             minus_alpha_offsets,
             all_zero_slices,
             opening_heights,
+            dimensions,
         };
         builder.iter_ptr_set(&rounds_context, ptr_vec[1], round_context);
     });
@@ -516,7 +539,6 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                     let round = builder.iter_ptr_get(&input.rounds, ptr_vec[1]);
                     let opened_values = batch_opening.opened_values;
                     let perm_opened_values = builder.dyn_array(opened_values.length.clone());
-                    let dimensions = builder.dyn_array(opened_values.length.clone());
                     let opening_proof = batch_opening.opening_proof;
 
                     let round_context = builder.iter_ptr_get(&rounds_context, ptr_vec[2]);
@@ -578,6 +600,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                     builder.cycle_tracker_end("MMCS Verify Loop Round Compute Batching");
 
                     // TODO: ensure that perm is indeed a permutation of 0, ..., opened_values.len()-1
+                    // Note that this should be done outside the loop over queries
 
                     // reorder (opened values, dimension) according to the permutation
                     builder.cycle_tracker_start("MMCS Verify Loop Round Reordering");
@@ -587,16 +610,15 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                             let j = j_vec[0];
 
                             let mat_j = builder.get(&round_context.opened_values_buffer, j);
-                            let height_j = builder.get(&round_context.opening_heights, j);
 
                             let permuted_j = builder.get(&round.perm, j);
                             // let permuted_j = j;
 
                             builder.set_value(&perm_opened_values, permuted_j, mat_j);
-                            builder.set_value(&dimensions, permuted_j, height_j);
                         });
                     builder.cycle_tracker_end("MMCS Verify Loop Round Reordering");
                     // TODO: ensure that dimensions is indeed sorted decreasingly
+                    // Note that this should be done outside the loop over queries
 
                     // i >>= (log2_max_codeword_size - commit.log2_max_codeword_size);
                     let bits_shift: Var<C::N> = builder
@@ -606,7 +628,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                     // verify input mmcs
                     let mmcs_verifier_input = MmcsVerifierInputVariable {
                         commit: round.commit.commit.clone(),
-                        dimensions: dimensions,
+                        dimensions: round_context.dimensions,
                         index_bits: reduced_idx_bits,
                         opened_values: perm_opened_values,
                         proof: opening_proof,
