@@ -15,6 +15,77 @@ use openvm_native_recursion::challenger::{
 };
 use p3_field::FieldAlgebra;
 
+pub(crate) fn interpolate_uni_poly<C: Config>(
+    builder: &mut Builder<C>,
+    p_i: &Array<C, Ext<C::F, C::EF>>,
+    eval_at: Ext<C::F, C::EF>,
+) -> Ext<C::F, C::EF> {
+    let len = p_i.len();
+    let evals: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(len.clone());
+    let prod: Ext<C::F, C::EF> = builder.eval(eval_at);
+
+    builder.set(&evals, 0, eval_at);
+
+    // `prod = \prod_{j} (eval_at - j)`
+    let e: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
+    let one: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
+    builder.range(1, len.clone()).for_each(|i_vec, builder| {
+        let i = i_vec[0];
+        let tmp: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
+        builder.assign(&tmp, eval_at - e);
+        builder.set(&evals, i, tmp);
+        builder.assign(&prod, prod * tmp);
+        builder.assign(&e, e + one);
+    });
+
+    let denom_up: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
+    let i: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
+    builder.assign(&i, i + one);
+    builder.range(2, len.clone()).for_each(|_i_vec, builder| {
+        builder.assign(&denom_up, denom_up * i);
+        builder.assign(&i, i + one);
+    });
+    let denom_down: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
+
+    let idx_vec_len: RVar<C::N> = builder.eval_expr(len.clone() - RVar::from(1));
+    let idx_vec: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(idx_vec_len);
+    let idx_val: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
+    builder.range(0, idx_vec.len()).for_each(|i_vec, builder| {
+        builder.set(&idx_vec, i_vec[0], idx_val);
+        builder.assign(&idx_val, idx_val + one);
+    });
+    let idx_rev = reverse(builder, &idx_vec);
+    let res = builder.constant(C::EF::ZERO);
+
+    let len_f = idx_val.clone();
+    let neg_one: Ext<C::F, C::EF> = builder.constant(C::EF::NEG_ONE);
+    let evals_rev = reverse(builder, &evals);
+    let p_i_rev = reverse(builder, &p_i);
+
+    let mut idx_pos: RVar<C::N> = builder.eval_expr(len.clone() - RVar::from(1));
+    iter_zip!(builder, idx_rev, evals_rev, p_i_rev).for_each(|ptr_vec, builder| {
+        let idx = builder.iter_ptr_get(&idx_rev, ptr_vec[0]);
+        let eval = builder.iter_ptr_get(&evals_rev, ptr_vec[1]);
+        let up_eval_inv: Ext<C::F, C::EF> = builder.eval(denom_up * eval);
+        builder.assign(&up_eval_inv, up_eval_inv.inverse());
+        let p = builder.iter_ptr_get(&p_i_rev, ptr_vec[2]);
+
+        builder.assign(&res, res + p * prod * denom_down * up_eval_inv);
+        builder.assign(&denom_up, denom_up * (len_f - idx) * neg_one);
+        builder.assign(&denom_down, denom_down * idx);
+
+        idx_pos = builder.eval_expr(idx_pos - RVar::from(1));
+    });
+
+    let p_i_0 = builder.get(&p_i, 0);
+    let eval_0 = builder.get(&evals, 0);
+    let up_eval_inv: Ext<C::F, C::EF> = builder.eval(denom_up * eval_0);
+    builder.assign(&up_eval_inv, up_eval_inv.inverse());
+    builder.assign(&res, res + p_i_0 * prod * denom_down * up_eval_inv);
+
+    res
+}
+
 // Interpolate a uni-variate degree-`p_i.len()-1` polynomial and evaluate this
 // polynomial at `eval_at`:
 //
@@ -480,15 +551,17 @@ pub fn verify_tower_proof<C: Config>(
                             },
                             // update point and eval only for last layer
                             |builder| {
-                                builder.set(
-                                    &prod_spec_point_n_eval,
-                                    spec_index,
-                                    PointAndEvalVariable {
+                                let point_and_eval: PointAndEvalVariable<C> =
+                                    builder.eval(PointAndEvalVariable {
                                         point: PointVariable {
                                             fs: rt_prime.clone(),
                                         },
                                         eval: evals,
-                                    },
+                                    });
+                                builder.set_value(
+                                    &prod_spec_point_n_eval,
+                                    spec_index,
+                                    point_and_eval,
                                 );
                             },
                         );
@@ -546,26 +619,22 @@ pub fn verify_tower_proof<C: Config>(
                             },
                             // update point and eval only for last layer
                             |builder| {
-                                builder.set(
-                                    &logup_spec_p_point_n_eval,
-                                    spec_index,
-                                    PointAndEvalVariable {
+                                let p_eval: PointAndEvalVariable<C> =
+                                    builder.eval(PointAndEvalVariable {
                                         point: PointVariable {
                                             fs: rt_prime.clone(),
                                         },
                                         eval: p_eval,
-                                    },
-                                );
-                                builder.set(
-                                    &logup_spec_q_point_n_eval,
-                                    spec_index,
-                                    PointAndEvalVariable {
+                                    });
+                                let q_eval: PointAndEvalVariable<C> =
+                                    builder.eval(PointAndEvalVariable {
                                         point: PointVariable {
                                             fs: rt_prime.clone(),
                                         },
                                         eval: q_eval,
-                                    },
-                                );
+                                    });
+                                builder.set_value(&logup_spec_p_point_n_eval, spec_index, p_eval);
+                                builder.set_value(&logup_spec_q_point_n_eval, spec_index, q_eval);
                             },
                         );
                     });
@@ -578,12 +647,15 @@ pub fn verify_tower_proof<C: Config>(
 
             builder.cycle_tracker_end("derive next layer's expected sum");
 
-            next_rt = PointAndEvalVariable {
-                point: PointVariable {
-                    fs: rt_prime.clone(),
+            builder.assign(
+                &next_rt,
+                PointAndEvalVariable {
+                    point: PointVariable {
+                        fs: rt_prime.clone(),
+                    },
+                    eval: curr_eval.clone(),
                 },
-                eval: curr_eval.clone(),
-            };
+            );
         });
 
     (
@@ -602,15 +674,14 @@ mod tests {
     use crate::tower_verifier::binding::TowerVerifierInput;
     use crate::tower_verifier::program::iop_verifier_state_verify;
     use crate::tower_verifier::program::verify_tower_proof;
-    use ceno_mle::mle::{DenseMultilinearExtension, IntoMLE, MultilinearExtension};
-    use ceno_mle::virtual_poly::ArcMultilinearExtension;
+    use ceno_mle::mle::ArcMultilinearExtension;
+    use ceno_mle::mle::{IntoMLE, MultilinearExtension};
     use ceno_mle::virtual_polys::VirtualPolynomials;
     use ceno_sumcheck::structs::IOPProverState;
     use ceno_transcript::BasicTranscript;
     use ceno_zkvm::scheme::constants::NUM_FANIN;
-    use ceno_zkvm::scheme::utils::infer_tower_logup_witness;
-    use ceno_zkvm::scheme::utils::infer_tower_product_witness;
-    use ceno_zkvm::structs::TowerProver;
+    use ceno_zkvm::scheme::hal::TowerProver;
+    use ceno_zkvm::scheme::hal::TowerProverSpec;
     use ff_ext::BabyBearExt4;
     use ff_ext::FieldFrom;
     use ff_ext::FromUniformBytes;
@@ -684,9 +755,8 @@ mod tests {
 
         // run sumcheck prover to get sumcheck proof
         let mut rng = thread_rng();
-        let (mles, expected_sum) =
-            DenseMultilinearExtension::<E>::random_mle_list(nv, degree, &mut rng);
-        let mles: Vec<ArcMultilinearExtension<E>> =
+        let (mles, expected_sum) = MultilinearExtension::<E>::random_mle_list(nv, degree, &mut rng);
+        let mles: Vec<ceno_mle::mle::ArcMultilinearExtension<E>> =
             mles.into_iter().map(|mle| mle as _).collect_vec();
         let mut virtual_poly: VirtualPolynomials<'_, E> = VirtualPolynomials::new(1, nv);
         virtual_poly.add_mle_list(mles.iter().collect_vec(), E::from_v(1));
@@ -756,9 +826,9 @@ mod tests {
 
         setup_tracing_with_log_level(tracing::Level::WARN);
 
-        let records: Vec<DenseMultilinearExtension<E>> = (0..num_prod_specs)
+        let records: Vec<MultilinearExtension<E>> = (0..num_prod_specs)
             .map(|_| {
-                DenseMultilinearExtension::from_evaluations_ext_vec(
+                MultilinearExtension::from_evaluations_ext_vec(
                     nv - 1,
                     E::random_vec(1 << (nv - 1), &mut rng),
                 )
@@ -766,10 +836,7 @@ mod tests {
             .collect_vec();
         let denom_records = (0..num_logup_specs)
             .map(|_| {
-                DenseMultilinearExtension::from_evaluations_ext_vec(
-                    nv,
-                    E::random_vec(1 << nv, &mut rng),
-                )
+                MultilinearExtension::from_evaluations_ext_vec(nv, E::random_vec(1 << nv, &mut rng))
             })
             .collect_vec();
 
@@ -810,7 +877,7 @@ mod tests {
                     first.to_vec().into_mle().into(),
                     second.to_vec().into_mle().into(),
                 ];
-                ceno_zkvm::structs::TowerProverSpec {
+                TowerProverSpec {
                     witness: infer_tower_logup_witness(None, last_layer),
                 }
             })
