@@ -521,7 +521,6 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                     // TODO: optimize this procedure
                     iter_zip!(
                         builder,
-                        round.openings,
                         low_values_buffer,
                         high_values_buffer,
                         round_context.log2_heights,
@@ -531,18 +530,16 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                     .for_each(|ptr_vec, builder| {
                         builder
                             .cycle_tracker_start("MMCS Verify Loop Round Compute Batching Inner");
+                        let low_values = builder.iter_ptr_get(&low_values_buffer, ptr_vec[0]);
+                        let high_values = builder.iter_ptr_get(&high_values_buffer, ptr_vec[1]);
                         let log2_height: Var<C::N> =
-                            builder.iter_ptr_get(&round_context.log2_heights, ptr_vec[3]);
-
-                        let low_values = builder.iter_ptr_get(&low_values_buffer, ptr_vec[1]);
-                        let high_values = builder.iter_ptr_get(&high_values_buffer, ptr_vec[2]);
-
+                            builder.iter_ptr_get(&round_context.log2_heights, ptr_vec[2]);
                         // The linear combination is by (alpha^offset, ..., alpha^(offset+width-1)), which is equal to
                         // alpha^offset * (1, ..., alpha^(width-1))
                         let minus_alpha_offset =
-                            builder.iter_ptr_get(&round_context.minus_alpha_offsets, ptr_vec[4]);
+                            builder.iter_ptr_get(&round_context.minus_alpha_offsets, ptr_vec[3]);
                         let all_zeros_slice =
-                            builder.iter_ptr_get(&round_context.all_zero_slices, ptr_vec[5]);
+                            builder.iter_ptr_get(&round_context.all_zero_slices, ptr_vec[4]);
 
                         let low = builder.fri_single_reduced_opening_eval(
                             alpha,
