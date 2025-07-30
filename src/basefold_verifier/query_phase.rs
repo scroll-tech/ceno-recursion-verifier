@@ -320,6 +320,7 @@ pub struct RoundContextVariable<C: Config> {
     pub(crate) low_values_buffer: Array<C, Array<C, Felt<C::F>>>,
     pub(crate) high_values_buffer: Array<C, Array<C, Felt<C::F>>>,
     pub(crate) log2_heights: Array<C, Var<C::N>>,
+    pub(crate) minus_alpha_offsets: Array<C, Ext<C::F, C::EF>>,
 }
 
 pub(crate) fn batch_verifier_query_phase<C: Config>(
@@ -398,6 +399,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
 
     builder.cycle_tracker_start("Build round context");
     let rounds_context: Array<C, RoundContextVariable<C>> = builder.dyn_array(input.rounds.len());
+    let batch_coeffs_offset: Var<C::N> = builder.constant(C::N::ZERO);
     iter_zip!(builder, input.rounds, rounds_context).for_each(|ptr_vec, builder| {
         let round = builder.iter_ptr_get(&input.rounds, ptr_vec[0]);
         let opened_values_buffer: Array<C, Array<C, Felt<C::F>>> =
@@ -407,13 +409,16 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
         let high_values_buffer: Array<C, Array<C, Felt<C::F>>> =
             builder.dyn_array(round.openings.len());
         let log2_heights = builder.dyn_array(round.openings.len());
+        let minus_alpha_offsets = builder.dyn_array(round.openings.len());
+
         iter_zip!(
             builder,
             opened_values_buffer,
             log2_heights,
             round.openings,
             low_values_buffer,
-            high_values_buffer
+            high_values_buffer,
+            minus_alpha_offsets,
         )
         .for_each(|ptr_vec, builder| {
             let opening = builder.iter_ptr_get(&round.openings, ptr_vec[2]);
@@ -434,12 +439,23 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                 opened_value_buffer.slice(builder, width.clone(), opened_value_buffer.len());
             builder.iter_ptr_set(&low_values_buffer, ptr_vec[3], low_values.clone());
             builder.iter_ptr_set(&high_values_buffer, ptr_vec[4], high_values.clone());
+
+            let alpha_offset = builder.get(&input.batch_coeffs, batch_coeffs_offset.clone());
+            // Will need to negate the values of low and high
+            // because `fri_single_reduced_opening_eval` is
+            // computing \sum_i alpha^i (0 - opened_value[i]).
+            // We want \sum_i alpha^(i + offset) opened_value[i]
+            // Let's negate it here.
+            builder.assign(&alpha_offset, -alpha_offset);
+            builder.iter_ptr_set(&minus_alpha_offsets, ptr_vec[5], alpha_offset);
+            builder.assign(&batch_coeffs_offset, batch_coeffs_offset + width.clone());
         });
         let round_context = RoundContextVariable {
             opened_values_buffer,
             low_values_buffer,
             high_values_buffer,
             log2_heights,
+            minus_alpha_offsets,
         };
         builder.iter_ptr_set(&rounds_context, ptr_vec[1], round_context);
     });
@@ -501,14 +517,16 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                         builder,
                         round.openings,
                         low_values_buffer,
-                        high_values_buffer
+                        high_values_buffer,
+                        round_context.log2_heights,
+                        round_context.minus_alpha_offsets,
                     )
                     .for_each(|ptr_vec, builder| {
                         builder
                             .cycle_tracker_start("MMCS Verify Loop Round Compute Batching Inner");
                         let opening = builder.iter_ptr_get(&round.openings, ptr_vec[0]);
                         let log2_height: Var<C::N> =
-                            builder.eval(opening.num_var + Usize::from(get_rate_log() - 1));
+                            builder.iter_ptr_get(&round_context.log2_heights, ptr_vec[3]);
                         let width = opening.point_and_evals.evals.len();
 
                         let low_values = builder.iter_ptr_get(&low_values_buffer, ptr_vec[1]);
@@ -516,14 +534,8 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
 
                         // The linear combination is by (alpha^offset, ..., alpha^(offset+width-1)), which is equal to
                         // alpha^offset * (1, ..., alpha^(width-1))
-                        let alpha_offset =
-                            builder.get(&input.batch_coeffs, batch_coeffs_offset.clone());
-                        // Will need to negate the values of low and high
-                        // because `fri_single_reduced_opening_eval` is
-                        // computing \sum_i alpha^i (0 - opened_value[i]).
-                        // We want \sum_i alpha^(i + offset) opened_value[i]
-                        // Let's negate it here.
-                        builder.assign(&alpha_offset, -alpha_offset);
+                        let minus_alpha_offset =
+                            builder.iter_ptr_get(&round_context.minus_alpha_offsets, ptr_vec[4]);
                         let all_zeros_slice = all_zeros.slice(builder, 0, width.clone());
 
                         let low = builder.fri_single_reduced_opening_eval(
@@ -540,8 +552,8 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                             &high_values,
                             &all_zeros_slice,
                         );
-                        builder.assign(&low, low * alpha_offset);
-                        builder.assign(&high, high * alpha_offset);
+                        builder.assign(&low, low * minus_alpha_offset);
+                        builder.assign(&high, high * minus_alpha_offset);
 
                         let codeword: PackedCodeword<C> = PackedCodeword { low, high };
                         let codeword_acc = builder.get(&reduced_codeword_by_height, log2_height);
