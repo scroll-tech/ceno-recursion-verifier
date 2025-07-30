@@ -40,6 +40,7 @@ use gkr_iop::{
         GKRCircuit,
         booleanhypercube::BooleanHypercube,
     },
+    selector::SelectorType,
     evaluation::EvalExpression,
 };
 use itertools::{interleave, max, Itertools, izip};
@@ -1002,11 +1003,11 @@ pub fn extract_claim_and_point<C: Config>(
     has_rotation: Var<C::N>,
 ) -> Array<C, ClaimAndPoint<C>> {
     let r_len: Usize<C::N> = Usize::Var(has_rotation.clone());
-    builder.assign(&r_len, r_len.clone() * Usize::from(3) + Usize::from(layer.out_eq_and_eval_exprs.len()));
+    builder.assign(&r_len, r_len.clone() * Usize::from(3) + Usize::from(layer.out_sel_and_eval_exprs.len()));
 
     let r = builder.dyn_array(r_len);
 
-    let claims_and_points = layer.out_eq_and_eval_exprs.iter().enumerate().map(|(i, (_, out_evals))| {
+    let claims_and_points = layer.out_sel_and_eval_exprs.iter().enumerate().map(|(i, (_, out_evals))| {
         let evals = out_evals
             .iter()
             .map(|out_eval| {
@@ -1056,6 +1057,7 @@ pub fn verify_gkr_circuit<C: Config>(
 
     // _debug: placeholders
     let challenges: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(2);
+    let pub_io_evals: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(2);
     let n_evaluations = gkr_circuit.n_evaluations;
     let claims: Array<C, PointAndEvalVariable<C>> = builder.dyn_array(n_evaluations);
 
@@ -1076,13 +1078,10 @@ pub fn verify_gkr_circuit<C: Config>(
         } = layer_proof;
 
         // Verify rotation proof
-        
         builder.if_eq(has_rotation, Usize::from(1)).then(|builder| {
-
             let first = builder.get(&eval_and_dedup_points, 0);
             builder.assert_usize_eq(first.has_point, Usize::from(1));   // Rotation proof should have at least one point
             let rt = first.point.fs.clone();
-
 
             let RotationClaim {
                 left_evals,
@@ -1167,190 +1166,30 @@ pub fn verify_gkr_circuit<C: Config>(
             &mut unipoly_extrapolator
         );
 
-        let eval_and_dedup_points_eq: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(eval_and_dedup_points.len());
-        let zero = builder.constant(C::EF::ZERO);
-        let one = builder.constant(C::EF::ONE);
-        builder.range(0, eval_and_dedup_points.len()).for_each(|idx_vec, builder| {
-            let ClaimAndPoint { 
-                evals: _, 
-                has_point, 
-                point: out_point, 
-            } = builder.get(&eval_and_dedup_points, idx_vec[0]);
-            
-            builder.if_eq(has_point, Usize::from(1)).then(|builder| {
-                let eq = eq_eval(builder, &out_point.fs, &in_point, one, zero);
-                builder.set(&eval_and_dedup_points_eq, idx_vec[0], eq);
-            });
-        });
+        layer.out_sel_and_eval_exprs.iter().enumerate().for_each(|(idx, (sel_type, _))| {
+            let out_point = builder.get(&eval_and_dedup_points, idx).point.fs;
 
-        layer.out_eq_and_eval_exprs.iter().enumerate().for_each(|(idx, (eq_expr, _))| {
-            match eq_expr {
-                Some(Expression::WitIn(id)) | Some(Expression::StructuralWitIn(id, _, _, _)) => {
-                    let eval = builder.get(&eval_and_dedup_points_eq, idx);
-                    builder.set(&main_evals, id.clone() as usize, eval);
-                },
-                _ => unreachable!(),
-            }
-        });
-
-        // Check zero expressions
-        let offset_eq_id = layer.n_witin as WitnessId;
-        let empty_arr: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(0);
-        let alpha_idx: Var<C::N> = Var::uninit(builder);
-        builder.assign(&alpha_idx, C::N::ZERO);
-
-        let mut expr_iter = layer.exprs.iter();
-        let got_claim: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
-        let mut zero_check_exprs: Vec<Ext<C::F, C::EF>> = Vec::with_capacity(layer.out_eq_and_eval_exprs.len());
-        for (eq_expr, out_evals) in layer.out_eq_and_eval_exprs.iter() {
-            let group_length = out_evals.len();
-            let zero_check_expr_sum: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
-            expr_iter.by_ref().take(group_length).for_each(|expr| {
-                let e = eval_ceno_expr_with_instance(
-                    builder,
-                    &empty_arr,
-                    &main_evals,
-                    &empty_arr,
-                    &empty_arr,
-                    &challenges,
-                    expr,
-                );
-                let alpha = builder.get(&alpha_pows, alpha_idx);
-                builder.assign(&alpha_idx, alpha_idx + C::N::ONE);
-                builder.assign(&zero_check_expr_sum, zero_check_expr_sum.clone() + e * alpha);
-            });
-
-            let eq_expr: Expression<E> = match eq_expr {
-                Some(Expression::StructuralWitIn(id, ..)) => Expression::WitIn(offset_eq_id + *id),
-                invalid => panic!("invalid eq format {:?}", invalid),
-            };
-            let eq_expr_val = eval_ceno_expr_with_instance(
+            evaluate_selector(
                 builder,
-                &empty_arr,
-                &main_evals,
-                &empty_arr,
-                &empty_arr,
-                &challenges,
-                &eq_expr,
+                sel_type,
+                &main_evals, 
+                &out_point,
+                &in_point, 
+                &gkr_proof.num_instances_minus_one_bit_decomposition,
+                layer.n_witin,
             );
-            builder.assign(&zero_check_expr_sum, zero_check_expr_sum.clone() * eq_expr_val);
-            builder.assign(&got_claim, got_claim + zero_check_expr_sum);
-        }
+        });
 
-        // Rotation expressions
-        let (rotation_eq, rotation_exprs) = &layer.rotation_exprs;
-        if rotation_eq.is_some() {
-            let rotation_exprs_vals = rotation_exprs.iter().map(|(rotation_expr, expr)| {
-                (
-                    eval_ceno_expr_with_instance(
-                        builder,
-                        &empty_arr,
-                        &main_evals,
-                        &empty_arr,
-                        &empty_arr,
-                        &challenges,
-                        rotation_expr,
-                    ),
-                    eval_ceno_expr_with_instance(
-                        builder,
-                        &empty_arr,
-                        &main_evals,
-                        &empty_arr,
-                        &empty_arr,
-                        &challenges,
-                        expr,
-                    )
-                )
-            })
-            .collect::<Vec<(Ext<C::F, C::EF>, Ext<C::F, C::EF>)>>();
-
-            let rotation_exprs_len = C::N::from_canonical_usize(rotation_exprs.len());
-
-            let left_rotation_expr_val: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
-            let right_rotation_expr_val: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
-            let rotation_expr_val: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
-
-            let end_idx: Var<C::N> = builder.eval(alpha_idx + rotation_exprs_len);
-            let left_alpha_slice = alpha_pows.slice(builder, alpha_idx, end_idx);
-
-            builder.assign(&alpha_idx, end_idx);
-            let end_idx: Var<C::N> = builder.eval(alpha_idx + rotation_exprs_len);
-            let right_alpha_slice = alpha_pows.slice(builder, alpha_idx, end_idx);
-
-            builder.assign(&alpha_idx, end_idx);
-            let end_idx: Var<C::N> = builder.eval(alpha_idx + rotation_exprs_len);
-            let rotation_alpha_slice = alpha_pows.slice(builder, alpha_idx, end_idx);
-
-            rotation_exprs_vals.iter().enumerate().for_each(|(idx, (r_v, e_v))| {
-                let left_alpha = builder.get(&left_alpha_slice, idx);
-                let right_alpha = builder.get(&right_alpha_slice, idx);
-                let rotation_alpha = builder.get(&rotation_alpha_slice, idx);
-
-                builder.assign(&left_rotation_expr_val, left_rotation_expr_val.clone() + r_v.clone() * left_alpha);
-                builder.assign(&right_rotation_expr_val, right_rotation_expr_val.clone() + r_v.clone() * right_alpha);
-                builder.assign(&rotation_expr_val, rotation_expr_val.clone() + e_v.clone() * rotation_alpha);
-            });
-
-            if let Some(
-                [
-                    rotation_left_eq_expr,
-                    rotation_right_eq_expr,
-                    rotation_eq_expr,
-                ],
-            ) = rotation_eq.as_ref()
-            {
-                let (rotation_left_eq_expr, rotation_right_eq_expr, rotation_eq_expr) = match (
-                    rotation_left_eq_expr,
-                    rotation_right_eq_expr,
-                    rotation_eq_expr,
-                ) {
-                    (
-                        Expression::StructuralWitIn(left_eq_id, ..),
-                        Expression::StructuralWitIn(right_eq_id, ..),
-                        Expression::StructuralWitIn(eq_id, ..),
-                    ) => (
-                        Expression::WitIn(offset_eq_id + *left_eq_id),
-                        Expression::WitIn(offset_eq_id + *right_eq_id),
-                        Expression::WitIn(offset_eq_id + *eq_id),
-                    ),
-                    invalid => panic!("invalid eq format {:?}", invalid),
-                };
-
-                let rotation_left_eq_expr_val = eval_ceno_expr_with_instance(
-                    builder,
-                    &empty_arr,
-                    &main_evals,
-                    &empty_arr,
-                    &empty_arr,
-                    &challenges,
-                    &rotation_left_eq_expr,
-                );
-
-                let rotation_right_eq_expr_val = eval_ceno_expr_with_instance(
-                    builder,
-                    &empty_arr,
-                    &main_evals,
-                    &empty_arr,
-                    &empty_arr,
-                    &challenges,
-                    &rotation_right_eq_expr,
-                );
-
-                let rotation_eq_expr_val = eval_ceno_expr_with_instance(
-                    builder,
-                    &empty_arr,
-                    &main_evals,
-                    &empty_arr,
-                    &empty_arr,
-                    &challenges,
-                    &rotation_eq_expr,
-                );
-
-                builder.assign(&got_claim, got_claim + rotation_left_eq_expr_val * left_rotation_expr_val);
-                builder.assign(&got_claim, got_claim + rotation_right_eq_expr_val * right_rotation_expr_val);
-                builder.assign(&got_claim, got_claim + rotation_eq_expr_val * rotation_expr_val);
-            }
-        }
+        let empty_arr: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(0);
+        let got_claim = eval_ceno_expr_with_instance(
+            builder,
+            &empty_arr,
+            &main_evals,
+            &empty_arr,
+            &pub_io_evals,
+            &challenges,
+            layer.main_sumcheck_expression.as_ref().unwrap(),
+        );
 
         // _debug
         // builder.assert_ext_eq(got_claim, expected_evaluation);
@@ -1383,6 +1222,66 @@ pub fn verify_gkr_circuit<C: Config>(
             }
         })
         .collect_vec();
+}
+
+pub fn evaluate_selector<C: Config>(
+    builder: &mut Builder<C>,
+    sel_type: &SelectorType<E>,
+    evals: &Array<C, Ext<C::F, C::EF>>,
+    out_point: &Array<C, Ext<C::F, C::EF>>,
+    in_point: &Array<C, Ext<C::F, C::EF>>,
+    num_instances_minus_one_bit_decomposition: &Array<C, Felt<C::F>>,
+    offset_eq_id: usize,
+) {
+    let (expr, eval) = match sel_type {
+        SelectorType::None => return,
+        SelectorType::Whole(expr) => {
+            let one = builder.constant(C::EF::ONE);
+            let zero = builder.constant(C::EF::ZERO);
+            (expr, eq_eval(builder, out_point, in_point, one, zero))
+        }
+        SelectorType::Prefix(_, expr) => {
+            (
+                expr,
+                eq_eval_less_or_equal_than(
+                    builder, 
+                    num_instances_minus_one_bit_decomposition,
+                    out_point,
+                    in_point
+                )
+            )
+        }
+        SelectorType::OrderedSparse32 {
+            indices,
+            expression,
+        } => {
+            let out_point_slice = out_point.slice(builder, 0, 5);
+            let in_point_slice = in_point.slice(builder, 0, 5);
+            let out_subgroup_eq = build_eq_x_r_vec_sequential(builder, &out_point_slice);
+            let in_subgroup_eq = build_eq_x_r_vec_sequential(builder, &in_point_slice);
+
+            let eval: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
+            for idx in indices {
+                let out_val = builder.get(&out_subgroup_eq, *idx);
+                let in_val = builder.get(&in_subgroup_eq, *idx);
+                builder.assign(&eval, eval + out_val * in_val);
+            }
+
+            let out_point_slice = out_point.slice(builder, 5, out_point.len());
+            let in_point_slice = in_point.slice(builder, 5, in_point.len());
+
+            let sel = eq_eval_less_or_equal_than(builder, num_instances_minus_one_bit_decomposition, &out_point_slice, &in_point_slice);
+            builder.assign(&eval, eval * sel);
+
+            (expression, eval)
+        }
+    };
+
+    let Expression::StructuralWitIn(wit_id, _, _, _) = expr else {
+        panic!("Wrong selector expression format");
+    };
+    let wit_id = *wit_id as usize + offset_eq_id;
+    builder.set(evals, wit_id, eval);
 }
 
 pub fn verify_rotation<C: Config>(

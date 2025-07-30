@@ -318,6 +318,7 @@ pub fn parse_precompile_proof_variables(
 
     let mut gkr_proof_input = GKRProofInput {
         num_var_with_rotation,
+        num_instances,
         layer_proofs: vec![],
     };
 

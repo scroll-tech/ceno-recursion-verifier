@@ -427,9 +427,7 @@ pub fn eq_eval_less_or_equal_than<C: Config>(
     b: &Array<C, Ext<C::F, C::EF>>,
 ) -> Ext<C::F, C::EF> {
     builder.cycle_tracker_start("Compute eq_eval_less_or_equal_than");
-    let eq_bit_decomp: Array<C, Felt<C::F>> = opcode_proof
-        .num_instances_minus_one_bit_decomposition
-        .slice(builder, 0, b.len());
+    let eq_bit_decomp: Array<C, Felt<C::F>> = num_instances_minus_one_bit_decomposition.slice(builder, 0, b.len());
 
     let one_ext: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
     let rp_len = builder.eval_expr(b.len() + C::N::ONE);

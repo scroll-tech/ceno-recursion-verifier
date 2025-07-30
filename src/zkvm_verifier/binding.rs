@@ -478,11 +478,13 @@ impl Hintable<InnerConfig> for LayerProofInput {
 #[derive(Default)]
 pub(crate) struct GKRProofInput {
     pub num_var_with_rotation: usize,
+    pub num_instances: usize,
     pub layer_proofs: Vec<LayerProofInput>,
 }
 #[derive(DslVariable, Clone)]
 pub struct GKRProofVariable<C: Config> {
     pub num_var_with_rotation: Var<C::N>,
+    pub num_instances_minus_one_bit_decomposition: Array<C, Felt<C::F>>,
     pub layer_proofs: Array<C, LayerProofVariable<C>>,
 }
 impl Hintable<InnerConfig> for GKRProofInput {
@@ -490,15 +492,24 @@ impl Hintable<InnerConfig> for GKRProofInput {
 
     fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
         let num_var_with_rotation = usize::read(builder);
+        let num_instances_minus_one_bit_decomposition = Vec::<F>::read(builder);
         let layer_proofs = Vec::<LayerProofInput>::read(builder);
         Self::HintVariable {
             num_var_with_rotation,
+            num_instances_minus_one_bit_decomposition,
             layer_proofs,
         }
     }
     fn write(&self) -> Vec<Vec<<InnerConfig as Config>::N>> {
         let mut stream = Vec::new();
         stream.extend(<usize as Hintable<InnerConfig>>::write(&self.num_var_with_rotation));
+
+        let eq_instance = self.num_instances - 1;
+        let mut bit_decomp: Vec<F> = vec![];
+        for i in 0..32usize {
+            bit_decomp.push(F::from_canonical_usize((eq_instance >> i) & 1));
+        }
+        stream.extend(bit_decomp.write());
         stream.extend(self.layer_proofs.write());
         stream
     }

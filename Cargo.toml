@@ -40,15 +40,23 @@ ark-poly = "0.5"
 ark-serialize = "0.5"
 
 # Ceno
-ceno_mle = { git = "https://github.com/scroll-tech/ceno.git", branch = "build/smaller_field_support_plonky3_539bbc", package = "multilinear_extensions" }
-ceno_sumcheck = { git = "https://github.com/scroll-tech/ceno.git", branch = "build/smaller_field_support_plonky3_539bbc", package = "sumcheck" }
-ceno_transcript = { git = "https://github.com/scroll-tech/ceno.git", branch = "build/smaller_field_support_plonky3_539bbc", package = "transcript" }
-ceno_witness = { git = "https://github.com/scroll-tech/ceno.git", branch = "build/smaller_field_support_plonky3_539bbc", package = "witness" }
-ceno_zkvm = { git = "https://github.com/scroll-tech/ceno.git", branch = "build/smaller_field_support_plonky3_539bbc" }
-ceno_emul = { git = "https://github.com/scroll-tech/ceno.git", branch = "build/smaller_field_support_plonky3_539bbc" }
-gkr_iop = { git = "https://github.com/scroll-tech/ceno.git", branch = "build/smaller_field_support_plonky3_539bbc" }
-mpcs = { git = "https://github.com/scroll-tech/ceno.git", branch = "build/smaller_field_support_plonky3_539bbc" }
-ff_ext = { git = "https://github.com/scroll-tech/ceno.git", branch = "build/smaller_field_support_plonky3_539bbc" }
+# ceno_mle = { git = "https://github.com/scroll-tech/ceno.git", branch = "feat/smaller_field_support", package = "multilinear_extensions" }
+# ceno_sumcheck = { git = "https://github.com/scroll-tech/ceno.git", branch = "feat/smaller_field_support", package = "sumcheck" }
+# ceno_transcript = { git = "https://github.com/scroll-tech/ceno.git", branch = "feat/smaller_field_support", package = "transcript" }
+# ceno_zkvm = { git = "https://github.com/scroll-tech/ceno.git", branch = "feat/smaller_field_support" }
+# ceno_emul = { git = "https://github.com/scroll-tech/ceno.git", branch = "feat/smaller_field_support" }
+# mpcs = { git = "https://github.com/scroll-tech/ceno.git", branch = "feat/smaller_field_support" }
+# ff_ext = { git = "https://github.com/scroll-tech/ceno.git", branch = "feat/smaller_field_support" }
+
+ceno_mle = { git = "https://github.com/scroll-tech/ceno.git", branch = "build/smaller_field_support_verify", package = "multilinear_extensions" }
+ceno_sumcheck = { git = "https://github.com/scroll-tech/ceno.git", branch = "build/smaller_field_support_verify", package = "sumcheck" }
+ceno_transcript = { git = "https://github.com/scroll-tech/ceno.git", branch = "build/smaller_field_support_verify", package = "transcript" }
+ceno_zkvm = { git = "https://github.com/scroll-tech/ceno.git", branch = "build/smaller_field_support_verify" }
+ceno_emul = { git = "https://github.com/scroll-tech/ceno.git", branch = "build/smaller_field_support_verify" }
+gkr_iop = { git = "https://github.com/scroll-tech/ceno.git", branch = "build/smaller_field_support_verify" }
+mpcs = { git = "https://github.com/scroll-tech/ceno.git", branch = "build/smaller_field_support_verify" }
+ff_ext = { git = "https://github.com/scroll-tech/ceno.git", branch = "build/smaller_field_support_verify" }
+
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 
