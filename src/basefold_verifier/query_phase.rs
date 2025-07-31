@@ -251,7 +251,6 @@ pub struct QueryPhaseVerifierInput {
     pub indices: Vec<usize>,
     pub proof: BasefoldProof,
     pub rounds: Vec<Round>,
-    pub perms: Vec<Vec<usize>>,
 }
 
 impl Hintable<InnerConfig> for QueryPhaseVerifierInput {
@@ -266,8 +265,6 @@ impl Hintable<InnerConfig> for QueryPhaseVerifierInput {
         let indices = Vec::<usize>::read(builder);
         let proof = BasefoldProof::read(builder);
         let rounds = Vec::<Round>::read(builder);
-        let perms: Array<InnerConfig, Array<InnerConfig, Var<F>>> =
-            Vec::<Vec<usize>>::read(builder);
 
         QueryPhaseVerifierInputVariable {
             // t_inv_halves,
@@ -291,7 +288,6 @@ impl Hintable<InnerConfig> for QueryPhaseVerifierInput {
         stream.extend(self.indices.write());
         stream.extend(self.proof.write());
         stream.extend(self.rounds.write());
-        stream.extend(self.perms.write());
         stream
     }
 }
@@ -778,23 +774,6 @@ pub mod tests {
         let pp = PCS::setup(1 << 20, mpcs::SecurityLevel::Conjecture100bits).unwrap();
         let (pp, vp) = pcs_trim::<E, PCS>(pp, 1 << 20).unwrap();
 
-        // Sort the dimensions decreasingly and compute the permutation array
-        let mut dimensions_with_index = dimensions.iter().enumerate().collect::<Vec<_>>();
-        dimensions_with_index.sort_by(|(_, (a, _)), (_, (b, _))| b.cmp(a));
-        // The perm array should satisfy that: sorted_dimensions[perm[i]] = dimensions[i]
-        // However, if we just pick the indices now, we get the inverse permutation:
-        // sorted_dimensions[i] = dimensions[perm[i]]
-        let perm = dimensions_with_index
-            .iter()
-            .map(|(i, _)| *i)
-            .collect::<Vec<_>>();
-        // So we need to invert the permutation
-        let mut inverted_perm = vec![0usize; perm.len()];
-        for (i, &j) in perm.iter().enumerate() {
-            inverted_perm[j] = i;
-        }
-        let perm = inverted_perm;
-
         let mut num_total_polys = 0;
         let (matrices, mles): (Vec<_>, Vec<_>) = dimensions
             .into_iter()
@@ -883,7 +862,6 @@ pub mod tests {
             <BasefoldRSParams as BasefoldSpec<E>>::get_number_queries(),
             max_num_var + <BasefoldRSParams as BasefoldSpec<E>>::get_rate_log(),
         );
-        let perms = vec![perm];
 
         let query_input = QueryPhaseVerifierInput {
             max_num_var,
@@ -909,7 +887,6 @@ pub mod tests {
                         .collect(),
                 })
                 .collect(),
-            perms,
         };
         let (program, witness) = build_batch_verifier_query_phase(query_input);
 
