@@ -442,7 +442,6 @@ pub mod tests {
         construct_test(vec![vec![(10, 20), (12, 30), (11, 10), (12, 15)]]);
     }
 
-    // TODO: e2e generates two rounds, only using the witness part in the current test, need to add the fixed part later
     #[test]
     fn test_e2e_fibonacci_batch() {
         construct_test(vec![

@@ -472,7 +472,6 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
         // Note that this should be done outside the loop over queries
 
         // reorder (opened values, dimension) according to the permutation
-        builder.cycle_tracker_start("MMCS Verify Loop Round Reordering");
         builder
             .range(0, round.openings.len())
             .for_each(|j_vec, builder| {
@@ -481,7 +480,6 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                 // let permuted_j = j;
                 builder.set_value(&dimensions, permuted_j, height_j);
             });
-        builder.cycle_tracker_end("MMCS Verify Loop Round Reordering");
         // TODO: ensure that dimensions is indeed sorted decreasingly
         // Note that this should be done outside the loop over queries
 
@@ -533,8 +531,6 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
             builder.cycle_tracker_start("MMCS Verify Loop Rounds");
             iter_zip!(builder, query.input_proofs, input.rounds, rounds_context).for_each(
                 |ptr_vec, builder| {
-                    builder.cycle_tracker_start("MMCS Verify Loop Round");
-                    builder.cycle_tracker_start("MMCS Verify Loop Round Prepare");
                     let batch_opening = builder.iter_ptr_get(&query.input_proofs, ptr_vec[0]);
                     let round = builder.iter_ptr_get(&input.rounds, ptr_vec[1]);
                     let opened_values = batch_opening.opened_values;
@@ -542,9 +538,6 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                     let opening_proof = batch_opening.opening_proof;
 
                     let round_context = builder.iter_ptr_get(&rounds_context, ptr_vec[2]);
-                    builder.cycle_tracker_end("MMCS Verify Loop Round Prepare");
-
-                    builder.cycle_tracker_start("MMCS Verify Loop Round Compute Batching");
                     // TODO: optimize this procedure
                     iter_zip!(
                         builder,
@@ -557,8 +550,6 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                         round.perm,
                     )
                     .for_each(|ptr_vec, builder| {
-                        builder
-                            .cycle_tracker_start("MMCS Verify Loop Round Compute Batching Inner");
                         let low_values =
                             builder.iter_ptr_get(&round_context.low_values_buffer, ptr_vec[0]);
                         let high_values =
@@ -604,9 +595,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                         let permuted_j = builder.iter_ptr_get(&round.perm, ptr_vec[6]);
                         // let permuted_j = j;
                         builder.set_value(&perm_opened_values, permuted_j, mat_j);
-                        builder.cycle_tracker_end("MMCS Verify Loop Round Compute Batching Inner");
                     });
-                    builder.cycle_tracker_end("MMCS Verify Loop Round Compute Batching");
                     // i >>= (log2_max_codeword_size - commit.log2_max_codeword_size);
                     let bits_shift: Var<C::N> = builder
                         .eval(log2_max_codeword_size.clone() - round.commit.log2_max_codeword_size);
@@ -621,7 +610,6 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                         proof: opening_proof,
                     };
                     mmcs_verify_batch(builder, mmcs_verifier_input);
-                    builder.cycle_tracker_end("MMCS Verify Loop Round");
                 },
             );
             builder.cycle_tracker_end("MMCS Verify Loop Rounds");
@@ -657,6 +645,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
             builder.cycle_tracker_end("Initial folding");
             builder.cycle_tracker_start("FRI rounds");
             builder.range(0, commits.len()).for_each(|i_vec, builder| {
+                builder.cycle_tracker_start("FRI round");
                 let i = i_vec[0];
                 let commit = builder.get(&commits, i);
                 let commit_phase_step = builder.get(&opening_ext, i);
@@ -717,6 +706,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                 let new_folded =
                     codeword_fold_with_challenge(builder, left, right, r, coeff, inv_2);
                 builder.assign(&folded, new_folded);
+                builder.cycle_tracker_end("FRI round");
             });
             builder.cycle_tracker_end("FRI rounds");
 
