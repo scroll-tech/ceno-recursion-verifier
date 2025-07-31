@@ -1,16 +1,14 @@
-// Note: check all XXX comments!
-
-use std::marker::PhantomData;
-
 use openvm_native_compiler::{asm::AsmConfig, prelude::*};
 use openvm_native_recursion::{hints::Hintable, vars::HintSlice};
 use openvm_stark_sdk::p3_baby_bear::BabyBear;
 use p3_field::extension::BinomialExtensionField;
 
+use crate::basefold_verifier::utils::{read_hint_slice, write_mmcs_proof};
+
 use super::{hash::*, structs::*};
 
 pub type F = BabyBear;
-pub type E = BinomialExtensionField<F, DIMENSIONS>;
+pub type E = BinomialExtensionField<F, DEGREE>;
 pub type InnerConfig = AsmConfig<F, E>;
 
 pub type MmcsCommitment = Hash;
@@ -24,6 +22,17 @@ pub struct MmcsVerifierInput {
     pub proof: MmcsProof,
 }
 
+pub type MmcsCommitmentVariable<C> = HashVariable<C>;
+
+#[derive(DslVariable, Clone)]
+pub struct MmcsVerifierInputVariable<C: Config> {
+    pub commit: MmcsCommitmentVariable<C>,
+    pub dimensions: Array<C, Var<C::N>>,
+    pub index_bits: Array<C, Var<C::N>>,
+    pub opened_values: Array<C, Array<C, Felt<C::F>>>,
+    pub proof: HintSlice<C>,
+}
+
 impl Hintable<InnerConfig> for MmcsVerifierInput {
     type HintVariable = MmcsVerifierInputVariable<InnerConfig>;
 
@@ -32,9 +41,7 @@ impl Hintable<InnerConfig> for MmcsVerifierInput {
         let dimensions = Vec::<usize>::read(builder);
         let index_bits = Vec::<usize>::read(builder);
         let opened_values = Vec::<Vec<F>>::read(builder);
-        let length = Usize::from(builder.hint_var());
-        let id = Usize::from(builder.hint_load());
-        let proof = HintSlice { length, id };
+        let proof = read_hint_slice(builder);
 
         MmcsVerifierInputVariable {
             commit,
@@ -47,45 +54,27 @@ impl Hintable<InnerConfig> for MmcsVerifierInput {
 
     fn write(&self) -> Vec<Vec<<InnerConfig as Config>::N>> {
         let mut stream = Vec::new();
-        // Split index into bits
+
+        let idx_bits = (0..self.proof.len())
+            .scan(self.index, |acc, _| {
+                let bit = *acc & 0x01;
+                *acc >>= 1;
+
+                Some(bit)
+            })
+            .collect::<Vec<_>>();
+
         stream.extend(self.commit.write());
         stream.extend(self.dimensions.write());
-        let mut index_bits = Vec::new();
-        let mut index = self.index;
-        for _ in 0..self.proof.len() {
-            index_bits.push(index % 2);
-            index /= 2;
-        }
-        // index_bits.reverse(); // Index bits is big endian ?
-        stream.extend(<Vec<usize> as Hintable<InnerConfig>>::write(&index_bits));
+        stream.extend(idx_bits.write());
         stream.extend(self.opened_values.write());
-        stream.extend(<usize as Hintable<InnerConfig>>::write(&(self.proof.len()))); // According to openvm extensions/native/recursion/src/fri/hints.rs
-        stream.extend(
-            self.proof
-                .iter()
-                .flat_map(|p| p.iter().copied())
-                .collect::<Vec<_>>()
-                .write(),
-        ); // According to openvm extensions/native/recursion/src/fri/hints.rs
+        stream.extend(write_mmcs_proof(&self.proof));
+
         stream
     }
 }
 
-pub type MmcsCommitmentVariable<C> = HashVariable<C>;
-
-#[derive(DslVariable, Clone)]
-pub struct MmcsVerifierInputVariable<C: Config> {
-    pub commit: MmcsCommitmentVariable<C>,
-    pub dimensions: Array<C, Var<C::N>>,
-    pub index_bits: Array<C, Var<C::N>>,
-    pub opened_values: Array<C, Array<C, Felt<C::F>>>,
-    pub proof: HintSlice<C>,
-}
-
-pub(crate) fn mmcs_verify_batch<C: Config>(
-    builder: &mut Builder<C>,
-    input: MmcsVerifierInputVariable<C>,
-) {
+pub fn mmcs_verify_batch<C: Config>(builder: &mut Builder<C>, input: MmcsVerifierInputVariable<C>) {
     let dimensions = match input.dimensions {
         Array::Dyn(ptr, len) => Array::Dyn(ptr, len.clone()),
         _ => panic!("Expected a dynamic array of felts"),
@@ -99,32 +88,23 @@ pub(crate) fn mmcs_verify_batch<C: Config>(
     );
 }
 
+#[cfg(test)]
 pub mod tests {
     use openvm_circuit::arch::{instructions::program::Program, SystemConfig, VmExecutor};
     use openvm_native_circuit::{Native, NativeConfig};
     use openvm_native_compiler::asm::AsmBuilder;
     use openvm_native_recursion::hints::Hintable;
-    use openvm_stark_backend::config::StarkGenericConfig;
-    use openvm_stark_sdk::{
-        config::baby_bear_poseidon2::BabyBearPoseidon2Config, p3_baby_bear::BabyBear,
-    };
-    use p3_field::{extension::BinomialExtensionField, FieldAlgebra};
-    type SC = BabyBearPoseidon2Config;
+    use p3_field::FieldAlgebra;
 
-    type F = BabyBear;
-    type E = BinomialExtensionField<F, 4>;
-    type EF = <SC as StarkGenericConfig>::Challenge;
-    use crate::basefold_verifier::structs::Dimensions;
-
-    use super::{mmcs_verify_batch, InnerConfig, MmcsCommitment, MmcsVerifierInput};
+    use super::{mmcs_verify_batch, MmcsCommitment, MmcsVerifierInput, E, F};
 
     /// The witness in this test is produced by:
     /// https://github.com/Jiangkm3/Plonky3 branch cyte/mmcs-poseidon2-constants
     /// cargo test --package p3-merkle-tree --lib -- mmcs::tests::size_gaps --exact --show-output
     #[allow(dead_code)]
-    pub fn build_mmcs_verify_batch() -> (Program<BabyBear>, Vec<Vec<BabyBear>>) {
+    pub fn build_mmcs_verify_batch() -> (Program<F>, Vec<Vec<F>>) {
         // OpenVM DSL
-        let mut builder = AsmBuilder::<F, EF>::default();
+        let mut builder = AsmBuilder::<F, E>::default();
 
         // Witness inputs
         let mmcs_input = MmcsVerifierInput::read(&mut builder);
@@ -264,9 +244,7 @@ pub mod tests {
         witness_stream.extend(mmcs_input.write());
 
         // PROGRAM
-        let program: Program<
-            p3_monty_31::MontyField31<openvm_stark_sdk::p3_baby_bear::BabyBearParameters>,
-        > = builder.compile_isa();
+        let program: Program<F> = builder.compile_isa();
 
         (program, witness_stream)
     }
@@ -280,7 +258,7 @@ pub mod tests {
             .with_max_segment_len((1 << 25) - 100);
         let config = NativeConfig::new(system_config, Native);
 
-        let executor = VmExecutor::<BabyBear, NativeConfig>::new(config);
+        let executor = VmExecutor::<F, NativeConfig>::new(config);
         executor.execute(program, witness).unwrap();
 
         // _debug

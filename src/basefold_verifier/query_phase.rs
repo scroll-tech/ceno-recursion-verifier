@@ -1,9 +1,7 @@
 // Note: check all XXX comments!
 
-use ark_std::log2;
 use ff_ext::{BabyBearExt4, ExtensionField, PoseidonField};
 use mpcs::basefold::QueryOpeningProof as InnerQueryOpeningProof;
-use openvm_circuit::system::memory::dimensions;
 use openvm_native_compiler::{asm::AsmConfig, prelude::*};
 use openvm_native_compiler_derive::iter_zip;
 use openvm_native_recursion::{
@@ -14,11 +12,10 @@ use openvm_stark_sdk::p3_baby_bear::BabyBear;
 use p3_commit::ExtensionMmcs;
 use p3_field::{Field, FieldAlgebra};
 use serde::Deserialize;
-use std::fmt::Debug;
 
-use super::{basefold::*, extension_mmcs::*, mmcs::*, rs::*, structs::*, utils::*};
+use super::{basefold::*, extension_mmcs::*, mmcs::*, rs::*, utils::*};
 use crate::{
-    arithmetics::{build_eq_x_r_vec_sequential_with_offset, eq_eval_with_index},
+    arithmetics::eq_eval_with_index,
     tower_verifier::{binding::*, program::interpolate_uni_poly},
 };
 

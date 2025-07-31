@@ -551,15 +551,17 @@ pub fn verify_tower_proof<C: Config>(
                             },
                             // update point and eval only for last layer
                             |builder| {
-                                builder.set(
-                                    &prod_spec_point_n_eval,
-                                    spec_index,
-                                    PointAndEvalVariable {
+                                let point_and_eval: PointAndEvalVariable<C> =
+                                    builder.eval(PointAndEvalVariable {
                                         point: PointVariable {
                                             fs: rt_prime.clone(),
                                         },
                                         eval: evals,
-                                    },
+                                    });
+                                builder.set_value(
+                                    &prod_spec_point_n_eval,
+                                    spec_index,
+                                    point_and_eval,
                                 );
                             },
                         );
@@ -617,26 +619,22 @@ pub fn verify_tower_proof<C: Config>(
                             },
                             // update point and eval only for last layer
                             |builder| {
-                                builder.set(
-                                    &logup_spec_p_point_n_eval,
-                                    spec_index,
-                                    PointAndEvalVariable {
+                                let p_eval: PointAndEvalVariable<C> =
+                                    builder.eval(PointAndEvalVariable {
                                         point: PointVariable {
                                             fs: rt_prime.clone(),
                                         },
                                         eval: p_eval,
-                                    },
-                                );
-                                builder.set(
-                                    &logup_spec_q_point_n_eval,
-                                    spec_index,
-                                    PointAndEvalVariable {
+                                    });
+                                let q_eval: PointAndEvalVariable<C> =
+                                    builder.eval(PointAndEvalVariable {
                                         point: PointVariable {
                                             fs: rt_prime.clone(),
                                         },
                                         eval: q_eval,
-                                    },
-                                );
+                                    });
+                                builder.set_value(&logup_spec_p_point_n_eval, spec_index, p_eval);
+                                builder.set_value(&logup_spec_q_point_n_eval, spec_index, q_eval);
                             },
                         );
                     });
@@ -649,12 +647,15 @@ pub fn verify_tower_proof<C: Config>(
 
             builder.cycle_tracker_end("derive next layer's expected sum");
 
-            next_rt = PointAndEvalVariable {
-                point: PointVariable {
-                    fs: rt_prime.clone(),
+            builder.assign(
+                &next_rt,
+                PointAndEvalVariable {
+                    point: PointVariable {
+                        fs: rt_prime.clone(),
+                    },
+                    eval: curr_eval.clone(),
                 },
-                eval: curr_eval.clone(),
-            };
+            );
         });
 
     (

@@ -6,7 +6,7 @@ use p3_field::extension::BinomialExtensionField;
 use super::{mmcs::*, structs::*};
 
 pub type F = BabyBear;
-pub type E = BinomialExtensionField<F, DIMENSIONS>;
+pub type E = BinomialExtensionField<F, DEGREE>;
 pub type InnerConfig = AsmConfig<F, E>;
 
 pub struct ExtMmcsVerifierInput {
