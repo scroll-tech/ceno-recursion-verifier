@@ -342,9 +342,11 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
             },
         );
     }
+
     batch_verify(
         builder,
         zkvm_proof_input.max_num_var,
+        zkvm_proof_input.max_width,
         rounds,
         zkvm_proof_input.pcs_proof,
         &mut challenger,

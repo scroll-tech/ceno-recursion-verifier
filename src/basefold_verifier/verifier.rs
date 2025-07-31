@@ -207,7 +207,6 @@ pub mod tests {
         basefold_verifier::{
             basefold::BasefoldCommitment,
             query_phase::{BatchOpening, CommitPhaseProofStep, QueryOpeningProof},
-            structs::CircuitIndexMeta,
         },
         tower_verifier::binding::{Point, PointAndEval},
     };
