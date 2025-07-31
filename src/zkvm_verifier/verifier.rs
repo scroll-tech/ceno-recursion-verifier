@@ -1134,13 +1134,13 @@ pub fn verify_gkr_circuit<C: Config>(
                 }
             );
         });
-        
+
         let rotation_exprs_len = layer.rotation_exprs.1.len();
         let alpha_pows = gen_alpha_pows(builder, &mut challenger, Usize::from(layer.exprs.len() + rotation_exprs_len * ROTATION_OPENING_COUNT));
-
         let sigma: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
         let alpha_idx: Var<C::N> = Var::uninit(builder);
         builder.assign(&alpha_idx, C::N::from_canonical_usize(0));
+        
         builder.range(0, eval_and_dedup_points.len()).for_each(|idx_vec, builder| {
             let ClaimAndPoint { 
                 evals, 
@@ -1166,6 +1166,7 @@ pub fn verify_gkr_circuit<C: Config>(
             &mut unipoly_extrapolator
         );
 
+        /* _debug: wait for e2e test context
         layer.out_sel_and_eval_exprs.iter().enumerate().for_each(|(idx, (sel_type, _))| {
             let out_point = builder.get(&eval_and_dedup_points, idx).point.fs;
 
@@ -1179,6 +1180,7 @@ pub fn verify_gkr_circuit<C: Config>(
                 layer.n_witin,
             );
         });
+        */
 
         let empty_arr: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(0);
         let got_claim = eval_ceno_expr_with_instance(
