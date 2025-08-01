@@ -214,79 +214,99 @@ pub fn parse_zkvm_proof_import(
     }
 }
 
-pub fn inner_test_thread() {
-    setup_tracing_with_log_level(tracing::Level::WARN);
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use metrics_tracing_context::MetricsLayer;
+    use openvm_stark_sdk::config::setup_tracing_with_log_level;
+    use tracing_forest::ForestLayer;
+    use tracing_subscriber::{layer::SubscriberExt, EnvFilter, Registry};
 
-    let proof_path = "./src/e2e/encoded/proof.bin";
-    let vk_path = "./src/e2e/encoded/vk.bin";
+    pub fn inner_test_thread() {
+        setup_tracing_with_log_level(tracing::Level::WARN);
 
-    let zkvm_proof: ZKVMProof<BabyBearExt4, Basefold<BabyBearExt4, BasefoldRSParams>> =
-        bincode::deserialize_from(File::open(proof_path).expect("Failed to open proof file"))
-            .expect("Failed to deserialize proof file");
+        let proof_path = "./src/e2e/encoded/proof.bin";
+        let vk_path = "./src/e2e/encoded/vk.bin";
 
-    let vk: ZKVMVerifyingKey<BabyBearExt4, Basefold<BabyBearExt4, BasefoldRSParams>> =
-        bincode::deserialize_from(File::open(vk_path).expect("Failed to open vk file"))
-            .expect("Failed to deserialize vk file");
+        let zkvm_proof: ZKVMProof<BabyBearExt4, Basefold<BabyBearExt4, BasefoldRSParams>> =
+            bincode::deserialize_from(File::open(proof_path).expect("Failed to open proof file"))
+                .expect("Failed to deserialize proof file");
 
-    let verifier = ZKVMVerifier::new(vk);
-    let zkvm_proof_input = parse_zkvm_proof_import(zkvm_proof, &verifier);
+        let vk: ZKVMVerifyingKey<BabyBearExt4, Basefold<BabyBearExt4, BasefoldRSParams>> =
+            bincode::deserialize_from(File::open(vk_path).expect("Failed to open vk file"))
+                .expect("Failed to deserialize vk file");
 
-    // OpenVM DSL
-    let mut builder = AsmBuilder::<F, EF>::default();
+        let verifier = ZKVMVerifier::new(vk);
+        let zkvm_proof_input = parse_zkvm_proof_import(zkvm_proof, &verifier);
 
-    // Obtain witness inputs
-    let zkvm_proof_input_variables = ZKVMProofInput::read(&mut builder);
-    verify_zkvm_proof(&mut builder, zkvm_proof_input_variables, &verifier);
-    builder.halt();
+        // OpenVM DSL
+        let mut builder = AsmBuilder::<F, EF>::default();
 
-    // Pass in witness stream
-    let mut witness_stream: Vec<
-        Vec<p3_monty_31::MontyField31<openvm_stark_sdk::p3_baby_bear::BabyBearParameters>>,
-    > = Vec::new();
+        // Obtain witness inputs
+        let zkvm_proof_input_variables = ZKVMProofInput::read(&mut builder);
+        builder.cycle_tracker_start("ZKVM verifier");
+        verify_zkvm_proof(&mut builder, zkvm_proof_input_variables, &verifier);
+        builder.cycle_tracker_end("ZKVM verifier");
+        builder.halt();
 
-    witness_stream.extend(zkvm_proof_input.write());
+        // Pass in witness stream
+        let mut witness_stream: Vec<
+            Vec<p3_monty_31::MontyField31<openvm_stark_sdk::p3_baby_bear::BabyBearParameters>>,
+        > = Vec::new();
 
-    // Compile program
-    let options = CompilerOptions::default().with_cycle_tracker();
-    let mut compiler = AsmCompiler::new(options.word_size);
-    compiler.build(builder.operations);
-    let asm_code = compiler.code();
+        witness_stream.extend(zkvm_proof_input.write());
 
-    // _debug: print out assembly
-    /*
-    println!("=> AssemblyCode:");
-    println!("{asm_code}");
-    return ();
-    */
+        // Compile program
+        let options = CompilerOptions::default().with_cycle_tracker();
+        let mut compiler = AsmCompiler::new(options.word_size);
+        compiler.build(builder.operations);
+        let asm_code = compiler.code();
 
-    let program: Program<
-        p3_monty_31::MontyField31<openvm_stark_sdk::p3_baby_bear::BabyBearParameters>,
-    > = convert_program(asm_code, options);
-    let mut system_config = SystemConfig::default()
-        .with_public_values(4)
-        .with_max_segment_len((1 << 25) - 100);
-    system_config.profiling = true;
-    let config = NativeConfig::new(system_config, Native);
+        // _debug: print out assembly
+        /*
+        println!("=> AssemblyCode:");
+        println!("{asm_code}");
+        return ();
+        */
 
-    let executor = VmExecutor::<BabyBear, NativeConfig>::new(config);
+        let program: Program<
+            p3_monty_31::MontyField31<openvm_stark_sdk::p3_baby_bear::BabyBearParameters>,
+        > = convert_program(asm_code, options);
+        let mut system_config = SystemConfig::default()
+            .with_public_values(4)
+            .with_max_segment_len((1 << 25) - 100);
+        system_config.profiling = true;
+        let config = NativeConfig::new(system_config, Native);
 
-    let res = executor
-        .execute_and_then(program, witness_stream, |_, seg| Ok(seg), |err| err)
-        .unwrap();
+        let executor = VmExecutor::<BabyBear, NativeConfig>::new(config);
 
-    for (i, seg) in res.iter().enumerate() {
-        println!("=> segment {:?} metrics: {:?}", i, seg.metrics);
+        let res = executor
+            .execute_and_then(program, witness_stream, |_, seg| Ok(seg), |err| err)
+            .unwrap();
+
+        for (i, seg) in res.iter().enumerate() {
+            println!("=> segment {:?} metrics: {:?}", i, seg.metrics);
+        }
     }
-}
 
-#[test]
-pub fn test_zkvm_proof_verifier_from_bincode_exports() {
-    let stack_size = 64 * 1024 * 1024; // 64 MB
+    #[test]
+    pub fn test_zkvm_proof_verifier_from_bincode_exports() {
+        let stack_size = 64 * 1024 * 1024; // 64 MB
 
-    let handler = std::thread::Builder::new()
-        .stack_size(stack_size)
-        .spawn(inner_test_thread)
-        .expect("Failed to spawn thread");
+        // Set up tracing:
+        let env_filter =
+            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info,p3_=warn"));
+        let subscriber = Registry::default()
+            .with(env_filter)
+            .with(ForestLayer::default())
+            .with(MetricsLayer::new());
+        tracing::subscriber::set_global_default(subscriber).unwrap();
 
-    handler.join().expect("Thread panicked");
+        let handler = std::thread::Builder::new()
+            .stack_size(stack_size)
+            .spawn(inner_test_thread)
+            .expect("Failed to spawn thread");
+
+        handler.join().expect("Thread panicked");
+    }
 }
