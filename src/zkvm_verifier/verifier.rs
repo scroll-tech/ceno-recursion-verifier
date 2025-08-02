@@ -23,7 +23,6 @@ use crate::{
     },
     tower_verifier::{binding::{PointVariable, PointAndEvalVariable}, program::iop_verifier_state_verify},
 };
-use ceno_mle::expression::{Instance, StructuralWitIn};
 use ceno_zkvm::e2e::B;
 use ceno_zkvm::structs::VerifyingKey;
 use ceno_mle::{
@@ -44,7 +43,6 @@ use gkr_iop::{
     evaluation::EvalExpression,
 };
 use itertools::{interleave, max, Itertools, izip};
-use itertools::{interleave, Itertools};
 use mpcs::{Basefold, BasefoldRSParams};
 use openvm_native_compiler::prelude::*;
 use openvm_native_compiler_derive::iter_zip;
@@ -1226,6 +1224,7 @@ pub fn verify_gkr_circuit<C: Config>(
         .collect_vec();
 }
 
+/* _debug
 pub fn evaluate_selector<C: Config>(
     builder: &mut Builder<C>,
     sel_type: &SelectorType<E>,
@@ -1285,6 +1284,7 @@ pub fn evaluate_selector<C: Config>(
     let wit_id = *wit_id as usize + offset_eq_id;
     builder.set(evals, wit_id, eval);
 }
+*/
 
 pub fn verify_rotation<C: Config>(
     builder: &mut Builder<C>,

@@ -2,13 +2,16 @@ use crate::basefold_verifier::basefold::BasefoldCommitment;
 use crate::basefold_verifier::query_phase::QueryPhaseVerifierInput;
 use crate::tower_verifier::binding::IOPProverMessage;
 use crate::zkvm_verifier::binding::{
-    ZKVMProofInput, TowerProofInput, ZKVMOpcodeProofInput, ZKVMTableProofInput, E, F,
+    ZKVMProofInput, TowerProofInput, E, F, ZKVMChipProofInput,
     GKRProofInput, LayerProofInput, SumcheckLayerProofInput,
 };
 use crate::zkvm_verifier::verifier::{verify_zkvm_proof, verify_gkr_circuit};
 use ceno_mle::util::ceil_log2;
 use ff_ext::BabyBearExt4;
-use gkr_iop::gkr::layer::sumcheck_layer::{SumcheckLayer, SumcheckLayerProof};
+use gkr_iop::gkr::{
+    GKRCircuit,
+    layer::sumcheck_layer::{SumcheckLayer, SumcheckLayerProof}
+};
 use itertools::Itertools;
 use mpcs::{Basefold, BasefoldRSParams};
 use openvm_circuit::arch::{instructions::program::Program, SystemConfig, VmExecutor};
@@ -439,7 +442,7 @@ pub fn precompile_test_thread() {
 pub fn test_precompile_verification_from_bincode_exports() {
     let stack_size = 64 * 1024 * 1024; // 64 MB
 
-    let handler = thread::Builder::new()
+    let handler = std::thread::Builder::new()
         .stack_size(stack_size)
         .spawn(precompile_test_thread)
         .expect("Failed to spawn thread");
