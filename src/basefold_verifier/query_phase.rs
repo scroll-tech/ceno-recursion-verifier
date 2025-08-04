@@ -655,12 +655,24 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                 let new_involved_packed_codeword =
                     builder.get(&reduced_codeword_by_height, log2_height.clone());
 
+                // Note that previous coeff is
+                //   1/2 * omega^{-order(level + 2) * (index+2^level*prev_bit)}
+                // = 1/2 * omega^{-2^(MAX - (level + 2)) * (index+2^level*prev_bit)}
+                // So prev ^ 2 = 1/4 * omega^{-2^(MAX - (level + 2)) * 2 * (index+2^level*prev_bit)}
+                //             = 1/4 * omega^{-2^(MAX - (level + 1)) * (index+2^level*prev_bit)}
+                //             = 1/4 * omega^{-2^(MAX - (level + 1)) * index - 2^(MAX - (level + 1)) * 2^level*prev_bit}
+                //             = 1/2 * curr * omeag^{- 2^(MAX - 1) * prev_bit}
+                //             = 1/2 * curr * omega^{- order(1) * prev_bit}
+                // curr = 2 * prev^2 * omega^{order(1) * prev_bit} = 2 * prev^2 * (-1)^{prev_bit}
+                builder.assign(&coeff, coeff * coeff * two_felt);
+
                 builder.if_eq(folded_idx, Usize::from(0)).then_or_else(
                     |builder| {
                         builder.assign(&folded, folded + new_involved_packed_codeword.low);
                     },
                     |builder| {
                         builder.assign(&folded, folded + new_involved_packed_codeword.high);
+                        builder.assign(&coeff, -coeff);
                     },
                 );
 
@@ -672,7 +684,6 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
 
                 // idx >>= 1
                 let idx_pair = idx_bits.slice(builder, i_plus_one, idx_bits.len());
-                let prev_bit = builder.get(&idx_bits, i);
 
                 // mmcs_ext.verify_batch
                 let dimensions = builder.dyn_array(1);
@@ -689,19 +700,6 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                 ext_mmcs_verify_batch::<C>(builder, ext_mmcs_verifier_input);
 
                 let r = builder.get(&input.fold_challenges, i_plus_one);
-                // Note that previous coeff is
-                //   1/2 * omega^{-order(level + 2) * (index+2^level*prev_bit)}
-                // = 1/2 * omega^{-2^(MAX - (level + 2)) * (index+2^level*prev_bit)}
-                // So prev ^ 2 = 1/4 * omega^{-2^(MAX - (level + 2)) * 2 * (index+2^level*prev_bit)}
-                //             = 1/4 * omega^{-2^(MAX - (level + 1)) * (index+2^level*prev_bit)}
-                //             = 1/4 * omega^{-2^(MAX - (level + 1)) * index - 2^(MAX - (level + 1)) * 2^level*prev_bit}
-                //             = 1/2 * curr * omeag^{- 2^(MAX - 1) * prev_bit}
-                //             = 1/2 * curr * omega^{- order(1) * prev_bit}
-                // curr = 2 * prev^2 * omega^{order(1) * prev_bit} = 2 * prev^2 * (-1)^{prev_bit}
-                builder.assign(&coeff, coeff * coeff * two_felt);
-                builder
-                    .if_eq(prev_bit, C::N::ONE)
-                    .then(|builder| builder.assign(&coeff, -coeff));
                 let left = builder.get(&leafs, 0);
                 let right = builder.get(&leafs, 1);
                 let new_folded =
