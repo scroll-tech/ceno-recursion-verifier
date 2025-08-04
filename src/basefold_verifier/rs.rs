@@ -119,34 +119,6 @@ pub fn verifier_folding_coeffs_level<C: Config>(
     builder.eval(g_inv_index * two_inv)
 }
 
-// The same as the above function, but can use the previous result for help.
-// Note that previous result is
-//   1/2 * omega^{-order(level + 2) * (index+2^level*prev_bit)}
-// = 1/2 * omega^{-2^(MAX - (level + 2)) * (index+2^level*prev_bit)}
-// So prev ^ 2 = 1/4 * omega^{-2^(MAX - (level + 2)) * 2 * (index+2^level*prev_bit)}
-//             = 1/4 * omega^{-2^(MAX - (level + 1)) * (index+2^level*prev_bit)}
-//             = 1/4 * omega^{-2^(MAX - (level + 1)) * index - 2^(MAX - (level + 1)) * 2^level*prev_bit}
-//             = 1/2 * curr * omeag^{- 2^(MAX - 1) * prev_bit}
-//             = 1/2 * curr * omega^{- order(1) * prev_bit}
-// curr = 2 * prev^2 * omega^{order(1) * prev_bit} = 2 * prev^2 * (-1)^{prev_bit}
-pub fn verifier_folding_coeffs_level_with_prev<C: Config>(
-    builder: &mut Builder<C>,
-    two: Felt<C::F>,
-    prev: Felt<C::F>,
-    prev_bit: Var<C::N>, // The bit before slicing index_bits
-) -> Felt<C::F> {
-    // let level_plus_one = builder.eval::<Var<C::N>, _>(level + C::N::ONE);
-    let result: Felt<C::F> = builder.eval(prev);
-    builder.assign(&result, result * result * two);
-    // g = omega^{2^(level+1)}
-    // let g = builder.get(two_adic_generators, level_plus_one);
-    builder
-        .if_eq(prev_bit, C::N::ONE)
-        .then(|builder| builder.assign(&result, -result));
-
-    result
-}
-
 /// The DIT FFT algorithm.
 #[derive(Deserialize)]
 pub struct Radix2Dit {
