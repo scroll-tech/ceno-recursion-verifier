@@ -631,7 +631,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
             builder.assert_eq::<Var<C::N>>(commits.len(), opening_ext.len());
             builder.cycle_tracker_start("FRI rounds");
             // Precompute this before the first round, so that in the actual rounds,
-            // we can speed up the computation of coeff using `verifier_folding_coeffs_level_with_prev`
+            // we can speed up the computation of coeff by directly computing from the previous coeff
             let coeff: Felt<C::F> = verifier_folding_coeffs_level(
                 builder,
                 &two_adic_generators_inverses,
@@ -639,10 +639,10 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                 &idx_bits,
                 inv_2,
             );
-            builder.range(0, commits.len()).for_each(|i_vec, builder| {
-                let i = i_vec[0];
-                let commit = builder.get(&commits, i);
-                let commit_phase_step = builder.get(&opening_ext, i);
+            let i: Var<C::N> = builder.constant(C::N::ZERO);
+            iter_zip!(builder, commits, opening_ext).for_each(|ptr_vec, builder| {
+                let commit = builder.iter_ptr_get(&commits, ptr_vec[0]);
+                let commit_phase_step = builder.iter_ptr_get(&opening_ext, ptr_vec[1]);
                 let i_plus_one = builder.eval_expr(i + Usize::from(1));
 
                 let sibling_value = commit_phase_step.sibling_value;
@@ -705,6 +705,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                 let new_folded =
                     codeword_fold_with_challenge(builder, left, right, r, coeff, inv_2);
                 builder.assign(&folded, new_folded);
+                builder.assign(&i, i_plus_one);
             });
             builder.cycle_tracker_end("FRI rounds");
             // assert that final_value[i] = folded
