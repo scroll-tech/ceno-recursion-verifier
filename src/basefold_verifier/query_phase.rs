@@ -394,6 +394,8 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
 
     let rounds_context: Array<C, RoundContextVariable<C>> = builder.dyn_array(input.rounds.len());
     let batch_coeffs_offset: Var<C::N> = builder.constant(C::N::ZERO);
+
+    builder.cycle_tracker_start("Construct round context");
     iter_zip!(builder, input.rounds, rounds_context).for_each(|ptr_vec, builder| {
         let round = builder.iter_ptr_get(&input.rounds, ptr_vec[0]);
         let opened_values_buffer: Array<C, Array<C, Felt<C::F>>> =
@@ -485,6 +487,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
         };
         builder.iter_ptr_set(&rounds_context, ptr_vec[1], round_context);
     });
+    builder.cycle_tracker_end("Construct round context");
 
     iter_zip!(builder, input.indices, input.proof.query_opening_proof).for_each(
         |ptr_vec, builder| {
@@ -512,6 +515,8 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                 builder.set_value(&reduced_codeword_by_height, ptr_vec[0], zero_codeword);
             });
             let query = builder.iter_ptr_get(&input.proof.query_opening_proof, ptr_vec[1]);
+
+            builder.cycle_tracker_start("Batching and first FRI round");
             iter_zip!(builder, query.input_proofs, input.rounds, rounds_context).for_each(
                 |ptr_vec, builder| {
                     let batch_opening = builder.iter_ptr_get(&query.input_proofs, ptr_vec[0]);
@@ -595,6 +600,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                     mmcs_verify_batch(builder, mmcs_verifier_input);
                 },
             );
+            builder.cycle_tracker_end("Batching and first FRI round");
             let opening_ext = query.commit_phase_openings;
 
             // fold 1st codeword
@@ -622,6 +628,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
             // check commit phases
             let commits = &input.proof.commits;
             builder.assert_eq::<Var<C::N>>(commits.len(), opening_ext.len());
+            builder.cycle_tracker_start("FRI rounds");
             builder.range(0, commits.len()).for_each(|i_vec, builder| {
                 let i = i_vec[0];
                 let commit = builder.get(&commits, i);
@@ -684,6 +691,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                     codeword_fold_with_challenge(builder, left, right, r, coeff, inv_2);
                 builder.assign(&folded, new_folded);
             });
+            builder.cycle_tracker_end("FRI rounds");
             // assert that final_value[i] = folded
             let final_idx: Var<C::N> = builder.constant(C::N::ZERO);
             builder

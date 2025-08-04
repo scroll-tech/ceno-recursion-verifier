@@ -243,7 +243,9 @@ mod tests {
         let mut builder = AsmBuilder::<F, EF>::default();
 
         // Obtain witness inputs
+        builder.cycle_tracker_start("Read");
         let zkvm_proof_input_variables = ZKVMProofInput::read(&mut builder);
+        builder.cycle_tracker_end("Read");
         builder.cycle_tracker_start("ZKVM verifier");
         verify_zkvm_proof(&mut builder, zkvm_proof_input_variables, &verifier);
         builder.cycle_tracker_end("ZKVM verifier");
