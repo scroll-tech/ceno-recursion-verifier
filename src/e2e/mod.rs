@@ -189,6 +189,76 @@ pub fn parse_zkvm_proof_import(
             fixed_in_evals.push(v_e);
         }
 
+        let circuit_name = &verifier.vk.circuit_index_to_name[chip_id];
+        let circuit_vk = &verifier.vk.circuit_vks[circuit_name];
+
+        let composed_cs = circuit_vk.get_cs();
+        let num_instances = chip_proof.num_instances;
+        let next_pow2_instance = num_instances.next_power_of_two().max(2);
+        let log2_num_instances = ceil_log2(next_pow2_instance);
+        let num_var_with_rotation = log2_num_instances + composed_cs.rotation_vars().unwrap_or(0);
+
+        let has_gkr_proof = chip_proof.gkr_iop_proof.is_some();
+        let mut gkr_iop_proof = GKRProofInput {
+            num_var_with_rotation,
+            num_instances,
+            layer_proofs: vec![],
+        };
+
+        if has_gkr_proof {
+            let gkr_proof = chip_proof.gkr_iop_proof.clone().unwrap();
+
+            for layer_proof in gkr_proof.0 {
+                // rotation
+                let (has_rotation, rotation): (usize, SumcheckLayerProofInput) = if let Some(p) = layer_proof.rotation {
+                    let mut iop_messages: Vec<IOPProverMessage> = vec![];
+                    for m in p.proof.proofs {
+                        let mut evaluations: Vec<E> = vec![];
+                        for e in m.evaluations {
+                            let v_e: E =
+                                serde_json::from_value(serde_json::to_value(e.clone()).unwrap()).unwrap();
+                            evaluations.push(v_e);
+                        }
+                        iop_messages.push(IOPProverMessage { evaluations });
+                    }
+                    let mut evals: Vec<E> = vec![];
+                    for e in p.evals {
+                        let v_e: E =
+                            serde_json::from_value(serde_json::to_value(e.clone()).unwrap()).unwrap();
+                        evals.push(v_e);
+                    }
+                    (1, SumcheckLayerProofInput { proof: iop_messages, evals })
+                } else {
+                    (0, SumcheckLayerProofInput::default())
+                };
+
+                // main sumcheck
+                let mut iop_messages: Vec<IOPProverMessage> = vec![];
+                let mut evals: Vec<E> = vec![];
+                for m in layer_proof.main.proof.proofs {
+                    let mut evaluations: Vec<E> = vec![];
+                    for e in m.evaluations {
+                        let v_e: E =
+                            serde_json::from_value(serde_json::to_value(e.clone()).unwrap()).unwrap();
+                        evaluations.push(v_e);
+                    }
+                    iop_messages.push(IOPProverMessage { evaluations });
+                }
+                for e in layer_proof.main.evals {
+                    let v_e: E =
+                        serde_json::from_value(serde_json::to_value(e.clone()).unwrap()).unwrap();
+                    evals.push(v_e);
+                }
+
+                let main = SumcheckLayerProofInput {
+                    proof: iop_messages,
+                    evals,
+                };
+
+                gkr_iop_proof.layer_proofs.push(LayerProofInput { has_rotation, rotation, main });
+            }
+        }
+
         chip_proofs.push(ZKVMChipProofInput {
             idx: chip_id.clone(),
             num_instances: chip_proof.num_instances,
@@ -202,6 +272,8 @@ pub fn parse_zkvm_proof_import(
             main_sumcheck_proofs,
             wits_in_evals,
             fixed_in_evals,
+            has_gkr_proof,
+            gkr_iop_proof,
         });
     }
 
@@ -236,7 +308,7 @@ pub fn inner_test_thread() {
 
     let verifier = ZKVMVerifier::new(vk);
     let zkvm_proof_input = parse_zkvm_proof_import(zkvm_proof, &verifier);
-
+    
     // OpenVM DSL
     let mut builder = AsmBuilder::<F, EF>::default();
 
@@ -297,6 +369,7 @@ pub fn test_zkvm_proof_verifier_from_bincode_exports() {
     handler.join().expect("Thread panicked");
 }
 
+/* _debug
 pub fn parse_precompile_proof_variables(
     zkvm_proof: ZKVMProof<BabyBearExt4, Basefold<BabyBearExt4, BasefoldRSParams>>,
     verifier: &ZKVMVerifier<BabyBearExt4, Basefold<BabyBearExt4, BasefoldRSParams>>,
@@ -378,8 +451,11 @@ pub fn parse_precompile_proof_variables(
 
     (gkr_circuit, gkr_proof_input)
 }
+*/
 
+// _debug
 pub fn precompile_test_thread() {
+    /* _debug
     setup_tracing_with_log_level(tracing::Level::WARN);
 
     let proof_path = "./src/e2e/encoded/proof.bin";
@@ -402,7 +478,7 @@ pub fn precompile_test_thread() {
 
     // Obtain witness inputs
     let gkr_proof_input = GKRProofInput::read(&mut builder);
-    verify_gkr_circuit(&mut builder, circuit, gkr_proof_input);
+    verify_gkr_circuit(&mut builder, circuit, &gkr_proof_input);
     builder.halt();
 
     // Pass in witness stream
@@ -436,6 +512,7 @@ pub fn precompile_test_thread() {
     for (i, seg) in res.iter().enumerate() {
         println!("=> segment {:?} metrics: {:?}", i, seg.metrics);
     }
+    */
 }
 
 #[test]
