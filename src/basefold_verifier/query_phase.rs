@@ -619,7 +619,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
             builder.cycle_tracker_start("FRI rounds");
             // Precompute this before the first round, so that in the actual rounds,
             // we can speed up the computation of coeff using `verifier_folding_coeffs_level_with_prev`
-            let coeff = verifier_folding_coeffs_level(
+            let coeff: Felt<C::F> = verifier_folding_coeffs_level(
                 builder,
                 &two_adic_generators_inverses,
                 log2_height,
@@ -677,9 +677,19 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                 ext_mmcs_verify_batch::<C>(builder, ext_mmcs_verifier_input);
 
                 let r = builder.get(&input.fold_challenges, i_plus_one);
-                let new_coeff =
-                    verifier_folding_coeffs_level_with_prev(builder, two_felt, coeff, prev_bit);
-                builder.assign(&coeff, new_coeff);
+                // Note that previous coeff is
+                //   1/2 * omega^{-order(level + 2) * (index+2^level*prev_bit)}
+                // = 1/2 * omega^{-2^(MAX - (level + 2)) * (index+2^level*prev_bit)}
+                // So prev ^ 2 = 1/4 * omega^{-2^(MAX - (level + 2)) * 2 * (index+2^level*prev_bit)}
+                //             = 1/4 * omega^{-2^(MAX - (level + 1)) * (index+2^level*prev_bit)}
+                //             = 1/4 * omega^{-2^(MAX - (level + 1)) * index - 2^(MAX - (level + 1)) * 2^level*prev_bit}
+                //             = 1/2 * curr * omeag^{- 2^(MAX - 1) * prev_bit}
+                //             = 1/2 * curr * omega^{- order(1) * prev_bit}
+                // curr = 2 * prev^2 * omega^{order(1) * prev_bit} = 2 * prev^2 * (-1)^{prev_bit}
+                builder.assign(&coeff, coeff * coeff * two_felt);
+                builder
+                    .if_eq(prev_bit, C::N::ONE)
+                    .then(|builder| builder.assign(&coeff, -coeff));
                 let left = builder.get(&leafs, 0);
                 let right = builder.get(&leafs, 1);
                 let new_folded =
