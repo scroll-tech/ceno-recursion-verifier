@@ -7,6 +7,7 @@ use crate::arithmetics::{
 use crate::transcript::transcript_observe_label;
 use crate::zkvm_verifier::binding::TowerProofInputVariable;
 use ceno_zkvm::scheme::constants::NUM_FANIN;
+use openvm::platform::print;
 use openvm_native_compiler::prelude::*;
 use openvm_native_compiler_derive::iter_zip;
 use openvm_native_recursion::challenger::ChallengerVariable;
@@ -164,6 +165,7 @@ pub fn iop_verifier_state_verify<C: Config>(
         .range(0, max_num_variables_usize.clone())
         .for_each(|i_vec, builder| {
             let i = i_vec[0];
+
             // TODO: this takes 7 cycles, can we optimize it?
             let prover_msg = builder.get(&prover_messages, i);
 
@@ -178,8 +180,8 @@ pub fn iop_verifier_state_verify<C: Config>(
             let e1 = builder.get(&prover_msg.evaluations, 0);
             let e2 = builder.get(&prover_msg.evaluations, 1);
             let target: Ext<<C as Config>::F, <C as Config>::EF> = builder.eval(e1 + e2);
-            // _debug
-            // builder.assert_ext_eq(expected, target);
+
+            builder.assert_ext_eq(expected, target);
 
             let p_r = unipoly_extrapolator.extrapolate_uni_poly(
                 builder,
@@ -374,9 +376,9 @@ pub fn verify_tower_proof<C: Config>(
 
     let mut next_rt = PointAndEvalVariable {
         point: PointVariable {
-            fs: builder.dyn_array(1),
+            fs: initial_rt,
         },
-        eval: builder.constant(C::EF::ZERO),
+        eval: initial_claim,
     };
 
     builder
