@@ -617,15 +617,6 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
             builder.assert_eq::<Var<C::N>>(commits.len(), opening_ext.len());
             builder.cycle_tracker_end("Initial folding");
             builder.cycle_tracker_start("FRI rounds");
-            // Precompute this before the first round, so that in the actual rounds,
-            // we can speed up the computation of coeff by directly computing from the previous coeff
-            let coeff: Felt<C::F> = verifier_folding_coeffs_level(
-                builder,
-                &two_adic_generators_inverses,
-                log2_height,
-                &idx_bits,
-                inv_2,
-            );
             let i: Var<C::N> = builder.constant(C::N::ZERO);
             iter_zip!(builder, commits, opening_ext).for_each(|ptr_vec, builder| {
                 let commit = builder.iter_ptr_get(&commits, ptr_vec[0]);
