@@ -426,7 +426,7 @@ pub fn eq_eval_less_or_equal_than<C: Config>(
     a: &Array<C, Ext<C::F, C::EF>>,
     b: &Array<C, Ext<C::F, C::EF>>,
 ) -> Ext<C::F, C::EF> {
-    builder.cycle_tracker_start("Compute eq_eval_less_or_equal_than");
+    // builder.cycle_tracker_start("Compute eq_eval_less_or_equal_than");
     let eq_bit_decomp: Array<C, Felt<C::F>> = opcode_proof
         .num_instances_minus_one_bit_decomposition
         .slice(builder, 0, b.len());
@@ -481,7 +481,7 @@ pub fn eq_eval_less_or_equal_than<C: Config>(
         builder.assign(&ans, ans * (one_ext - a));
     });
 
-    builder.cycle_tracker_end("Compute eq_eval_less_or_equal_than");
+    // builder.cycle_tracker_end("Compute eq_eval_less_or_equal_than");
 
     ans
 }

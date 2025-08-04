@@ -203,7 +203,9 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
         });
 
     // iterate over all chips
+    builder.cycle_tracker_start("Iterate over all chips");
     for (i, chip_vk) in vk.vk.circuit_vks.values().enumerate() {
+        builder.cycle_tracker_start("Iterate over one chip");
         let chip_id: Var<C::N> = builder.get(&chip_indices, num_chips_verified.get_var());
         builder.if_eq(chip_id, RVar::from(i)).then(|builder| {
             let chip_proof =
@@ -212,7 +214,8 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
 
             builder.cycle_tracker_start("Verify chip proof");
             let input_opening_point = if chip_vk.get_cs().is_opcode_circuit() {
-                verify_opcode_proof(
+                builder.cycle_tracker_start("Verify opcode proof");
+                let ret = verify_opcode_proof(
                     builder,
                     &mut challenger,
                     &chip_proof,
@@ -220,9 +223,12 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
                     &challenges,
                     &chip_vk,
                     &mut unipoly_extrapolator,
-                )
+                );
+                builder.cycle_tracker_end("Verify opcode proof");
+                ret
             } else {
-                verify_table_proof(
+                builder.cycle_tracker_start("Verify table proof");
+                let ret = verify_table_proof(
                     builder,
                     &mut challenger,
                     &chip_proof,
@@ -230,7 +236,9 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
                     &challenges,
                     &chip_vk,
                     &mut unipoly_extrapolator,
-                )
+                );
+                builder.cycle_tracker_end("Verify table proof");
+                ret
             };
             builder.cycle_tracker_end("Verify chip proof");
 
@@ -307,7 +315,10 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
 
             builder.inc(&num_chips_verified);
         });
+        builder.cycle_tracker_end("Iterate over one chip");
     }
+    builder.cycle_tracker_end("Iterate over all chips");
+
     builder.assert_usize_eq(num_chips_have_fixed, Usize::from(num_fixed_opening));
     builder.assert_eq::<Usize<_>>(num_chips_verified, chip_indices.len());
 
@@ -492,7 +503,7 @@ pub fn verify_opcode_proof<C: Config>(
     let main_sel_subclaim_max_degree: Felt<C::F> = builder.constant(C::F::from_canonical_u32(
         SEL_DEGREE.max(max_non_lc_degree + 1) as u32,
     ));
-    builder.cycle_tracker_start("main sumcheck");
+    // builder.cycle_tracker_start("main sumcheck");
     let (input_opening_point, expected_evaluation) = iop_verifier_state_verify(
         builder,
         challenger,
@@ -502,7 +513,7 @@ pub fn verify_opcode_proof<C: Config>(
         main_sel_subclaim_max_degree,
         unipoly_extrapolator,
     );
-    builder.cycle_tracker_end("main sumcheck");
+    // builder.cycle_tracker_end("main sumcheck");
 
     // sel(rt, t)
     let sel = eq_eval_less_or_equal_than(
