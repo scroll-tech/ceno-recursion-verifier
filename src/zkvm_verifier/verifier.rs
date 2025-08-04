@@ -322,9 +322,6 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
         });
     }
 
-
-
-    /* _debug
     builder.assert_usize_eq(num_chips_have_fixed, Usize::from(num_fixed_opening));
     builder.assert_eq::<Usize<_>>(num_chips_verified, chip_indices.len());
 
@@ -335,7 +332,7 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
         logup_sum - dummy_table_item_multiplicity * dummy_table_item.inverse(),
     );
 
-    let rounds = if num_fixed_opening > 0 {
+    let rounds: Array<C, RoundVariable<C>> = if num_fixed_opening > 0 {
         builder.dyn_array(2)
     } else {
         builder.dyn_array(1)
@@ -349,6 +346,7 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
             perm: zkvm_proof_input.witin_perm.clone(),
         },
     );
+
     if num_fixed_opening > 0 {
         builder.set(
             &rounds,
@@ -360,6 +358,8 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
             },
         );
     }
+
+    /* _debug
     batch_verify(
         builder,
         zkvm_proof_input.max_num_var,
@@ -367,6 +367,7 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
         zkvm_proof_input.pcs_proof,
         &mut challenger,
     );
+    */
 
     let empty_arr: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(0);
     let initial_global_state = eval_ceno_expr_with_instance(
@@ -393,8 +394,6 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
 
     /* TODO: Temporarily disable product check for missing subcircuits
         builder.assert_ext_eq(prod_r, prod_w);
-    */
-
     */
 }
 
