@@ -335,12 +335,13 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
     .iter()
     .enumerate()
     {
-        let generator = builder.constant(C::F::from_canonical_usize(*val).inverse());
-        builder.set_value(&two_adic_generators_inverses, index, generator);
+        let generator_inverse = builder.constant(C::F::from_canonical_usize(*val).inverse());
+        builder.set_value(&two_adic_generators_inverses, index, generator_inverse);
     }
     let zero: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
     let zero_flag = builder.constant(C::N::ZERO);
-    let two: Var<C::N> = builder.constant(C::N::from_canonical_usize(2));
+    let two: Var<C::N> = builder.constant(C::N::TWO);
+    let two_felt: Felt<C::F> = builder.constant(C::F::TWO);
 
     // encode_small
     let final_message = &input.proof.final_message;
@@ -629,6 +630,15 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
             let commits = &input.proof.commits;
             builder.assert_eq::<Var<C::N>>(commits.len(), opening_ext.len());
             builder.cycle_tracker_start("FRI rounds");
+            // Precompute this before the first round, so that in the actual rounds,
+            // we can speed up the computation of coeff using `verifier_folding_coeffs_level_with_prev`
+            let coeff = verifier_folding_coeffs_level(
+                builder,
+                &two_adic_generators_inverses,
+                log2_height,
+                &idx_bits,
+                inv_2,
+            );
             builder.range(0, commits.len()).for_each(|i_vec, builder| {
                 let i = i_vec[0];
                 let commit = builder.get(&commits, i);
@@ -662,6 +672,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
 
                 // idx >>= 1
                 let idx_pair = idx_bits.slice(builder, i_plus_one, idx_bits.len());
+                let prev_bit = builder.get(&idx_bits, i);
 
                 // mmcs_ext.verify_batch
                 let dimensions = builder.dyn_array(1);
@@ -678,13 +689,9 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                 ext_mmcs_verify_batch::<C>(builder, ext_mmcs_verifier_input);
 
                 let r = builder.get(&input.fold_challenges, i_plus_one);
-                let coeff = verifier_folding_coeffs_level(
-                    builder,
-                    &two_adic_generators_inverses,
-                    log2_height,
-                    &idx_pair,
-                    inv_2,
-                );
+                let new_coeff =
+                    verifier_folding_coeffs_level_with_prev(builder, two_felt, coeff, prev_bit);
+                builder.assign(&coeff, new_coeff);
                 let left = builder.get(&leafs, 0);
                 let right = builder.get(&leafs, 1);
                 let new_folded =
