@@ -143,7 +143,7 @@ pub fn parse_zkvm_proof_import(
             prod_specs_eval.push(inner_v);
         }
         tower_proof.num_prod_specs = prod_specs_eval.len();
-        tower_proof.prod_specs_eval = prod_specs_eval;
+        tower_proof.prod_specs_eval = prod_specs_eval.into();
 
         let mut logup_specs_eval: Vec<Vec<Vec<E>>> = vec![];
         for inner_val in &chip_proof.tower_proof.logup_specs_eval {
@@ -161,10 +161,10 @@ pub fn parse_zkvm_proof_import(
             logup_specs_eval.push(inner_v);
         }
         tower_proof.num_logup_specs = logup_specs_eval.len();
-        tower_proof.logup_specs_eval = logup_specs_eval;
+        tower_proof.logup_specs_eval = logup_specs_eval.into();
 
         // main constraint and select sumcheck proof
-        let mut main_sumcheck_proofs = if chip_proof.main_sumcheck_proofs.is_some() {
+        let main_sumcheck_proofs = if chip_proof.main_sumcheck_proofs.is_some() {
             let mut main_sumcheck_proofs: Vec<E> = vec![];
             let mut prover_message_size = None;
             for m in chip_proof.main_sumcheck_proofs.as_ref().unwrap() {

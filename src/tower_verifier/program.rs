@@ -426,8 +426,11 @@ pub fn verify_tower_proof<C: Config>(
                     builder.if_eq(skip, var_zero.clone()).then(|builder| {
                         builder.if_ne(round_var, round_limit).then_or_else(
                             |builder| {
-                                let prod_slice = builder.get(&proof.prod_specs_eval, spec_index);
-                                let prod_round_slice = builder.get(&prod_slice, round_var);
+                                let prod_round_slice = proof.prod_specs_eval.get_inner(
+                                    builder,
+                                    spec_index.variable(),
+                                    round_var.variable(),
+                                );
                                 builder.assign(&prod, one * one);
                                 for j in 0..NUM_FANIN {
                                     let prod_j = builder.get(&prod_round_slice, j);
@@ -472,8 +475,11 @@ pub fn verify_tower_proof<C: Config>(
                     builder.if_eq(skip, var_zero).then(|builder| {
                         builder.if_ne(round_var, round_limit).then_or_else(
                             |builder| {
-                                let prod_slice = builder.get(&proof.logup_specs_eval, spec_index);
-                                let prod_round_slice = builder.get(&prod_slice, round_var);
+                                let prod_round_slice = proof.logup_specs_eval.get_inner(
+                                    builder,
+                                    spec_index.variable(),
+                                    round_var.variable(),
+                                );
 
                                 let p1 = builder.get(&prod_round_slice, 0);
                                 let p2 = builder.get(&prod_round_slice, 1);
@@ -536,8 +542,11 @@ pub fn verify_tower_proof<C: Config>(
 
                     // now skip is 0 if and only if current round_var is smaller than round_limit.
                     builder.if_eq(skip, var_zero.clone()).then(|builder| {
-                        let prod_slice = builder.get(&proof.prod_specs_eval, spec_index);
-                        let prod_round_slice = builder.get(&prod_slice, round_var);
+                        let prod_round_slice = proof.prod_specs_eval.get_inner(
+                            builder,
+                            spec_index.variable(),
+                            round_var.variable(),
+                        );
                         let evals = fixed_dot_product(builder, &coeffs, &prod_round_slice, zero);
 
                         builder.if_ne(next_round, round_limit).then_or_else(
@@ -593,8 +602,11 @@ pub fn verify_tower_proof<C: Config>(
 
                     // now skip is 0 if and only if current round_var is smaller than round_limit.
                     builder.if_eq(skip, var_zero).then(|builder| {
-                        let prod_slice = builder.get(&proof.logup_specs_eval, spec_index);
-                        let prod_round_slice = builder.get(&prod_slice, round_var);
+                        let prod_round_slice = proof.logup_specs_eval.get_inner(
+                            builder,
+                            spec_index.variable(),
+                            round_var.variable(),
+                        );
                         let p1 = builder.get(&prod_round_slice, 0);
                         let p2 = builder.get(&prod_round_slice, 1);
                         let q1 = builder.get(&prod_round_slice, 2);
