@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Disable Lint
+
+  # Lint:
+  #   runs-on: ubuntu-latest
+
+  #   steps:
+  #   - uses: actions/checkout@v4
+  #   - name: Install stable Rust
+  #     uses: actions-rs/toolchain@v1
+  #     with:
+  #       toolchain: stable
+  #       components: rustfmt, clippy
+
+  #   - name: Fmt
+  #     run: cargo fmt --check
+
+  #   - name: Clippy
+  #     run: cargo clippy -- -D warnings
+
+  Test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install stable Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        components: clippy
+
+    - name: Run e2e test
+      run: ./scripts/e2e_test.sh
+
+    - name: Run unit tests
+      run: cargo test --release --all-features -- --nocapture
