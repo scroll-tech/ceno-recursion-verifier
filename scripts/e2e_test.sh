@@ -16,6 +16,8 @@ RUST_LOG=info cargo run --release --package ceno_zkvm --bin e2e -- --platform=ce
     --hints=10 --public-io=4191 examples/target/riscv32im-ceno-zkvm-elf/release/examples/fibonacci \
     --field=baby-bear
 
+mkdir -p $REPO_ROOT/src/e2e/encoded
+
 # Copy vk.bin and proof.bin to the src/e2e/encoded directory in the parent directory
 cp vk.bin $REPO_ROOT/src/e2e/encoded/
 cp proof.bin $REPO_ROOT/src/e2e/encoded/
