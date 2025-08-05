@@ -277,10 +277,13 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
                     builder,
                     &mut challenger,
                     &chip_proof,
+                    &zkvm_proof_input.raw_pi,
+                    &zkvm_proof_input.raw_pi_num_variables,
                     &zkvm_proof_input.pi_evals,
                     &challenges,
                     &chip_vk,
                     &mut unipoly_extrapolator,
+                    &mut poly_evaluator,
                 )
             };
             builder.cycle_tracker_end("Verify chip proof");
@@ -1081,13 +1084,13 @@ pub fn verify_table_proof<C: Config>(
     builder: &mut Builder<C>,
     challenger: &mut DuplexChallengerVariable<C>,
     table_proof: &ZKVMChipProofInputVariable<C>,
-    // raw_pi: &Array<C, Array<C, Felt<C::F>>>,
-    // raw_pi_num_variables: &Array<C, Var<C::N>>,
+    raw_pi: &Array<C, Array<C, Felt<C::F>>>,
+    raw_pi_num_variables: &Array<C, Var<C::N>>,
     pi_evals: &Array<C, Ext<C::F, C::EF>>,
     challenges: &Array<C, Ext<C::F, C::EF>>,
     vk: &VerifyingKey<E>,
     unipoly_extrapolator: &mut UniPolyExtrapolator<C>,
-    // poly_evaluator: &mut PolyEvaluator<C>,
+    poly_evaluator: &mut PolyEvaluator<C>,
 ) -> Array<C, Ext<C::F, C::EF>> {
     let cs = vk.get_cs();
     let tower_proof: &super::binding::TowerProofInputVariable<C> = &table_proof.tower_proof;
@@ -1310,7 +1313,6 @@ pub fn verify_table_proof<C: Config>(
         builder.assert_ext_eq(eval, expected);
     });
 
-    /* TODO: enable this
     // assume public io is tiny vector, so we evaluate it directly without PCS
     for &Instance(idx) in cs.instance_name_map().keys() {
         let poly = builder.get(raw_pi, idx);
@@ -1318,10 +1320,10 @@ pub fn verify_table_proof<C: Config>(
         let eval_point = rt_tower.fs.slice(builder, 0, poly_num_vars);
         let expected_eval = poly_evaluator.evaluate_base_poly_at_point(builder, &poly, &eval_point);
         let eval = builder.get(&pi_evals, idx);
+
         builder.assert_ext_eq(eval, expected_eval);
     }
-    */
-    
+
     rt_tower.fs
 }
 
