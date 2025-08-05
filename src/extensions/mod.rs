@@ -29,7 +29,7 @@ mod tests {
     use openvm_stark_sdk::{
         config::baby_bear_poseidon2::BabyBearPoseidon2Config, p3_baby_bear::BabyBear,
     };
-    use p3_field::{Field, FieldAlgebra, FieldExtensionAlgebra};
+    use openvm_stark_backend::p3_field::{Field, FieldAlgebra};
 
     type Pcs = Basefold<E, BasefoldRSParams>;
     const NUM_FANIN: usize = 2;

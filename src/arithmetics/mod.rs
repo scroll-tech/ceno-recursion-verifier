@@ -11,7 +11,7 @@ use openvm_native_recursion::challenger::ChallengerVariable;
 use openvm_native_recursion::challenger::{
     duplex::DuplexChallengerVariable, CanObserveVariable, FeltChallenger,
 };
-use p3_field::{FieldAlgebra, FieldExtensionAlgebra};
+use openvm_stark_backend::p3_field::{FieldAlgebra, FieldExtensionAlgebra, extension::BinomialExtensionField};
 type E = BabyBearExt4;
 const HASH_RATE: usize = 8;
 const MAX_NUM_VARS: usize = 25;
@@ -421,15 +421,12 @@ pub fn gen_alpha_pows<C: Config>(
 ///         = \sum_{\mathbf{b}=0}^{max_idx} \prod_{i=0}^{n-1} (x_i y_i b_i + (1 - x_i)(1 - y_i)(1 - b_i))
 pub fn eq_eval_less_or_equal_than<C: Config>(
     builder: &mut Builder<C>,
-    _challenger: &mut DuplexChallengerVariable<C>,
     opcode_proof: &ZKVMChipProofInputVariable<C>,
     a: &Array<C, Ext<C::F, C::EF>>,
     b: &Array<C, Ext<C::F, C::EF>>,
 ) -> Ext<C::F, C::EF> {
     builder.cycle_tracker_start("Compute eq_eval_less_or_equal_than");
-    let eq_bit_decomp: Array<C, Felt<C::F>> = opcode_proof
-        .num_instances_minus_one_bit_decomposition
-        .slice(builder, 0, b.len());
+    let eq_bit_decomp: Array<C, Felt<C::F>> = opcode_proof.num_instances_minus_one_bit_decomposition.slice(builder, 0, b.len());
 
     let one_ext: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
     let rp_len = builder.eval_expr(b.len() + C::N::ONE);
