@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use openvm_native_compiler::{
     asm::AsmConfig,
     ir::{Array, Builder, Config},
@@ -27,6 +28,25 @@ pub struct PointAndEvalVariable<C: Config> {
 #[derive(DslVariable, Clone)]
 pub struct IOPProverMessageVariable<C: Config> {
     pub evaluations: Array<C, Ext<C::F, C::EF>>,
+}
+
+#[derive(DslVariable, Clone)]
+pub struct IOPProverMessageVecVariable<C: Config> {
+    pub prover_message_size: Var<C::N>,
+    pub length: Var<C::N>,
+    pub evaluations: Array<C, Ext<C::F, C::EF>>,
+}
+
+impl<C: Config> IOPProverMessageVecVariable<C> {
+    pub fn get(&self, builder: &mut Builder<C>, index: Var<C::N>) -> Array<C, Ext<C::F, C::EF>> {
+        let start: Var<C::N> = builder.eval(self.prover_message_size * index);
+        let end: Var<C::N> = builder.eval(start + self.prover_message_size);
+        self.evaluations.slice(builder, start, end)
+    }
+
+    pub fn len(&self) -> Var<C::N> {
+        self.length
+    }
 }
 
 #[derive(Clone, Deserialize)]
@@ -102,6 +122,71 @@ impl Hintable<InnerConfig> for IOPProverMessage {
     }
 }
 impl VecAutoHintable for IOPProverMessage {}
+
+/// Assume that all the prover messages have the same size.
+#[derive(Debug, Deserialize)]
+pub struct IOPProverMessageVec {
+    pub prover_message_size: usize,
+    pub data: Vec<E>,
+}
+
+impl IOPProverMessageVec {
+    pub fn get(&self, index: usize) -> &[E] {
+        let start = index * self.prover_message_size;
+        let end = start + self.prover_message_size;
+        &self.data[start..end]
+    }
+}
+
+impl From<Vec<IOPProverMessage>> for IOPProverMessageVec {
+    fn from(messages: Vec<IOPProverMessage>) -> Self {
+        let prover_message_size = messages[0].evaluations.len();
+        assert!(messages
+            .iter()
+            .map(|message| message.evaluations.len())
+            .all_equal());
+        let data = messages
+            .into_iter()
+            .flat_map(|msg| msg.evaluations)
+            .collect();
+        IOPProverMessageVec {
+            prover_message_size,
+            data,
+        }
+    }
+}
+
+impl Hintable<InnerConfig> for IOPProverMessageVec {
+    type HintVariable = IOPProverMessageVecVariable<InnerConfig>;
+
+    fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
+        let prover_message_size: Var<F> = usize::read(builder);
+        let length: Var<F> = usize::read(builder);
+        let evaluations = Vec::<E>::read(builder);
+        builder.assert_eq::<Var<F>>(evaluations.len(), prover_message_size * length);
+        IOPProverMessageVecVariable {
+            prover_message_size,
+            length,
+            evaluations,
+        }
+    }
+
+    fn write(&self) -> Vec<Vec<<InnerConfig as Config>::N>> {
+        let mut stream = Vec::new();
+        stream.extend(<usize as Hintable<InnerConfig>>::write(
+            &self.prover_message_size,
+        ));
+        stream.extend(<usize as Hintable<InnerConfig>>::write(
+            &if self.data.len() == 0 {
+                0
+            } else {
+                self.data.len() / self.prover_message_size
+            },
+        ));
+        stream.extend(self.data.write());
+        stream
+    }
+}
 
 pub struct TowerVerifierInput {
     pub prod_out_evals: Vec<Vec<E>>,

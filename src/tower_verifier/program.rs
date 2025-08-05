@@ -4,6 +4,7 @@ use crate::arithmetics::{
     exts_to_felts, fixed_dot_product, gen_alpha_pows, is_smaller_than, print_ext_arr, reverse,
     UniPolyExtrapolator,
 };
+use crate::tower_verifier::binding::IOPProverMessageVecVariable;
 use crate::transcript::transcript_observe_label;
 use crate::zkvm_verifier::binding::TowerProofInputVariable;
 use ceno_zkvm::scheme::constants::NUM_FANIN;
@@ -135,7 +136,7 @@ pub fn iop_verifier_state_verify<C: Config>(
     builder: &mut Builder<C>,
     challenger: &mut DuplexChallengerVariable<C>,
     out_claim: &Ext<C::F, C::EF>,
-    prover_messages: &Array<C, IOPProverMessageVariable<C>>,
+    prover_messages: &IOPProverMessageVecVariable<C>,
     max_num_variables: Felt<C::F>,
     max_degree: Felt<C::F>,
     unipoly_extrapolator: &mut UniPolyExtrapolator<C>,
@@ -165,26 +166,22 @@ pub fn iop_verifier_state_verify<C: Config>(
         .for_each(|i_vec, builder| {
             let i = i_vec[0];
             // TODO: this takes 7 cycles, can we optimize it?
-            let prover_msg = builder.get(&prover_messages, i);
+            let prover_msg = prover_messages.get(builder, i.variable());
 
             unsafe {
-                let prover_msg_felts = exts_to_felts(builder, &prover_msg.evaluations);
+                let prover_msg_felts = exts_to_felts(builder, &prover_msg);
                 challenger_multi_observe(builder, challenger, &prover_msg_felts);
             }
 
             transcript_observe_label(builder, challenger, b"Internal round");
             let challenge = challenger.sample_ext(builder);
 
-            let e1 = builder.get(&prover_msg.evaluations, 0);
-            let e2 = builder.get(&prover_msg.evaluations, 1);
+            let e1 = builder.get(&prover_msg, 0);
+            let e2 = builder.get(&prover_msg, 1);
             let target: Ext<<C as Config>::F, <C as Config>::EF> = builder.eval(e1 + e2);
             builder.assert_ext_eq(expected, target);
 
-            let p_r = unipoly_extrapolator.extrapolate_uni_poly(
-                builder,
-                &prover_msg.evaluations,
-                challenge,
-            );
+            let p_r = unipoly_extrapolator.extrapolate_uni_poly(builder, &prover_msg, challenge);
 
             builder.assign(&expected, p_r + zero);
             builder.set_value(&challenges, i, challenge);
