@@ -22,7 +22,7 @@ use crate::{
 };
 use ceno_mle::expression::{Instance, StructuralWitIn};
 use ceno_zkvm::e2e::B;
-use ceno_zkvm::structs::VerifyingKey;
+use ceno_zkvm::structs::{VerifyingKey, ZKVMVerifyingKey};
 use ceno_zkvm::{circuit_builder::SetTableSpec, scheme::verifier::ZKVMVerifier};
 use ff_ext::BabyBearExt4;
 use itertools::max;
@@ -80,7 +80,7 @@ pub fn transcript_group_sample_ext<C: Config>(
 pub fn verify_zkvm_proof<C: Config<F = F>>(
     builder: &mut Builder<C>,
     zkvm_proof_input: ZKVMProofInputVariable<C>,
-    vk: &ZKVMVerifier<E, Pcs>,
+    vk: &ZKVMVerifyingKey<E, Pcs>,
 ) {
     let mut challenger = DuplexChallengerVariable::new(builder);
     transcript_observe_label(builder, &mut challenger, b"riscv");
@@ -108,7 +108,7 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
         },
     );
 
-    let fixed_commit = if let Some(fixed_commit) = vk.vk.fixed_commit.as_ref() {
+    let fixed_commit = if let Some(fixed_commit) = vk.fixed_commit.as_ref() {
         let commit: crate::basefold_verifier::hash::Hash = fixed_commit.commit().into();
         let commit_array: Array<C, Felt<C::F>> = builder.dyn_array(commit.value.len());
         commit.value.into_iter().enumerate().for_each(|(i, v)| {
@@ -180,7 +180,6 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
     let dummy_table_item_multiplicity: Var<C::N> = builder.constant(C::N::ZERO);
 
     let num_fixed_opening = vk
-        .vk
         .circuit_vks
         .values()
         .filter(|c| c.get_cs().num_fixed() > 0)
@@ -202,7 +201,7 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
         });
 
     // iterate over all chips
-    for (i, chip_vk) in vk.vk.circuit_vks.values().enumerate() {
+    for (i, chip_vk) in vk.circuit_vks.values().enumerate() {
         let chip_id: Var<C::N> = builder.get(&chip_indices, num_chips_verified.get_var());
         builder.if_eq(chip_id, RVar::from(i)).then(|builder| {
             let chip_proof =
@@ -362,7 +361,7 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
         &empty_arr,
         &zkvm_proof_input.pi_evals,
         &challenges,
-        &vk.vk.initial_global_state_expr,
+        &vk.initial_global_state_expr,
     );
     builder.assign(&prod_w, prod_w * initial_global_state);
 
@@ -373,7 +372,7 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
         &empty_arr,
         &zkvm_proof_input.pi_evals,
         &challenges,
-        &vk.vk.finalize_global_state_expr,
+        &vk.finalize_global_state_expr,
     );
     builder.assign(&prod_r, prod_r * finalize_global_state);
 

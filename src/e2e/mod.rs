@@ -1,43 +1,22 @@
 use crate::basefold_verifier::basefold::BasefoldCommitment;
-use crate::basefold_verifier::query_phase::QueryPhaseVerifierInput;
 use crate::tower_verifier::binding::IOPProverMessage;
-use crate::zkvm_verifier::binding::ZKVMProofInput;
-use crate::zkvm_verifier::binding::{TowerProofInput, ZKVMChipProofInput, E, F};
+use crate::zkvm_verifier::binding::{TowerProofInput, ZKVMProofInput, ZKVMChipProofInput, E, F};
 use crate::zkvm_verifier::verifier::verify_zkvm_proof;
-use ceno_mle::util::ceil_log2;
-use ff_ext::BabyBearExt4;
-use itertools::Itertools;
+
 use mpcs::{Basefold, BasefoldRSParams};
-use openvm_circuit::arch::{instructions::program::Program, SystemConfig, VmExecutor};
-use openvm_circuit::arch::{verify_single, VirtualMachine};
-use openvm_native_circuit::{Native, NativeConfig};
+use ceno_zkvm::scheme::ZKVMProof;
+use ceno_zkvm::structs::ZKVMVerifyingKey;
+
+use openvm_native_recursion::hints::Hintable;
+use openvm_circuit::arch::instructions::program::Program;
 use openvm_native_compiler::{
     asm::AsmBuilder,
     conversion::{convert_program, CompilerOptions},
     prelude::AsmCompiler,
 };
-use openvm_native_recursion::hints::Hintable;
-use openvm_stark_backend::config::StarkGenericConfig;
-use openvm_stark_sdk::config::baby_bear_poseidon2::BabyBearPoseidon2Engine;
-use openvm_stark_sdk::config::fri_params::standard_fri_params_with_100_bits_conjectured_security;
-use openvm_stark_sdk::config::{setup_tracing_with_log_level, FriParameters};
-use openvm_stark_sdk::engine::StarkFriEngine;
-use openvm_stark_sdk::{
-    config::baby_bear_poseidon2::BabyBearPoseidon2Config, p3_baby_bear::BabyBear,
-};
-use std::fs::File;
-
-type SC = BabyBearPoseidon2Config;
-type EF = <SC as StarkGenericConfig>::Challenge;
-
-use ceno_zkvm::{
-    scheme::{verifier::ZKVMVerifier, ZKVMProof},
-    structs::ZKVMVerifyingKey,
-};
 
 pub fn parse_zkvm_proof_import(
-    zkvm_proof: ZKVMProof<BabyBearExt4, Basefold<BabyBearExt4, BasefoldRSParams>>,
-    verifier: &ZKVMVerifier<BabyBearExt4, Basefold<BabyBearExt4, BasefoldRSParams>>,
+    zkvm_proof: ZKVMProof<E, Basefold<E, BasefoldRSParams>>,
 ) -> ZKVMProofInput {
     let raw_pi = zkvm_proof
         .raw_pi
@@ -203,7 +182,7 @@ pub fn parse_zkvm_proof_import(
         });
     }
 
-    let witin_commit: mpcs::BasefoldCommitment<BabyBearExt4> =
+    let witin_commit: mpcs::BasefoldCommitment<E> =
         serde_json::from_value(serde_json::to_value(zkvm_proof.witin_commit).unwrap()).unwrap();
     let witin_commit: BasefoldCommitment = witin_commit.into();
 
@@ -218,37 +197,15 @@ pub fn parse_zkvm_proof_import(
     }
 }
 
-pub fn inner_test_thread() {
-    setup_tracing_with_log_level(tracing::Level::WARN);
+/// Build Ceno's zkVM verifier program from vk in OpenVM's eDSL
+pub fn build_zkvm_verifier_program(
+    vk: &ZKVMVerifyingKey<E, Basefold<E, BasefoldRSParams>>,
+) -> Program<F> {
+    let mut builder = AsmBuilder::<F, E>::default();
 
-    let proof_path = "./src/e2e/encoded/proof.bin";
-    let vk_path = "./src/e2e/encoded/vk.bin";
-
-    let zkvm_proof: ZKVMProof<BabyBearExt4, Basefold<BabyBearExt4, BasefoldRSParams>> =
-        bincode::deserialize_from(File::open(proof_path).expect("Failed to open proof file"))
-            .expect("Failed to deserialize proof file");
-
-    let vk: ZKVMVerifyingKey<BabyBearExt4, Basefold<BabyBearExt4, BasefoldRSParams>> =
-        bincode::deserialize_from(File::open(vk_path).expect("Failed to open vk file"))
-            .expect("Failed to deserialize vk file");
-
-    let verifier = ZKVMVerifier::new(vk);
-    let zkvm_proof_input = parse_zkvm_proof_import(zkvm_proof, &verifier);
-
-    // OpenVM DSL
-    let mut builder = AsmBuilder::<F, EF>::default();
-
-    // Obtain witness inputs
     let zkvm_proof_input_variables = ZKVMProofInput::read(&mut builder);
-    verify_zkvm_proof(&mut builder, zkvm_proof_input_variables, &verifier);
+    verify_zkvm_proof(&mut builder, zkvm_proof_input_variables, vk);
     builder.halt();
-
-    // Pass in witness stream
-    let mut witness_stream: Vec<
-        Vec<p3_monty_31::MontyField31<openvm_stark_sdk::p3_baby_bear::BabyBearParameters>>,
-    > = Vec::new();
-
-    witness_stream.extend(zkvm_proof_input.write());
 
     // Compile program
     let options = CompilerOptions::default().with_cycle_tracker();
@@ -256,72 +213,113 @@ pub fn inner_test_thread() {
     compiler.build(builder.operations);
     let asm_code = compiler.code();
 
-    // _debug: print out assembly
-    /*
-    println!("=> AssemblyCode:");
-    println!("{asm_code}");
-    return ();
-    */
-
     let program: Program<F> = convert_program(asm_code, options);
-    let mut system_config = SystemConfig::default()
-        .with_public_values(4)
-        .with_max_segment_len((1 << 25) - 100);
-    system_config.profiling = true;
-    let config = NativeConfig::new(system_config, Native);
-
-    let executor = VmExecutor::<BabyBear, NativeConfig>::new(config);
-
-    let res = executor
-        .execute_and_then(
-            program.clone(),
-            witness_stream.clone(),
-            |_, seg| Ok(seg),
-            |err| err,
-        )
-        .unwrap();
-
-    for (i, seg) in res.iter().enumerate() {
-        println!("=> segment {:?} metrics: {:?}", i, seg.metrics);
-    }
-
-    let poseidon2_max_constraint_degree = 3;
-    // TODO: use log_blowup = 1 when native multi_observe chip reduces max constraint degree to 3
-    let log_blowup = 2;
-
-    let fri_params = if matches!(std::env::var("OPENVM_FAST_TEST"), Ok(x) if &x == "1") {
-        FriParameters {
-            log_blowup,
-            log_final_poly_len: 0,
-            num_queries: 10,
-            proof_of_work_bits: 0,
-        }
-    } else {
-        standard_fri_params_with_100_bits_conjectured_security(log_blowup)
-    };
-
-    let engine = BabyBearPoseidon2Engine::new(fri_params);
-    let mut config = NativeConfig::aggregation(0, poseidon2_max_constraint_degree);
-    config.system.memory_config.max_access_adapter_n = 16;
-
-    let vm = VirtualMachine::new(engine, config);
-
-    let pk = vm.keygen();
-    let result = vm.execute_and_generate(program, witness_stream).unwrap();
-    let proofs = vm.prove(&pk, result);
-    for proof in proofs {
-        verify_single(&vm.engine, &pk.get_vk(), &proof).expect("Verification failed");
-    }
+    program
 }
 
-#[test]
-pub fn test_zkvm_proof_verifier_from_bincode_exports() {
-    let stack_size = 64 * 1024 * 1024; // 64 MB
+#[cfg(test)]
+mod tests {
+    use crate::e2e::build_zkvm_verifier_program;
+    use crate::e2e::parse_zkvm_proof_import;
+    use crate::zkvm_verifier::binding::{E, F};
+    use ceno_zkvm::scheme::ZKVMProof;
+    use ceno_zkvm::structs::ZKVMVerifyingKey;
+    use mpcs::{Basefold, BasefoldRSParams};
+    use openvm_circuit::arch::verify_single;
+    use openvm_circuit::arch::VirtualMachine;
+    use openvm_circuit::arch::{SystemConfig, VmExecutor};
+    use openvm_native_circuit::{Native, NativeConfig};
+    use openvm_native_recursion::hints::Hintable;
+    use openvm_stark_sdk::config::{
+        baby_bear_poseidon2::BabyBearPoseidon2Engine,
+        fri_params::standard_fri_params_with_100_bits_conjectured_security,
+        setup_tracing_with_log_level, FriParameters,
+    };
+    use openvm_stark_sdk::engine::StarkFriEngine;
+    use std::fs::File;
 
-    let handler = std::thread::Builder::new()
-        .stack_size(stack_size)
-        .spawn(inner_test_thread)
-        .expect("Failed to spawn thread");
+    pub fn inner_test_thread() {
+        setup_tracing_with_log_level(tracing::Level::WARN);
 
-    handler.join().expect("Thread panicked");
+        let proof_path = "./src/e2e/encoded/proof.bin";
+        let vk_path = "./src/e2e/encoded/vk.bin";
+
+        let zkvm_proof: ZKVMProof<E, Basefold<E, BasefoldRSParams>> =
+            bincode::deserialize_from(File::open(proof_path).expect("Failed to open proof file"))
+                .expect("Failed to deserialize proof file");
+
+        let vk: ZKVMVerifyingKey<E, Basefold<E, BasefoldRSParams>> =
+            bincode::deserialize_from(File::open(vk_path).expect("Failed to open vk file"))
+                .expect("Failed to deserialize vk file");
+
+        let program = build_zkvm_verifier_program(&vk);
+
+        // Construct zkvm proof input
+        let zkvm_proof_input = parse_zkvm_proof_import(zkvm_proof);
+
+        // Pass in witness stream
+        let mut witness_stream: Vec<Vec<F>> = Vec::new();
+        witness_stream.extend(zkvm_proof_input.write());
+
+        let mut system_config = SystemConfig::default()
+            .with_public_values(4)
+            .with_max_segment_len((1 << 25) - 100);
+        system_config.profiling = true;
+        let config = NativeConfig::new(system_config, Native);
+
+        let executor = VmExecutor::<F, NativeConfig>::new(config);
+
+        let res = executor
+            .execute_and_then(
+                program.clone(),
+                witness_stream.clone(),
+                |_, seg| Ok(seg),
+                |err| err,
+            )
+            .unwrap();
+
+        for (i, seg) in res.iter().enumerate() {
+            println!("=> segment {:?} metrics: {:?}", i, seg.metrics);
+        }
+
+        let poseidon2_max_constraint_degree = 3;
+        // TODO: use log_blowup = 1 when native multi_observe chip reduces max constraint degree to 3
+        let log_blowup = 2;
+
+        let fri_params = if matches!(std::env::var("OPENVM_FAST_TEST"), Ok(x) if &x == "1") {
+            FriParameters {
+                log_blowup,
+                log_final_poly_len: 0,
+                num_queries: 10,
+                proof_of_work_bits: 0,
+            }
+        } else {
+            standard_fri_params_with_100_bits_conjectured_security(log_blowup)
+        };
+
+        let engine = BabyBearPoseidon2Engine::new(fri_params);
+        let mut config = NativeConfig::aggregation(0, poseidon2_max_constraint_degree);
+        config.system.memory_config.max_access_adapter_n = 16;
+
+        let vm = VirtualMachine::new(engine, config);
+
+        let pk = vm.keygen();
+        let result = vm.execute_and_generate(program, witness_stream).unwrap();
+        let proofs = vm.prove(&pk, result);
+        for proof in proofs {
+            verify_single(&vm.engine, &pk.get_vk(), &proof).expect("Verification failed");
+        }
+    }
+
+    #[test]
+    pub fn test_zkvm_verifier() {
+        let stack_size = 64 * 1024 * 1024; // 64 MB
+
+        let handler = std::thread::Builder::new()
+            .stack_size(stack_size)
+            .spawn(inner_test_thread)
+            .expect("Failed to spawn thread");
+
+        handler.join().expect("Thread panicked");
+    }
 }
