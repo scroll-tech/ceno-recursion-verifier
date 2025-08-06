@@ -1,6 +1,6 @@
 use crate::basefold_verifier::basefold::BasefoldCommitment;
 use crate::basefold_verifier::query_phase::QueryPhaseVerifierInput;
-use crate::tower_verifier::binding::IOPProverMessage;
+use crate::tower_verifier::binding::{IOPProverMessage, IOPProverMessageVec};
 use crate::zkvm_verifier::binding::ZKVMProofInput;
 use crate::zkvm_verifier::binding::{TowerProofInput, ZKVMChipProofInput, E, F};
 use crate::zkvm_verifier::verifier::verify_zkvm_proof;
@@ -25,6 +25,7 @@ use openvm_stark_sdk::engine::StarkFriEngine;
 use openvm_stark_sdk::{
     config::baby_bear_poseidon2::BabyBearPoseidon2Config, p3_baby_bear::BabyBear,
 };
+use p3_fri::prover;
 use std::fs::File;
 
 type SC = BabyBearPoseidon2Config;
@@ -102,10 +103,11 @@ pub fn parse_zkvm_proof_import(
 
         // Tower proof
         let mut tower_proof = TowerProofInput::default();
-        let mut proofs: Vec<Vec<IOPProverMessage>> = vec![];
+        let mut proofs: Vec<IOPProverMessageVec> = vec![];
 
         for proof in &chip_proof.tower_proof.proofs {
-            let mut proof_messages: Vec<IOPProverMessage> = vec![];
+            let mut proof_messages: Vec<E> = vec![];
+            let mut prover_message_size = None;
             for m in proof {
                 let mut evaluations_vec: Vec<E> = vec![];
 
@@ -114,11 +116,17 @@ pub fn parse_zkvm_proof_import(
                         serde_json::from_value(serde_json::to_value(v.clone()).unwrap()).unwrap();
                     evaluations_vec.push(v_e);
                 }
-                proof_messages.push(IOPProverMessage {
-                    evaluations: evaluations_vec,
-                });
+                if let Some(size) = prover_message_size {
+                    assert_eq!(size, evaluations_vec.len());
+                } else {
+                    prover_message_size = Some(evaluations_vec.len());
+                }
+                proof_messages.extend_from_slice(&evaluations_vec);
             }
-            proofs.push(proof_messages);
+            proofs.push(IOPProverMessageVec {
+                prover_message_size: prover_message_size.unwrap(),
+                data: proof_messages,
+            });
         }
         tower_proof.num_proofs = proofs.len();
         tower_proof.proofs = proofs;
@@ -139,7 +147,7 @@ pub fn parse_zkvm_proof_import(
             prod_specs_eval.push(inner_v);
         }
         tower_proof.num_prod_specs = prod_specs_eval.len();
-        tower_proof.prod_specs_eval = prod_specs_eval;
+        tower_proof.prod_specs_eval = prod_specs_eval.into();
 
         let mut logup_specs_eval: Vec<Vec<Vec<E>>> = vec![];
         for inner_val in &chip_proof.tower_proof.logup_specs_eval {
@@ -157,11 +165,12 @@ pub fn parse_zkvm_proof_import(
             logup_specs_eval.push(inner_v);
         }
         tower_proof.num_logup_specs = logup_specs_eval.len();
-        tower_proof.logup_specs_eval = logup_specs_eval;
+        tower_proof.logup_specs_eval = logup_specs_eval.into();
 
         // main constraint and select sumcheck proof
-        let mut main_sumcheck_proofs: Vec<IOPProverMessage> = vec![];
-        if chip_proof.main_sumcheck_proofs.is_some() {
+        let main_sumcheck_proofs = if chip_proof.main_sumcheck_proofs.is_some() {
+            let mut main_sumcheck_proofs: Vec<E> = vec![];
+            let mut prover_message_size = None;
             for m in chip_proof.main_sumcheck_proofs.as_ref().unwrap() {
                 let mut evaluations_vec: Vec<E> = vec![];
                 for v in &m.evaluations {
@@ -169,11 +178,23 @@ pub fn parse_zkvm_proof_import(
                         serde_json::from_value(serde_json::to_value(v.clone()).unwrap()).unwrap();
                     evaluations_vec.push(v_e);
                 }
-                main_sumcheck_proofs.push(IOPProverMessage {
-                    evaluations: evaluations_vec,
-                });
+                main_sumcheck_proofs.extend_from_slice(&evaluations_vec);
+                if let Some(size) = prover_message_size {
+                    assert_eq!(size, evaluations_vec.len());
+                } else {
+                    prover_message_size = Some(evaluations_vec.len());
+                }
             }
-        }
+            IOPProverMessageVec {
+                prover_message_size: prover_message_size.unwrap(),
+                data: main_sumcheck_proofs,
+            }
+        } else {
+            IOPProverMessageVec {
+                prover_message_size: 0,
+                data: vec![],
+            }
+        };
 
         let mut wits_in_evals: Vec<E> = vec![];
         for v in &chip_proof.wits_in_evals {
@@ -218,110 +239,131 @@ pub fn parse_zkvm_proof_import(
     }
 }
 
-pub fn inner_test_thread() {
-    setup_tracing_with_log_level(tracing::Level::WARN);
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use metrics_tracing_context::MetricsLayer;
+    use openvm_stark_sdk::config::setup_tracing_with_log_level;
+    use tracing_forest::ForestLayer;
+    use tracing_subscriber::{layer::SubscriberExt, EnvFilter, Registry};
 
-    let proof_path = "./src/e2e/encoded/proof.bin";
-    let vk_path = "./src/e2e/encoded/vk.bin";
+    pub fn inner_test_thread() {
+        setup_tracing_with_log_level(tracing::Level::WARN);
 
-    let zkvm_proof: ZKVMProof<BabyBearExt4, Basefold<BabyBearExt4, BasefoldRSParams>> =
-        bincode::deserialize_from(File::open(proof_path).expect("Failed to open proof file"))
-            .expect("Failed to deserialize proof file");
+        let proof_path = "./src/e2e/encoded/proof.bin";
+        let vk_path = "./src/e2e/encoded/vk.bin";
 
-    let vk: ZKVMVerifyingKey<BabyBearExt4, Basefold<BabyBearExt4, BasefoldRSParams>> =
-        bincode::deserialize_from(File::open(vk_path).expect("Failed to open vk file"))
-            .expect("Failed to deserialize vk file");
+        let zkvm_proof: ZKVMProof<BabyBearExt4, Basefold<BabyBearExt4, BasefoldRSParams>> =
+            bincode::deserialize_from(File::open(proof_path).expect("Failed to open proof file"))
+                .expect("Failed to deserialize proof file");
 
-    let verifier = ZKVMVerifier::new(vk);
-    let zkvm_proof_input = parse_zkvm_proof_import(zkvm_proof, &verifier);
+        let vk: ZKVMVerifyingKey<BabyBearExt4, Basefold<BabyBearExt4, BasefoldRSParams>> =
+            bincode::deserialize_from(File::open(vk_path).expect("Failed to open vk file"))
+                .expect("Failed to deserialize vk file");
 
-    // OpenVM DSL
-    let mut builder = AsmBuilder::<F, EF>::default();
+        let verifier = ZKVMVerifier::new(vk);
+        let zkvm_proof_input = parse_zkvm_proof_import(zkvm_proof, &verifier);
 
-    // Obtain witness inputs
-    let zkvm_proof_input_variables = ZKVMProofInput::read(&mut builder);
-    verify_zkvm_proof(&mut builder, zkvm_proof_input_variables, &verifier);
-    builder.halt();
+        // OpenVM DSL
+        let mut builder = AsmBuilder::<F, EF>::default();
 
-    // Pass in witness stream
-    let mut witness_stream: Vec<
-        Vec<p3_monty_31::MontyField31<openvm_stark_sdk::p3_baby_bear::BabyBearParameters>>,
-    > = Vec::new();
+        // Obtain witness inputs
+        builder.cycle_tracker_start("Read");
+        let zkvm_proof_input_variables = ZKVMProofInput::read(&mut builder);
+        builder.cycle_tracker_end("Read");
+        builder.cycle_tracker_start("ZKVM verifier");
+        verify_zkvm_proof(&mut builder, zkvm_proof_input_variables, &verifier);
+        builder.cycle_tracker_end("ZKVM verifier");
+        builder.halt();
 
-    witness_stream.extend(zkvm_proof_input.write());
+        // Pass in witness stream
+        let mut witness_stream: Vec<
+            Vec<p3_monty_31::MontyField31<openvm_stark_sdk::p3_baby_bear::BabyBearParameters>>,
+        > = Vec::new();
 
-    // Compile program
-    let options = CompilerOptions::default().with_cycle_tracker();
-    let mut compiler = AsmCompiler::new(options.word_size);
-    compiler.build(builder.operations);
-    let asm_code = compiler.code();
+        witness_stream.extend(zkvm_proof_input.write());
 
-    // _debug: print out assembly
-    /*
-    println!("=> AssemblyCode:");
-    println!("{asm_code}");
-    return ();
-    */
+        // Compile program
+        let options = CompilerOptions::default().with_cycle_tracker();
+        let mut compiler = AsmCompiler::new(options.word_size);
+        compiler.build(builder.operations);
+        let asm_code = compiler.code();
 
-    let program: Program<F> = convert_program(asm_code, options);
-    let mut system_config = SystemConfig::default()
-        .with_public_values(4)
-        .with_max_segment_len((1 << 25) - 100);
-    system_config.profiling = true;
-    let config = NativeConfig::new(system_config, Native);
+        // _debug: print out assembly
+        /*
+        println!("=> Assembly code:");
+        prinln!("{asm_code}");
+        return ();
+        */
 
-    let executor = VmExecutor::<BabyBear, NativeConfig>::new(config);
+        let program: Program<F> = convert_program(asm_code, options);
+        let mut system_config = SystemConfig::default()
+            .with_public_values(4)
+            .with_max_segment_len((1 << 25) - 100);
+        system_config.profiling = true;
+        let config = NativeConfig::new(system_config, Native);
 
-    let res = executor
-        .execute_and_then(
-            program.clone(),
-            witness_stream.clone(),
-            |_, seg| Ok(seg),
-            |err| err,
-        )
-        .unwrap();
+        let executor = VmExecutor::<BabyBear, NativeConfig>::new(config);
 
-    for (i, seg) in res.iter().enumerate() {
-        println!("=> segment {:?} metrics: {:?}", i, seg.metrics);
-    }
+        let res = executor
+            .execute_and_then(
+                program.clone(),
+                witness_stream.clone(),
+                |_, seg| Ok(seg),
+                |err| err,
+            )
+            .unwrap();
 
-    let poseidon2_max_constraint_degree = 3;
-    // TODO: use log_blowup = 1 when native multi_observe chip reduces max constraint degree to 3
-    let log_blowup = 2;
-
-    let fri_params = if matches!(std::env::var("OPENVM_FAST_TEST"), Ok(x) if &x == "1") {
-        FriParameters {
-            log_blowup,
-            log_final_poly_len: 0,
-            num_queries: 10,
-            proof_of_work_bits: 0,
+        for (i, seg) in res.iter().enumerate() {
+            println!("=> segment {:?} metrics: {:?}", i, seg.metrics);
         }
-    } else {
-        standard_fri_params_with_100_bits_conjectured_security(log_blowup)
-    };
+        let poseidon2_max_constraint_degree = 3;
+        // TODO: use log_blowup = 1 when native multi_observe chip reduces max constraint degree to 3
+        let log_blowup = 2;
 
-    let engine = BabyBearPoseidon2Engine::new(fri_params);
-    let mut config = NativeConfig::aggregation(0, poseidon2_max_constraint_degree);
-    config.system.memory_config.max_access_adapter_n = 16;
+        let fri_params = if matches!(std::env::var("OPENVM_FAST_TEST"), Ok(x) if &x == "1") {
+            FriParameters {
+                log_blowup,
+                log_final_poly_len: 0,
+                num_queries: 10,
+                proof_of_work_bits: 0,
+            }
+        } else {
+            standard_fri_params_with_100_bits_conjectured_security(log_blowup)
+        };
 
-    let vm = VirtualMachine::new(engine, config);
+        let engine = BabyBearPoseidon2Engine::new(fri_params);
+        let mut config = NativeConfig::aggregation(0, poseidon2_max_constraint_degree);
+        config.system.memory_config.max_access_adapter_n = 16;
 
-    let pk = vm.keygen();
-    let result = vm.execute_and_generate(program, witness_stream).unwrap();
-    let proofs = vm.prove(&pk, result);
-    for proof in proofs {
-        verify_single(&vm.engine, &pk.get_vk(), &proof).expect("Verification failed");
+        let vm = VirtualMachine::new(engine, config);
+
+        let pk = vm.keygen();
+        let result = vm.execute_and_generate(program, witness_stream).unwrap();
+        let proofs = vm.prove(&pk, result);
+        for proof in proofs {
+            verify_single(&vm.engine, &pk.get_vk(), &proof).expect("Verification failed");
+        }
     }
-}
 
-#[test]
-pub fn test_zkvm_proof_verifier_from_bincode_exports() {
-    let stack_size = 64 * 1024 * 1024; // 64 MB
+    #[test]
+    pub fn test_zkvm_proof_verifier_from_bincode_exports() {
+        let stack_size = 64 * 1024 * 1024; // 64 MB
 
-    let handler = std::thread::Builder::new()
-        .stack_size(stack_size)
-        .spawn(inner_test_thread)
-        .expect("Failed to spawn thread");
+        // Set up tracing:
+        let env_filter =
+            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info,p3_=warn"));
+        let subscriber = Registry::default()
+            .with(env_filter)
+            .with(ForestLayer::default())
+            .with(MetricsLayer::new());
+        tracing::subscriber::set_global_default(subscriber).unwrap();
 
-    handler.join().expect("Thread panicked");
+        let handler = std::thread::Builder::new()
+            .stack_size(stack_size)
+            .spawn(inner_test_thread)
+            .expect("Failed to spawn thread");
+
+        handler.join().expect("Thread panicked");
+    }
 }

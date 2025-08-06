@@ -324,7 +324,6 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
     builder: &mut Builder<C>,
     input: QueryPhaseVerifierInputVariable<C>,
 ) {
-    builder.cycle_tracker_start("Before checking opening proofs");
     let inv_2 = builder.constant(C::F::from_canonical_u32(0x3c000001));
     let two_adic_generators_inverses: Array<C, Felt<C::F>> = builder.dyn_array(28);
     for (index, val) in [
@@ -336,12 +335,13 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
     .iter()
     .enumerate()
     {
-        let generator = builder.constant(C::F::from_canonical_usize(*val).inverse());
-        builder.set_value(&two_adic_generators_inverses, index, generator);
+        let generator_inverse = builder.constant(C::F::from_canonical_usize(*val).inverse());
+        builder.set_value(&two_adic_generators_inverses, index, generator_inverse);
     }
     let zero: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
     let zero_flag = builder.constant(C::N::ZERO);
-    let two: Var<C::N> = builder.constant(C::N::from_canonical_usize(2));
+    let two: Var<C::N> = builder.constant(C::N::TWO);
+    let two_felt: Felt<C::F> = builder.constant(C::F::TWO);
 
     // encode_small
     let final_message = &input.proof.final_message;
@@ -392,11 +392,11 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
         input.proof.commits.len() + Usize::from(1),
         input.fold_challenges.len(),
     );
-    builder.cycle_tracker_end("Before checking opening proofs");
 
-    builder.cycle_tracker_start("Build round context");
     let rounds_context: Array<C, RoundContextVariable<C>> = builder.dyn_array(input.rounds.len());
     let batch_coeffs_offset: Var<C::N> = builder.constant(C::N::ZERO);
+
+    builder.cycle_tracker_start("Construct round context");
     iter_zip!(builder, input.rounds, rounds_context).for_each(|ptr_vec, builder| {
         let round = builder.iter_ptr_get(&input.rounds, ptr_vec[0]);
         let opened_values_buffer: Array<C, Array<C, Felt<C::F>>> =
@@ -488,13 +488,10 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
         };
         builder.iter_ptr_set(&rounds_context, ptr_vec[1], round_context);
     });
-    builder.cycle_tracker_end("Build round context");
+    builder.cycle_tracker_end("Construct round context");
 
-    builder.cycle_tracker_start("Checking opening proofs");
     iter_zip!(builder, input.indices, input.proof.query_opening_proof).for_each(
         |ptr_vec, builder| {
-            builder.cycle_tracker_start("Checking opening proofs (per index)");
-            builder.cycle_tracker_start("Prepare");
             // TODO: change type of input.indices to be `Array<C, Array<C, Var<C::N>>>`
             let idx = builder.iter_ptr_get(&input.indices, ptr_vec[0]);
             let idx = builder.unsafe_cast_var_to_felt(idx);
@@ -519,9 +516,8 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                 builder.set_value(&reduced_codeword_by_height, ptr_vec[0], zero_codeword);
             });
             let query = builder.iter_ptr_get(&input.proof.query_opening_proof, ptr_vec[1]);
-            builder.cycle_tracker_end("Prepare");
 
-            builder.cycle_tracker_start("MMCS Verify Loop Rounds");
+            builder.cycle_tracker_start("Batching and first FRI round");
             iter_zip!(builder, query.input_proofs, input.rounds, rounds_context).for_each(
                 |ptr_vec, builder| {
                     let batch_opening = builder.iter_ptr_get(&query.input_proofs, ptr_vec[0]);
@@ -605,9 +601,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                     mmcs_verify_batch(builder, mmcs_verifier_input);
                 },
             );
-            builder.cycle_tracker_end("MMCS Verify Loop Rounds");
-
-            builder.cycle_tracker_start("Initial folding");
+            builder.cycle_tracker_end("Batching and first FRI round");
             let opening_ext = query.commit_phase_openings;
 
             // fold 1st codeword
@@ -635,13 +629,11 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
             // check commit phases
             let commits = &input.proof.commits;
             builder.assert_eq::<Var<C::N>>(commits.len(), opening_ext.len());
-            builder.cycle_tracker_end("Initial folding");
             builder.cycle_tracker_start("FRI rounds");
-            builder.range(0, commits.len()).for_each(|i_vec, builder| {
-                builder.cycle_tracker_start("FRI round");
-                let i = i_vec[0];
-                let commit = builder.get(&commits, i);
-                let commit_phase_step = builder.get(&opening_ext, i);
+            let i: Var<C::N> = builder.constant(C::N::ZERO);
+            iter_zip!(builder, commits, opening_ext).for_each(|ptr_vec, builder| {
+                let commit = builder.iter_ptr_get(&commits, ptr_vec[0]);
+                let commit_phase_step = builder.iter_ptr_get(&opening_ext, ptr_vec[1]);
                 let i_plus_one = builder.eval_expr(i + Usize::from(1));
 
                 let sibling_value = commit_phase_step.sibling_value;
@@ -654,12 +646,24 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                 let new_involved_packed_codeword =
                     builder.get(&reduced_codeword_by_height, log2_height.clone());
 
+                // Note that previous coeff is
+                //   1/2 * omega^{-order(level + 2) * (index+2^level*prev_bit)}
+                // = 1/2 * omega^{-2^(MAX - (level + 2)) * (index+2^level*prev_bit)}
+                // So prev ^ 2 = 1/4 * omega^{-2^(MAX - (level + 2)) * 2 * (index+2^level*prev_bit)}
+                //             = 1/4 * omega^{-2^(MAX - (level + 1)) * (index+2^level*prev_bit)}
+                //             = 1/4 * omega^{-2^(MAX - (level + 1)) * index - 2^(MAX - (level + 1)) * 2^level*prev_bit}
+                //             = 1/2 * curr * omeag^{- 2^(MAX - 1) * prev_bit}
+                //             = 1/2 * curr * omega^{- order(1) * prev_bit}
+                // curr = 2 * prev^2 * omega^{order(1) * prev_bit} = 2 * prev^2 * (-1)^{prev_bit}
+                builder.assign(&coeff, coeff * coeff * two_felt);
+
                 builder.if_eq(folded_idx, Usize::from(0)).then_or_else(
                     |builder| {
                         builder.assign(&folded, folded + new_involved_packed_codeword.low);
                     },
                     |builder| {
                         builder.assign(&folded, folded + new_involved_packed_codeword.high);
+                        builder.assign(&coeff, -coeff);
                     },
                 );
 
@@ -687,23 +691,14 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                 ext_mmcs_verify_batch::<C>(builder, ext_mmcs_verifier_input);
 
                 let r = builder.get(&input.fold_challenges, i_plus_one);
-                let coeff = verifier_folding_coeffs_level(
-                    builder,
-                    &two_adic_generators_inverses,
-                    log2_height,
-                    &idx_pair,
-                    inv_2,
-                );
                 let left = builder.get(&leafs, 0);
                 let right = builder.get(&leafs, 1);
                 let new_folded =
                     codeword_fold_with_challenge(builder, left, right, r, coeff, inv_2);
                 builder.assign(&folded, new_folded);
-                builder.cycle_tracker_end("FRI round");
+                builder.assign(&i, i_plus_one);
             });
             builder.cycle_tracker_end("FRI rounds");
-
-            builder.cycle_tracker_start("Finalizing");
             // assert that final_value[i] = folded
             let final_idx: Var<C::N> = builder.constant(C::N::ZERO);
             builder
@@ -718,13 +713,8 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                 });
             let final_value = builder.get(&final_codeword.values, final_idx);
             builder.assert_eq::<Ext<C::F, C::EF>>(final_value, folded);
-            builder.cycle_tracker_end("Finalizing");
-            builder.cycle_tracker_end("Checking opening proofs (per index)");
         },
     );
-    builder.cycle_tracker_end("Checking opening proofs");
-
-    builder.cycle_tracker_start("Checking sumcheck proofs");
     // 1. check initial claim match with first round sumcheck value
     let batch_coeffs_offset: Var<C::N> = builder.constant(C::N::ZERO);
     let expected_sum: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
@@ -771,9 +761,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
             let right: Ext<C::F, C::EF> = builder.eval(eval0 + eval1);
             builder.assert_eq::<Ext<C::F, C::EF>>(left, right);
         });
-    builder.cycle_tracker_end("Checking sumcheck proofs");
 
-    builder.cycle_tracker_start("Checking final evaluations");
     // 3. check final evaluation are correct
     let final_evals = builder
         .get(&input.proof.sumcheck_proof, fold_len_minus_one.clone())
@@ -821,7 +809,6 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
     });
     builder.assert_eq::<Var<C::N>>(j, input.proof.final_message.len());
     builder.assert_eq::<Ext<C::F, C::EF>>(left, right);
-    builder.cycle_tracker_end("Checking final evaluations");
 }
 
 #[cfg(test)]

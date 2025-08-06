@@ -82,6 +82,7 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
     zkvm_proof_input: ZKVMProofInputVariable<C>,
     vk: &ZKVMVerifier<E, Pcs>,
 ) {
+    builder.cycle_tracker_start("Before PCS");
     let mut challenger = DuplexChallengerVariable::new(builder);
     transcript_observe_label(builder, &mut challenger, b"riscv");
 
@@ -202,7 +203,9 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
         });
 
     // iterate over all chips
+    builder.cycle_tracker_start("Iterate over all chips");
     for (i, chip_vk) in vk.vk.circuit_vks.values().enumerate() {
+        builder.cycle_tracker_start("Iterate over one chip");
         let chip_id: Var<C::N> = builder.get(&chip_indices, num_chips_verified.get_var());
         builder.if_eq(chip_id, RVar::from(i)).then(|builder| {
             let chip_proof =
@@ -211,7 +214,8 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
 
             builder.cycle_tracker_start("Verify chip proof");
             let input_opening_point = if chip_vk.get_cs().is_opcode_circuit() {
-                verify_opcode_proof(
+                builder.cycle_tracker_start("Verify opcode proof");
+                let ret = verify_opcode_proof(
                     builder,
                     &mut challenger,
                     &chip_proof,
@@ -219,9 +223,12 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
                     &challenges,
                     &chip_vk,
                     &mut unipoly_extrapolator,
-                )
+                );
+                builder.cycle_tracker_end("Verify opcode proof");
+                ret
             } else {
-                verify_table_proof(
+                builder.cycle_tracker_start("Verify table proof");
+                let ret = verify_table_proof(
                     builder,
                     &mut challenger,
                     &chip_proof,
@@ -229,7 +236,9 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
                     &challenges,
                     &chip_vk,
                     &mut unipoly_extrapolator,
-                )
+                );
+                builder.cycle_tracker_end("Verify table proof");
+                ret
             };
             builder.cycle_tracker_end("Verify chip proof");
 
@@ -306,7 +315,10 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
 
             builder.inc(&num_chips_verified);
         });
+        builder.cycle_tracker_end("Iterate over one chip");
     }
+    builder.cycle_tracker_end("Iterate over all chips");
+
     builder.assert_usize_eq(num_chips_have_fixed, Usize::from(num_fixed_opening));
     builder.assert_eq::<Usize<_>>(num_chips_verified, chip_indices.len());
 
@@ -342,6 +354,7 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
             },
         );
     }
+    builder.cycle_tracker_end("Before PCS");
 
     builder.cycle_tracker_start("Basefold verify");
     batch_verify(
@@ -354,6 +367,7 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
     );
     builder.cycle_tracker_end("Basefold verify");
 
+    builder.cycle_tracker_start("After PCS");
     let empty_arr: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(0);
     let initial_global_state = eval_ceno_expr_with_instance(
         builder,
@@ -376,6 +390,7 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
         &vk.vk.finalize_global_state_expr,
     );
     builder.assign(&prod_r, prod_r * finalize_global_state);
+    builder.cycle_tracker_end("After PCS");
 
     /* TODO: Temporarily disable product check for missing subcircuits
         builder.assert_ext_eq(prod_r, prod_w);
@@ -488,7 +503,7 @@ pub fn verify_opcode_proof<C: Config>(
     let main_sel_subclaim_max_degree: Felt<C::F> = builder.constant(C::F::from_canonical_u32(
         SEL_DEGREE.max(max_non_lc_degree + 1) as u32,
     ));
-    builder.cycle_tracker_start("main sumcheck");
+    // builder.cycle_tracker_start("main sumcheck");
     let (input_opening_point, expected_evaluation) = iop_verifier_state_verify(
         builder,
         challenger,
@@ -498,7 +513,7 @@ pub fn verify_opcode_proof<C: Config>(
         main_sel_subclaim_max_degree,
         unipoly_extrapolator,
     );
-    builder.cycle_tracker_end("main sumcheck");
+    // builder.cycle_tracker_end("main sumcheck");
 
     // sel(rt, t)
     let sel = eq_eval_less_or_equal_than(
