@@ -292,7 +292,7 @@ mod tests {
         // _debug: print out assembly
         /*
         println!("=> Assembly code:");
-        prinln!("{asm_code}");
+        println!("{asm_code}");
         return ();
         */
 
