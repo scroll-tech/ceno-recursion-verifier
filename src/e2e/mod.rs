@@ -224,7 +224,6 @@ mod tests {
     use crate::zkvm_verifier::binding::{E, F};
     use ceno_zkvm::scheme::ZKVMProof;
     use ceno_zkvm::structs::ZKVMVerifyingKey;
-    use ff_ext::BabyBearExt4;
     use mpcs::{Basefold, BasefoldRSParams};
     use openvm_circuit::arch::verify_single;
     use openvm_circuit::arch::VirtualMachine;
@@ -245,11 +244,11 @@ mod tests {
         let proof_path = "./src/e2e/encoded/proof.bin";
         let vk_path = "./src/e2e/encoded/vk.bin";
 
-        let zkvm_proof: ZKVMProof<BabyBearExt4, Basefold<BabyBearExt4, BasefoldRSParams>> =
+        let zkvm_proof: ZKVMProof<E, Basefold<E, BasefoldRSParams>> =
             bincode::deserialize_from(File::open(proof_path).expect("Failed to open proof file"))
                 .expect("Failed to deserialize proof file");
 
-        let vk: ZKVMVerifyingKey<BabyBearExt4, Basefold<BabyBearExt4, BasefoldRSParams>> =
+        let vk: ZKVMVerifyingKey<E, Basefold<E, BasefoldRSParams>> =
             bincode::deserialize_from(File::open(vk_path).expect("Failed to open vk file"))
                 .expect("Failed to deserialize vk file");
 
