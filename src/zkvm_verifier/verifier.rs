@@ -214,8 +214,7 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
 
             builder.cycle_tracker_start("Verify chip proof");
             let input_opening_point = if chip_vk.get_cs().is_opcode_circuit() {
-                builder.cycle_tracker_start("Verify opcode proof");
-                let ret = verify_opcode_proof(
+                verify_opcode_proof(
                     builder,
                     &mut challenger,
                     &chip_proof,
@@ -223,12 +222,9 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
                     &challenges,
                     &chip_vk,
                     &mut unipoly_extrapolator,
-                );
-                builder.cycle_tracker_end("Verify opcode proof");
-                ret
+                )
             } else {
-                builder.cycle_tracker_start("Verify table proof");
-                let ret = verify_table_proof(
+                verify_table_proof(
                     builder,
                     &mut challenger,
                     &chip_proof,
@@ -236,9 +232,7 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
                     &challenges,
                     &chip_vk,
                     &mut unipoly_extrapolator,
-                );
-                builder.cycle_tracker_end("Verify table proof");
-                ret
+                )
             };
             builder.cycle_tracker_end("Verify chip proof");
 
