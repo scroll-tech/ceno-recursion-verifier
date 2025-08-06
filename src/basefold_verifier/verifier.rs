@@ -174,7 +174,6 @@ pub mod tests {
     use ceno_transcript::{BasicTranscript, Transcript};
     use ff_ext::{BabyBearExt4, FromUniformBytes};
     use itertools::Itertools;
-    use metrics_tracing_context::MetricsLayer;
     use mpcs::{
         pcs_batch_commit, pcs_setup, pcs_trim, util::hash::write_digest_to_transcript,
         BasefoldDefault, PolynomialCommitmentScheme,
@@ -193,8 +192,6 @@ pub mod tests {
     use p3_field::FieldAlgebra;
     use rand::thread_rng;
     use serde::Deserialize;
-    use tracing_forest::ForestLayer;
-    use tracing_subscriber::{layer::SubscriberExt, EnvFilter, Registry};
 
     type F = BabyBear;
     type E = BabyBearExt4;
