@@ -399,15 +399,6 @@ pub mod tests {
             .with_profiling();
         let config = NativeConfig::new(system_config, Native);
 
-        // Set up tracing:
-        let env_filter =
-            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info,p3_=warn"));
-        let subscriber = Registry::default()
-            .with(env_filter)
-            .with(ForestLayer::default())
-            .with(MetricsLayer::new());
-        tracing::subscriber::set_global_default(subscriber).unwrap();
-
         let executor = VmExecutor::<BabyBear, NativeConfig>::new(config);
         executor.execute(program.clone(), witness.clone()).unwrap();
 

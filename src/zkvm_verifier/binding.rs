@@ -223,15 +223,21 @@ impl Hintable<InnerConfig> for TowerProofInput {
         let proofs = builder.dyn_array(num_proofs.clone());
         iter_zip!(builder, proofs).for_each(|idx_vec, builder| {
             let ptr = idx_vec[0];
+            builder.cycle_tracker_start("IOPProver Message Vec read");
             let proof = IOPProverMessageVec::read(builder);
+            builder.cycle_tracker_end("IOPProver Message Vec read");
             builder.iter_ptr_set(&proofs, ptr, proof);
         });
 
         let num_prod_specs = Usize::Var(usize::read(builder));
+        builder.cycle_tracker_start("Product Specifications Evaluation read");
         let prod_specs_eval = ThreeDimensionalVector::read(builder);
+        builder.cycle_tracker_end("Product Specifications Evaluation read");
 
         let num_logup_specs = Usize::Var(usize::read(builder));
+        builder.cycle_tracker_start("Logup Specifications Evaluation read");
         let logup_specs_eval = ThreeDimensionalVector::read(builder);
+        builder.cycle_tracker_end("Logup Specifications Evaluation read");
 
         TowerProofInputVariable {
             num_proofs,
@@ -247,15 +253,18 @@ impl Hintable<InnerConfig> for TowerProofInput {
         let mut stream = Vec::new();
         stream.extend(<usize as Hintable<InnerConfig>>::write(&self.num_proofs));
         for p in &self.proofs {
+            println!("IOP Proof length {}", p.data.len() * 4);
             stream.extend(p.write());
         }
         stream.extend(<usize as Hintable<InnerConfig>>::write(
             &self.num_prod_specs,
         ));
+        println!("Prod spec length {}", self.prod_specs_eval.data.len() * 4);
         stream.extend(self.prod_specs_eval.write());
         stream.extend(<usize as Hintable<InnerConfig>>::write(
             &self.num_logup_specs,
         ));
+        println!("Logup spec length {}", self.logup_specs_eval.data.len() * 4);
         stream.extend(self.logup_specs_eval.write());
 
         stream
