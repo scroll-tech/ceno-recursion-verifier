@@ -5,10 +5,6 @@ use crate::basefold_verifier::basefold::{
 use crate::basefold_verifier::query_phase::{
     QueryPhaseVerifierInput, QueryPhaseVerifierInputVariable,
 };
-use crate::tower_verifier::binding::{
-    IOPProverMessageVec, IOPProverMessageVecVariable, ThreeDimensionalVecVariable,
-    ThreeDimensionalVector,
-};
 use crate::{
     arithmetics::ceil_log2,
     tower_verifier::binding::{IOPProverMessage, IOPProverMessageVariable},
@@ -37,7 +33,6 @@ pub struct ZKVMProofInputVariable<C: Config> {
     pub pi_evals: Array<C, Ext<C::F, C::EF>>,
     pub chip_proofs: Array<C, ZKVMChipProofInputVariable<C>>,
     pub max_num_var: Var<C::N>,
-    pub max_width: Var<C::N>,
     pub witin_commit: BasefoldCommitmentVariable<C>,
     pub witin_perm: Array<C, Var<C::N>>,
     pub fixed_perm: Array<C, Var<C::N>>,
@@ -47,11 +42,11 @@ pub struct ZKVMProofInputVariable<C: Config> {
 #[derive(DslVariable, Clone)]
 pub struct TowerProofInputVariable<C: Config> {
     pub num_proofs: Usize<C::N>,
-    pub proofs: Array<C, IOPProverMessageVecVariable<C>>,
+    pub proofs: Array<C, Array<C, IOPProverMessageVariable<C>>>,
     pub num_prod_specs: Usize<C::N>,
-    pub prod_specs_eval: ThreeDimensionalVecVariable<C>,
+    pub prod_specs_eval: Array<C, Array<C, Array<C, Ext<C::F, C::EF>>>>,
     pub num_logup_specs: Usize<C::N>,
-    pub logup_specs_eval: ThreeDimensionalVecVariable<C>,
+    pub logup_specs_eval: Array<C, Array<C, Array<C, Ext<C::F, C::EF>>>>,
 }
 
 #[derive(DslVariable, Clone)]
@@ -72,7 +67,7 @@ pub struct ZKVMChipProofInputVariable<C: Config> {
 
     pub tower_proof: TowerProofInputVariable<C>,
 
-    pub main_sel_sumcheck_proofs: IOPProverMessageVecVariable<C>,
+    pub main_sel_sumcheck_proofs: Array<C, IOPProverMessageVariable<C>>,
     pub wits_in_evals: Array<C, Ext<C::F, C::EF>>,
     pub fixed_in_evals: Array<C, Ext<C::F, C::EF>>,
 }
@@ -90,36 +85,15 @@ impl Hintable<InnerConfig> for ZKVMProofInput {
     type HintVariable = ZKVMProofInputVariable<InnerConfig>;
 
     fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
-        builder.cycle_tracker_start("read raw pi");
         let raw_pi = Vec::<Vec<F>>::read(builder);
-        builder.cycle_tracker_end("read raw pi");
-        builder.cycle_tracker_start("read raw pi num vars");
         let raw_pi_num_variables = Vec::<usize>::read(builder);
-        builder.cycle_tracker_end("read raw pi num vars");
-        builder.cycle_tracker_start("read pi evals");
         let pi_evals = Vec::<E>::read(builder);
-        builder.cycle_tracker_end("read pi evals");
-        builder.cycle_tracker_start("read chip proofs");
         let chip_proofs = Vec::<ZKVMChipProofInput>::read(builder);
-        builder.cycle_tracker_end("read chip proofs");
-        builder.cycle_tracker_start("read max num var");
         let max_num_var = usize::read(builder);
-        builder.cycle_tracker_end("read max num var");
-        builder.cycle_tracker_start("read max width");
-        let max_width = usize::read(builder);
-        builder.cycle_tracker_end("read max width");
-        builder.cycle_tracker_start("read witin commit");
         let witin_commit = BasefoldCommitment::read(builder);
-        builder.cycle_tracker_end("read witin commit");
-        builder.cycle_tracker_start("read witin perm");
         let witin_perm = Vec::<usize>::read(builder);
-        builder.cycle_tracker_end("read witin perm");
-        builder.cycle_tracker_start("read fixed perm");
         let fixed_perm = Vec::<usize>::read(builder);
-        builder.cycle_tracker_end("read fixed perm");
-        builder.cycle_tracker_start("read pcs proof");
         let pcs_proof = BasefoldProof::read(builder);
-        builder.cycle_tracker_end("read pcs proof");
 
         ZKVMProofInputVariable {
             raw_pi,
@@ -127,7 +101,6 @@ impl Hintable<InnerConfig> for ZKVMProofInput {
             pi_evals,
             chip_proofs,
             max_num_var,
-            max_width,
             witin_commit,
             witin_perm,
             fixed_perm,
@@ -147,30 +120,13 @@ impl Hintable<InnerConfig> for ZKVMProofInput {
             .iter()
             .map(|proof| ceil_log2(proof.num_instances).max(1))
             .collect::<Vec<_>>();
-        let witin_max_widths = self
-            .chip_proofs
-            .iter()
-            .map(|proof| proof.wits_in_evals.len().max(1))
-            .collect::<Vec<_>>();
         let fixed_num_vars = self
             .chip_proofs
             .iter()
             .filter(|proof| proof.fixed_in_evals.len() > 0)
             .map(|proof| ceil_log2(proof.num_instances).max(1))
             .collect::<Vec<_>>();
-        let fixed_max_widths = self
-            .chip_proofs
-            .iter()
-            .filter(|proof| proof.fixed_in_evals.len() > 0)
-            .map(|proof| proof.fixed_in_evals.len())
-            .collect::<Vec<_>>();
         let max_num_var = witin_num_vars.iter().map(|x| *x).max().unwrap_or(0);
-        let max_width = witin_max_widths
-            .iter()
-            .chain(fixed_max_widths.iter())
-            .map(|x| *x)
-            .max()
-            .unwrap_or(0);
         let get_perm = |v: Vec<usize>| {
             let mut perm = vec![0; v.len()];
             v.into_iter()
@@ -193,7 +149,6 @@ impl Hintable<InnerConfig> for ZKVMProofInput {
         stream.extend(self.pi_evals.write());
         stream.extend(self.chip_proofs.write());
         stream.extend(<usize as Hintable<InnerConfig>>::write(&max_num_var));
-        stream.extend(<usize as Hintable<InnerConfig>>::write(&max_width));
         stream.extend(self.witin_commit.write());
         stream.extend(witin_perm.write());
         stream.extend(fixed_perm.write());
@@ -206,13 +161,13 @@ impl Hintable<InnerConfig> for ZKVMProofInput {
 #[derive(Default, Debug)]
 pub struct TowerProofInput {
     pub num_proofs: usize,
-    pub proofs: Vec<IOPProverMessageVec>,
+    pub proofs: Vec<Vec<IOPProverMessage>>,
     // specs -> layers -> evals
     pub num_prod_specs: usize,
-    pub prod_specs_eval: ThreeDimensionalVector,
+    pub prod_specs_eval: Vec<Vec<Vec<E>>>,
     // specs -> layers -> evals
     pub num_logup_specs: usize,
-    pub logup_specs_eval: ThreeDimensionalVector,
+    pub logup_specs_eval: Vec<Vec<Vec<E>>>,
 }
 
 impl Hintable<InnerConfig> for TowerProofInput {
@@ -223,21 +178,25 @@ impl Hintable<InnerConfig> for TowerProofInput {
         let proofs = builder.dyn_array(num_proofs.clone());
         iter_zip!(builder, proofs).for_each(|idx_vec, builder| {
             let ptr = idx_vec[0];
-            builder.cycle_tracker_start("IOPProver Message Vec read");
-            let proof = IOPProverMessageVec::read(builder);
-            builder.cycle_tracker_end("IOPProver Message Vec read");
+            let proof = Vec::<IOPProverMessage>::read(builder);
             builder.iter_ptr_set(&proofs, ptr, proof);
         });
 
         let num_prod_specs = Usize::Var(usize::read(builder));
-        builder.cycle_tracker_start("Product Specifications Evaluation read");
-        let prod_specs_eval = ThreeDimensionalVector::read(builder);
-        builder.cycle_tracker_end("Product Specifications Evaluation read");
+        let prod_specs_eval = builder.dyn_array(num_prod_specs.clone());
+        iter_zip!(builder, prod_specs_eval).for_each(|idx_vec, builder| {
+            let ptr = idx_vec[0];
+            let evals = Vec::<Vec<E>>::read(builder);
+            builder.iter_ptr_set(&prod_specs_eval, ptr, evals);
+        });
 
         let num_logup_specs = Usize::Var(usize::read(builder));
-        builder.cycle_tracker_start("Logup Specifications Evaluation read");
-        let logup_specs_eval = ThreeDimensionalVector::read(builder);
-        builder.cycle_tracker_end("Logup Specifications Evaluation read");
+        let logup_specs_eval = builder.dyn_array(num_logup_specs.clone());
+        iter_zip!(builder, logup_specs_eval).for_each(|idx_vec, builder| {
+            let ptr = idx_vec[0];
+            let evals = Vec::<Vec<E>>::read(builder);
+            builder.iter_ptr_set(&logup_specs_eval, ptr, evals);
+        });
 
         TowerProofInputVariable {
             num_proofs,
@@ -258,12 +217,15 @@ impl Hintable<InnerConfig> for TowerProofInput {
         stream.extend(<usize as Hintable<InnerConfig>>::write(
             &self.num_prod_specs,
         ));
-        stream.extend(self.prod_specs_eval.write());
+        for evals in &self.prod_specs_eval {
+            stream.extend(evals.write());
+        }
         stream.extend(<usize as Hintable<InnerConfig>>::write(
             &self.num_logup_specs,
         ));
-        stream.extend(self.logup_specs_eval.write());
-
+        for evals in &self.logup_specs_eval {
+            stream.extend(evals.write());
+        }
         stream
     }
 }
@@ -283,7 +245,7 @@ pub struct ZKVMChipProofInput {
     pub tower_proof: TowerProofInput,
 
     // main constraint and select sumcheck proof
-    pub main_sumcheck_proofs: IOPProverMessageVec,
+    pub main_sumcheck_proofs: Vec<IOPProverMessage>,
     pub wits_in_evals: Vec<E>,
     pub fixed_in_evals: Vec<E>,
 }
@@ -294,7 +256,6 @@ impl Hintable<InnerConfig> for ZKVMChipProofInput {
     type HintVariable = ZKVMChipProofInputVariable<InnerConfig>;
 
     fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
-        builder.cycle_tracker_start("Read chip proof");
         let idx = Usize::Var(usize::read(builder));
         let idx_felt = F::read(builder);
         let num_instances = Usize::Var(usize::read(builder));
@@ -309,13 +270,10 @@ impl Hintable<InnerConfig> for ZKVMChipProofInput {
         let record_w_out_evals = Vec::<Vec<E>>::read(builder);
         let record_lk_out_evals = Vec::<Vec<E>>::read(builder);
 
-        builder.cycle_tracker_start("Tower proof");
         let tower_proof = TowerProofInput::read(builder);
-        builder.cycle_tracker_end("Tower proof");
-        let main_sel_sumcheck_proofs = IOPProverMessageVec::read(builder);
+        let main_sel_sumcheck_proofs = Vec::<IOPProverMessage>::read(builder);
         let wits_in_evals = Vec::<E>::read(builder);
         let fixed_in_evals = Vec::<E>::read(builder);
-        builder.cycle_tracker_end("Read chip proof");
 
         ZKVMChipProofInputVariable {
             idx,
