@@ -114,6 +114,7 @@ pub fn verifier_folding_coeffs_level<C: Config>(
 ) -> Felt<C::F> {
     let level_plus_one = builder.eval::<Var<C::N>, _>(level + C::N::ONE);
     let g_inv = builder.get(two_adic_generators_inverses, level_plus_one);
+
     let g_inv_index = pow_felt_bits(builder, g_inv, index_bits, level.into());
 
     builder.eval(g_inv_index * two_inv)
