@@ -197,13 +197,12 @@ pub fn parse_zkvm_proof_import(
     }
 }
 
-fn build_zkvm_verifier_program(
+/// Build Ceno's zkVM verifier program from vk in OpenVM's eDSL
+pub fn build_zkvm_verifier_program(
     vk: &ZKVMVerifyingKey<E, Basefold<E, BasefoldRSParams>>,
 ) -> Program<F> {
-    // Build Ceno zkVM proof verifier in OpenVM DSL
     let mut builder = AsmBuilder::<F, E>::default();
 
-    // Obtain witness inputs
     let zkvm_proof_input_variables = ZKVMProofInput::read(&mut builder);
     verify_zkvm_proof(&mut builder, zkvm_proof_input_variables, vk);
     builder.halt();
@@ -217,6 +216,7 @@ fn build_zkvm_verifier_program(
     let program: Program<F> = convert_program(asm_code, options);
     program
 }
+
 #[cfg(test)]
 mod tests {
     use crate::e2e::build_zkvm_verifier_program;
