@@ -1,19 +1,19 @@
 use crate::basefold_verifier::basefold::BasefoldCommitment;
-use crate::tower_verifier::binding::{IOPProverMessage, IOPProverMessageVec};
-use crate::zkvm_verifier::binding::{TowerProofInput, ZKVMChipProofInput, ZKVMProofInput, E, F};
+use crate::tower_verifier::binding::IOPProverMessage;
+use crate::zkvm_verifier::binding::{TowerProofInput, ZKVMProofInput, ZKVMChipProofInput, E, F};
 use crate::zkvm_verifier::verifier::verify_zkvm_proof;
 
+use mpcs::{Basefold, BasefoldRSParams};
 use ceno_zkvm::scheme::ZKVMProof;
 use ceno_zkvm::structs::ZKVMVerifyingKey;
-use mpcs::{Basefold, BasefoldRSParams};
 
+use openvm_native_recursion::hints::Hintable;
 use openvm_circuit::arch::instructions::program::Program;
 use openvm_native_compiler::{
     asm::AsmBuilder,
     conversion::{convert_program, CompilerOptions},
     prelude::AsmCompiler,
 };
-use openvm_native_recursion::hints::Hintable;
 
 pub fn parse_zkvm_proof_import(
     zkvm_proof: ZKVMProof<E, Basefold<E, BasefoldRSParams>>,
@@ -81,11 +81,10 @@ pub fn parse_zkvm_proof_import(
 
         // Tower proof
         let mut tower_proof = TowerProofInput::default();
-        let mut proofs: Vec<IOPProverMessageVec> = vec![];
+        let mut proofs: Vec<Vec<IOPProverMessage>> = vec![];
 
         for proof in &chip_proof.tower_proof.proofs {
-            let mut proof_messages: Vec<E> = vec![];
-            let mut prover_message_size = None;
+            let mut proof_messages: Vec<IOPProverMessage> = vec![];
             for m in proof {
                 let mut evaluations_vec: Vec<E> = vec![];
 
@@ -94,17 +93,11 @@ pub fn parse_zkvm_proof_import(
                         serde_json::from_value(serde_json::to_value(v.clone()).unwrap()).unwrap();
                     evaluations_vec.push(v_e);
                 }
-                if let Some(size) = prover_message_size {
-                    assert_eq!(size, evaluations_vec.len());
-                } else {
-                    prover_message_size = Some(evaluations_vec.len());
-                }
-                proof_messages.extend_from_slice(&evaluations_vec);
+                proof_messages.push(IOPProverMessage {
+                    evaluations: evaluations_vec,
+                });
             }
-            proofs.push(IOPProverMessageVec {
-                prover_message_size: prover_message_size.unwrap(),
-                data: proof_messages,
-            });
+            proofs.push(proof_messages);
         }
         tower_proof.num_proofs = proofs.len();
         tower_proof.proofs = proofs;
@@ -125,7 +118,7 @@ pub fn parse_zkvm_proof_import(
             prod_specs_eval.push(inner_v);
         }
         tower_proof.num_prod_specs = prod_specs_eval.len();
-        tower_proof.prod_specs_eval = prod_specs_eval.into();
+        tower_proof.prod_specs_eval = prod_specs_eval;
 
         let mut logup_specs_eval: Vec<Vec<Vec<E>>> = vec![];
         for inner_val in &chip_proof.tower_proof.logup_specs_eval {
@@ -143,12 +136,11 @@ pub fn parse_zkvm_proof_import(
             logup_specs_eval.push(inner_v);
         }
         tower_proof.num_logup_specs = logup_specs_eval.len();
-        tower_proof.logup_specs_eval = logup_specs_eval.into();
+        tower_proof.logup_specs_eval = logup_specs_eval;
 
         // main constraint and select sumcheck proof
-        let main_sumcheck_proofs = if chip_proof.main_sumcheck_proofs.is_some() {
-            let mut main_sumcheck_proofs: Vec<E> = vec![];
-            let mut prover_message_size = None;
+        let mut main_sumcheck_proofs: Vec<IOPProverMessage> = vec![];
+        if chip_proof.main_sumcheck_proofs.is_some() {
             for m in chip_proof.main_sumcheck_proofs.as_ref().unwrap() {
                 let mut evaluations_vec: Vec<E> = vec![];
                 for v in &m.evaluations {
@@ -156,23 +148,11 @@ pub fn parse_zkvm_proof_import(
                         serde_json::from_value(serde_json::to_value(v.clone()).unwrap()).unwrap();
                     evaluations_vec.push(v_e);
                 }
-                main_sumcheck_proofs.extend_from_slice(&evaluations_vec);
-                if let Some(size) = prover_message_size {
-                    assert_eq!(size, evaluations_vec.len());
-                } else {
-                    prover_message_size = Some(evaluations_vec.len());
-                }
+                main_sumcheck_proofs.push(IOPProverMessage {
+                    evaluations: evaluations_vec,
+                });
             }
-            IOPProverMessageVec {
-                prover_message_size: prover_message_size.unwrap(),
-                data: main_sumcheck_proofs,
-            }
-        } else {
-            IOPProverMessageVec {
-                prover_message_size: 0,
-                data: vec![],
-            }
-        };
+        }
 
         let mut wits_in_evals: Vec<E> = vec![];
         for v in &chip_proof.wits_in_evals {
