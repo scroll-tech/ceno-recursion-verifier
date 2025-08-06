@@ -253,18 +253,15 @@ impl Hintable<InnerConfig> for TowerProofInput {
         let mut stream = Vec::new();
         stream.extend(<usize as Hintable<InnerConfig>>::write(&self.num_proofs));
         for p in &self.proofs {
-            println!("IOP Proof length {}", p.data.len() * 4);
             stream.extend(p.write());
         }
         stream.extend(<usize as Hintable<InnerConfig>>::write(
             &self.num_prod_specs,
         ));
-        println!("Prod spec length {}", self.prod_specs_eval.data.len() * 4);
         stream.extend(self.prod_specs_eval.write());
         stream.extend(<usize as Hintable<InnerConfig>>::write(
             &self.num_logup_specs,
         ));
-        println!("Logup spec length {}", self.logup_specs_eval.data.len() * 4);
         stream.extend(self.logup_specs_eval.write());
 
         stream
