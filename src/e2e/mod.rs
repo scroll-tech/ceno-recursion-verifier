@@ -1,5 +1,5 @@
 use crate::basefold_verifier::basefold::BasefoldCommitment;
-use crate::tower_verifier::binding::{IOPProverMessage, IOPProverMessageVec};
+use crate::tower_verifier::binding::IOPProverMessageVec;
 use crate::zkvm_verifier::binding::{TowerProofInput, ZKVMChipProofInput, ZKVMProofInput, E, F};
 use crate::zkvm_verifier::verifier::verify_zkvm_proof;
 
@@ -228,7 +228,10 @@ pub fn build_zkvm_verifier_program(
     builder.halt();
 
     // Compile program
+    #[cfg(feature = "bench-metrics")]
     let options = CompilerOptions::default().with_cycle_tracker();
+    #[cfg(not(feature = "bench-metrics"))]
+    let options = CompilerOptions::default();
     let mut compiler = AsmCompiler::new(options.word_size);
     compiler.build(builder.operations);
     let asm_code = compiler.code();
