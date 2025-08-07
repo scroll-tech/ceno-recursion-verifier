@@ -494,7 +494,7 @@ pub fn verify_opcode_proof<C: Config>(
     let main_sel_subclaim_max_degree: Felt<C::F> = builder.constant(C::F::from_canonical_u32(
         SEL_DEGREE.max(max_non_lc_degree + 1) as u32,
     ));
-    // builder.cycle_tracker_start("main sumcheck");
+    builder.cycle_tracker_start("main sumcheck");
     let (input_opening_point, expected_evaluation) = iop_verifier_state_verify(
         builder,
         challenger,
@@ -504,7 +504,7 @@ pub fn verify_opcode_proof<C: Config>(
         main_sel_subclaim_max_degree,
         unipoly_extrapolator,
     );
-    // builder.cycle_tracker_end("main sumcheck");
+    builder.cycle_tracker_end("main sumcheck");
 
     // sel(rt, t)
     let sel = eq_eval_less_or_equal_than(

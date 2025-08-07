@@ -411,7 +411,7 @@ pub fn verify_tower_proof<C: Config>(
             builder
                 .range(0, num_prod_spec.clone())
                 .for_each(|i_vec, builder| {
-                    // builder.cycle_tracker_start("accumulate expected eval for prod specs");
+                    builder.cycle_tracker_start("accumulate expected eval for prod specs");
                     let spec_index = i_vec[0];
                     let skip = builder.get(&should_skip, spec_index.clone());
                     let max_round = builder.get(&num_variables, spec_index);
@@ -445,7 +445,7 @@ pub fn verify_tower_proof<C: Config>(
 
                     builder.assign(&expected_evaluation, expected_evaluation + alpha_acc * prod);
                     builder.assign(&alpha_acc, alpha_acc * alpha.clone());
-                    // builder.cycle_tracker_end("accumulate expected eval for prod specs");
+                    builder.cycle_tracker_end("accumulate expected eval for prod specs");
                 });
 
             let num_variables_len = num_variables.len();
@@ -455,7 +455,7 @@ pub fn verify_tower_proof<C: Config>(
             builder
                 .range(0, num_logup_spec.clone())
                 .for_each(|i_vec, builder| {
-                    // builder.cycle_tracker_start("accumulate expected eval for logup specs");
+                    builder.cycle_tracker_start("accumulate expected eval for logup specs");
                     let spec_index = i_vec[0];
 
                     let alpha_numerator: Ext<<C as Config>::F, <C as Config>::EF> =
@@ -498,7 +498,7 @@ pub fn verify_tower_proof<C: Config>(
                     });
 
                     builder.assign(&expected_evaluation, expected_evaluation + prod);
-                    // builder.cycle_tracker_end("accumulate expected eval for logup specs");
+                    builder.cycle_tracker_end("accumulate expected eval for logup specs");
                 });
 
             builder.assign(&expected_evaluation, expected_evaluation * eq_e);
@@ -511,7 +511,7 @@ pub fn verify_tower_proof<C: Config>(
             // r_merge.len() == ceil_log2(num_product_fanin)
             transcript_observe_label(builder, challenger, b"merge");
 
-            // builder.cycle_tracker_start("derive rt_prime");
+            builder.cycle_tracker_start("derive rt_prime");
             let r_merge = challenger.sample_ext(builder);
 
             let c1: Ext<<C as Config>::F, <C as Config>::EF> = builder.eval(one - r_merge.clone());
@@ -519,7 +519,7 @@ pub fn verify_tower_proof<C: Config>(
             let coeffs = vec![c1, c2];
 
             let rt_prime = extend(builder, &sub_rt, &r_merge);
-            // builder.cycle_tracker_end("derive rt_prime");
+            builder.cycle_tracker_end("derive rt_prime");
 
             // generate next round challenge
             transcript_observe_label(builder, challenger, b"combine subset evals");
@@ -534,7 +534,7 @@ pub fn verify_tower_proof<C: Config>(
             builder
                 .range(0, num_prod_spec.clone())
                 .for_each(|i_vec, builder| {
-                    // builder.cycle_tracker_start("derive next layer for prod specs");
+                    builder.cycle_tracker_start("derive next layer for prod specs");
                     let spec_index = i_vec[0];
                     let skip = builder.get(&should_skip, spec_index.clone());
                     let max_round = builder.get(&num_variables, spec_index.clone());
@@ -576,7 +576,7 @@ pub fn verify_tower_proof<C: Config>(
                     });
 
                     builder.assign(&alpha_acc, alpha_acc * alpha.clone());
-                    // builder.cycle_tracker_end("derive next layer for prod specs");
+                    builder.cycle_tracker_end("derive next layer for prod specs");
                 });
 
             let next_logup_spec_evals: Ext<<C as Config>::F, <C as Config>::EF> =
