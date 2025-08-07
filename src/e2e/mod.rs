@@ -1,19 +1,19 @@
 use crate::basefold_verifier::basefold::BasefoldCommitment;
 use crate::tower_verifier::binding::IOPProverMessage;
-use crate::zkvm_verifier::binding::{TowerProofInput, ZKVMProofInput, ZKVMChipProofInput, E, F};
+use crate::zkvm_verifier::binding::{TowerProofInput, ZKVMChipProofInput, ZKVMProofInput, E, F};
 use crate::zkvm_verifier::verifier::verify_zkvm_proof;
 
-use mpcs::{Basefold, BasefoldRSParams};
 use ceno_zkvm::scheme::ZKVMProof;
 use ceno_zkvm::structs::ZKVMVerifyingKey;
+use mpcs::{Basefold, BasefoldRSParams};
 
-use openvm_native_recursion::hints::Hintable;
 use openvm_circuit::arch::instructions::program::Program;
 use openvm_native_compiler::{
     asm::AsmBuilder,
     conversion::{convert_program, CompilerOptions},
     prelude::AsmCompiler,
 };
+use openvm_native_recursion::hints::Hintable;
 
 pub fn parse_zkvm_proof_import(
     zkvm_proof: ZKVMProof<E, Basefold<E, BasefoldRSParams>>,
@@ -208,7 +208,10 @@ pub fn build_zkvm_verifier_program(
     builder.halt();
 
     // Compile program
+    #[cfg(feature = "bench-metrics")]
     let options = CompilerOptions::default().with_cycle_tracker();
+    #[cfg(not(feature = "bench-metrics"))]
+    let options = CompilerOptions::default();
     let mut compiler = AsmCompiler::new(options.word_size);
     compiler.build(builder.operations);
     let asm_code = compiler.code();

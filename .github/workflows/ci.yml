@@ -11,22 +11,21 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Disable Lint
+  Lint:
+    runs-on: ubuntu-latest
 
-  # Lint:
-  #   runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install stable Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        components: rustfmt, clippy
 
-  #   steps:
-  #   - uses: actions/checkout@v4
-  #   - name: Install stable Rust
-  #     uses: actions-rs/toolchain@v1
-  #     with:
-  #       toolchain: stable
-  #       components: rustfmt, clippy
+    - name: Fmt
+      run: cargo fmt --check
 
-  #   - name: Fmt
-  #     run: cargo fmt --check
-
+  # TODO: enable clippy later
   #   - name: Clippy
   #     run: cargo clippy -- -D warnings
 
