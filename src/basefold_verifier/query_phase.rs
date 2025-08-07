@@ -503,7 +503,6 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                     let opening_proof = batch_opening.opening_proof;
 
                     let round_context = builder.iter_ptr_get(&rounds_context, ptr_vec[2]);
-                    // TODO: optimize this procedure
                     iter_zip!(
                         builder,
                         round_context.log2_heights,
