@@ -1,100 +1,23 @@
+use crate::basefold_verifier::basefold::BasefoldCommitment;
 use crate::tower_verifier::binding::IOPProverMessage;
-use crate::zkvm_verifier::binding::ZKVMProofInput;
-use crate::zkvm_verifier::binding::{
-    TowerProofInput, ZKVMOpcodeProofInput, ZKVMTableProofInput, E, F,
-};
+use crate::zkvm_verifier::binding::{TowerProofInput, ZKVMChipProofInput, ZKVMProofInput, E, F};
 use crate::zkvm_verifier::verifier::verify_zkvm_proof;
-use ceno_mle::util::ceil_log2;
-use ff_ext::BabyBearExt4;
-use itertools::Itertools;
-use mpcs::BasefoldCommitment;
+
+use ceno_zkvm::scheme::ZKVMProof;
+use ceno_zkvm::structs::ZKVMVerifyingKey;
 use mpcs::{Basefold, BasefoldRSParams};
-use openvm_circuit::arch::{instructions::program::Program, SystemConfig, VmExecutor};
-use openvm_native_circuit::{Native, NativeConfig};
+
+use openvm_circuit::arch::instructions::program::Program;
 use openvm_native_compiler::{
     asm::AsmBuilder,
     conversion::{convert_program, CompilerOptions},
     prelude::AsmCompiler,
 };
 use openvm_native_recursion::hints::Hintable;
-use openvm_stark_backend::config::StarkGenericConfig;
-use openvm_stark_sdk::config::setup_tracing_with_log_level;
-use openvm_stark_sdk::{
-    config::baby_bear_poseidon2::BabyBearPoseidon2Config, p3_baby_bear::BabyBear,
-};
-use std::collections::HashMap;
-use std::fs::File;
-use std::thread;
-
-type SC = BabyBearPoseidon2Config;
-type EF = <SC as StarkGenericConfig>::Challenge;
-
-use ceno_zkvm::{
-    scheme::{verifier::ZKVMVerifier, ZKVMProof},
-    structs::ZKVMVerifyingKey,
-};
-
-#[derive(Debug, Clone)]
-pub struct SubcircuitParams {
-    pub id: usize,
-    pub order_idx: usize,
-    pub type_order_idx: usize,
-    pub name: String,
-    pub num_instances: usize,
-    pub is_opcode: bool,
-}
 
 pub fn parse_zkvm_proof_import(
-    zkvm_proof: ZKVMProof<BabyBearExt4, Basefold<BabyBearExt4, BasefoldRSParams>>,
-    verifier: &ZKVMVerifier<BabyBearExt4, Basefold<BabyBearExt4, BasefoldRSParams>>,
-) -> (ZKVMProofInput, Vec<SubcircuitParams>) {
-    let subcircuit_names = verifier.vk.circuit_vks.keys().collect_vec();
-
-    let mut opcode_num_instances_lookup: HashMap<usize, usize> = HashMap::new();
-    let mut table_num_instances_lookup: HashMap<usize, usize> = HashMap::new();
-    for (index, num_instances) in &zkvm_proof.num_instances {
-        if let Some(_opcode_proof) = zkvm_proof.opcode_proofs.get(index) {
-            opcode_num_instances_lookup.insert(index.clone(), num_instances.clone());
-        } else if let Some(_table_proof) = zkvm_proof.table_proofs.get(index) {
-            table_num_instances_lookup.insert(index.clone(), num_instances.clone());
-        } else {
-            unreachable!("respective proof of index {} should exist", index)
-        }
-    }
-
-    let mut order_idx: usize = 0;
-    let mut opcode_order_idx: usize = 0;
-    let mut table_order_idx: usize = 0;
-    let mut proving_sequence: Vec<SubcircuitParams> = vec![];
-    for (index, _) in &zkvm_proof.num_instances {
-        let name = subcircuit_names[*index].clone();
-        if zkvm_proof.opcode_proofs.get(index).is_some() {
-            proving_sequence.push(SubcircuitParams {
-                id: *index,
-                order_idx: order_idx.clone(),
-                type_order_idx: opcode_order_idx.clone(),
-                name: name.clone(),
-                num_instances: opcode_num_instances_lookup.get(index).unwrap().clone(),
-                is_opcode: true,
-            });
-            opcode_order_idx += 1;
-        } else if zkvm_proof.table_proofs.get(index).is_some() {
-            proving_sequence.push(SubcircuitParams {
-                id: *index,
-                order_idx: order_idx.clone(),
-                type_order_idx: table_order_idx.clone(),
-                name: name.clone(),
-                num_instances: table_num_instances_lookup.get(index).unwrap().clone(),
-                is_opcode: false,
-            });
-            table_order_idx += 1;
-        } else {
-            unreachable!("respective proof of index {} should exist", index)
-        }
-
-        order_idx += 1;
-    }
-
+    zkvm_proof: ZKVMProof<E, Basefold<E, BasefoldRSParams>>,
+) -> ZKVMProofInput {
     let raw_pi = zkvm_proof
         .raw_pi
         .iter()
@@ -119,14 +42,14 @@ pub fn parse_zkvm_proof_import(
         })
         .collect::<Vec<E>>();
 
-    let mut opcode_proofs_vec: Vec<ZKVMOpcodeProofInput> = vec![];
-    for (opcode_id, opcode_proof) in &zkvm_proof.opcode_proofs {
+    let mut chip_proofs: Vec<ZKVMChipProofInput> = vec![];
+    for (chip_id, chip_proof) in &zkvm_proof.chip_proofs {
         let mut record_r_out_evals: Vec<Vec<E>> = vec![];
         let mut record_w_out_evals: Vec<Vec<E>> = vec![];
         let mut record_lk_out_evals: Vec<Vec<E>> = vec![];
 
-        let record_r_out_evals_len: usize = opcode_proof.r_out_evals.len();
-        for v_vec in &opcode_proof.r_out_evals {
+        let record_r_out_evals_len: usize = chip_proof.r_out_evals.len();
+        for v_vec in &chip_proof.r_out_evals {
             let mut arr: Vec<E> = vec![];
             for v in v_vec {
                 let v_e: E =
@@ -135,8 +58,8 @@ pub fn parse_zkvm_proof_import(
             }
             record_r_out_evals.push(arr);
         }
-        let record_w_out_evals_len: usize = opcode_proof.w_out_evals.len();
-        for v_vec in &opcode_proof.w_out_evals {
+        let record_w_out_evals_len: usize = chip_proof.w_out_evals.len();
+        for v_vec in &chip_proof.w_out_evals {
             let mut arr: Vec<E> = vec![];
             for v in v_vec {
                 let v_e: E =
@@ -145,8 +68,8 @@ pub fn parse_zkvm_proof_import(
             }
             record_w_out_evals.push(arr);
         }
-        let record_lk_out_evals_len: usize = opcode_proof.lk_out_evals.len();
-        for v_vec in &opcode_proof.lk_out_evals {
+        let record_lk_out_evals_len: usize = chip_proof.lk_out_evals.len();
+        for v_vec in &chip_proof.lk_out_evals {
             let mut arr: Vec<E> = vec![];
             for v in v_vec {
                 let v_e: E =
@@ -160,7 +83,7 @@ pub fn parse_zkvm_proof_import(
         let mut tower_proof = TowerProofInput::default();
         let mut proofs: Vec<Vec<IOPProverMessage>> = vec![];
 
-        for proof in &opcode_proof.tower_proof.proofs {
+        for proof in &chip_proof.tower_proof.proofs {
             let mut proof_messages: Vec<IOPProverMessage> = vec![];
             for m in proof {
                 let mut evaluations_vec: Vec<E> = vec![];
@@ -180,7 +103,7 @@ pub fn parse_zkvm_proof_import(
         tower_proof.proofs = proofs;
 
         let mut prod_specs_eval: Vec<Vec<Vec<E>>> = vec![];
-        for inner_val in &opcode_proof.tower_proof.prod_specs_eval {
+        for inner_val in &chip_proof.tower_proof.prod_specs_eval {
             let mut inner_v: Vec<Vec<E>> = vec![];
             for inner_evals_val in inner_val {
                 let mut inner_evals_v: Vec<E> = vec![];
@@ -198,7 +121,7 @@ pub fn parse_zkvm_proof_import(
         tower_proof.prod_specs_eval = prod_specs_eval;
 
         let mut logup_specs_eval: Vec<Vec<Vec<E>>> = vec![];
-        for inner_val in &opcode_proof.tower_proof.logup_specs_eval {
+        for inner_val in &chip_proof.tower_proof.logup_specs_eval {
             let mut inner_v: Vec<Vec<E>> = vec![];
             for inner_evals_val in inner_val {
                 let mut inner_evals_v: Vec<E> = vec![];
@@ -217,8 +140,8 @@ pub fn parse_zkvm_proof_import(
 
         // main constraint and select sumcheck proof
         let mut main_sumcheck_proofs: Vec<IOPProverMessage> = vec![];
-        if opcode_proof.main_sumcheck_proofs.is_some() {
-            for m in opcode_proof.main_sumcheck_proofs.as_ref().unwrap() {
+        if chip_proof.main_sumcheck_proofs.is_some() {
+            for m in chip_proof.main_sumcheck_proofs.as_ref().unwrap() {
                 let mut evaluations_vec: Vec<E> = vec![];
                 for v in &m.evaluations {
                     let v_e: E =
@@ -232,20 +155,20 @@ pub fn parse_zkvm_proof_import(
         }
 
         let mut wits_in_evals: Vec<E> = vec![];
-        for v in &opcode_proof.wits_in_evals {
+        for v in &chip_proof.wits_in_evals {
             let v_e: E = serde_json::from_value(serde_json::to_value(v.clone()).unwrap()).unwrap();
             wits_in_evals.push(v_e);
         }
 
         let mut fixed_in_evals: Vec<E> = vec![];
-        for v in &opcode_proof.fixed_in_evals {
+        for v in &chip_proof.fixed_in_evals {
             let v_e: E = serde_json::from_value(serde_json::to_value(v.clone()).unwrap()).unwrap();
             fixed_in_evals.push(v_e);
         }
 
-        opcode_proofs_vec.push(ZKVMOpcodeProofInput {
-            idx: opcode_id.clone(),
-            num_instances: opcode_num_instances_lookup.get(opcode_id).unwrap().clone(),
+        chip_proofs.push(ZKVMChipProofInput {
+            idx: chip_id.clone(),
+            num_instances: chip_proof.num_instances,
             record_r_out_evals_len,
             record_w_out_evals_len,
             record_lk_out_evals_len,
@@ -259,226 +182,147 @@ pub fn parse_zkvm_proof_import(
         });
     }
 
-    let mut table_proofs_vec: Vec<ZKVMTableProofInput> = vec![];
-    for (table_id, table_proof) in &zkvm_proof.table_proofs {
-        let mut record_r_out_evals: Vec<Vec<E>> = vec![];
-        let mut record_w_out_evals: Vec<Vec<E>> = vec![];
-        let mut record_lk_out_evals: Vec<Vec<E>> = vec![];
-
-        let record_r_out_evals_len: usize = table_proof.r_out_evals.len();
-        for v_vec in &table_proof.r_out_evals {
-            let mut arr: Vec<E> = vec![];
-            for v in v_vec {
-                let v_e: E =
-                    serde_json::from_value(serde_json::to_value(v.clone()).unwrap()).unwrap();
-                arr.push(v_e);
-            }
-            record_r_out_evals.push(arr);
-        }
-        let record_w_out_evals_len: usize = table_proof.w_out_evals.len();
-        for v_vec in &table_proof.w_out_evals {
-            let mut arr: Vec<E> = vec![];
-            for v in v_vec {
-                let v_e: E =
-                    serde_json::from_value(serde_json::to_value(v.clone()).unwrap()).unwrap();
-                arr.push(v_e);
-            }
-            record_w_out_evals.push(arr);
-        }
-        let record_lk_out_evals_len: usize = table_proof.lk_out_evals.len();
-        for v_vec in &table_proof.lk_out_evals {
-            let mut arr: Vec<E> = vec![];
-            for v in v_vec {
-                let v_e: E =
-                    serde_json::from_value(serde_json::to_value(v.clone()).unwrap()).unwrap();
-                arr.push(v_e);
-            }
-            record_lk_out_evals.push(arr);
-        }
-
-        // Tower proof
-        let mut tower_proof = TowerProofInput::default();
-        let mut proofs: Vec<Vec<IOPProverMessage>> = vec![];
-
-        for proof in &table_proof.tower_proof.proofs {
-            let mut proof_messages: Vec<IOPProverMessage> = vec![];
-            for m in proof {
-                let mut evaluations_vec: Vec<E> = vec![];
-
-                for v in &m.evaluations {
-                    let v_e: E =
-                        serde_json::from_value(serde_json::to_value(v.clone()).unwrap()).unwrap();
-                    evaluations_vec.push(v_e);
-                }
-                proof_messages.push(IOPProverMessage {
-                    evaluations: evaluations_vec,
-                });
-            }
-            proofs.push(proof_messages);
-        }
-        tower_proof.num_proofs = proofs.len();
-        tower_proof.proofs = proofs;
-
-        let mut prod_specs_eval: Vec<Vec<Vec<E>>> = vec![];
-        for inner_val in &table_proof.tower_proof.prod_specs_eval {
-            let mut inner_v: Vec<Vec<E>> = vec![];
-            for inner_evals_val in inner_val {
-                let mut inner_evals_v: Vec<E> = vec![];
-
-                for v in inner_evals_val {
-                    let v_e: E =
-                        serde_json::from_value(serde_json::to_value(v.clone()).unwrap()).unwrap();
-                    inner_evals_v.push(v_e);
-                }
-                inner_v.push(inner_evals_v);
-            }
-            prod_specs_eval.push(inner_v);
-        }
-        tower_proof.num_prod_specs = prod_specs_eval.len();
-        tower_proof.prod_specs_eval = prod_specs_eval;
-
-        let mut logup_specs_eval: Vec<Vec<Vec<E>>> = vec![];
-        for inner_val in &table_proof.tower_proof.logup_specs_eval {
-            let mut inner_v: Vec<Vec<E>> = vec![];
-            for inner_evals_val in inner_val {
-                let mut inner_evals_v: Vec<E> = vec![];
-
-                for v in inner_evals_val {
-                    let v_e: E =
-                        serde_json::from_value(serde_json::to_value(v.clone()).unwrap()).unwrap();
-                    inner_evals_v.push(v_e);
-                }
-                inner_v.push(inner_evals_v);
-            }
-            logup_specs_eval.push(inner_v);
-        }
-        tower_proof.num_logup_specs = logup_specs_eval.len();
-        tower_proof.logup_specs_eval = logup_specs_eval;
-
-        let mut fixed_in_evals: Vec<E> = vec![];
-        for v in &table_proof.fixed_in_evals {
-            let v_e: E = serde_json::from_value(serde_json::to_value(v.clone()).unwrap()).unwrap();
-            fixed_in_evals.push(v_e);
-        }
-        let mut wits_in_evals: Vec<E> = vec![];
-        for v in &table_proof.wits_in_evals {
-            let v_e: E = serde_json::from_value(serde_json::to_value(v.clone()).unwrap()).unwrap();
-            wits_in_evals.push(v_e);
-        }
-
-        let num_instances = table_num_instances_lookup.get(table_id).unwrap().clone();
-
-        table_proofs_vec.push(ZKVMTableProofInput {
-            idx: table_id.clone(),
-            num_instances,
-            record_r_out_evals_len,
-            record_w_out_evals_len,
-            record_lk_out_evals_len,
-            record_r_out_evals,
-            record_w_out_evals,
-            record_lk_out_evals,
-            tower_proof,
-            fixed_in_evals,
-            wits_in_evals,
-        });
-    }
-
-    let witin_commit: BasefoldCommitment<BabyBearExt4> =
+    let witin_commit: mpcs::BasefoldCommitment<E> =
         serde_json::from_value(serde_json::to_value(zkvm_proof.witin_commit).unwrap()).unwrap();
-    let fixed_commit = verifier.vk.fixed_commit.clone();
+    let witin_commit: BasefoldCommitment = witin_commit.into();
 
-    (
-        ZKVMProofInput {
-            raw_pi,
-            pi_evals,
-            opcode_proofs: opcode_proofs_vec,
-            table_proofs: table_proofs_vec,
-            witin_commit,
-            fixed_commit,
-            num_instances: zkvm_proof.num_instances.clone(),
-        },
-        proving_sequence,
-    )
+    let pcs_proof = zkvm_proof.opening_proof.into();
+
+    ZKVMProofInput {
+        raw_pi,
+        pi_evals,
+        chip_proofs,
+        witin_commit,
+        pcs_proof,
+    }
 }
 
-pub fn inner_test_thread() {
-    setup_tracing_with_log_level(tracing::Level::WARN);
+/// Build Ceno's zkVM verifier program from vk in OpenVM's eDSL
+pub fn build_zkvm_verifier_program(
+    vk: &ZKVMVerifyingKey<E, Basefold<E, BasefoldRSParams>>,
+) -> Program<F> {
+    let mut builder = AsmBuilder::<F, E>::default();
 
-    let proof_path = "./src/e2e/encoded/proof.bin";
-    let vk_path = "./src/e2e/encoded/vk.bin";
-
-    let zkvm_proof: ZKVMProof<BabyBearExt4, Basefold<BabyBearExt4, BasefoldRSParams>> =
-        bincode::deserialize_from(File::open(proof_path).expect("Failed to open proof file"))
-            .expect("Failed to deserialize proof file");
-
-    let vk: ZKVMVerifyingKey<BabyBearExt4, Basefold<BabyBearExt4, BasefoldRSParams>> =
-        bincode::deserialize_from(File::open(vk_path).expect("Failed to open vk file"))
-            .expect("Failed to deserialize vk file");
-
-    let verifier = ZKVMVerifier::new(vk);
-    let (zkvm_proof_input, proving_sequence) = parse_zkvm_proof_import(zkvm_proof, &verifier);
-
-    // OpenVM DSL
-    let mut builder = AsmBuilder::<F, EF>::default();
-
-    // Obtain witness inputs
     let zkvm_proof_input_variables = ZKVMProofInput::read(&mut builder);
-    verify_zkvm_proof(
-        &mut builder,
-        zkvm_proof_input_variables,
-        &verifier,
-        proving_sequence,
-    );
+    verify_zkvm_proof(&mut builder, zkvm_proof_input_variables, vk);
     builder.halt();
 
-    // Pass in witness stream
-    let mut witness_stream: Vec<
-        Vec<p3_monty_31::MontyField31<openvm_stark_sdk::p3_baby_bear::BabyBearParameters>>,
-    > = Vec::new();
-
-    witness_stream.extend(zkvm_proof_input.write());
-
     // Compile program
+    #[cfg(feature = "bench-metrics")]
     let options = CompilerOptions::default().with_cycle_tracker();
+    #[cfg(not(feature = "bench-metrics"))]
+    let options = CompilerOptions::default();
     let mut compiler = AsmCompiler::new(options.word_size);
     compiler.build(builder.operations);
     let asm_code = compiler.code();
 
-    // _debug: print out assembly
-    /*
-    println!("=> AssemblyCode:");
-    println!("{asm_code}");
-    return ();
-    */
-
-    let program: Program<
-        p3_monty_31::MontyField31<openvm_stark_sdk::p3_baby_bear::BabyBearParameters>,
-    > = convert_program(asm_code, options);
-    let mut system_config = SystemConfig::default()
-        .with_public_values(4)
-        .with_max_segment_len((1 << 25) - 100);
-    system_config.profiling = true;
-    let config = NativeConfig::new(system_config, Native);
-
-    let executor = VmExecutor::<BabyBear, NativeConfig>::new(config);
-
-    let res = executor
-        .execute_and_then(program, witness_stream, |_, seg| Ok(seg), |err| err)
-        .unwrap();
-
-    for (i, seg) in res.iter().enumerate() {
-        println!("=> segment {:?} metrics: {:?}", i, seg.metrics);
-    }
+    let program: Program<F> = convert_program(asm_code, options);
+    program
 }
 
-#[test]
-pub fn test_zkvm_proof_verifier_from_bincode_exports() {
-    let stack_size = 64 * 1024 * 1024; // 64 MB
+#[cfg(test)]
+mod tests {
+    use crate::e2e::build_zkvm_verifier_program;
+    use crate::e2e::parse_zkvm_proof_import;
+    use crate::zkvm_verifier::binding::{E, F};
+    use ceno_zkvm::scheme::ZKVMProof;
+    use ceno_zkvm::structs::ZKVMVerifyingKey;
+    use mpcs::{Basefold, BasefoldRSParams};
+    use openvm_circuit::arch::verify_single;
+    use openvm_circuit::arch::VirtualMachine;
+    use openvm_circuit::arch::{SystemConfig, VmExecutor};
+    use openvm_native_circuit::{Native, NativeConfig};
+    use openvm_native_recursion::hints::Hintable;
+    use openvm_stark_sdk::config::{
+        baby_bear_poseidon2::BabyBearPoseidon2Engine,
+        fri_params::standard_fri_params_with_100_bits_conjectured_security,
+        setup_tracing_with_log_level, FriParameters,
+    };
+    use openvm_stark_sdk::engine::StarkFriEngine;
+    use std::fs::File;
 
-    let handler = thread::Builder::new()
-        .stack_size(stack_size)
-        .spawn(inner_test_thread)
-        .expect("Failed to spawn thread");
+    pub fn inner_test_thread() {
+        setup_tracing_with_log_level(tracing::Level::WARN);
 
-    handler.join().expect("Thread panicked");
+        let proof_path = "./src/e2e/encoded/proof.bin";
+        let vk_path = "./src/e2e/encoded/vk.bin";
+
+        let zkvm_proof: ZKVMProof<E, Basefold<E, BasefoldRSParams>> =
+            bincode::deserialize_from(File::open(proof_path).expect("Failed to open proof file"))
+                .expect("Failed to deserialize proof file");
+
+        let vk: ZKVMVerifyingKey<E, Basefold<E, BasefoldRSParams>> =
+            bincode::deserialize_from(File::open(vk_path).expect("Failed to open vk file"))
+                .expect("Failed to deserialize vk file");
+
+        let program = build_zkvm_verifier_program(&vk);
+
+        // Construct zkvm proof input
+        let zkvm_proof_input = parse_zkvm_proof_import(zkvm_proof);
+
+        // Pass in witness stream
+        let mut witness_stream: Vec<Vec<F>> = Vec::new();
+        witness_stream.extend(zkvm_proof_input.write());
+
+        let mut system_config = SystemConfig::default()
+            .with_public_values(4)
+            .with_max_segment_len((1 << 25) - 100);
+        system_config.profiling = true;
+        let config = NativeConfig::new(system_config, Native);
+
+        let executor = VmExecutor::<F, NativeConfig>::new(config);
+
+        let res = executor
+            .execute_and_then(
+                program.clone(),
+                witness_stream.clone(),
+                |_, seg| Ok(seg),
+                |err| err,
+            )
+            .unwrap();
+
+        for (i, seg) in res.iter().enumerate() {
+            println!("=> segment {:?} metrics: {:?}", i, seg.metrics);
+        }
+
+        let poseidon2_max_constraint_degree = 3;
+        // TODO: use log_blowup = 1 when native multi_observe chip reduces max constraint degree to 3
+        let log_blowup = 2;
+
+        let fri_params = if matches!(std::env::var("OPENVM_FAST_TEST"), Ok(x) if &x == "1") {
+            FriParameters {
+                log_blowup,
+                log_final_poly_len: 0,
+                num_queries: 10,
+                proof_of_work_bits: 0,
+            }
+        } else {
+            standard_fri_params_with_100_bits_conjectured_security(log_blowup)
+        };
+
+        let engine = BabyBearPoseidon2Engine::new(fri_params);
+        let mut config = NativeConfig::aggregation(0, poseidon2_max_constraint_degree);
+        config.system.memory_config.max_access_adapter_n = 16;
+
+        let vm = VirtualMachine::new(engine, config);
+
+        let pk = vm.keygen();
+        let result = vm.execute_and_generate(program, witness_stream).unwrap();
+        let proofs = vm.prove(&pk, result);
+        for proof in proofs {
+            verify_single(&vm.engine, &pk.get_vk(), &proof).expect("Verification failed");
+        }
+    }
+
+    #[test]
+    pub fn test_zkvm_verifier() {
+        let stack_size = 64 * 1024 * 1024; // 64 MB
+
+        let handler = std::thread::Builder::new()
+            .stack_size(stack_size)
+            .spawn(inner_test_thread)
+            .expect("Failed to spawn thread");
+
+        handler.join().expect("Thread panicked");
+    }
 }

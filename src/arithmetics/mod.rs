@@ -1,6 +1,6 @@
 use crate::tower_verifier::binding::PointAndEvalVariable;
-use crate::zkvm_verifier::binding::ZKVMOpcodeProofInputVariable;
-use ceno_mle::expression::{Expression, Fixed, Instance};
+use crate::zkvm_verifier::binding::ZKVMChipProofInputVariable;
+use ceno_mle::{Expression, Fixed, Instance};
 use ceno_zkvm::structs::{ChallengeId, WitnessId};
 use ff_ext::ExtensionField;
 use ff_ext::{BabyBearExt4, SmallField};
@@ -41,10 +41,6 @@ pub unsafe fn exts_to_felts<C: Config>(
     builder: &mut Builder<C>,
     exts: &Array<C, Ext<C::F, C::EF>>,
 ) -> Array<C, Felt<C::F>> {
-    assert!(
-        matches!(exts, Array::Dyn(_, _)),
-        "Expected dynamic array of Exts"
-    );
     let f_len: Usize<C::N> = builder.eval(exts.len() * Usize::from(C::EF::D));
     let f_arr: Array<C, Felt<C::F>> = Array::Dyn(exts.ptr(), f_len);
     f_arr
@@ -99,6 +95,23 @@ pub fn evaluate_at_point_degree_1<C: Config>(
     let r = builder.get(point, 0);
 
     builder.eval(r * (right - left) + left)
+}
+
+pub fn fixed_dot_product<C: Config>(
+    builder: &mut Builder<C>,
+    a: &[Ext<C::F, C::EF>],
+    b: &Array<C, Ext<C::F, C::EF>>,
+    zero: Ext<C::F, C::EF>,
+) -> Ext<<C as Config>::F, <C as Config>::EF> {
+    // simple trick to prefer AddE(1 cycle) than AddEI(4 cycles)
+    let acc: Ext<C::F, C::EF> = builder.eval(zero + zero);
+
+    for (i, va) in a.iter().enumerate() {
+        let vb = builder.get(b, i);
+        builder.assign(&acc, acc + *va * vb);
+    }
+
+    acc
 }
 
 pub struct PolyEvaluator<C: Config> {
@@ -191,19 +204,20 @@ pub fn dot_product<C: Config>(
     acc
 }
 
-pub fn fixed_dot_product<C: Config>(
+pub fn dot_product_pt_n_eval<C: Config>(
     builder: &mut Builder<C>,
-    a: &[Ext<C::F, C::EF>],
+    pt_and_eval: &Array<C, PointAndEvalVariable<C>>,
     b: &Array<C, Ext<C::F, C::EF>>,
-    zero: Ext<C::F, C::EF>,
 ) -> Ext<<C as Config>::F, <C as Config>::EF> {
-    // simple trick to prefer AddE(1 cycle) than AddEI(4 cycles)
-    let acc: Ext<C::F, C::EF> = builder.eval(zero + zero);
+    let acc: Ext<C::F, C::EF> = builder.eval(C::F::ZERO);
 
-    for (i, va) in a.iter().enumerate() {
-        let vb = builder.get(b, i);
-        builder.assign(&acc, acc + *va * vb);
-    }
+    iter_zip!(builder, pt_and_eval, b).for_each(|idx_vec, builder| {
+        let ptr_a = idx_vec[0];
+        let ptr_b = idx_vec[1];
+        let v_a = builder.iter_ptr_get(&pt_and_eval, ptr_a);
+        let v_b = builder.iter_ptr_get(&b, ptr_b);
+        builder.assign(&acc, acc + v_a.eval * v_b);
+    });
 
     acc
 }
@@ -281,6 +295,32 @@ pub fn eq_eval<C: Config>(
     acc
 }
 
+// Evaluate eq polynomial.
+pub fn eq_eval_with_index<C: Config>(
+    builder: &mut Builder<C>,
+    x: &Array<C, Ext<C::F, C::EF>>,
+    y: &Array<C, Ext<C::F, C::EF>>,
+    xlo: Usize<C::N>,
+    ylo: Usize<C::N>,
+    len: Usize<C::N>,
+) -> Ext<C::F, C::EF> {
+    let acc: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
+
+    builder.range(0, len).for_each(|i_vec, builder| {
+        let i = i_vec[0];
+        let ptr_x: Var<C::N> = builder.eval(xlo.clone() + i);
+        let ptr_y: Var<C::N> = builder.eval(ylo.clone() + i);
+        let v_x = builder.get(&x, ptr_x);
+        let v_y = builder.get(&y, ptr_y);
+        let xi_yi: Ext<C::F, C::EF> = builder.eval(v_x * v_y);
+        let one: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
+        let new_acc: Ext<C::F, C::EF> = builder.eval(acc * (xi_yi + xi_yi - v_x - v_y + one));
+        builder.assign(&acc, new_acc);
+    });
+
+    acc
+}
+
 // Multiply all elements in the Array
 pub fn product<C: Config>(
     builder: &mut Builder<C>,
@@ -327,21 +367,29 @@ pub fn sum<C: Config>(
     acc
 }
 
-// Extend an array by one element
-pub fn extend<C: Config>(
+// Join two arrays
+pub fn join<C: Config>(
     builder: &mut Builder<C>,
-    arr: &Array<C, Ext<C::F, C::EF>>,
-    elem: &Ext<C::F, C::EF>,
+    a: &Array<C, Ext<C::F, C::EF>>,
+    b: &Array<C, Ext<C::F, C::EF>>,
 ) -> Array<C, Ext<C::F, C::EF>> {
-    let new_len: Var<C::N> = builder.eval(arr.len() + C::N::ONE);
-    let out = builder.dyn_array(new_len);
+    let a_len = a.len();
+    let b_len = b.len();
+    let out_len = builder.eval_expr(a_len.clone() + b_len.clone());
+    let out = builder.dyn_array(out_len);
 
-    builder.range(0, arr.len()).for_each(|i_vec, builder| {
+    builder.range(0, a_len.clone()).for_each(|i_vec, builder| {
         let i = i_vec[0];
-        let val = builder.get(arr, i);
-        builder.set_value(&out, i, val);
+        let a_val = builder.get(a, i);
+        builder.set(&out, i, a_val);
     });
-    builder.set_value(&out, arr.len(), elem.clone());
+
+    builder.range(0, b_len).for_each(|i_vec, builder| {
+        let b_i = i_vec[0];
+        let i = builder.eval_expr(b_i + a_len.clone());
+        let b_val = builder.get(b, b_i);
+        builder.set(&out, i, b_val);
+    });
 
     out
 }
@@ -374,7 +422,7 @@ pub fn gen_alpha_pows<C: Config>(
 pub fn eq_eval_less_or_equal_than<C: Config>(
     builder: &mut Builder<C>,
     _challenger: &mut DuplexChallengerVariable<C>,
-    opcode_proof: &ZKVMOpcodeProofInputVariable<C>,
+    opcode_proof: &ZKVMChipProofInputVariable<C>,
     a: &Array<C, Ext<C::F, C::EF>>,
     b: &Array<C, Ext<C::F, C::EF>>,
 ) -> Ext<C::F, C::EF> {
@@ -468,6 +516,35 @@ pub fn build_eq_x_r_vec_sequential<C: Config>(
         });
     });
 
+    evals
+}
+
+pub fn build_eq_x_r_vec_sequential_with_offset<C: Config>(
+    builder: &mut Builder<C>,
+    r: &Array<C, Ext<C::F, C::EF>>,
+    offset: Usize<C::N>,
+) -> Array<C, Ext<C::F, C::EF>> {
+    // we build eq(x,r) from its evaluations
+    // we want to evaluate eq(x,r) over x \in {0, 1}^num_vars
+    // for example, with num_vars = 4, x is a binary vector of 4, then
+    //  0 0 0 0 -> (1-r0)   * (1-r1)    * (1-r2)    * (1-r3)
+    //  1 0 0 0 -> r0       * (1-r1)    * (1-r2)    * (1-r3)
+    //  0 1 0 0 -> (1-r0)   * r1        * (1-r2)    * (1-r3)
+    //  1 1 0 0 -> r0       * r1        * (1-r2)    * (1-r3)
+    //  ....
+    //  1 1 1 1 -> r0       * r1        * r2        * r3
+    // we will need 2^num_var evaluations
+
+    let r_len: Var<C::N> = builder.eval(r.len() - offset);
+    let evals_len: Felt<C::F> = builder.constant(C::F::ONE);
+    let evals_len = builder.exp_power_of_2_v::<Felt<C::F>>(evals_len, r_len);
+    let evals_len = builder.cast_felt_to_var(evals_len);
+
+    let evals: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(evals_len);
+    // _debug
+    // build_eq_x_r_helper_sequential_offset(r, &mut evals, E::ONE);
+    // unsafe { std::mem::transmute(evals) }
+    // FIXME: this function is not implemented yet
     evals
 }
 
@@ -829,7 +906,7 @@ impl<C: Config> UniPolyExtrapolator<C> {
         p_i: &Array<C, Ext<C::F, C::EF>>,
         eval_at: Ext<C::F, C::EF>,
     ) -> Ext<C::F, C::EF> {
-        let res: Ext<C::F, C::EF> = builder.eval(self.constants[0] + self.constants[0]);
+        let res: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
 
         builder.if_eq(p_i.len(), Usize::from(4)).then_or_else(
             |builder| {
@@ -884,8 +961,8 @@ impl<C: Config> UniPolyExtrapolator<C> {
         let p_i_0 = builder.get(p_i, 0);
         let p_i_1 = builder.get(p_i, 1);
 
-        let t0: Ext<C::F, C::EF> = builder.eval(self.constants[5] * p_i_0 / d0);
-        let t1: Ext<C::F, C::EF> = builder.eval(self.constants[1] * p_i_1 / d1);
+        let t0: Ext<C::F, C::EF> = builder.eval(self.constants[5] * p_i_0 * d0.inverse());
+        let t1: Ext<C::F, C::EF> = builder.eval(self.constants[1] * p_i_1 * d1.inverse());
 
         builder.eval(l * (t0 + t1))
     }
@@ -909,9 +986,9 @@ impl<C: Config> UniPolyExtrapolator<C> {
         let p_i_1: Ext<C::F, C::EF> = builder.get(p_i, 1);
         let p_i_2: Ext<C::F, C::EF> = builder.get(p_i, 2);
 
-        let t0: Ext<C::F, C::EF> = builder.eval(self.constants[6] * p_i_0 / d0);
-        let t1: Ext<C::F, C::EF> = builder.eval(self.constants[5] * p_i_1 / d1);
-        let t2: Ext<C::F, C::EF> = builder.eval(self.constants[6] * p_i_2 / d2);
+        let t0: Ext<C::F, C::EF> = builder.eval(self.constants[6] * p_i_0 * d0.inverse());
+        let t1: Ext<C::F, C::EF> = builder.eval(self.constants[5] * p_i_1 * d1.inverse());
+        let t2: Ext<C::F, C::EF> = builder.eval(self.constants[6] * p_i_2 * d2.inverse());
 
         builder.eval(l * (t0 + t1 + t2))
     }
@@ -938,10 +1015,10 @@ impl<C: Config> UniPolyExtrapolator<C> {
         let p_i_2: Ext<C::F, C::EF> = builder.get(p_i, 2);
         let p_i_3: Ext<C::F, C::EF> = builder.get(p_i, 3);
 
-        let t0: Ext<C::F, C::EF> = builder.eval(self.constants[9] * p_i_0 / d0);
-        let t1: Ext<C::F, C::EF> = builder.eval(self.constants[6] * p_i_1 / d1);
-        let t2: Ext<C::F, C::EF> = builder.eval(self.constants[7] * p_i_2 / d2);
-        let t3: Ext<C::F, C::EF> = builder.eval(self.constants[8] * p_i_3 / d3);
+        let t0: Ext<C::F, C::EF> = builder.eval(self.constants[9] * p_i_0 * d0.inverse());
+        let t1: Ext<C::F, C::EF> = builder.eval(self.constants[6] * p_i_1 * d1.inverse());
+        let t2: Ext<C::F, C::EF> = builder.eval(self.constants[7] * p_i_2 * d2.inverse());
+        let t3: Ext<C::F, C::EF> = builder.eval(self.constants[8] * p_i_3 * d3.inverse());
 
         builder.eval(l * (t0 + t1 + t2 + t3))
     }
@@ -971,12 +1048,30 @@ impl<C: Config> UniPolyExtrapolator<C> {
         let p_i_3: Ext<C::F, C::EF> = builder.get(p_i, 3);
         let p_i_4: Ext<C::F, C::EF> = builder.get(p_i, 4);
 
-        let t0: Ext<C::F, C::EF> = builder.eval(self.constants[11] * p_i_0 / d0);
-        let t1: Ext<C::F, C::EF> = builder.eval(self.constants[9] * p_i_1 / d1);
-        let t2: Ext<C::F, C::EF> = builder.eval(self.constants[10] * p_i_2 / d2);
-        let t3: Ext<C::F, C::EF> = builder.eval(self.constants[9] * p_i_3 / d3);
-        let t4: Ext<C::F, C::EF> = builder.eval(self.constants[11] * p_i_4 / d4);
+        let t0: Ext<C::F, C::EF> = builder.eval(self.constants[11] * p_i_0 * d0.inverse());
+        let t1: Ext<C::F, C::EF> = builder.eval(self.constants[9] * p_i_1 * d1.inverse());
+        let t2: Ext<C::F, C::EF> = builder.eval(self.constants[10] * p_i_2 * d2.inverse());
+        let t3: Ext<C::F, C::EF> = builder.eval(self.constants[9] * p_i_3 * d3.inverse());
+        let t4: Ext<C::F, C::EF> = builder.eval(self.constants[11] * p_i_4 * d4.inverse());
 
         builder.eval(l * (t0 + t1 + t2 + t3 + t4))
     }
+}
+
+pub fn extend<C: Config>(
+    builder: &mut Builder<C>,
+    arr: &Array<C, Ext<C::F, C::EF>>,
+    elem: &Ext<C::F, C::EF>,
+) -> Array<C, Ext<C::F, C::EF>> {
+    let new_len: Var<C::N> = builder.eval(arr.len() + C::N::ONE);
+    let out = builder.dyn_array(new_len);
+
+    builder.range(0, arr.len()).for_each(|i_vec, builder| {
+        let i = i_vec[0];
+        let val = builder.get(arr, i);
+        builder.set_value(&out, i, val);
+    });
+    builder.set_value(&out, arr.len(), elem.clone());
+
+    out
 }
