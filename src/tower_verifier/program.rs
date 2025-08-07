@@ -587,7 +587,7 @@ pub fn verify_tower_proof<C: Config>(
             builder
                 .range(0, num_logup_spec.clone())
                 .for_each(|i_vec, builder| {
-                    // builder.cycle_tracker_start("derive next layer for logup specs");
+                    builder.cycle_tracker_start("derive next layer for logup specs");
                     let spec_index = i_vec[0];
                     let max_round = builder.get(&logup_num_variables_slice, spec_index);
                     let round_limit: RVar<C::N> = builder.eval_expr(max_round - RVar::from(1));
@@ -649,7 +649,7 @@ pub fn verify_tower_proof<C: Config>(
                             },
                         );
                     });
-                    // builder.cycle_tracker_end("derive next layer for logup specs");
+                    builder.cycle_tracker_end("derive next layer for logup specs");
                 });
 
             builder.assign(&curr_pt, rt_prime.clone());
