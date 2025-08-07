@@ -317,7 +317,6 @@ pub struct RoundContextVariable<C: Config> {
     pub(crate) opened_values_buffer: Array<C, Array<C, Felt<C::F>>>,
     pub(crate) log2_heights: Array<C, Var<C::N>>,
     pub(crate) minus_alpha_offsets: Array<C, Ext<C::F, C::EF>>,
-    pub(crate) all_zero_slices: Array<C, Array<C, Ext<C::F, C::EF>>>,
     pub(crate) dimensions: Array<C, Var<C::N>>,
 }
 
@@ -407,7 +406,6 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
             builder.dyn_array(round.openings.len());
         let log2_heights = builder.dyn_array(round.openings.len());
         let minus_alpha_offsets = builder.dyn_array(round.openings.len());
-        let all_zero_slices = builder.dyn_array(round.openings.len());
         let dimensions = builder.dyn_array(round.openings.len());
 
         iter_zip!(
@@ -416,8 +414,6 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
             log2_heights,
             round.openings,
             minus_alpha_offsets,
-            all_zero_slices,
-            dimensions,
         )
         .for_each(|ptr_vec, builder| {
             let opening = builder.iter_ptr_get(&round.openings, ptr_vec[2]);
@@ -443,9 +439,6 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
             builder.assign(&alpha_offset, -alpha_offset);
             builder.iter_ptr_set(&minus_alpha_offsets, ptr_vec[3], alpha_offset);
             builder.assign(&batch_coeffs_offset, batch_coeffs_offset + width.clone());
-
-            let all_zero_slice = all_zeros.slice(builder, 0, width);
-            builder.iter_ptr_set(&all_zero_slices, ptr_vec[4], all_zero_slice);
         });
 
         // TODO: ensure that perm is indeed a permutation of 0, ..., opened_values.len()-1
@@ -467,7 +460,6 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
             opened_values_buffer,
             log2_heights,
             minus_alpha_offsets,
-            all_zero_slices,
             dimensions,
         };
         builder.iter_ptr_set(&rounds_context, ptr_vec[1], round_context);
@@ -516,28 +508,29 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                         builder,
                         round_context.log2_heights,
                         round_context.minus_alpha_offsets,
-                        round_context.all_zero_slices,
                         round_context.opened_values_buffer,
                         round.perm,
                         round.openings,
                     )
                     .for_each(|ptr_vec, builder| {
                         let opened_values_buffer =
-                            builder.iter_ptr_get(&round_context.opened_values_buffer, ptr_vec[3]);
+                            builder.iter_ptr_get(&round_context.opened_values_buffer, ptr_vec[2]);
                         let log2_height: Var<C::N> =
                             builder.iter_ptr_get(&round_context.log2_heights, ptr_vec[0]);
                         // The linear combination is by (alpha^offset, ..., alpha^(offset+width-1)), which is equal to
                         // alpha^offset * (1, ..., alpha^(width-1))
                         let minus_alpha_offset =
                             builder.iter_ptr_get(&round_context.minus_alpha_offsets, ptr_vec[1]);
-                        let all_zeros_slice =
-                            builder.iter_ptr_get(&round_context.all_zero_slices, ptr_vec[2]);
-                        let opening = builder.iter_ptr_get(&round.openings, ptr_vec[5]);
+                        let opening = builder.iter_ptr_get(&round.openings, ptr_vec[4]);
                         let width = opening.point_and_evals.evals.len();
                         let low_values = opened_values_buffer.slice(builder, 0, width.clone());
-                        let high_values =
-                            opened_values_buffer.slice(builder, width, opened_values_buffer.len());
+                        let high_values = opened_values_buffer.slice(
+                            builder,
+                            width.clone(),
+                            opened_values_buffer.len(),
+                        );
 
+                        let all_zeros_slice = all_zeros.slice(builder, 0, width.clone());
                         let low = builder.fri_single_reduced_opening_eval(
                             alpha,
                             opened_values.id.get_var(),
@@ -566,8 +559,8 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
 
                         // reorder opened values according to the permutation
                         let mat_j =
-                            builder.iter_ptr_get(&round_context.opened_values_buffer, ptr_vec[3]);
-                        let permuted_j = builder.iter_ptr_get(&round.perm, ptr_vec[4]);
+                            builder.iter_ptr_get(&round_context.opened_values_buffer, ptr_vec[2]);
+                        let permuted_j = builder.iter_ptr_get(&round.perm, ptr_vec[3]);
                         // let permuted_j = j;
                         builder.set_value(&perm_opened_values, permuted_j, mat_j);
                     });
