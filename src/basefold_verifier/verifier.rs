@@ -25,10 +25,13 @@ pub type InnerConfig = AsmConfig<F, E>;
 pub fn batch_verify<C: Config>(
     builder: &mut Builder<C>,
     max_num_var: Var<C::N>,
+    max_width: Var<C::N>,
     rounds: Array<C, RoundVariable<C>>,
     proof: BasefoldProofVariable<C>,
     challenger: &mut DuplexChallengerVariable<C>,
 ) {
+    builder.cycle_tracker_start("prior query phase");
+
     builder.assert_nonzero(&proof.final_message.len());
     builder.assert_nonzero(&proof.sumcheck_proof.len());
 
@@ -72,12 +75,13 @@ pub fn batch_verify<C: Config>(
         builder.assign(&running_coeff, running_coeff * batch_coeff);
     });
 
-    // The max num var is provided by the prover and not guaranteed to be correct.
+    // The max num var and max width are provided by the prover and not guaranteed to be correct.
     // Check that
-    //  1. it is greater than or equal to every num var;
+    //  1. max_num_var is greater than or equal to every num var (same for width);
     //  2. it is equal to at least one of the num vars by multiplying all the differences
-    //      together and assert the product is zero.
-    let diff_product: Var<C::N> = builder.eval(Usize::from(1));
+    //      together and assert the product is zero (same for width).
+    let diff_product_num_var: Var<C::N> = builder.eval(Usize::from(1));
+    let diff_product_width: Var<C::N> = builder.eval(Usize::from(1));
     iter_zip!(builder, rounds).for_each(|ptr_vec, builder| {
         let round = builder.iter_ptr_get(&rounds, ptr_vec[0]);
 
@@ -86,12 +90,19 @@ pub fn batch_verify<C: Config>(
             let diff: Var<C::N> = builder.eval(max_num_var.clone() - opening.num_var);
             // num_var is always smaller than 32.
             builder.range_check_var(diff, 5);
-            builder.assign(&diff_product, diff_product * diff);
+            builder.assign(&diff_product_num_var, diff_product_num_var * diff);
+
+            let diff: Var<C::N> =
+                builder.eval(max_width.clone() - opening.point_and_evals.evals.len());
+            // width is always smaller than 2^14.
+            builder.range_check_var(diff, 14);
+            builder.assign(&diff_product_width, diff_product_width * diff);
         });
     });
     // Check that at least one num_var is equal to max_num_var
     let zero: Var<C::N> = builder.eval(C::N::ZERO);
-    builder.assert_eq::<Var<C::N>>(diff_product, zero);
+    builder.assert_eq::<Var<C::N>>(diff_product_num_var, zero);
+    builder.assert_eq::<Var<C::N>>(diff_product_width, zero);
 
     let num_rounds: Var<C::N> =
         builder.eval(max_num_var - Usize::from(get_basecode_msg_size_log()));
@@ -142,13 +153,17 @@ pub fn batch_verify<C: Config>(
 
     let input = QueryPhaseVerifierInputVariable {
         max_num_var: builder.eval(max_num_var),
+        max_width: builder.eval(max_width),
         batch_coeffs,
         fold_challenges,
         indices: queries,
         proof,
         rounds,
     };
+    builder.cycle_tracker_end("prior query phase");
+    builder.cycle_tracker_start("query phase");
     batch_verifier_query_phase(builder, input);
+    builder.cycle_tracker_end("query phase");
 }
 
 #[cfg(test)]
@@ -167,6 +182,7 @@ pub mod tests {
     use openvm_circuit::arch::{instructions::program::Program, SystemConfig, VmExecutor};
     use openvm_native_circuit::{Native, NativeConfig};
     use openvm_native_compiler::asm::AsmBuilder;
+    use openvm_native_compiler::conversion::CompilerOptions;
     use openvm_native_recursion::challenger::duplex::DuplexChallengerVariable;
     use openvm_native_recursion::hints::Hintable;
     use openvm_stark_backend::p3_challenger::GrindingChallenger;
@@ -196,6 +212,7 @@ pub mod tests {
     #[derive(Deserialize)]
     pub struct VerifierInput {
         pub max_num_var: usize,
+        pub max_width: usize,
         pub proof: BasefoldProof,
         pub rounds: Vec<Round>,
     }
@@ -205,11 +222,13 @@ pub mod tests {
 
         fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
             let max_num_var = usize::read(builder);
+            let max_width = usize::read(builder);
             let proof = BasefoldProof::read(builder);
             let rounds = Vec::<Round>::read(builder);
 
             VerifierInputVariable {
                 max_num_var,
+                max_width,
                 proof,
                 rounds,
             }
@@ -218,6 +237,7 @@ pub mod tests {
         fn write(&self) -> Vec<Vec<<InnerConfig as Config>::N>> {
             let mut stream = Vec::new();
             stream.extend(<usize as Hintable<InnerConfig>>::write(&self.max_num_var));
+            stream.extend(<usize as Hintable<InnerConfig>>::write(&self.max_width));
             stream.extend(self.proof.write());
             stream.extend(self.rounds.write());
             stream
@@ -227,6 +247,7 @@ pub mod tests {
     #[derive(DslVariable, Clone)]
     pub struct VerifierInputVariable<C: Config> {
         pub max_num_var: Var<C::N>,
+        pub max_width: Var<C::N>,
         pub proof: BasefoldProofVariable<C>,
         pub rounds: Array<C, RoundVariable<C>>,
     }
@@ -235,17 +256,23 @@ pub mod tests {
     pub fn build_batch_verifier(input: VerifierInput) -> (Program<BabyBear>, Vec<Vec<BabyBear>>) {
         // build test program
         let mut builder = AsmBuilder::<F, E>::default();
+        builder.cycle_tracker_start("Prepare data");
         let mut challenger = DuplexChallengerVariable::new(&mut builder);
         let verifier_input = VerifierInput::read(&mut builder);
+        builder.cycle_tracker_end("Prepare data");
         batch_verify(
             &mut builder,
             verifier_input.max_num_var,
+            verifier_input.max_width,
             verifier_input.rounds,
             verifier_input.proof,
             &mut challenger,
         );
         builder.halt();
-        let program = builder.compile_isa();
+        let program = builder.compile_isa_with_options(CompilerOptions {
+            enable_cycle_tracker: true,
+            ..Default::default()
+        });
 
         let mut witness_stream: Vec<Vec<F>> = Vec::new();
         witness_stream.extend(input.write());
@@ -253,65 +280,96 @@ pub mod tests {
         (program, witness_stream)
     }
 
-    fn construct_test(dimensions: Vec<(usize, usize)>) {
+    fn construct_test(dimensions: Vec<Vec<(usize, usize)>>) {
         let mut rng = thread_rng();
 
         // setup PCS
-        let pp = PCS::setup(1 << 20, mpcs::SecurityLevel::Conjecture100bits).unwrap();
-        let (pp, vp) = pcs_trim::<E, PCS>(pp, 1 << 20).unwrap();
+        let pp = PCS::setup(1 << 22, mpcs::SecurityLevel::Conjecture100bits).unwrap();
+        let (pp, vp) = pcs_trim::<E, PCS>(pp, 1 << 22).unwrap();
 
-        let mut num_total_polys = 0;
-        let (matrices, mles): (Vec<_>, Vec<_>) = dimensions
-            .into_iter()
-            .map(|(num_vars, width)| {
-                let m = ceno_witness::RowMajorMatrix::<F>::rand(&mut rng, 1 << num_vars, width);
-                let mles = m.to_mles();
-                num_total_polys += width;
-
-                (m, mles)
-            })
-            .unzip();
-
-        // commit to matrices
-        let pcs_data = pcs_batch_commit::<E, PCS>(&pp, matrices).unwrap();
-        let comm = PCS::get_pure_commitment(&pcs_data);
-
-        let point_and_evals = mles
+        let rounds = dimensions
             .iter()
-            .map(|mles| {
-                let point = E::random_vec(mles[0].num_vars(), &mut rng);
-                let evals = mles.iter().map(|mle| mle.evaluate(&point)).collect_vec();
+            .map(|dimensions| {
+                let mut num_total_polys = 0;
+                let (matrices, mles): (Vec<_>, Vec<_>) = dimensions
+                    .into_iter()
+                    .map(|(num_vars, width)| {
+                        let m = ceno_witness::RowMajorMatrix::<F>::rand(
+                            &mut rng,
+                            1 << num_vars,
+                            *width,
+                        );
+                        let mles = m.to_mles();
+                        num_total_polys += width;
 
-                (point, evals)
+                        (m, mles)
+                    })
+                    .unzip();
+
+                // commit to matrices
+                let pcs_data = pcs_batch_commit::<E, PCS>(&pp, matrices).unwrap();
+
+                let point_and_evals = mles
+                    .iter()
+                    .map(|mles| {
+                        let point = E::random_vec(mles[0].num_vars(), &mut rng);
+                        let evals = mles.iter().map(|mle| mle.evaluate(&point)).collect_vec();
+
+                        (point, evals)
+                    })
+                    .collect_vec();
+                (pcs_data, point_and_evals.clone())
+            })
+            .collect_vec();
+
+        let prover_rounds = rounds
+            .iter()
+            .map(|(comm, other)| (comm, other.clone()))
+            .collect_vec();
+
+        let max_num_var = rounds
+            .iter()
+            .map(|round| round.1.iter().map(|(point, _)| point.len()).max().unwrap())
+            .max()
+            .unwrap();
+        let max_width = rounds
+            .iter()
+            .map(|round| round.1.iter().map(|(_, evals)| evals.len()).max().unwrap())
+            .max()
+            .unwrap();
+
+        let verifier_rounds = rounds
+            .iter()
+            .map(|round| {
+                (
+                    PCS::get_pure_commitment(&round.0),
+                    round
+                        .1
+                        .iter()
+                        .map(|(point, evals)| (point.len(), (point.clone(), evals.clone())))
+                        .collect_vec(),
+                )
             })
             .collect_vec();
 
         // batch open
         let mut transcript = BasicTranscript::<E>::new(&[]);
-        let rounds = vec![(&pcs_data, point_and_evals.clone())];
-        let opening_proof = PCS::batch_open(&pp, rounds, &mut transcript).unwrap();
+        let opening_proof = PCS::batch_open(&pp, prover_rounds, &mut transcript).unwrap();
 
         // batch verify
         let mut transcript = BasicTranscript::<E>::new(&[]);
-        let rounds = vec![(
-            comm,
-            point_and_evals
-                .iter()
-                .map(|(point, evals)| (point.len(), (point.clone(), evals.clone())))
-                .collect_vec(),
-        )];
-        PCS::batch_verify(&vp, rounds.clone(), &opening_proof, &mut transcript)
-            .expect("Native verification failed");
-
-        let max_num_var = point_and_evals
-            .iter()
-            .map(|(point, _)| point.len())
-            .max()
-            .unwrap();
+        PCS::batch_verify(
+            &vp,
+            verifier_rounds.clone(),
+            &opening_proof,
+            &mut transcript,
+        )
+        .expect("Native verification failed");
 
         let verifier_input = VerifierInput {
             max_num_var,
-            rounds: rounds
+            max_width,
+            rounds: verifier_rounds
                 .into_iter()
                 .map(|(commit, openings)| Round {
                     commit: commit.into(),
@@ -350,24 +408,79 @@ pub mod tests {
     #[test]
     fn test_simple_batch() {
         for num_var in 5..20 {
-            construct_test(vec![(num_var, 20)]);
+            construct_test(vec![vec![(num_var, 20)]]);
         }
     }
 
     #[test]
     fn test_decreasing_batch() {
-        construct_test(vec![
+        construct_test(vec![vec![
             (14, 20),
             (14, 40),
             (13, 30),
             (12, 30),
             (11, 10),
             (10, 15),
-        ]);
+        ]]);
     }
 
     #[test]
     fn test_random_batch() {
-        construct_test(vec![(10, 20), (12, 30), (11, 10), (12, 15)]);
+        construct_test(vec![vec![(10, 20), (12, 30), (11, 10), (12, 15)]]);
+    }
+
+    #[test]
+    fn test_e2e_fibonacci_batch() {
+        construct_test(vec![
+            vec![
+                (22, 22),
+                (22, 18),
+                (1, 28),
+                (2, 24),
+                (3, 18),
+                (1, 21),
+                (4, 19),
+                (21, 18),
+                (1, 8),
+                (1, 11),
+                (4, 22),
+                (3, 27),
+                (5, 22),
+                (16, 1),
+                (16, 1),
+                (16, 1),
+                (5, 1),
+                (16, 1),
+                (1, 28),
+                (9, 1),
+                (3, 2),
+                (3, 1),
+                (5, 2),
+                (10, 2),
+                (6, 3),
+                (14, 1),
+                (16, 1),
+                (5, 1),
+                (8, 1),
+                (4, 29),
+                (1, 29),
+                (1, 18),
+                (1, 23),
+                (21, 20),
+                (21, 22),
+                (5, 22),
+            ],
+            vec![
+                (16, 3),
+                (16, 3),
+                (16, 3),
+                (5, 3),
+                (16, 3),
+                (9, 6),
+                (3, 1),
+                (10, 2),
+                (6, 3),
+            ],
+        ]);
     }
 }
