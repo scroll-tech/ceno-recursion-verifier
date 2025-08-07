@@ -25,5 +25,5 @@ cp proof.bin $REPO_ROOT/src/e2e/encoded/
 # Return to the root directory
 cd $REPO_ROOT
 
-# Execute the test_zkvm_proof_verifier test
-RUST_LOG=info cargo test --release --lib test_zkvm_proof_verifier -- --nocapture
+# Execute the test_zkvm_verifier test
+RUST_LOG=info,p3_=warn cargo test --release --lib test_zkvm_verifier -- --nocapture
