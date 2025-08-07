@@ -94,8 +94,8 @@ pub fn batch_verify<C: Config>(
 
             let diff: Var<C::N> =
                 builder.eval(max_width.clone() - opening.point_and_evals.evals.len());
-            // width is always smaller than 2^20.
-            builder.range_check_var(diff, 20);
+            // width is always smaller than 2^14.
+            builder.range_check_var(diff, 14);
             builder.assign(&diff_product_width, diff_product_width * diff);
         });
     });
