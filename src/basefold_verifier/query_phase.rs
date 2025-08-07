@@ -336,12 +336,13 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
     .iter()
     .enumerate()
     {
-        let generator = builder.constant(C::F::from_canonical_usize(*val).inverse());
-        builder.set_value(&two_adic_generators_inverses, index, generator);
+        let generator_inverse = builder.constant(C::F::from_canonical_usize(*val).inverse());
+        builder.set_value(&two_adic_generators_inverses, index, generator_inverse);
     }
     let zero: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
     let zero_flag = builder.constant(C::N::ZERO);
-    let two: Var<C::N> = builder.constant(C::N::from_canonical_usize(2));
+    let two: Var<C::N> = builder.constant(C::N::TWO);
+    let two_felt: Felt<C::F> = builder.constant(C::F::TWO);
 
     // encode_small
     let final_message = &input.proof.final_message;
@@ -615,11 +616,10 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
             builder.assert_eq::<Var<C::N>>(commits.len(), opening_ext.len());
             builder.cycle_tracker_end("Initial folding");
             builder.cycle_tracker_start("FRI rounds");
-            builder.range(0, commits.len()).for_each(|i_vec, builder| {
-                builder.cycle_tracker_start("FRI round");
-                let i = i_vec[0];
-                let commit = builder.get(&commits, i);
-                let commit_phase_step = builder.get(&opening_ext, i);
+            let i: Var<C::N> = builder.constant(C::N::ZERO);
+            iter_zip!(builder, commits, opening_ext).for_each(|ptr_vec, builder| {
+                let commit = builder.iter_ptr_get(&commits, ptr_vec[0]);
+                let commit_phase_step = builder.iter_ptr_get(&opening_ext, ptr_vec[1]);
                 let i_plus_one = builder.eval_expr(i + Usize::from(1));
 
                 let sibling_value = commit_phase_step.sibling_value;
@@ -632,12 +632,36 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                 let new_involved_packed_codeword =
                     builder.get(&reduced_codeword_by_height, log2_height.clone());
 
+                // Note that previous coeff is
+                //   1/2 * generator_of_order(2^{level + 2})^{-prev_index}
+                // = 1/2 * generator_of_order(2^{level + 2})^{-(index+2^level*prev_bit)}
+                // = 1/2 * omega^{-2^(MAX - (level + 2)) * (index+2^level*prev_bit)}
+                // where generator_of_order(2^k) returns the generator of order 2^k, which is omega^{2^(MAX - k)}
+                // since omega is the generator of order 2^MAX, where MAX is the two-adicity of this field.
+                // Here prev_bit is the most significant bit of prev_index, and index is removing this bit
+                // from prev_index.
+                //
+                // So prev ^ 2 = 1/4 * omega^{-2^(MAX - (level + 2)) * 2 * (index+2^level*prev_bit)}
+                //             = 1/4 * omega^{-2^(MAX - (level + 1)) * (index+2^level*prev_bit)}
+                //             = 1/4 * omega^{-2^(MAX - (level + 1)) * index - 2^(MAX - (level + 1)) * 2^level*prev_bit}
+                //             = 1/2 * curr * omeag^{- 2^(MAX - 1) * prev_bit}
+                //             = 1/2 * curr * generator_of_order(2)^{-prev_bit}
+                // Note that generator_of_order(2) is exactly -1, so
+                // prev ^ 2 = 1/2 * curr * (-1)^{-prev_bit}
+                // which gives us
+                // curr = 2 * prev^2 * (-1)^{prev_bit}
+                // Note that we haven't multplied the (-1)^{prev_bit} in the following line.
+                // Because `folded_idx` is just the `prev_bit`, so we reuse the following `if_eq` and multiply -1
+                // in the branch where `folded_idx` is != 0.
+                builder.assign(&coeff, coeff * coeff * two_felt);
+
                 builder.if_eq(folded_idx, Usize::from(0)).then_or_else(
                     |builder| {
                         builder.assign(&folded, folded + new_involved_packed_codeword.low);
                     },
                     |builder| {
                         builder.assign(&folded, folded + new_involved_packed_codeword.high);
+                        builder.assign(&coeff, -coeff);
                     },
                 );
 
@@ -665,19 +689,12 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
                 ext_mmcs_verify_batch::<C>(builder, ext_mmcs_verifier_input);
 
                 let r = builder.get(&input.fold_challenges, i_plus_one);
-                let coeff = verifier_folding_coeffs_level(
-                    builder,
-                    &two_adic_generators_inverses,
-                    log2_height,
-                    &idx_pair,
-                    inv_2,
-                );
                 let left = builder.get(&leafs, 0);
                 let right = builder.get(&leafs, 1);
                 let new_folded =
                     codeword_fold_with_challenge(builder, left, right, r, coeff, inv_2);
                 builder.assign(&folded, new_folded);
-                builder.cycle_tracker_end("FRI round");
+                builder.assign(&i, i_plus_one);
             });
             builder.cycle_tracker_end("FRI rounds");
 
