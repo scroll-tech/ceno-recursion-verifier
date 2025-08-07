@@ -243,6 +243,9 @@ pub struct PointAndEvalsVariable<C: Config> {
 pub struct QueryPhaseVerifierInput {
     // pub t_inv_halves: Vec<Vec<<E as ExtensionField>::BaseField>>,
     pub max_num_var: usize,
+    // This is the maximum width of all the opened values in the query openings. The reason
+    // for providing this information is to allow us to allocate a single all-zero buffer that is
+    // sufficiently large to pass to the `fri_single_reduced_opening_eval` chip.
     pub max_width: usize,
     pub batch_coeffs: Vec<E>,
     pub fold_challenges: Vec<E>,
@@ -294,6 +297,7 @@ impl Hintable<InnerConfig> for QueryPhaseVerifierInput {
 pub struct QueryPhaseVerifierInputVariable<C: Config> {
     // pub t_inv_halves: Array<C, Array<C, Felt<C::F>>>,
     pub max_num_var: Usize<C::N>,
+    // See `QueryPhaseVerifierInput` for explaining the purpose of this field.
     pub max_width: Usize<C::N>,
     pub batch_coeffs: Array<C, Ext<C::F, C::EF>>,
     pub fold_challenges: Array<C, Ext<C::F, C::EF>>,
@@ -396,6 +400,9 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
     let batch_coeffs_offset: Var<C::N> = builder.constant(C::N::ZERO);
     iter_zip!(builder, input.rounds, rounds_context).for_each(|ptr_vec, builder| {
         let round = builder.iter_ptr_get(&input.rounds, ptr_vec[0]);
+        // This buffer is not initialized here in providing the context.
+        // It will be initialized later (once for each query) in the loop over queries,
+        // by the `fri_single_reduced_opening_eval` chip.
         let opened_values_buffer: Array<C, Array<C, Felt<C::F>>> =
             builder.dyn_array(round.openings.len());
         let log2_heights = builder.dyn_array(round.openings.len());
