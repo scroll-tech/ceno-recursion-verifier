@@ -316,7 +316,6 @@ pub struct RoundContextVariable<C: Config> {
     pub(crate) log2_heights: Array<C, Var<C::N>>,
     pub(crate) minus_alpha_offsets: Array<C, Ext<C::F, C::EF>>,
     pub(crate) all_zero_slices: Array<C, Array<C, Ext<C::F, C::EF>>>,
-    pub(crate) opening_heights: Array<C, Var<C::N>>,
     pub(crate) dimensions: Array<C, Var<C::N>>,
 }
 
@@ -408,7 +407,6 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
         let log2_heights = builder.dyn_array(round.openings.len());
         let minus_alpha_offsets = builder.dyn_array(round.openings.len());
         let all_zero_slices = builder.dyn_array(round.openings.len());
-        let opening_heights = builder.dyn_array(round.openings.len());
         let dimensions = builder.dyn_array(round.openings.len());
 
         iter_zip!(
@@ -420,7 +418,6 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
             high_values_buffer,
             minus_alpha_offsets,
             all_zero_slices,
-            opening_heights,
             dimensions,
         )
         .for_each(|ptr_vec, builder| {
@@ -455,10 +452,6 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
 
             let all_zero_slice = all_zeros.slice(builder, 0, width);
             builder.iter_ptr_set(&all_zero_slices, ptr_vec[6], all_zero_slice);
-
-            let num_var = opening.num_var;
-            let height: Var<C::N> = builder.eval(num_var + Usize::from(get_rate_log() - 1));
-            builder.iter_ptr_set(&opening_heights, ptr_vec[7], height);
         });
 
         // TODO: ensure that perm is indeed a permutation of 0, ..., opened_values.len()-1
@@ -468,7 +461,7 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
         builder
             .range(0, round.openings.len())
             .for_each(|j_vec, builder| {
-                let height_j = builder.get(&opening_heights, j_vec[0]);
+                let height_j = builder.get(&log2_heights, j_vec[0]);
                 let permuted_j = builder.get(&round.perm, j_vec[0]);
                 // let permuted_j = j;
                 builder.set_value(&dimensions, permuted_j, height_j);
@@ -483,7 +476,6 @@ pub(crate) fn batch_verifier_query_phase<C: Config>(
             log2_heights,
             minus_alpha_offsets,
             all_zero_slices,
-            opening_heights,
             dimensions,
         };
         builder.iter_ptr_set(&rounds_context, ptr_vec[1], round_context);
