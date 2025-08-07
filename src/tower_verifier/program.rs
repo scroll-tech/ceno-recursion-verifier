@@ -375,11 +375,9 @@ pub fn verify_tower_proof<C: Config>(
         eval: builder.constant(C::EF::ZERO),
     };
 
-    builder.cycle_tracker_start("GKR verifies");
     builder
         .range(0, op_range.clone())
         .for_each(|i_vec, builder| {
-            builder.cycle_tracker_start("GKR verifies loop body");
             let round_var = i_vec[0];
             let out_rt = &curr_pt;
             let out_claim = &curr_eval;
@@ -667,9 +665,7 @@ pub fn verify_tower_proof<C: Config>(
                     eval: curr_eval.clone(),
                 },
             );
-            builder.cycle_tracker_end("GKR verifies loop body");
         });
-    builder.cycle_tracker_end("GKR verifies");
 
     (
         next_rt.point,

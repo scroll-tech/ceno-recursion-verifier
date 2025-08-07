@@ -82,7 +82,6 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
     zkvm_proof_input: ZKVMProofInputVariable<C>,
     vk: &ZKVMVerifyingKey<E, Pcs>,
 ) {
-    builder.cycle_tracker_start("Before PCS");
     let mut challenger = DuplexChallengerVariable::new(builder);
     transcript_observe_label(builder, &mut challenger, b"riscv");
 
@@ -202,7 +201,6 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
         });
 
     // iterate over all chips
-    builder.cycle_tracker_start("Iterate over all chips");
     for (i, chip_vk) in vk.circuit_vks.values().enumerate() {
         let chip_id: Var<C::N> = builder.get(&chip_indices, num_chips_verified.get_var());
         builder.if_eq(chip_id, RVar::from(i)).then(|builder| {
@@ -308,7 +306,6 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
             builder.inc(&num_chips_verified);
         });
     }
-    builder.cycle_tracker_end("Iterate over all chips");
 
     builder.assert_usize_eq(num_chips_have_fixed, Usize::from(num_fixed_opening));
     builder.assert_eq::<Usize<_>>(num_chips_verified, chip_indices.len());
@@ -345,7 +342,6 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
             },
         );
     }
-    builder.cycle_tracker_end("Before PCS");
 
     builder.cycle_tracker_start("Basefold verify");
     batch_verify(
@@ -358,7 +354,6 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
     );
     builder.cycle_tracker_end("Basefold verify");
 
-    builder.cycle_tracker_start("After PCS");
     let empty_arr: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(0);
     let initial_global_state = eval_ceno_expr_with_instance(
         builder,
@@ -381,7 +376,6 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
         &vk.finalize_global_state_expr,
     );
     builder.assign(&prod_r, prod_r * finalize_global_state);
-    builder.cycle_tracker_end("After PCS");
 
     /* TODO: Temporarily disable product check for missing subcircuits
         builder.assert_ext_eq(prod_r, prod_w);
