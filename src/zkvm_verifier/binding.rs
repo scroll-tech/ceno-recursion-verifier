@@ -5,6 +5,10 @@ use crate::basefold_verifier::basefold::{
 use crate::basefold_verifier::query_phase::{
     QueryPhaseVerifierInput, QueryPhaseVerifierInputVariable,
 };
+use crate::tower_verifier::binding::{
+    IOPProverMessageVec, IOPProverMessageVecVariable, ThreeDimensionalVecVariable,
+    ThreeDimensionalVector,
+};
 use crate::{
     arithmetics::ceil_log2,
     tower_verifier::binding::{IOPProverMessage, IOPProverMessageVariable},
@@ -43,11 +47,11 @@ pub struct ZKVMProofInputVariable<C: Config> {
 #[derive(DslVariable, Clone)]
 pub struct TowerProofInputVariable<C: Config> {
     pub num_proofs: Usize<C::N>,
-    pub proofs: Array<C, Array<C, IOPProverMessageVariable<C>>>,
+    pub proofs: Array<C, IOPProverMessageVecVariable<C>>,
     pub num_prod_specs: Usize<C::N>,
-    pub prod_specs_eval: Array<C, Array<C, Array<C, Ext<C::F, C::EF>>>>,
+    pub prod_specs_eval: ThreeDimensionalVecVariable<C>,
     pub num_logup_specs: Usize<C::N>,
-    pub logup_specs_eval: Array<C, Array<C, Array<C, Ext<C::F, C::EF>>>>,
+    pub logup_specs_eval: ThreeDimensionalVecVariable<C>,
 }
 
 #[derive(DslVariable, Clone)]
@@ -68,7 +72,7 @@ pub struct ZKVMChipProofInputVariable<C: Config> {
 
     pub tower_proof: TowerProofInputVariable<C>,
 
-    pub main_sel_sumcheck_proofs: Array<C, IOPProverMessageVariable<C>>,
+    pub main_sel_sumcheck_proofs: IOPProverMessageVecVariable<C>,
     pub wits_in_evals: Array<C, Ext<C::F, C::EF>>,
     pub fixed_in_evals: Array<C, Ext<C::F, C::EF>>,
 }
@@ -182,13 +186,13 @@ impl Hintable<InnerConfig> for ZKVMProofInput {
 #[derive(Default, Debug)]
 pub struct TowerProofInput {
     pub num_proofs: usize,
-    pub proofs: Vec<Vec<IOPProverMessage>>,
+    pub proofs: Vec<IOPProverMessageVec>,
     // specs -> layers -> evals
     pub num_prod_specs: usize,
-    pub prod_specs_eval: Vec<Vec<Vec<E>>>,
+    pub prod_specs_eval: ThreeDimensionalVector,
     // specs -> layers -> evals
     pub num_logup_specs: usize,
-    pub logup_specs_eval: Vec<Vec<Vec<E>>>,
+    pub logup_specs_eval: ThreeDimensionalVector,
 }
 
 impl Hintable<InnerConfig> for TowerProofInput {
@@ -199,25 +203,15 @@ impl Hintable<InnerConfig> for TowerProofInput {
         let proofs = builder.dyn_array(num_proofs.clone());
         iter_zip!(builder, proofs).for_each(|idx_vec, builder| {
             let ptr = idx_vec[0];
-            let proof = Vec::<IOPProverMessage>::read(builder);
+            let proof = IOPProverMessageVec::read(builder);
             builder.iter_ptr_set(&proofs, ptr, proof);
         });
 
         let num_prod_specs = Usize::Var(usize::read(builder));
-        let prod_specs_eval = builder.dyn_array(num_prod_specs.clone());
-        iter_zip!(builder, prod_specs_eval).for_each(|idx_vec, builder| {
-            let ptr = idx_vec[0];
-            let evals = Vec::<Vec<E>>::read(builder);
-            builder.iter_ptr_set(&prod_specs_eval, ptr, evals);
-        });
+        let prod_specs_eval = ThreeDimensionalVector::read(builder);
 
         let num_logup_specs = Usize::Var(usize::read(builder));
-        let logup_specs_eval = builder.dyn_array(num_logup_specs.clone());
-        iter_zip!(builder, logup_specs_eval).for_each(|idx_vec, builder| {
-            let ptr = idx_vec[0];
-            let evals = Vec::<Vec<E>>::read(builder);
-            builder.iter_ptr_set(&logup_specs_eval, ptr, evals);
-        });
+        let logup_specs_eval = ThreeDimensionalVector::read(builder);
 
         TowerProofInputVariable {
             num_proofs,
@@ -238,15 +232,12 @@ impl Hintable<InnerConfig> for TowerProofInput {
         stream.extend(<usize as Hintable<InnerConfig>>::write(
             &self.num_prod_specs,
         ));
-        for evals in &self.prod_specs_eval {
-            stream.extend(evals.write());
-        }
+        stream.extend(self.prod_specs_eval.write());
         stream.extend(<usize as Hintable<InnerConfig>>::write(
             &self.num_logup_specs,
         ));
-        for evals in &self.logup_specs_eval {
-            stream.extend(evals.write());
-        }
+        stream.extend(self.logup_specs_eval.write());
+
         stream
     }
 }
@@ -266,7 +257,7 @@ pub struct ZKVMChipProofInput {
     pub tower_proof: TowerProofInput,
 
     // main constraint and select sumcheck proof
-    pub main_sumcheck_proofs: Vec<IOPProverMessage>,
+    pub main_sumcheck_proofs: IOPProverMessageVec,
     pub wits_in_evals: Vec<E>,
     pub fixed_in_evals: Vec<E>,
 }
@@ -292,7 +283,7 @@ impl Hintable<InnerConfig> for ZKVMChipProofInput {
         let record_lk_out_evals = Vec::<Vec<E>>::read(builder);
 
         let tower_proof = TowerProofInput::read(builder);
-        let main_sel_sumcheck_proofs = Vec::<IOPProverMessage>::read(builder);
+        let main_sel_sumcheck_proofs = IOPProverMessageVec::read(builder);
         let wits_in_evals = Vec::<E>::read(builder);
         let fixed_in_evals = Vec::<E>::read(builder);
 
