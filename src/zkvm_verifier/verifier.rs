@@ -970,9 +970,11 @@ pub fn evaluate_gkr_expression<C: Config>(
             // _debug
             // assert!(parts.iter().all(|part| part.point == parts[0].point));
 
+            // FIXME: this is WRONG. we should use builder.dyn_array();
             let mut new_point: Vec<Ext<C::F, C::EF>> = vec![];
             builder.range(0, parts[0].point.fs.len()).for_each(|idx_vec, builder| {
                 let e = builder.get(&parts[0].point.fs, idx_vec[0]);
+                // FIXME: this is WRONG.
                 new_point.push(e);
             });
             for (index_in_point, c) in indices {
