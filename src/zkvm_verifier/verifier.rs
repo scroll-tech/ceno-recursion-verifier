@@ -286,6 +286,9 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
                     &mut poly_evaluator,
                 )
             };
+            // root cause: for keccak, the input_opening_point has length=12
+            // but outside the loop, it becomes 7
+            builder.print_v(input_opening_point.len().get_var());
             builder.cycle_tracker_end("Verify chip proof");
 
             let witin_round: RoundOpeningVariable<C> = builder.eval(RoundOpeningVariable {
@@ -362,7 +365,6 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
         );
     }
 
-    /* _debug
     batch_verify(
         builder,
         zkvm_proof_input.max_num_var,
@@ -370,7 +372,6 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
         zkvm_proof_input.pcs_proof,
         &mut challenger,
     );
-    */
 
     let empty_arr: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(0);
     let initial_global_state = eval_ceno_expr_with_instance(
@@ -673,12 +674,13 @@ pub fn verify_gkr_circuit<C: Config>(
         // Update claim
         layer.in_eval_expr.iter().enumerate().for_each(|(idx, pos)| {
             let val = builder.get(&main_evals, idx);
-            builder.set(&claims, *pos, PointAndEvalVariable {
+            let point_eval = builder.eval(PointAndEvalVariable {
                 point: PointVariable {
                     fs: in_point.clone()
                 },
-                eval: val,
+                eval: val
             });
+            builder.set_value(&claims, *pos, point_eval);
         });
     }
 

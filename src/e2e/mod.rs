@@ -328,7 +328,7 @@ pub fn inner_test_thread() {
     witness_stream.extend(zkvm_proof_input.write());
 
     // Compile program
-    let options = CompilerOptions::default().with_cycle_tracker();
+    let options = CompilerOptions::default();
     let mut compiler = AsmCompiler::new(options.word_size);
     compiler.build(builder.operations);
     let asm_code = compiler.code();
