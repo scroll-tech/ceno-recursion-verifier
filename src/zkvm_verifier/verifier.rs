@@ -286,6 +286,9 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
                     &mut poly_evaluator,
                 )
             };
+            // root cause: for keccak, the input_opening_point has length=12
+            // but outside the loop, it becomes 7
+            builder.print_v(input_opening_point.len().get_var());
             builder.cycle_tracker_end("Verify chip proof");
 
             let witin_round: RoundOpeningVariable<C> = builder.eval(RoundOpeningVariable {
@@ -362,7 +365,6 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
         );
     }
 
-    /* _debug
     batch_verify(
         builder,
         zkvm_proof_input.max_num_var,
@@ -370,7 +372,6 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
         zkvm_proof_input.pcs_proof,
         &mut challenger,
     );
-    */
 
     let empty_arr: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(0);
     let initial_global_state = eval_ceno_expr_with_instance(
@@ -673,12 +674,13 @@ pub fn verify_gkr_circuit<C: Config>(
         // Update claim
         layer.in_eval_expr.iter().enumerate().for_each(|(idx, pos)| {
             let val = builder.get(&main_evals, idx);
-            builder.set(&claims, *pos, PointAndEvalVariable {
+            let point_eval = builder.eval(PointAndEvalVariable {
                 point: PointVariable {
                     fs: in_point.clone()
                 },
-                eval: val,
+                eval: val
             });
+            builder.set_value(&claims, *pos, point_eval);
         });
     }
 
@@ -968,9 +970,11 @@ pub fn evaluate_gkr_expression<C: Config>(
             // _debug
             // assert!(parts.iter().all(|part| part.point == parts[0].point));
 
+            // FIXME: this is WRONG. we should use builder.dyn_array();
             let mut new_point: Vec<Ext<C::F, C::EF>> = vec![];
             builder.range(0, parts[0].point.fs.len()).for_each(|idx_vec, builder| {
                 let e = builder.get(&parts[0].point.fs, idx_vec[0]);
+                // FIXME: this is WRONG.
                 new_point.push(e);
             });
             for (index_in_point, c) in indices {

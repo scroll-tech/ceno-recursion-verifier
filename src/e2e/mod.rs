@@ -7,6 +7,7 @@ use crate::zkvm_verifier::binding::{
 };
 use crate::zkvm_verifier::verifier::{verify_zkvm_proof, verify_gkr_circuit};
 use ceno_mle::util::ceil_log2;
+use ceno_transcript::BasicTranscript;
 use ff_ext::BabyBearExt4;
 use gkr_iop::gkr::{
     GKRCircuit,
@@ -307,8 +308,10 @@ pub fn inner_test_thread() {
             .expect("Failed to deserialize vk file");
 
     let verifier = ZKVMVerifier::new(vk);
-    let zkvm_proof_input = parse_zkvm_proof_import(zkvm_proof, &verifier);
+    let zkvm_proof_input = parse_zkvm_proof_import(zkvm_proof.clone(), &verifier);
     
+    let transcript = BasicTranscript::new(b"riscv");
+    verifier.verify_proof(zkvm_proof, transcript).expect("ZKVM proof verification failed");
     // OpenVM DSL
     let mut builder = AsmBuilder::<F, EF>::default();
 
@@ -325,7 +328,7 @@ pub fn inner_test_thread() {
     witness_stream.extend(zkvm_proof_input.write());
 
     // Compile program
-    let options = CompilerOptions::default().with_cycle_tracker();
+    let options = CompilerOptions::default();
     let mut compiler = AsmCompiler::new(options.word_size);
     compiler.build(builder.operations);
     let asm_code = compiler.code();
