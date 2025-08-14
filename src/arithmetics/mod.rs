@@ -202,24 +202,6 @@ pub fn dot_product<C: Config>(
     acc
 }
 
-pub fn dot_product_pt_n_eval<C: Config>(
-    builder: &mut Builder<C>,
-    pt_and_eval: &Array<C, PointAndEvalVariable<C>>,
-    b: &Array<C, Ext<C::F, C::EF>>,
-) -> Ext<<C as Config>::F, <C as Config>::EF> {
-    let acc: Ext<C::F, C::EF> = builder.eval(C::F::ZERO);
-
-    iter_zip!(builder, pt_and_eval, b).for_each(|idx_vec, builder| {
-        let ptr_a = idx_vec[0];
-        let ptr_b = idx_vec[1];
-        let v_a = builder.iter_ptr_get(&pt_and_eval, ptr_a);
-        let v_b = builder.iter_ptr_get(&b, ptr_b);
-        builder.assign(&acc, acc + v_a.eval * v_b);
-    });
-
-    acc
-}
-
 pub fn reverse<C: Config, T: MemVariable<C>>(
     builder: &mut Builder<C>,
     arr: &Array<C, T>,
@@ -319,20 +301,6 @@ pub fn eq_eval_with_index<C: Config>(
     acc
 }
 
-// Multiply all elements in the Array
-pub fn product<C: Config>(
-    builder: &mut Builder<C>,
-    arr: &Array<C, Ext<C::F, C::EF>>,
-) -> Ext<C::F, C::EF> {
-    let acc = builder.constant(C::EF::ONE);
-    iter_zip!(builder, arr).for_each(|idx_vec, builder| {
-        let el = builder.iter_ptr_get(arr, idx_vec[0]);
-        builder.assign(&acc, acc * el);
-    });
-
-    acc
-}
-
 // Multiply all elements in a nested Array
 pub fn nested_product<C: Config>(
     builder: &mut Builder<C>,
@@ -349,47 +317,6 @@ pub fn nested_product<C: Config>(
     });
 
     acc
-}
-
-// Add all elements in the Array
-pub fn sum<C: Config>(
-    builder: &mut Builder<C>,
-    arr: &Array<C, Ext<C::F, C::EF>>,
-) -> Ext<C::F, C::EF> {
-    let acc = builder.constant(C::EF::ZERO);
-    iter_zip!(builder, arr).for_each(|idx_vec, builder| {
-        let el = builder.iter_ptr_get(arr, idx_vec[0]);
-        builder.assign(&acc, acc + el);
-    });
-
-    acc
-}
-
-// Join two arrays
-pub fn join<C: Config>(
-    builder: &mut Builder<C>,
-    a: &Array<C, Ext<C::F, C::EF>>,
-    b: &Array<C, Ext<C::F, C::EF>>,
-) -> Array<C, Ext<C::F, C::EF>> {
-    let a_len = a.len();
-    let b_len = b.len();
-    let out_len = builder.eval_expr(a_len.clone() + b_len.clone());
-    let out = builder.dyn_array(out_len);
-
-    builder.range(0, a_len.clone()).for_each(|i_vec, builder| {
-        let i = i_vec[0];
-        let a_val = builder.get(a, i);
-        builder.set(&out, i, a_val);
-    });
-
-    builder.range(0, b_len).for_each(|i_vec, builder| {
-        let b_i = i_vec[0];
-        let i = builder.eval_expr(b_i + a_len.clone());
-        let b_val = builder.get(b, b_i);
-        builder.set(&out, i, b_val);
-    });
-
-    out
 }
 
 // Generate alpha power challenges
@@ -511,35 +438,6 @@ pub fn build_eq_x_r_vec_sequential<C: Config>(
         });
     });
 
-    evals
-}
-
-pub fn build_eq_x_r_vec_sequential_with_offset<C: Config>(
-    builder: &mut Builder<C>,
-    r: &Array<C, Ext<C::F, C::EF>>,
-    offset: Usize<C::N>,
-) -> Array<C, Ext<C::F, C::EF>> {
-    // we build eq(x,r) from its evaluations
-    // we want to evaluate eq(x,r) over x \in {0, 1}^num_vars
-    // for example, with num_vars = 4, x is a binary vector of 4, then
-    //  0 0 0 0 -> (1-r0)   * (1-r1)    * (1-r2)    * (1-r3)
-    //  1 0 0 0 -> r0       * (1-r1)    * (1-r2)    * (1-r3)
-    //  0 1 0 0 -> (1-r0)   * r1        * (1-r2)    * (1-r3)
-    //  1 1 0 0 -> r0       * r1        * (1-r2)    * (1-r3)
-    //  ....
-    //  1 1 1 1 -> r0       * r1        * r2        * r3
-    // we will need 2^num_var evaluations
-
-    let r_len: Var<C::N> = builder.eval(r.len() - offset);
-    let evals_len: Felt<C::F> = builder.constant(C::F::ONE);
-    let evals_len = builder.exp_power_of_2_v::<Felt<C::F>>(evals_len, r_len);
-    let evals_len = builder.cast_felt_to_var(evals_len);
-
-    let evals: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(evals_len);
-    // _debug
-    // build_eq_x_r_helper_sequential_offset(r, &mut evals, E::ONE);
-    // unsafe { std::mem::transmute(evals) }
-    // FIXME: this function is not implemented yet
     evals
 }
 

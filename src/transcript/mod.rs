@@ -1,10 +1,8 @@
 use ff_ext::{BabyBearExt4, ExtensionField as CenoExtensionField, SmallField};
 use openvm_native_compiler::prelude::*;
-use openvm_native_recursion::challenger::{
-    duplex::DuplexChallengerVariable, CanObserveVariable, FeltChallenger,
-};
-use openvm_native_recursion::challenger::{CanSampleBitsVariable, ChallengerVariable};
-use openvm_stark_backend::p3_field::{FieldAlgebra, FieldExtensionAlgebra};
+use openvm_native_recursion::challenger::{duplex::DuplexChallengerVariable, CanObserveVariable};
+use openvm_native_recursion::challenger::CanSampleBitsVariable;
+use openvm_stark_backend::p3_field::FieldAlgebra;
 
 pub fn transcript_observe_label<C: Config>(
     builder: &mut Builder<C>,

@@ -372,7 +372,7 @@ impl Hintable<InnerConfig> for ZKVMChipProofInput {
 }
 
 #[derive(Default)]
-pub(crate) struct SumcheckLayerProofInput {
+pub struct SumcheckLayerProofInput {
     pub proof: Vec<IOPProverMessage>,
     pub evals: Vec<E>,
 }
@@ -406,8 +406,7 @@ impl Hintable<InnerConfig> for SumcheckLayerProofInput {
         stream
     }
 }
-
-pub(crate) struct LayerProofInput {
+pub struct LayerProofInput {
     pub has_rotation: usize,
     pub rotation: SumcheckLayerProofInput,
     pub main: SumcheckLayerProofInput,
