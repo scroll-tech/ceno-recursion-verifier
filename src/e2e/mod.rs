@@ -14,7 +14,7 @@ use gkr_iop::gkr::{
 };
 use itertools::Itertools;
 use mpcs::{Basefold, BasefoldRSParams};
-use openvm_circuit::arch::{instructions::program::Program, SystemConfig, VmExecutor};
+use openvm_circuit::arch::{instructions::program::Program, SystemConfig, VmExecutor, verify_single, VirtualMachine};
 use openvm_native_circuit::{Native, NativeConfig};
 use openvm_native_compiler::{
     asm::AsmBuilder,
@@ -23,9 +23,14 @@ use openvm_native_compiler::{
 };
 use openvm_native_recursion::hints::Hintable;
 use openvm_stark_backend::config::StarkGenericConfig;
-use openvm_stark_sdk::config::setup_tracing_with_log_level;
 use openvm_stark_sdk::{
-    config::baby_bear_poseidon2::BabyBearPoseidon2Config, p3_baby_bear::BabyBear,
+    engine::StarkFriEngine,
+    p3_baby_bear::BabyBear,
+    config::{
+        baby_bear_poseidon2::{BabyBearPoseidon2Engine, BabyBearPoseidon2Config},
+        fri_params::standard_fri_params_with_100_bits_conjectured_security,
+        setup_tracing_with_log_level, FriParameters,
+    }
 };
 use std::fs::File;
 
@@ -349,11 +354,38 @@ pub fn inner_test_thread() {
     let executor = VmExecutor::<BabyBear, NativeConfig>::new(config);
 
     let res = executor
-        .execute_and_then(program, witness_stream, |_, seg| Ok(seg), |err| err)
+        .execute_and_then(program.clone(), witness_stream.clone(), |_, seg| Ok(seg), |err| err)
         .unwrap();
 
     for (i, seg) in res.iter().enumerate() {
         println!("=> segment {:?} metrics: {:?}", i, seg.metrics);
+    }
+
+    let poseidon2_max_constraint_degree = 3;
+    let log_blowup = 1;
+
+    let fri_params = if matches!(std::env::var("OPENVM_FAST_TEST"), Ok(x) if &x == "1") {
+        FriParameters {
+            log_blowup,
+            log_final_poly_len: 0,
+            num_queries: 10,
+            proof_of_work_bits: 0,
+        }
+    } else {
+        standard_fri_params_with_100_bits_conjectured_security(log_blowup)
+    };
+
+    let engine = BabyBearPoseidon2Engine::new(fri_params);
+    let mut config = NativeConfig::aggregation(0, poseidon2_max_constraint_degree);
+    config.system.memory_config.max_access_adapter_n = 16;
+
+    let vm = VirtualMachine::new(engine, config);
+
+    let pk = vm.keygen();
+    let result = vm.execute_and_generate(program, witness_stream).unwrap();
+    let proofs = vm.prove(&pk, result);
+    for proof in proofs {
+        verify_single(&vm.engine, &pk.get_vk(), &proof).expect("Verification failed");
     }
 }
 
