@@ -390,7 +390,7 @@ pub fn inner_test_thread() {
 }
 
 #[test]
-pub fn test_zkvm_proof_verifier_from_bincode_exports() {
+pub fn test_zkvm_verifier() {
     let stack_size = 64 * 1024 * 1024; // 64 MB
 
     let handler = std::thread::Builder::new()
