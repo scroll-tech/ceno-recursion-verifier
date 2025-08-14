@@ -34,6 +34,7 @@ pub struct ZKVMProofInputVariable<C: Config> {
     pub pi_evals: Array<C, Ext<C::F, C::EF>>,
     pub chip_proofs: Array<C, ZKVMChipProofInputVariable<C>>,
     pub max_num_var: Var<C::N>,
+    pub max_width: Var<C::N>,
     pub witin_commit: BasefoldCommitmentVariable<C>,
     pub witin_perm: Array<C, Var<C::N>>,
     pub fixed_perm: Array<C, Var<C::N>>,
@@ -94,6 +95,7 @@ impl Hintable<InnerConfig> for ZKVMProofInput {
         let pi_evals = Vec::<E>::read(builder);
         let chip_proofs = Vec::<ZKVMChipProofInput>::read(builder);
         let max_num_var = usize::read(builder);
+        let max_width = usize::read(builder);
         let witin_commit = BasefoldCommitment::read(builder);
         let witin_perm = Vec::<usize>::read(builder);
         let fixed_perm = Vec::<usize>::read(builder);
@@ -105,6 +107,7 @@ impl Hintable<InnerConfig> for ZKVMProofInput {
             pi_evals,
             chip_proofs,
             max_num_var,
+            max_width,
             witin_commit,
             witin_perm,
             fixed_perm,
@@ -124,13 +127,30 @@ impl Hintable<InnerConfig> for ZKVMProofInput {
             .iter()
             .map(|proof| ceil_log2(proof.num_instances).max(1))
             .collect::<Vec<_>>();
+        let witin_max_widths = self
+            .chip_proofs
+            .iter()
+            .map(|proof| proof.wits_in_evals.len().max(1))
+            .collect::<Vec<_>>();
         let fixed_num_vars = self
             .chip_proofs
             .iter()
             .filter(|proof| proof.fixed_in_evals.len() > 0)
             .map(|proof| ceil_log2(proof.num_instances).max(1))
             .collect::<Vec<_>>();
+        let fixed_max_widths = self
+            .chip_proofs
+            .iter()
+            .filter(|proof| proof.fixed_in_evals.len() > 0)
+            .map(|proof| proof.fixed_in_evals.len())
+            .collect::<Vec<_>>();
         let max_num_var = witin_num_vars.iter().map(|x| *x).max().unwrap_or(0);
+        let max_width = witin_max_widths
+            .iter()
+            .chain(fixed_max_widths.iter())
+            .map(|x| *x)
+            .max()
+            .unwrap_or(0);
         let get_perm = |v: Vec<usize>| {
             let mut perm = vec![0; v.len()];
             v.into_iter()
@@ -153,6 +173,7 @@ impl Hintable<InnerConfig> for ZKVMProofInput {
         stream.extend(self.pi_evals.write());
         stream.extend(self.chip_proofs.write());
         stream.extend(<usize as Hintable<InnerConfig>>::write(&max_num_var));
+        stream.extend(<usize as Hintable<InnerConfig>>::write(&max_width));
         stream.extend(self.witin_commit.write());
         stream.extend(witin_perm.write());
         stream.extend(fixed_perm.write());

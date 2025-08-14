@@ -31,8 +31,8 @@ pub fn pow_felt<C: Config>(
 pub fn pow_felt_bits<C: Config>(
     builder: &mut Builder<C>,
     base: Felt<C::F>,
-    exponent_bits: &Array<C, Var<C::N>>, // FIXME: Should be big endian? There is a bit_reverse_rows() in Ceno native code
-    exponent_len: Usize<C::N>,
+    exponent_bits: &Array<C, Var<C::N>>,
+    exponent_len: Usize<C::N>, // This is not exponent_bits.len(), possibly smaller than it
 ) -> Felt<C::F> {
     let value: Felt<C::F> = builder.constant(C::F::ONE);
 
