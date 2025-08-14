@@ -2,17 +2,11 @@ use crate::arithmetics::next_pow2_instance_padding;
 use crate::basefold_verifier::basefold::{
     BasefoldCommitment, BasefoldCommitmentVariable, BasefoldProof, BasefoldProofVariable,
 };
-use crate::basefold_verifier::query_phase::{
-    QueryPhaseVerifierInput, QueryPhaseVerifierInputVariable,
-};
 use crate::{
     arithmetics::ceil_log2,
     tower_verifier::binding::{PointVariable, IOPProverMessage, IOPProverMessageVariable},
 };
-use ark_std::iterable::Iterable;
-use ff_ext::BabyBearExt4;
 use itertools::Itertools;
-use openvm_circuit::derive;
 use openvm_native_compiler::{
     asm::AsmConfig,
     ir::{Array, Builder, Config, Felt},
@@ -448,7 +442,7 @@ impl Hintable<InnerConfig> for LayerProofInput {
     }
 }
 #[derive(Default)]
-pub(crate) struct GKRProofInput {
+pub struct GKRProofInput {
     pub num_var_with_rotation: usize,
     pub num_instances: usize,
     pub layer_proofs: Vec<LayerProofInput>,

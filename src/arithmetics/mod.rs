@@ -7,30 +7,28 @@ use ff_ext::{BabyBearExt4, SmallField};
 use itertools::Either;
 use openvm_native_compiler::prelude::*;
 use openvm_native_compiler_derive::iter_zip;
-use openvm_native_recursion::challenger::ChallengerVariable;
 use openvm_native_recursion::challenger::{
-    duplex::DuplexChallengerVariable, CanObserveVariable, FeltChallenger,
+    duplex::DuplexChallengerVariable, FeltChallenger,
 };
-use openvm_stark_backend::p3_field::{FieldAlgebra, FieldExtensionAlgebra, extension::BinomialExtensionField};
+use openvm_stark_backend::p3_field::{FieldAlgebra, FieldExtensionAlgebra};
 type E = BabyBearExt4;
-const HASH_RATE: usize = 8;
 const MAX_NUM_VARS: usize = 25;
 
-pub fn print_ext_arr<C: Config>(builder: &mut Builder<C>, arr: &Array<C, Ext<C::F, C::EF>>) {
+pub fn _print_ext_arr<C: Config>(builder: &mut Builder<C>, arr: &Array<C, Ext<C::F, C::EF>>) {
     iter_zip!(builder, arr).for_each(|ptr_vec, builder| {
         let e = builder.iter_ptr_get(arr, ptr_vec[0]);
         builder.print_e(e);
     });
 }
 
-pub fn print_felt_arr<C: Config>(builder: &mut Builder<C>, arr: &Array<C, Felt<C::F>>) {
+pub fn _print_felt_arr<C: Config>(builder: &mut Builder<C>, arr: &Array<C, Felt<C::F>>) {
     iter_zip!(builder, arr).for_each(|ptr_vec, builder| {
         let f = builder.iter_ptr_get(arr, ptr_vec[0]);
         builder.print_f(f);
     });
 }
 
-pub fn print_usize_arr<C: Config>(builder: &mut Builder<C>, arr: &Array<C, Usize<C::N>>) {
+pub fn _print_usize_arr<C: Config>(builder: &mut Builder<C>, arr: &Array<C, Usize<C::N>>) {
     iter_zip!(builder, arr).for_each(|ptr_vec, builder| {
         let n = builder.iter_ptr_get(arr, ptr_vec[0]);
         builder.print_v(n.get_var());

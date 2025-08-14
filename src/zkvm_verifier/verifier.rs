@@ -1,8 +1,6 @@
-use std::io::empty;
-
 use super::binding::{ZKVMChipProofInputVariable, ZKVMProofInputVariable, ClaimAndPoint, RotationClaim,GKRClaimEvaluation};
 use crate::arithmetics::{
-    challenger_multi_observe, eq_eval, eval_ceno_expr_with_instance, join, print_ext_arr, print_felt_arr, print_usize_arr, PolyEvaluator, UniPolyExtrapolator
+    challenger_multi_observe, eq_eval, eval_ceno_expr_with_instance, PolyEvaluator, UniPolyExtrapolator
 };
 use crate::basefold_verifier::basefold::{
     BasefoldCommitmentVariable, RoundOpeningVariable, RoundVariable,
@@ -10,25 +8,23 @@ use crate::basefold_verifier::basefold::{
 use crate::basefold_verifier::mmcs::MmcsCommitmentVariable;
 use crate::basefold_verifier::query_phase::PointAndEvalsVariable;
 use crate::basefold_verifier::utils::pow_2;
-use crate::basefold_verifier::verifier::batch_verify;
+// use crate::basefold_verifier::verifier::batch_verify;
 use crate::tower_verifier::program::verify_tower_proof;
 use crate::transcript::transcript_observe_label;
-use crate::zkvm_verifier::binding::{GKRProofVariable, LayerProofInput, LayerProofVariable, SumcheckLayerProofInput, SumcheckLayerProofVariable};
+use crate::zkvm_verifier::binding::{GKRProofVariable, LayerProofVariable, SumcheckLayerProofVariable};
 use crate::{
     arithmetics::{
         build_eq_x_r_vec_sequential, ceil_log2, concat, dot_product as ext_dot_product,
         eq_eval_less_or_equal_than, eval_wellform_address_vec, gen_alpha_pows, max_usize_arr,
-        max_usize_vec, nested_product, next_pow2_instance_padding, product, sum as ext_sum,
+        max_usize_vec, nested_product,
     },
     tower_verifier::{binding::{PointVariable, PointAndEvalVariable}, program::iop_verifier_state_verify},
 };
 use ceno_zkvm::structs::VerifyingKey;
 use ceno_mle::{
-    expression::{Expression, StructuralWitIn, Instance, WitnessId},
-    mle::{Point, PointAndEval},
-    virtual_poly::build_eq_x_r_sequential
+    expression::{Expression, StructuralWitIn, Instance},
 };
-use ceno_zkvm::{e2e::B, circuit_builder::SetTableSpec, scheme::verifier::ZKVMVerifier, structs::ComposedConstrainSystem};
+use ceno_zkvm::{circuit_builder::SetTableSpec, scheme::verifier::ZKVMVerifier, structs::ComposedConstrainSystem};
 use ff_ext::BabyBearExt4;
 use gkr_iop::gkr::layer::ROTATION_OPENING_COUNT;
 use gkr_iop::{
@@ -40,7 +36,7 @@ use gkr_iop::{
     selector::SelectorType,
     evaluation::EvalExpression,
 };
-use itertools::{interleave, max, Itertools, izip};
+use itertools::{interleave, Itertools, izip};
 use mpcs::{Basefold, BasefoldRSParams};
 use openvm_native_compiler::prelude::*;
 use openvm_native_compiler_derive::iter_zip;
@@ -48,16 +44,13 @@ use openvm_native_recursion::challenger::{
     duplex::DuplexChallengerVariable, CanObserveVariable, FeltChallenger,
 };
 use p3_baby_bear::BabyBear;
-use openvm_stark_backend::p3_field::{Field, FieldAlgebra};
-use p3_field::dot_product;
+use openvm_stark_backend::p3_field::FieldAlgebra;
 
 type F = BabyBear;
 type E = BabyBearExt4;
 type Pcs = Basefold<E, BasefoldRSParams>;
 
 const NUM_FANIN: usize = 2;
-const MAINCONSTRAIN_SUMCHECK_BATCH_SIZE: usize = 3; // read/write/lookup
-const SEL_DEGREE: usize = 2;
 
 pub fn transcript_group_observe_label<C: Config>(
     builder: &mut Builder<C>,
@@ -411,23 +404,17 @@ pub fn verify_opcode_proof<C: Config>(
 ) -> Array<C, Ext<C::F, C::EF>> {
     let cs = vk.get_cs();
     let one: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
-    let zero: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
 
     let r_len = cs.zkvm_v1_css.r_expressions.len();
     let w_len = cs.zkvm_v1_css.w_expressions.len();
     let lk_len = cs.zkvm_v1_css.lk_expressions.len();
 
     let num_batched = r_len + w_len + lk_len;
-    let chip_record_alpha: Ext<C::F, C::EF> = builder.get(challenges, 0);
 
     let r_counts_per_instance: Usize<C::N> = Usize::from(r_len);
     let w_counts_per_instance: Usize<C::N> = Usize::from(w_len);
     let lk_counts_per_instance: Usize<C::N> = Usize::from(lk_len);
     let num_batched: Usize<C::N> = Usize::from(num_batched);
-
-    let log2_r_count: Usize<C::N> = Usize::from(ceil_log2(r_len));
-    let log2_w_count: Usize<C::N> = Usize::from(ceil_log2(w_len));
-    let log2_lk_count: Usize<C::N> = Usize::from(ceil_log2(lk_len));
 
     let log2_num_instances = opcode_proof.log2_num_instances.clone();
 
@@ -454,10 +441,9 @@ pub fn verify_opcode_proof<C: Config>(
     );
 
     let num_fanin: Usize<C::N> = Usize::from(NUM_FANIN);
-    let max_expr_len = *max([r_len, w_len, lk_len].iter()).unwrap();
 
     builder.cycle_tracker_start("verify tower proof for opcode");
-    let (rt_tower, record_evals, logup_p_evals, logup_q_evals) = verify_tower_proof(
+    let (_, record_evals, logup_p_evals, logup_q_evals) = verify_tower_proof(
         builder,
         challenger,
         prod_out_evals,
@@ -474,7 +460,7 @@ pub fn verify_opcode_proof<C: Config>(
     builder.assert_ext_eq(logup_p_eval, one);
 
     // verify zero statement (degree > 1) + sel sumcheck
-    let rt = builder.get(&record_evals, 0);
+    let _rt = builder.get(&record_evals, 0);
     let num_rw_records: Usize<C::N> = builder.eval(r_counts_per_instance + w_counts_per_instance);
     builder.assert_usize_eq(record_evals.len(), num_rw_records.clone());
     builder.assert_usize_eq(logup_p_evals.len(), lk_counts_per_instance.clone());
@@ -535,7 +521,7 @@ pub fn verify_gkr_circuit<C: Config>(
             main: SumcheckLayerProofVariable {
                 proof,
                 evals: main_evals,
-                evals_len_div_3: main_evals_len_div_3,
+                evals_len_div_3: _main_evals_len_div_3,
             },
             rotation: rotation_proof,
             has_rotation,
@@ -801,7 +787,6 @@ pub fn rotation_selector_eval<C: Config>(
 ) -> Ext<C::F, C::EF> {
     let bh = BooleanHypercube::new(5);
     let eval: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
-    let cyclic_group_size: usize = 1 << cyclic_group_log2_size;
     let rotation_index = bh.into_iter().take(rotation_cyclic_subgroup_size).collect_vec();
     
     let out_subgroup = out_point.slice(builder, 0, cyclic_group_log2_size);
@@ -889,7 +874,7 @@ pub fn evaluate_selector<C: Config>(
 
 pub fn get_rotation_points<C: Config>(
     builder: &mut Builder<C>,
-    num_vars: usize,
+    _num_vars: usize,
     point: &Array<C, Ext<C::F, C::EF>>,
 ) -> (
     Array<C, Ext<C::F, C::EF>>,

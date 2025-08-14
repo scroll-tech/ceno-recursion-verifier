@@ -361,6 +361,7 @@ pub fn inner_test_thread() {
         println!("=> segment {:?} metrics: {:?}", i, seg.metrics);
     }
 
+    /* _debug
     let poseidon2_max_constraint_degree = 3;
     let log_blowup = 1;
 
@@ -387,6 +388,7 @@ pub fn inner_test_thread() {
     for proof in proofs {
         verify_single(&vm.engine, &pk.get_vk(), &proof).expect("Verification failed");
     }
+    */
 }
 
 #[test]

@@ -1,16 +1,14 @@
 use super::binding::{IOPProverMessageVariable, PointAndEvalVariable, PointVariable};
 use crate::arithmetics::{
-    challenger_multi_observe, dot_product, eq_eval, evaluate_at_point_degree_1, extend,
-    exts_to_felts, fixed_dot_product, gen_alpha_pows, is_smaller_than, print_ext_arr, reverse,
+    challenger_multi_observe, eq_eval, evaluate_at_point_degree_1, extend,
+    exts_to_felts, fixed_dot_product, reverse,
     UniPolyExtrapolator,
 };
 use crate::transcript::transcript_observe_label;
 use crate::zkvm_verifier::binding::TowerProofInputVariable;
 use ceno_zkvm::scheme::constants::NUM_FANIN;
-use openvm::platform::print;
 use openvm_native_compiler::prelude::*;
 use openvm_native_compiler_derive::iter_zip;
-use openvm_native_recursion::challenger::ChallengerVariable;
 use openvm_native_recursion::challenger::{
     duplex::DuplexChallengerVariable, CanObserveVariable, FeltChallenger,
 };

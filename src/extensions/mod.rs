@@ -1,17 +1,7 @@
 #[cfg(test)]
 mod tests {
-
     use crate::arithmetics::{challenger_multi_observe, exts_to_felts};
-
-    use crate::zkvm_verifier::binding::{E, F};
-    use ceno_mle::expression::StructuralWitIn;
-    use ceno_zkvm::{circuit_builder::SetTableSpec, scheme::verifier::ZKVMVerifier};
-    use ff_ext::BabyBearExt4;
-    use itertools::interleave;
-    use itertools::max;
-    use itertools::Itertools;
-    use mpcs::BasefoldCommitment;
-    use mpcs::{Basefold, BasefoldRSParams};
+    use crate::zkvm_verifier::binding::F;
     use openvm_circuit::arch::SystemConfig;
     use openvm_circuit::arch::VmExecutor;
     use openvm_native_circuit::Native;
@@ -19,22 +9,15 @@ mod tests {
     use openvm_native_compiler::conversion::convert_program;
     use openvm_native_compiler::prelude::*;
     use openvm_native_compiler::{asm::AsmBuilder, conversion::CompilerOptions};
-    use openvm_native_compiler_derive::iter_zip;
-    use openvm_native_recursion::challenger::{self, CanSampleVariable};
+    use openvm_native_recursion::challenger::CanSampleVariable;
     use openvm_native_recursion::challenger::{
-        duplex::DuplexChallengerVariable, CanObserveVariable, FeltChallenger,
+        duplex::DuplexChallengerVariable, CanObserveVariable,
     };
-    use openvm_native_recursion::hints::Hintable;
     use openvm_stark_backend::config::StarkGenericConfig;
     use openvm_stark_sdk::{
         config::baby_bear_poseidon2::BabyBearPoseidon2Config, p3_baby_bear::BabyBear,
     };
     use openvm_stark_backend::p3_field::{Field, FieldAlgebra};
-
-    type Pcs = Basefold<E, BasefoldRSParams>;
-    const NUM_FANIN: usize = 2;
-    const MAINCONSTRAIN_SUMCHECK_BATCH_SIZE: usize = 3; // read/write/lookup
-    const SEL_DEGREE: usize = 2;
 
     type SC = BabyBearPoseidon2Config;
     type EF = <SC as StarkGenericConfig>::Challenge;
