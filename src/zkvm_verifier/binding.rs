@@ -4,7 +4,7 @@ use crate::basefold_verifier::basefold::{
 };
 use crate::{
     arithmetics::ceil_log2,
-    tower_verifier::binding::{PointVariable, IOPProverMessage, IOPProverMessageVariable},
+    tower_verifier::binding::{IOPProverMessage, IOPProverMessageVariable, PointVariable},
 };
 use itertools::Itertools;
 use openvm_native_compiler::{
@@ -14,8 +14,8 @@ use openvm_native_compiler::{
 };
 use openvm_native_compiler_derive::iter_zip;
 use openvm_native_recursion::hints::{Hintable, VecAutoHintable};
+use openvm_stark_backend::p3_field::{extension::BinomialExtensionField, FieldAlgebra};
 use openvm_stark_sdk::p3_baby_bear::BabyBear;
-use openvm_stark_backend::p3_field::{FieldAlgebra, extension::BinomialExtensionField};
 
 pub type F = BabyBear;
 pub type E = BinomialExtensionField<F, 4>;
@@ -390,7 +390,7 @@ impl Hintable<InnerConfig> for SumcheckLayerProofInput {
         let proof = Vec::<IOPProverMessage>::read(builder);
         let evals = Vec::<E>::read(builder);
         let evals_len_div_3 = usize::read(builder);
-        
+
         Self::HintVariable {
             proof,
             evals,
@@ -467,7 +467,9 @@ impl Hintable<InnerConfig> for GKRProofInput {
     }
     fn write(&self) -> Vec<Vec<<InnerConfig as Config>::N>> {
         let mut stream = Vec::new();
-        stream.extend(<usize as Hintable<InnerConfig>>::write(&self.num_var_with_rotation));
+        stream.extend(<usize as Hintable<InnerConfig>>::write(
+            &self.num_var_with_rotation,
+        ));
 
         let eq_instance = self.num_instances - 1;
         let mut bit_decomp: Vec<F> = vec![];

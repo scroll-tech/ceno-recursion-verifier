@@ -14,10 +14,10 @@ mod tests {
         duplex::DuplexChallengerVariable, CanObserveVariable,
     };
     use openvm_stark_backend::config::StarkGenericConfig;
+    use openvm_stark_backend::p3_field::{Field, FieldAlgebra};
     use openvm_stark_sdk::{
         config::baby_bear_poseidon2::BabyBearPoseidon2Config, p3_baby_bear::BabyBear,
     };
-    use openvm_stark_backend::p3_field::{Field, FieldAlgebra};
 
     type SC = BabyBearPoseidon2Config;
     type EF = <SC as StarkGenericConfig>::Challenge;

@@ -8,8 +8,8 @@ pub type F = BabyBear;
 pub type E = BinomialExtensionField<F, 4>;
 pub type InnerConfig = AsmConfig<F, E>;
 
-use openvm_stark_sdk::p3_baby_bear::BabyBear;
 use openvm_stark_backend::p3_field::extension::BinomialExtensionField;
+use openvm_stark_sdk::p3_baby_bear::BabyBear;
 use serde::Deserialize;
 
 #[derive(DslVariable, Clone)]

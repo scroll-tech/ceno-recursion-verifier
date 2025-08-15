@@ -7,9 +7,7 @@ use ff_ext::{BabyBearExt4, SmallField};
 use itertools::Either;
 use openvm_native_compiler::prelude::*;
 use openvm_native_compiler_derive::iter_zip;
-use openvm_native_recursion::challenger::{
-    duplex::DuplexChallengerVariable, FeltChallenger,
-};
+use openvm_native_recursion::challenger::{duplex::DuplexChallengerVariable, FeltChallenger};
 use openvm_stark_backend::p3_field::{FieldAlgebra, FieldExtensionAlgebra};
 type E = BabyBearExt4;
 const MAX_NUM_VARS: usize = 25;
@@ -351,7 +349,9 @@ pub fn eq_eval_less_or_equal_than<C: Config>(
     b: &Array<C, Ext<C::F, C::EF>>,
 ) -> Ext<C::F, C::EF> {
     builder.cycle_tracker_start("Compute eq_eval_less_or_equal_than");
-    let eq_bit_decomp: Array<C, Felt<C::F>> = opcode_proof.num_instances_minus_one_bit_decomposition.slice(builder, 0, b.len());
+    let eq_bit_decomp: Array<C, Felt<C::F>> = opcode_proof
+        .num_instances_minus_one_bit_decomposition
+        .slice(builder, 0, b.len());
 
     let one_ext: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
     let rp_len = builder.eval_expr(b.len() + C::N::ONE);

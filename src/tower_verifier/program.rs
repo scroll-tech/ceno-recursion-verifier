@@ -1,8 +1,7 @@
 use super::binding::{IOPProverMessageVariable, PointAndEvalVariable, PointVariable};
 use crate::arithmetics::{
-    challenger_multi_observe, eq_eval, evaluate_at_point_degree_1, extend,
-    exts_to_felts, fixed_dot_product, reverse,
-    UniPolyExtrapolator,
+    challenger_multi_observe, eq_eval, evaluate_at_point_degree_1, extend, exts_to_felts,
+    fixed_dot_product, reverse, UniPolyExtrapolator,
 };
 use crate::transcript::transcript_observe_label;
 use crate::zkvm_verifier::binding::TowerProofInputVariable;
@@ -328,9 +327,7 @@ pub fn verify_tower_proof<C: Config>(
     let round: Felt<C::F> = builder.constant(C::F::ZERO);
 
     let next_rt = PointAndEvalVariable {
-        point: PointVariable {
-            fs: initial_rt,
-        },
+        point: PointVariable { fs: initial_rt },
         eval: initial_claim,
     };
 
