@@ -18,6 +18,7 @@ use crate::transcript::transcript_observe_label;
 use crate::zkvm_verifier::binding::{
     GKRProofVariable, LayerProofVariable, SumcheckLayerProofVariable,
 };
+use crate::basefold_verifier::verifier::batch_verify;
 use crate::{
     arithmetics::{
         build_eq_x_r_vec_sequential, ceil_log2, concat, dot_product as ext_dot_product,
@@ -381,6 +382,7 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
     batch_verify(
         builder,
         zkvm_proof_input.max_num_var,
+        zkvm_proof_input.max_width,
         rounds,
         zkvm_proof_input.pcs_proof,
         &mut challenger,
