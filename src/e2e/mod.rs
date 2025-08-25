@@ -2,20 +2,22 @@ use crate::basefold_verifier::basefold::BasefoldCommitment;
 use crate::basefold_verifier::query_phase::QueryPhaseVerifierInput;
 use crate::tower_verifier::binding::IOPProverMessage;
 use crate::zkvm_verifier::binding::{
-    ZKVMProofInput, TowerProofInput, E, F, ZKVMChipProofInput,
-    GKRProofInput, LayerProofInput, SumcheckLayerProofInput,
+    GKRProofInput, LayerProofInput, SumcheckLayerProofInput, TowerProofInput, ZKVMChipProofInput,
+    ZKVMProofInput, E, F,
 };
-use crate::zkvm_verifier::verifier::{verify_zkvm_proof, verify_gkr_circuit};
+use crate::zkvm_verifier::verifier::{verify_gkr_circuit, verify_zkvm_proof};
 use ceno_mle::util::ceil_log2;
 use ceno_transcript::BasicTranscript;
 use ff_ext::BabyBearExt4;
 use gkr_iop::gkr::{
+    layer::sumcheck_layer::{SumcheckLayer, SumcheckLayerProof},
     GKRCircuit,
-    layer::sumcheck_layer::{SumcheckLayer, SumcheckLayerProof}
 };
 use itertools::Itertools;
 use mpcs::{Basefold, BasefoldRSParams};
-use openvm_circuit::arch::{instructions::program::Program, SystemConfig, VmExecutor};
+use openvm_circuit::arch::{
+    instructions::program::Program, verify_single, SystemConfig, VirtualMachine, VmExecutor,
+};
 use openvm_native_circuit::{Native, NativeConfig};
 use openvm_native_compiler::{
     asm::AsmBuilder,
@@ -24,9 +26,14 @@ use openvm_native_compiler::{
 };
 use openvm_native_recursion::hints::Hintable;
 use openvm_stark_backend::config::StarkGenericConfig;
-use openvm_stark_sdk::config::setup_tracing_with_log_level;
 use openvm_stark_sdk::{
-    config::baby_bear_poseidon2::BabyBearPoseidon2Config, p3_baby_bear::BabyBear,
+    config::{
+        baby_bear_poseidon2::{BabyBearPoseidon2Config, BabyBearPoseidon2Engine},
+        fri_params::standard_fri_params_with_100_bits_conjectured_security,
+        setup_tracing_with_log_level, FriParameters,
+    },
+    engine::StarkFriEngine,
+    p3_baby_bear::BabyBear,
 };
 use std::fs::File;
 
@@ -211,13 +218,16 @@ pub fn parse_zkvm_proof_import(
 
             for layer_proof in gkr_proof.0 {
                 // rotation
-                let (has_rotation, rotation): (usize, SumcheckLayerProofInput) = if let Some(p) = layer_proof.rotation {
+                let (has_rotation, rotation): (usize, SumcheckLayerProofInput) = if let Some(p) =
+                    layer_proof.rotation
+                {
                     let mut iop_messages: Vec<IOPProverMessage> = vec![];
                     for m in p.proof.proofs {
                         let mut evaluations: Vec<E> = vec![];
                         for e in m.evaluations {
                             let v_e: E =
-                                serde_json::from_value(serde_json::to_value(e.clone()).unwrap()).unwrap();
+                                serde_json::from_value(serde_json::to_value(e.clone()).unwrap())
+                                    .unwrap();
                             evaluations.push(v_e);
                         }
                         iop_messages.push(IOPProverMessage { evaluations });
@@ -225,10 +235,17 @@ pub fn parse_zkvm_proof_import(
                     let mut evals: Vec<E> = vec![];
                     for e in p.evals {
                         let v_e: E =
-                            serde_json::from_value(serde_json::to_value(e.clone()).unwrap()).unwrap();
+                            serde_json::from_value(serde_json::to_value(e.clone()).unwrap())
+                                .unwrap();
                         evals.push(v_e);
                     }
-                    (1, SumcheckLayerProofInput { proof: iop_messages, evals })
+                    (
+                        1,
+                        SumcheckLayerProofInput {
+                            proof: iop_messages,
+                            evals,
+                        },
+                    )
                 } else {
                     (0, SumcheckLayerProofInput::default())
                 };
@@ -240,7 +257,8 @@ pub fn parse_zkvm_proof_import(
                     let mut evaluations: Vec<E> = vec![];
                     for e in m.evaluations {
                         let v_e: E =
-                            serde_json::from_value(serde_json::to_value(e.clone()).unwrap()).unwrap();
+                            serde_json::from_value(serde_json::to_value(e.clone()).unwrap())
+                                .unwrap();
                         evaluations.push(v_e);
                     }
                     iop_messages.push(IOPProverMessage { evaluations });
@@ -256,7 +274,11 @@ pub fn parse_zkvm_proof_import(
                     evals,
                 };
 
-                gkr_iop_proof.layer_proofs.push(LayerProofInput { has_rotation, rotation, main });
+                gkr_iop_proof.layer_proofs.push(LayerProofInput {
+                    has_rotation,
+                    rotation,
+                    main,
+                });
             }
         }
 
@@ -352,16 +374,48 @@ pub fn inner_test_thread() {
     let executor = VmExecutor::<BabyBear, NativeConfig>::new(config);
 
     let res = executor
-        .execute_and_then(program, witness_stream, |_, seg| Ok(seg), |err| err)
+        .execute_and_then(
+            program.clone(),
+            witness_stream.clone(),
+            |_, seg| Ok(seg),
+            |err| err,
+        )
         .unwrap();
 
     for (i, seg) in res.iter().enumerate() {
         println!("=> segment {:?} metrics: {:?}", i, seg.metrics);
     }
+
+    let poseidon2_max_constraint_degree = 3;
+    let log_blowup = 1;
+
+    let fri_params = if matches!(std::env::var("OPENVM_FAST_TEST"), Ok(x) if &x == "1") {
+        FriParameters {
+            log_blowup,
+            log_final_poly_len: 0,
+            num_queries: 10,
+            proof_of_work_bits: 0,
+        }
+    } else {
+        standard_fri_params_with_100_bits_conjectured_security(log_blowup)
+    };
+
+    let engine = BabyBearPoseidon2Engine::new(fri_params);
+    let mut config = NativeConfig::aggregation(0, poseidon2_max_constraint_degree);
+    config.system.memory_config.max_access_adapter_n = 16;
+
+    let vm = VirtualMachine::new(engine, config);
+
+    let pk = vm.keygen();
+    let result = vm.execute_and_generate(program, witness_stream).unwrap();
+    let proofs = vm.prove(&pk, result);
+    for proof in proofs {
+        verify_single(&vm.engine, &pk.get_vk(), &proof).expect("Verification failed");
+    }
 }
 
 #[test]
-pub fn test_zkvm_proof_verifier_from_bincode_exports() {
+pub fn test_zkvm_verifier() {
     let stack_size = 64 * 1024 * 1024; // 64 MB
 
     let handler = std::thread::Builder::new()

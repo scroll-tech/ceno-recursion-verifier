@@ -2,17 +2,11 @@ use crate::arithmetics::next_pow2_instance_padding;
 use crate::basefold_verifier::basefold::{
     BasefoldCommitment, BasefoldCommitmentVariable, BasefoldProof, BasefoldProofVariable,
 };
-use crate::basefold_verifier::query_phase::{
-    QueryPhaseVerifierInput, QueryPhaseVerifierInputVariable,
-};
 use crate::{
     arithmetics::ceil_log2,
-    tower_verifier::binding::{PointVariable, IOPProverMessage, IOPProverMessageVariable},
+    tower_verifier::binding::{IOPProverMessage, IOPProverMessageVariable, PointVariable},
 };
-use ark_std::iterable::Iterable;
-use ff_ext::BabyBearExt4;
 use itertools::Itertools;
-use openvm_circuit::derive;
 use openvm_native_compiler::{
     asm::AsmConfig,
     ir::{Array, Builder, Config, Felt},
@@ -20,8 +14,8 @@ use openvm_native_compiler::{
 };
 use openvm_native_compiler_derive::iter_zip;
 use openvm_native_recursion::hints::{Hintable, VecAutoHintable};
+use openvm_stark_backend::p3_field::{extension::BinomialExtensionField, FieldAlgebra};
 use openvm_stark_sdk::p3_baby_bear::BabyBear;
-use openvm_stark_backend::p3_field::{FieldAlgebra, extension::BinomialExtensionField};
 
 pub type F = BabyBear;
 pub type E = BinomialExtensionField<F, 4>;
@@ -34,6 +28,7 @@ pub struct ZKVMProofInputVariable<C: Config> {
     pub pi_evals: Array<C, Ext<C::F, C::EF>>,
     pub chip_proofs: Array<C, ZKVMChipProofInputVariable<C>>,
     pub max_num_var: Var<C::N>,
+    pub max_width: Var<C::N>,
     pub witin_commit: BasefoldCommitmentVariable<C>,
     pub witin_perm: Array<C, Var<C::N>>,
     pub fixed_perm: Array<C, Var<C::N>>,
@@ -94,6 +89,7 @@ impl Hintable<InnerConfig> for ZKVMProofInput {
         let pi_evals = Vec::<E>::read(builder);
         let chip_proofs = Vec::<ZKVMChipProofInput>::read(builder);
         let max_num_var = usize::read(builder);
+        let max_width = usize::read(builder);
         let witin_commit = BasefoldCommitment::read(builder);
         let witin_perm = Vec::<usize>::read(builder);
         let fixed_perm = Vec::<usize>::read(builder);
@@ -105,6 +101,7 @@ impl Hintable<InnerConfig> for ZKVMProofInput {
             pi_evals,
             chip_proofs,
             max_num_var,
+            max_width,
             witin_commit,
             witin_perm,
             fixed_perm,
@@ -124,13 +121,30 @@ impl Hintable<InnerConfig> for ZKVMProofInput {
             .iter()
             .map(|proof| ceil_log2(proof.num_instances).max(1))
             .collect::<Vec<_>>();
+        let witin_max_widths = self
+            .chip_proofs
+            .iter()
+            .map(|proof| proof.wits_in_evals.len().max(1))
+            .collect::<Vec<_>>();
         let fixed_num_vars = self
             .chip_proofs
             .iter()
             .filter(|proof| proof.fixed_in_evals.len() > 0)
             .map(|proof| ceil_log2(proof.num_instances).max(1))
             .collect::<Vec<_>>();
+        let fixed_max_widths = self
+            .chip_proofs
+            .iter()
+            .filter(|proof| proof.fixed_in_evals.len() > 0)
+            .map(|proof| proof.fixed_in_evals.len())
+            .collect::<Vec<_>>();
         let max_num_var = witin_num_vars.iter().map(|x| *x).max().unwrap_or(0);
+        let max_width = witin_max_widths
+            .iter()
+            .chain(fixed_max_widths.iter())
+            .map(|x| *x)
+            .max()
+            .unwrap_or(0);
         let get_perm = |v: Vec<usize>| {
             let mut perm = vec![0; v.len()];
             v.into_iter()
@@ -153,6 +167,7 @@ impl Hintable<InnerConfig> for ZKVMProofInput {
         stream.extend(self.pi_evals.write());
         stream.extend(self.chip_proofs.write());
         stream.extend(<usize as Hintable<InnerConfig>>::write(&max_num_var));
+        stream.extend(<usize as Hintable<InnerConfig>>::write(&max_width));
         stream.extend(self.witin_commit.write());
         stream.extend(witin_perm.write());
         stream.extend(fixed_perm.write());
@@ -357,7 +372,7 @@ impl Hintable<InnerConfig> for ZKVMChipProofInput {
 }
 
 #[derive(Default)]
-pub(crate) struct SumcheckLayerProofInput {
+pub struct SumcheckLayerProofInput {
     pub proof: Vec<IOPProverMessage>,
     pub evals: Vec<E>,
 }
@@ -375,7 +390,7 @@ impl Hintable<InnerConfig> for SumcheckLayerProofInput {
         let proof = Vec::<IOPProverMessage>::read(builder);
         let evals = Vec::<E>::read(builder);
         let evals_len_div_3 = usize::read(builder);
-        
+
         Self::HintVariable {
             proof,
             evals,
@@ -391,8 +406,7 @@ impl Hintable<InnerConfig> for SumcheckLayerProofInput {
         stream
     }
 }
-
-pub(crate) struct LayerProofInput {
+pub struct LayerProofInput {
     pub has_rotation: usize,
     pub rotation: SumcheckLayerProofInput,
     pub main: SumcheckLayerProofInput,
@@ -427,7 +441,7 @@ impl Hintable<InnerConfig> for LayerProofInput {
     }
 }
 #[derive(Default)]
-pub(crate) struct GKRProofInput {
+pub struct GKRProofInput {
     pub num_var_with_rotation: usize,
     pub num_instances: usize,
     pub layer_proofs: Vec<LayerProofInput>,
@@ -453,7 +467,9 @@ impl Hintable<InnerConfig> for GKRProofInput {
     }
     fn write(&self) -> Vec<Vec<<InnerConfig as Config>::N>> {
         let mut stream = Vec::new();
-        stream.extend(<usize as Hintable<InnerConfig>>::write(&self.num_var_with_rotation));
+        stream.extend(<usize as Hintable<InnerConfig>>::write(
+            &self.num_var_with_rotation,
+        ));
 
         let eq_instance = self.num_instances - 1;
         let mut bit_decomp: Vec<F> = vec![];

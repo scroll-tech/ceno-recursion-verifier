@@ -3,15 +3,14 @@ use openvm_native_compiler::{
     ir::{Array, Builder, Config},
     prelude::*,
 };
-use openvm_native_compiler_derive::iter_zip;
 use openvm_native_recursion::hints::{Hintable, VecAutoHintable};
 pub type F = BabyBear;
 pub type E = BinomialExtensionField<F, 4>;
 pub type InnerConfig = AsmConfig<F, E>;
 
-use openvm_stark_sdk::p3_baby_bear::BabyBear;
 use openvm_stark_backend::p3_field::extension::BinomialExtensionField;
-use serde::{Deserialize, Serialize};
+use openvm_stark_sdk::p3_baby_bear::BabyBear;
+use serde::Deserialize;
 
 #[derive(DslVariable, Clone)]
 pub struct PointVariable<C: Config> {
@@ -102,20 +101,3 @@ impl Hintable<InnerConfig> for IOPProverMessage {
     }
 }
 impl VecAutoHintable for IOPProverMessage {}
-
-pub struct TowerVerifierInput {
-    pub prod_out_evals: Vec<Vec<E>>,
-    pub logup_out_evals: Vec<Vec<E>>,
-    pub num_variables: Vec<usize>,
-    pub num_fanin: usize,
-
-    // TowerProof
-    pub num_proofs: usize,
-    pub num_prod_specs: usize,
-    pub num_logup_specs: usize,
-    pub _max_num_variables: usize,
-
-    pub proofs: Vec<Vec<IOPProverMessage>>,
-    pub prod_specs_eval: Vec<Vec<Vec<E>>>,
-    pub logup_specs_eval: Vec<Vec<Vec<E>>>,
-}
