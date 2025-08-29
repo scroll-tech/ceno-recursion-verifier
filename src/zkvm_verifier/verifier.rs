@@ -13,12 +13,12 @@ use crate::basefold_verifier::mmcs::MmcsCommitmentVariable;
 use crate::basefold_verifier::query_phase::PointAndEvalsVariable;
 use crate::basefold_verifier::utils::pow_2;
 // use crate::basefold_verifier::verifier::batch_verify;
+use crate::basefold_verifier::verifier::batch_verify;
 use crate::tower_verifier::program::verify_tower_proof;
 use crate::transcript::transcript_observe_label;
 use crate::zkvm_verifier::binding::{
     GKRProofVariable, LayerProofVariable, SumcheckLayerProofVariable,
 };
-use crate::basefold_verifier::verifier::batch_verify;
 use crate::{
     arithmetics::{
         build_eq_x_r_vec_sequential, ceil_log2, concat, dot_product as ext_dot_product,
@@ -506,6 +506,7 @@ pub fn verify_opcode_proof<C: Config>(
 
     let out_evals_len: Usize<C::N> = builder.eval(record_evals.len() + logup_q_evals.len());
     let out_evals: Array<C, PointAndEvalVariable<C>> = builder.dyn_array(out_evals_len.clone());
+    // TODO: find a better way to concat two arrays
     builder
         .range(0, record_evals.len())
         .for_each(|idx_vec, builder| {
@@ -593,6 +594,12 @@ pub fn verify_gkr_circuit<C: Config>(
                 unipoly_extrapolator,
             );
 
+            // extend eval_and_dedup_points by
+            //  [
+            //     (left_evals, left_point),
+            //     (right_evals, right_point),
+            //     (target_evals, origin_point),
+            //  ]
             let last_idx: Usize<C::N> = builder.eval(eval_and_dedup_points.len() - Usize::from(1));
             builder.set(
                 &eval_and_dedup_points,
@@ -639,6 +646,7 @@ pub fn verify_gkr_circuit<C: Config>(
         let alpha_idx: Usize<C::N> = Usize::Var(Var::uninit(builder));
         builder.assign(&alpha_idx, C::N::from_canonical_usize(0));
 
+        // sigma = \sum_i alpha^i * evals_i
         builder
             .range(0, eval_and_dedup_points.len())
             .for_each(|idx_vec, builder| {
@@ -655,6 +663,8 @@ pub fn verify_gkr_circuit<C: Config>(
                 builder.assign(&sigma, sigma.clone() + sub_sum);
                 builder.assign(&alpha_idx, end_idx);
             });
+
+        // sigma = \sum_b sel(b) * zero_expr(b)
         let max_degree = builder.constant(C::F::from_canonical_usize(layer.max_expr_degree + 1));
         let max_num_variables =
             builder.unsafe_cast_var_to_felt(gkr_proof.num_var_with_rotation.get_var());
@@ -669,6 +679,7 @@ pub fn verify_gkr_circuit<C: Config>(
             unipoly_extrapolator,
         );
 
+        // check selector evaluations
         layer
             .out_sel_and_eval_exprs
             .iter()
@@ -686,6 +697,7 @@ pub fn verify_gkr_circuit<C: Config>(
                 );
             });
 
+        // TODO: we should store alpha_pows in a bigger array to avoid concatenating them
         let main_sumcheck_challenges_len: Usize<C::N> =
             builder.eval(alpha_pows.len() + Usize::from(2));
         let main_sumcheck_challenges: Array<C, Ext<C::F, C::EF>> =
@@ -723,16 +735,13 @@ pub fn verify_gkr_circuit<C: Config>(
             .enumerate()
             .for_each(|(idx, pos)| {
                 let val = builder.get(&main_evals, idx);
-                builder.set(
-                    &claims,
-                    *pos,
-                    PointAndEvalVariable {
-                        point: PointVariable {
-                            fs: in_point.clone(),
-                        },
-                        eval: val,
+                let new_point_eval = builder.eval(PointAndEvalVariable {
+                    point: PointVariable {
+                        fs: in_point.clone(),
                     },
-                );
+                    eval: val,
+                });
+                builder.set_value(&claims, *pos, new_point_eval);
             });
     }
 
@@ -778,6 +787,8 @@ pub fn verify_rotation<C: Config>(
     let max_num_variables = builder.unsafe_cast_var_to_felt(max_num_variables.get_var());
     let max_degree: Felt<C::F> = builder.constant(C::F::TWO);
 
+    // 0 = \sum_b alpha^i * sel(rx, b) * in(next(b)) - out(b)
+    // in(next(b)) = (1-b4) * in(0,b0,...) + b4 * in(1,b0,1-b1,b2,...)
     let (origin_point, expected_evaluation) = iop_verifier_state_verify(
         builder,
         challenger,
@@ -940,6 +951,7 @@ pub fn evaluate_selector<C: Config>(
         }
     };
 
+    // TODO: just return eval and check it with respect to evals
     let Expression::StructuralWitIn(wit_id, _, _, _) = expr else {
         panic!("Wrong selector expression format");
     };
@@ -947,6 +959,7 @@ pub fn evaluate_selector<C: Config>(
     builder.set(evals, wit_id, eval);
 }
 
+// TODO: make this as a function of BooleanHypercube
 pub fn get_rotation_points<C: Config>(
     builder: &mut Builder<C>,
     _num_vars: usize,
@@ -954,6 +967,8 @@ pub fn get_rotation_points<C: Config>(
 ) -> (Array<C, Ext<C::F, C::EF>>, Array<C, Ext<C::F, C::EF>>) {
     let left: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(point.len());
     let right: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(point.len());
+    // left = (0,s0,s1,s2,s3,...)
+    // right = (1,s0,1-s1,s2,s3,...)
     builder.range(0, 4).for_each(|idx_vec, builder| {
         let e = builder.get(point, idx_vec[0]);
         let dest_idx: Var<C::N> = builder.eval(idx_vec[0] + RVar::from(1));
@@ -1006,6 +1021,7 @@ pub fn evaluate_gkr_expression<C: Config>(
 
             PointAndEvalVariable { point, eval }
         }
+        // TODO: we can ignore this part since it's not used right now
         EvalExpression::Partition(parts, indices) => {
             assert!(izip!(indices.iter(), indices.iter().skip(1)).all(|(a, b)| a.0 < b.0));
             let empty_arr: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(0);
@@ -1094,19 +1110,14 @@ pub fn extract_claim_and_point<C: Config>(
         .for_each(|(i, (_, out_evals))| {
             let evals = out_evals
                 .iter()
-                .map(|out_eval| {
-                    let r = evaluate_gkr_expression(builder, out_eval, claims, challenges);
-                    r.eval
-                })
+                .map(|out_eval| evaluate_gkr_expression(builder, out_eval, claims, challenges))
                 .collect_vec();
+
+            let point = evals.first().map(|claim| claim.point.clone());
             let evals_arr: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(evals.len());
             for (j, e) in evals.iter().enumerate() {
-                builder.set(&evals_arr, j, *e);
+                builder.set(&evals_arr, j, e.eval);
             }
-            let point = out_evals.first().map(|out_eval| {
-                let r = evaluate_gkr_expression(builder, out_eval, claims, challenges);
-                r.point
-            });
 
             if point.is_some() {
                 builder.set(
@@ -1151,6 +1162,7 @@ pub fn generate_layer_challenges<C: Config>(
     builder.set(&r, 0, alpha);
     builder.set(&r, 1, beta);
 
+    // TODO: skip if n_challenges <= 2
     transcript_observe_label(builder, challenger, b"layer challenge");
     let c = gen_alpha_pows(builder, challenger, Usize::from(n_challenges));
 
