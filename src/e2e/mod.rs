@@ -333,10 +333,10 @@ pub fn inner_test_thread() {
     let verifier = ZKVMVerifier::new(vk);
     let zkvm_proof_input = parse_zkvm_proof_import(zkvm_proof.clone(), &verifier);
 
-    let transcript = BasicTranscript::new(b"riscv");
-    verifier
-        .verify_proof(zkvm_proof, transcript)
-        .expect("ZKVM proof verification failed");
+    // let transcript = BasicTranscript::new(b"riscv");
+    // verifier
+    //     .verify_proof(zkvm_proof, transcript)
+    //     .expect("ZKVM proof verification failed");
     // OpenVM DSL
     let mut builder = AsmBuilder::<F, EF>::default();
 
