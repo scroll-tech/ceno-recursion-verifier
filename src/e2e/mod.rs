@@ -285,6 +285,7 @@ pub fn parse_zkvm_proof_import(
         chip_proofs.push(ZKVMChipProofInput {
             idx: chip_id.clone(),
             num_instances: chip_proof.num_instances,
+            num_vars: num_var_with_rotation,
             record_r_out_evals_len,
             record_w_out_evals_len,
             record_lk_out_evals_len,

@@ -300,16 +300,14 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
                     &mut poly_evaluator,
                 )
             };
-            // root cause: for keccak, the input_opening_point has length=12
-            // but outside the loop, it becomes 7
-            builder.print_v(input_opening_point.len().get_var());
             builder.cycle_tracker_end("Verify chip proof");
 
+            let point_clone: Array<C, Ext<C::F, C::EF>> = builder.eval(input_opening_point.clone());
             let witin_round: RoundOpeningVariable<C> = builder.eval(RoundOpeningVariable {
-                num_var: chip_proof.log2_num_instances.get_var(),
+                num_var: input_opening_point.len().get_var(),
                 point_and_evals: PointAndEvalsVariable {
                     point: PointVariable {
-                        fs: input_opening_point.clone(),
+                        fs: point_clone,
                     },
                     evals: chip_proof.wits_in_evals,
                 },
@@ -318,10 +316,10 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
 
             if chip_vk.get_cs().num_fixed() > 0 {
                 let fixed_round: RoundOpeningVariable<C> = builder.eval(RoundOpeningVariable {
-                    num_var: chip_proof.log2_num_instances.get_var(),
+                    num_var: input_opening_point.len().get_var(),
                     point_and_evals: PointAndEvalsVariable {
                         point: PointVariable {
-                            fs: input_opening_point.clone(),
+                            fs: input_opening_point,
                         },
                         evals: chip_proof.fixed_in_evals,
                     },
@@ -533,7 +531,7 @@ pub fn verify_opcode_proof<C: Config>(
         unipoly_extrapolator,
     );
 
-    opening_evaluations[0].point.fs.clone()
+    builder.eval(opening_evaluations[0].point.fs.clone())
 }
 
 pub fn verify_gkr_circuit<C: Config>(
@@ -574,7 +572,7 @@ pub fn verify_gkr_circuit<C: Config>(
         builder.if_eq(has_rotation, Usize::from(1)).then(|builder| {
             let first = builder.get(&eval_and_dedup_points, 0);
             builder.assert_usize_eq(first.has_point, Usize::from(1)); // Rotation proof should have at least one point
-            let rt = first.point.fs.clone();
+            let rt = builder.eval(first.point.fs.clone());
 
             let RotationClaim {
                 left_evals,
@@ -735,9 +733,10 @@ pub fn verify_gkr_circuit<C: Config>(
             .enumerate()
             .for_each(|(idx, pos)| {
                 let val = builder.get(&main_evals, idx);
+                let new_point: Array<C, Ext<C::F, C::EF>> = builder.eval(in_point.clone());
                 let new_point_eval = builder.eval(PointAndEvalVariable {
                     point: PointVariable {
-                        fs: in_point.clone(),
+                        fs: new_point,
                     },
                     eval: val,
                 });
@@ -751,9 +750,8 @@ pub fn verify_gkr_circuit<C: Config>(
         .in_eval_expr
         .iter()
         .enumerate()
-        .map(|(poly, eval)| {
-            let PointAndEvalVariable { point, eval } = builder.get(&claims, *eval);
-
+        .map(|(poly, pos)| {
+            let PointAndEvalVariable { point, eval } = builder.get(&claims, *pos);
             GKRClaimEvaluation {
                 value: eval,
                 point,
@@ -998,16 +996,16 @@ pub fn evaluate_gkr_expression<C: Config>(
 ) -> PointAndEvalVariable<C> {
     match expr {
         EvalExpression::Zero => {
-            let point = builder.get(claims, 0).point.clone();
+            let point = builder.get(claims, 0).point;
             let eval: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
             PointAndEvalVariable { point, eval }
         }
-        EvalExpression::Single(i) => builder.get(claims, *i).clone(),
+        EvalExpression::Single(i) => builder.get(claims, *i),
         EvalExpression::Linear(i, c0, c1) => {
             let point = builder.get(claims, *i);
 
-            let eval = point.eval.clone();
-            let point = point.point.clone();
+            let eval = builder.eval(point.eval);
+            let point = point.point;
 
             let empty_arr: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(0);
             let c0_eval = eval_ceno_expr_with_instance(
@@ -1113,10 +1111,10 @@ pub fn extract_claim_and_point<C: Config>(
                 .map(|out_eval| evaluate_gkr_expression(builder, out_eval, claims, challenges))
                 .collect_vec();
 
-            let point = evals.first().map(|claim| claim.point.clone());
+            let point = evals.first().map(|claim| builder.eval(claim.point.clone()));
             let evals_arr: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(evals.len());
             for (j, e) in evals.iter().enumerate() {
-                builder.set(&evals_arr, j, e.eval);
+                builder.set_value(&evals_arr, j, e.eval);
             }
 
             if point.is_some() {
