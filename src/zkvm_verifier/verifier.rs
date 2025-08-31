@@ -306,9 +306,7 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
             let witin_round: RoundOpeningVariable<C> = builder.eval(RoundOpeningVariable {
                 num_var: input_opening_point.len().get_var(),
                 point_and_evals: PointAndEvalsVariable {
-                    point: PointVariable {
-                        fs: point_clone,
-                    },
+                    point: PointVariable { fs: point_clone },
                     evals: chip_proof.wits_in_evals,
                 },
             });
@@ -735,9 +733,7 @@ pub fn verify_gkr_circuit<C: Config>(
                 let val = builder.get(&main_evals, idx);
                 let new_point: Array<C, Ext<C::F, C::EF>> = builder.eval(in_point.clone());
                 let new_point_eval = builder.eval(PointAndEvalVariable {
-                    point: PointVariable {
-                        fs: new_point,
-                    },
+                    point: PointVariable { fs: new_point },
                     eval: val,
                 });
                 builder.set_value(&claims, *pos, new_point_eval);
