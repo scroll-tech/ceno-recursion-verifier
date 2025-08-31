@@ -7,6 +7,7 @@ use crate::zkvm_verifier::binding::{
 };
 use crate::zkvm_verifier::verifier::{verify_gkr_circuit, verify_zkvm_proof};
 use ceno_mle::util::ceil_log2;
+use ceno_transcript::BasicTranscript;
 use ff_ext::BabyBearExt4;
 use gkr_iop::gkr::{
     layer::sumcheck_layer::{SumcheckLayer, SumcheckLayerProof},
@@ -284,6 +285,7 @@ pub fn parse_zkvm_proof_import(
         chip_proofs.push(ZKVMChipProofInput {
             idx: chip_id.clone(),
             num_instances: chip_proof.num_instances,
+            num_vars: num_var_with_rotation,
             record_r_out_evals_len,
             record_w_out_evals_len,
             record_lk_out_evals_len,
@@ -329,8 +331,12 @@ pub fn inner_test_thread() {
             .expect("Failed to deserialize vk file");
 
     let verifier = ZKVMVerifier::new(vk);
-    let zkvm_proof_input = parse_zkvm_proof_import(zkvm_proof, &verifier);
+    let zkvm_proof_input = parse_zkvm_proof_import(zkvm_proof.clone(), &verifier);
 
+    // let transcript = BasicTranscript::new(b"riscv");
+    // verifier
+    //     .verify_proof(zkvm_proof, transcript)
+    //     .expect("ZKVM proof verification failed");
     // OpenVM DSL
     let mut builder = AsmBuilder::<F, EF>::default();
 
@@ -347,7 +353,7 @@ pub fn inner_test_thread() {
     witness_stream.extend(zkvm_proof_input.write());
 
     // Compile program
-    let options = CompilerOptions::default().with_cycle_tracker();
+    let options = CompilerOptions::default();
     let mut compiler = AsmCompiler::new(options.word_size);
     compiler.build(builder.operations);
     let asm_code = compiler.code();

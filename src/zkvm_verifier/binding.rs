@@ -119,7 +119,7 @@ impl Hintable<InnerConfig> for ZKVMProofInput {
         let witin_num_vars = self
             .chip_proofs
             .iter()
-            .map(|proof| ceil_log2(proof.num_instances).max(1))
+            .map(|proof| proof.num_vars)
             .collect::<Vec<_>>();
         let witin_max_widths = self
             .chip_proofs
@@ -130,7 +130,7 @@ impl Hintable<InnerConfig> for ZKVMProofInput {
             .chip_proofs
             .iter()
             .filter(|proof| proof.fixed_in_evals.len() > 0)
-            .map(|proof| ceil_log2(proof.num_instances).max(1))
+            .map(|proof| proof.num_vars)
             .collect::<Vec<_>>();
         let fixed_max_widths = self
             .chip_proofs
@@ -251,7 +251,11 @@ impl Hintable<InnerConfig> for TowerProofInput {
 
 pub struct ZKVMChipProofInput {
     pub idx: usize,
+    // this is the number of instructions before padding
+    // it's possible that an instruction has multiple rows.
     pub num_instances: usize,
+    // this is the number of variables of each polynomial in the witness matrix
+    pub num_vars: usize,
 
     // product constraints
     pub record_r_out_evals_len: usize,
