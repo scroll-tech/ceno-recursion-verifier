@@ -503,7 +503,7 @@ dependencies = [
 [[package]]
 name = "ceno-examples"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=master#c27a662b624f2690965bb11ffe50231ad9687f53"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=chore%2Fbump-gkr-backend#6f8c08c5edf2896ddd8408c131cf96b9bb74d7cd"
 dependencies = [
  "glob",
 ]
@@ -519,11 +519,11 @@ dependencies = [
  "bincode",
  "ceno_emul",
  "ceno_zkvm",
- "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=main)",
+ "ff_ext",
  "gkr_iop",
  "itertools 0.13.0",
- "mpcs 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=main)",
- "multilinear_extensions 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=main)",
+ "mpcs",
+ "multilinear_extensions",
  "openvm",
  "openvm-circuit",
  "openvm-native-circuit",
@@ -546,23 +546,23 @@ dependencies = [
  "rand",
  "serde",
  "serde_json",
- "sumcheck 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=main)",
+ "sumcheck",
  "tracing",
- "transcript 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=main)",
- "witness 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=main)",
+ "transcript",
+ "witness",
 ]
 
 [[package]]
 name = "ceno_emul"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=master#c27a662b624f2690965bb11ffe50231ad9687f53"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=chore%2Fbump-gkr-backend#6f8c08c5edf2896ddd8408c131cf96b9bb74d7cd"
 dependencies = [
  "anyhow",
  "ceno_rt",
  "elf",
- "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.2)",
+ "ff_ext",
  "itertools 0.13.0",
- "multilinear_extensions 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.2)",
+ "multilinear_extensions",
  "num-derive",
  "num-traits",
  "rrs-succinct",
@@ -577,7 +577,7 @@ dependencies = [
 [[package]]
 name = "ceno_host"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=master#c27a662b624f2690965bb11ffe50231ad9687f53"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=chore%2Fbump-gkr-backend#6f8c08c5edf2896ddd8408c131cf96b9bb74d7cd"
 dependencies = [
  "anyhow",
  "ceno_emul",
@@ -589,7 +589,7 @@ dependencies = [
 [[package]]
 name = "ceno_rt"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=master#c27a662b624f2690965bb11ffe50231ad9687f53"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=chore%2Fbump-gkr-backend#6f8c08c5edf2896ddd8408c131cf96b9bb74d7cd"
 dependencies = [
  "getrandom 0.2.16",
  "rkyv",
@@ -598,7 +598,7 @@ dependencies = [
 [[package]]
 name = "ceno_zkvm"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=master#c27a662b624f2690965bb11ffe50231ad9687f53"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=chore%2Fbump-gkr-backend#6f8c08c5edf2896ddd8408c131cf96b9bb74d7cd"
 dependencies = [
  "base64",
  "bincode",
@@ -607,15 +607,15 @@ dependencies = [
  "ceno_host",
  "clap",
  "either",
- "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.2)",
+ "ff_ext",
  "generic_static",
  "gkr_iop",
  "glob",
  "itertools 0.13.0",
- "mpcs 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.2)",
- "multilinear_extensions 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.2)",
+ "mpcs",
+ "multilinear_extensions",
  "ndarray",
- "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.2)",
+ "p3",
  "parse-size",
  "prettytable-rs",
  "rand",
@@ -624,15 +624,15 @@ dependencies = [
  "serde_json",
  "strum",
  "strum_macros",
- "sumcheck 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.2)",
+ "sumcheck",
  "tempfile",
  "tiny-keccak",
  "tracing",
  "tracing-forest",
  "tracing-subscriber",
- "transcript 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.2)",
- "whir 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.2)",
- "witness 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.2)",
+ "transcript",
+ "whir",
+ "witness",
 ]
 
 [[package]]
@@ -1020,21 +1020,10 @@ dependencies = [
 [[package]]
 name = "ff_ext"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/gkr-backend.git?branch=main#bb539824d63f670573c696585ae05795633176da"
+source = "git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.4#583ea620b703e45ac5d0bdd8cff424a1c171d47b"
 dependencies = [
  "once_cell",
- "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=main)",
- "rand_core",
- "serde",
-]
-
-[[package]]
-name = "ff_ext"
-version = "0.1.0"
-source = "git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.2#3bb5e60cbf90bec644a320df50d45b2e190c7aae"
-dependencies = [
- "once_cell",
- "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.2)",
+ "p3",
  "rand_core",
  "serde",
 ]
@@ -1120,26 +1109,26 @@ checksum = "07e28edb80900c19c28f1072f2e8aeca7fa06b23cd4169cefe1af5aa3260783f"
 [[package]]
 name = "gkr_iop"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=master#c27a662b624f2690965bb11ffe50231ad9687f53"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=chore%2Fbump-gkr-backend#6f8c08c5edf2896ddd8408c131cf96b9bb74d7cd"
 dependencies = [
  "bincode",
  "either",
- "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.2)",
+ "ff_ext",
  "itertools 0.13.0",
- "mpcs 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.2)",
- "multilinear_extensions 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.2)",
- "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.2)",
+ "mpcs",
+ "multilinear_extensions",
+ "p3",
  "rand",
  "rayon",
  "serde",
  "strum",
  "strum_macros",
- "sumcheck 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.2)",
+ "sumcheck",
  "thiserror",
  "thread_local",
  "tracing",
- "transcript 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.2)",
- "witness 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.2)",
+ "transcript",
+ "witness",
 ]
 
 [[package]]
@@ -1528,75 +1517,36 @@ dependencies = [
 [[package]]
 name = "mpcs"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/gkr-backend.git?branch=main#bb539824d63f670573c696585ae05795633176da"
+source = "git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.4#583ea620b703e45ac5d0bdd8cff424a1c171d47b"
 dependencies = [
  "bincode",
  "clap",
- "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=main)",
+ "ff_ext",
  "itertools 0.13.0",
- "multilinear_extensions 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=main)",
+ "multilinear_extensions",
  "num-integer",
- "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=main)",
+ "p3",
  "rand",
  "rand_chacha",
  "rayon",
  "serde",
- "sumcheck 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=main)",
+ "sumcheck",
  "tracing",
  "tracing-subscriber",
- "transcript 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=main)",
- "whir 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=main)",
- "witness 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=main)",
-]
-
-[[package]]
-name = "mpcs"
-version = "0.1.0"
-source = "git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.2#3bb5e60cbf90bec644a320df50d45b2e190c7aae"
-dependencies = [
- "bincode",
- "clap",
- "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.2)",
- "itertools 0.13.0",
- "multilinear_extensions 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.2)",
- "num-integer",
- "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.2)",
- "rand",
- "rand_chacha",
- "rayon",
- "serde",
- "sumcheck 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.2)",
- "tracing",
- "tracing-subscriber",
- "transcript 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.2)",
- "whir 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.2)",
- "witness 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.2)",
+ "transcript",
+ "whir",
+ "witness",
 ]
 
 [[package]]
 name = "multilinear_extensions"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/gkr-backend.git?branch=main#bb539824d63f670573c696585ae05795633176da"
+source = "git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.4#583ea620b703e45ac5d0bdd8cff424a1c171d47b"
 dependencies = [
  "either",
- "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=main)",
+ "ff_ext",
  "itertools 0.13.0",
- "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=main)",
- "rand",
- "rayon",
- "serde",
- "tracing",
-]
-
-[[package]]
-name = "multilinear_extensions"
-version = "0.1.0"
-source = "git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.2#3bb5e60cbf90bec644a320df50d45b2e190c7aae"
-dependencies = [
- "either",
- "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.2)",
- "itertools 0.13.0",
- "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.2)",
+ "p3",
  "rand",
  "rayon",
  "serde",
@@ -2148,45 +2098,23 @@ checksum = "b15813163c1d831bf4a13c3610c05c0d03b39feb07f7e09fa234dac9b15aaf39"
 [[package]]
 name = "p3"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/gkr-backend.git?branch=main#bb539824d63f670573c696585ae05795633176da"
+source = "git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.4#583ea620b703e45ac5d0bdd8cff424a1c171d47b"
 dependencies = [
- "p3-baby-bear 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-challenger 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-commit 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-dft 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-field 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-fri 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-goldilocks 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-matrix 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-maybe-rayon 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-mds 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-merkle-tree 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-poseidon 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-poseidon2 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-util 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
-]
-
-[[package]]
-name = "p3"
-version = "0.1.0"
-source = "git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.2#3bb5e60cbf90bec644a320df50d45b2e190c7aae"
-dependencies = [
- "p3-baby-bear 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-challenger 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-commit 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-dft 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-field 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-fri 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-goldilocks 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-matrix 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-maybe-rayon 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-mds 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-merkle-tree 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-poseidon 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-poseidon2 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-util 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
+ "p3-baby-bear 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-challenger 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-commit 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-dft 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-field 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-fri 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-goldilocks 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-matrix 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-maybe-rayon 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-mds 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-merkle-tree 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-poseidon 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-poseidon2 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-util 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
 ]
 
 [[package]]
@@ -2201,13 +2129,13 @@ dependencies = [
 [[package]]
 name = "p3-baby-bear"
 version = "0.1.0"
-source = "git+https://github.com/Plonky3/plonky3?rev=1ba4e5c#1ba4e5c40417f4f7aae86bcca56b6484b4b2490b"
+source = "git+https://github.com/Plonky3/plonky3?rev=539bbc8#539bbc84085efb609f4f62cb03cf49588388abdb"
 dependencies = [
- "p3-field 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-mds 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-monty-31 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-poseidon2 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
+ "p3-field 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-mds 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-monty-31 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-poseidon2 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
  "rand",
  "serde",
 ]
@@ -2254,12 +2182,12 @@ dependencies = [
 [[package]]
 name = "p3-challenger"
 version = "0.1.0"
-source = "git+https://github.com/Plonky3/plonky3?rev=1ba4e5c#1ba4e5c40417f4f7aae86bcca56b6484b4b2490b"
+source = "git+https://github.com/Plonky3/plonky3?rev=539bbc8#539bbc84085efb609f4f62cb03cf49588388abdb"
 dependencies = [
- "p3-field 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-maybe-rayon 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-util 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
+ "p3-field 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-maybe-rayon 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-util 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
  "tracing",
 ]
 
@@ -2278,14 +2206,14 @@ dependencies = [
 [[package]]
 name = "p3-commit"
 version = "0.1.0"
-source = "git+https://github.com/Plonky3/plonky3?rev=1ba4e5c#1ba4e5c40417f4f7aae86bcca56b6484b4b2490b"
+source = "git+https://github.com/Plonky3/plonky3?rev=539bbc8#539bbc84085efb609f4f62cb03cf49588388abdb"
 dependencies = [
  "itertools 0.14.0",
- "p3-challenger 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-dft 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-field 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-matrix 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-util 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
+ "p3-challenger 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-dft 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-field 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-matrix 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-util 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
  "serde",
 ]
 
@@ -2306,13 +2234,13 @@ dependencies = [
 [[package]]
 name = "p3-dft"
 version = "0.1.0"
-source = "git+https://github.com/Plonky3/plonky3?rev=1ba4e5c#1ba4e5c40417f4f7aae86bcca56b6484b4b2490b"
+source = "git+https://github.com/Plonky3/plonky3?rev=539bbc8#539bbc84085efb609f4f62cb03cf49588388abdb"
 dependencies = [
  "itertools 0.14.0",
- "p3-field 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-matrix 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-maybe-rayon 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-util 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
+ "p3-field 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-matrix 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-maybe-rayon 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-util 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
  "tracing",
 ]
 
@@ -2332,15 +2260,15 @@ dependencies = [
 [[package]]
 name = "p3-field"
 version = "0.1.0"
-source = "git+https://github.com/Plonky3/plonky3?rev=1ba4e5c#1ba4e5c40417f4f7aae86bcca56b6484b4b2490b"
+source = "git+https://github.com/Plonky3/plonky3?rev=539bbc8#539bbc84085efb609f4f62cb03cf49588388abdb"
 dependencies = [
  "itertools 0.14.0",
  "num-bigint 0.4.6",
  "num-integer",
  "num-traits",
  "nums",
- "p3-maybe-rayon 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-util 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
+ "p3-maybe-rayon 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-util 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
  "rand",
  "serde",
  "tracing",
@@ -2366,17 +2294,17 @@ dependencies = [
 [[package]]
 name = "p3-fri"
 version = "0.1.0"
-source = "git+https://github.com/Plonky3/plonky3?rev=1ba4e5c#1ba4e5c40417f4f7aae86bcca56b6484b4b2490b"
+source = "git+https://github.com/Plonky3/plonky3?rev=539bbc8#539bbc84085efb609f4f62cb03cf49588388abdb"
 dependencies = [
  "itertools 0.14.0",
- "p3-challenger 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-commit 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-dft 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-field 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-interpolation 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-matrix 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-maybe-rayon 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-util 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
+ "p3-challenger 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-commit 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-dft 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-field 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-interpolation 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-matrix 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-maybe-rayon 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-util 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
  "rand",
  "serde",
  "tracing",
@@ -2404,16 +2332,16 @@ dependencies = [
 [[package]]
 name = "p3-goldilocks"
 version = "0.1.0"
-source = "git+https://github.com/Plonky3/plonky3?rev=1ba4e5c#1ba4e5c40417f4f7aae86bcca56b6484b4b2490b"
+source = "git+https://github.com/Plonky3/plonky3?rev=539bbc8#539bbc84085efb609f4f62cb03cf49588388abdb"
 dependencies = [
  "num-bigint 0.4.6",
- "p3-dft 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-field 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-mds 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-poseidon 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-poseidon2 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-util 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
+ "p3-dft 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-field 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-mds 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-poseidon 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-poseidon2 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-util 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
  "rand",
  "serde",
 ]
@@ -2438,12 +2366,12 @@ dependencies = [
 [[package]]
 name = "p3-interpolation"
 version = "0.1.0"
-source = "git+https://github.com/Plonky3/plonky3?rev=1ba4e5c#1ba4e5c40417f4f7aae86bcca56b6484b4b2490b"
+source = "git+https://github.com/Plonky3/plonky3?rev=539bbc8#539bbc84085efb609f4f62cb03cf49588388abdb"
 dependencies = [
- "p3-field 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-matrix 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-maybe-rayon 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-util 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
+ "p3-field 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-matrix 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-maybe-rayon 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-util 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
 ]
 
 [[package]]
@@ -2486,12 +2414,12 @@ dependencies = [
 [[package]]
 name = "p3-matrix"
 version = "0.1.0"
-source = "git+https://github.com/Plonky3/plonky3?rev=1ba4e5c#1ba4e5c40417f4f7aae86bcca56b6484b4b2490b"
+source = "git+https://github.com/Plonky3/plonky3?rev=539bbc8#539bbc84085efb609f4f62cb03cf49588388abdb"
 dependencies = [
  "itertools 0.14.0",
- "p3-field 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-maybe-rayon 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-util 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
+ "p3-field 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-maybe-rayon 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-util 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
  "rand",
  "serde",
  "tracing",
@@ -2516,7 +2444,7 @@ dependencies = [
 [[package]]
 name = "p3-maybe-rayon"
 version = "0.1.0"
-source = "git+https://github.com/Plonky3/plonky3?rev=1ba4e5c#1ba4e5c40417f4f7aae86bcca56b6484b4b2490b"
+source = "git+https://github.com/Plonky3/plonky3?rev=539bbc8#539bbc84085efb609f4f62cb03cf49588388abdb"
 dependencies = [
  "rayon",
 ]
@@ -2532,14 +2460,14 @@ dependencies = [
 [[package]]
 name = "p3-mds"
 version = "0.1.0"
-source = "git+https://github.com/Plonky3/plonky3?rev=1ba4e5c#1ba4e5c40417f4f7aae86bcca56b6484b4b2490b"
+source = "git+https://github.com/Plonky3/plonky3?rev=539bbc8#539bbc84085efb609f4f62cb03cf49588388abdb"
 dependencies = [
  "itertools 0.14.0",
- "p3-dft 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-field 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-matrix 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-util 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
+ "p3-dft 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-field 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-matrix 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-util 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
  "rand",
 ]
 
@@ -2560,15 +2488,15 @@ dependencies = [
 [[package]]
 name = "p3-merkle-tree"
 version = "0.1.0"
-source = "git+https://github.com/Plonky3/plonky3?rev=1ba4e5c#1ba4e5c40417f4f7aae86bcca56b6484b4b2490b"
+source = "git+https://github.com/Plonky3/plonky3?rev=539bbc8#539bbc84085efb609f4f62cb03cf49588388abdb"
 dependencies = [
  "itertools 0.14.0",
- "p3-commit 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-field 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-matrix 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-maybe-rayon 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-util 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
+ "p3-commit 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-field 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-matrix 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-maybe-rayon 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-util 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
  "rand",
  "serde",
  "tracing",
@@ -2594,18 +2522,18 @@ dependencies = [
 [[package]]
 name = "p3-monty-31"
 version = "0.1.0"
-source = "git+https://github.com/Plonky3/plonky3?rev=1ba4e5c#1ba4e5c40417f4f7aae86bcca56b6484b4b2490b"
+source = "git+https://github.com/Plonky3/plonky3?rev=539bbc8#539bbc84085efb609f4f62cb03cf49588388abdb"
 dependencies = [
  "itertools 0.14.0",
  "num-bigint 0.4.6",
- "p3-dft 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-field 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-matrix 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-maybe-rayon 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-mds 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-poseidon2 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-util 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
+ "p3-dft 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-field 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-matrix 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-maybe-rayon 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-mds 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-poseidon2 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-util 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
  "rand",
  "serde",
  "tracing",
@@ -2636,11 +2564,11 @@ dependencies = [
 [[package]]
 name = "p3-poseidon"
 version = "0.1.0"
-source = "git+https://github.com/Plonky3/plonky3?rev=1ba4e5c#1ba4e5c40417f4f7aae86bcca56b6484b4b2490b"
+source = "git+https://github.com/Plonky3/plonky3?rev=539bbc8#539bbc84085efb609f4f62cb03cf49588388abdb"
 dependencies = [
- "p3-field 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-mds 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
+ "p3-field 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-mds 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
  "rand",
 ]
 
@@ -2658,12 +2586,12 @@ dependencies = [
 [[package]]
 name = "p3-poseidon2"
 version = "0.1.0"
-source = "git+https://github.com/Plonky3/plonky3?rev=1ba4e5c#1ba4e5c40417f4f7aae86bcca56b6484b4b2490b"
+source = "git+https://github.com/Plonky3/plonky3?rev=539bbc8#539bbc84085efb609f4f62cb03cf49588388abdb"
 dependencies = [
  "gcd",
- "p3-field 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-mds 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
- "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
+ "p3-field 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-mds 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
+ "p3-symmetric 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
  "rand",
 ]
 
@@ -2698,10 +2626,10 @@ dependencies = [
 [[package]]
 name = "p3-symmetric"
 version = "0.1.0"
-source = "git+https://github.com/Plonky3/plonky3?rev=1ba4e5c#1ba4e5c40417f4f7aae86bcca56b6484b4b2490b"
+source = "git+https://github.com/Plonky3/plonky3?rev=539bbc8#539bbc84085efb609f4f62cb03cf49588388abdb"
 dependencies = [
  "itertools 0.14.0",
- "p3-field 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=1ba4e5c)",
+ "p3-field 0.1.0 (git+https://github.com/Plonky3/plonky3?rev=539bbc8)",
  "serde",
 ]
 
@@ -2736,7 +2664,7 @@ dependencies = [
 [[package]]
 name = "p3-util"
 version = "0.1.0"
-source = "git+https://github.com/Plonky3/plonky3?rev=1ba4e5c#1ba4e5c40417f4f7aae86bcca56b6484b4b2490b"
+source = "git+https://github.com/Plonky3/plonky3?rev=539bbc8#539bbc84085efb609f4f62cb03cf49588388abdb"
 dependencies = [
  "serde",
 ]
@@ -2833,20 +2761,10 @@ dependencies = [
 [[package]]
 name = "poseidon"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/gkr-backend.git?branch=main#bb539824d63f670573c696585ae05795633176da"
+source = "git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.4#583ea620b703e45ac5d0bdd8cff424a1c171d47b"
 dependencies = [
- "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=main)",
- "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=main)",
- "serde",
-]
-
-[[package]]
-name = "poseidon"
-version = "0.1.0"
-source = "git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.2#3bb5e60cbf90bec644a320df50d45b2e190c7aae"
-dependencies = [
- "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.2)",
- "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.2)",
+ "ff_ext",
+ "p3",
  "serde",
 ]
 
@@ -3441,59 +3359,28 @@ checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 [[package]]
 name = "sumcheck"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/gkr-backend.git?branch=main#bb539824d63f670573c696585ae05795633176da"
+source = "git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.4#583ea620b703e45ac5d0bdd8cff424a1c171d47b"
 dependencies = [
  "either",
- "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=main)",
+ "ff_ext",
  "itertools 0.13.0",
- "multilinear_extensions 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=main)",
- "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=main)",
+ "multilinear_extensions",
+ "p3",
  "rayon",
  "serde",
- "sumcheck_macro 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=main)",
+ "sumcheck_macro",
  "thiserror",
  "tracing",
- "transcript 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=main)",
-]
-
-[[package]]
-name = "sumcheck"
-version = "0.1.0"
-source = "git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.2#3bb5e60cbf90bec644a320df50d45b2e190c7aae"
-dependencies = [
- "either",
- "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.2)",
- "itertools 0.13.0",
- "multilinear_extensions 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.2)",
- "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.2)",
- "rayon",
- "serde",
- "sumcheck_macro 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.2)",
- "thiserror",
- "tracing",
- "transcript 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.2)",
+ "transcript",
 ]
 
 [[package]]
 name = "sumcheck_macro"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/gkr-backend.git?branch=main#bb539824d63f670573c696585ae05795633176da"
+source = "git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.4#583ea620b703e45ac5d0bdd8cff424a1c171d47b"
 dependencies = [
  "itertools 0.13.0",
- "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=main)",
- "proc-macro2",
- "quote",
- "rand",
- "syn 2.0.106",
-]
-
-[[package]]
-name = "sumcheck_macro"
-version = "0.1.0"
-source = "git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.2#3bb5e60cbf90bec644a320df50d45b2e190c7aae"
-dependencies = [
- "itertools 0.13.0",
- "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.2)",
+ "p3",
  "proc-macro2",
  "quote",
  "rand",
@@ -3754,23 +3641,12 @@ dependencies = [
 [[package]]
 name = "transcript"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/gkr-backend.git?branch=main#bb539824d63f670573c696585ae05795633176da"
+source = "git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.4#583ea620b703e45ac5d0bdd8cff424a1c171d47b"
 dependencies = [
- "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=main)",
+ "ff_ext",
  "itertools 0.13.0",
- "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=main)",
- "poseidon 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=main)",
-]
-
-[[package]]
-name = "transcript"
-version = "0.1.0"
-source = "git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.2#3bb5e60cbf90bec644a320df50d45b2e190c7aae"
-dependencies = [
- "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.2)",
- "itertools 0.13.0",
- "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.2)",
- "poseidon 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.2)",
+ "p3",
+ "poseidon",
 ]
 
 [[package]]
@@ -3931,47 +3807,24 @@ dependencies = [
 [[package]]
 name = "whir"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/gkr-backend.git?branch=main#bb539824d63f670573c696585ae05795633176da"
+source = "git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.4#583ea620b703e45ac5d0bdd8cff424a1c171d47b"
 dependencies = [
  "bincode",
  "clap",
  "derive_more 1.0.0",
- "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=main)",
+ "ff_ext",
  "itertools 0.14.0",
- "multilinear_extensions 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=main)",
- "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=main)",
+ "multilinear_extensions",
+ "p3",
  "rand",
  "rand_chacha",
  "rayon",
  "serde",
- "sumcheck 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=main)",
+ "sumcheck",
  "tracing",
- "transcript 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=main)",
+ "transcript",
  "transpose",
- "witness 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=main)",
-]
-
-[[package]]
-name = "whir"
-version = "0.1.0"
-source = "git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.2#3bb5e60cbf90bec644a320df50d45b2e190c7aae"
-dependencies = [
- "bincode",
- "clap",
- "derive_more 1.0.0",
- "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.2)",
- "itertools 0.14.0",
- "multilinear_extensions 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.2)",
- "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.2)",
- "rand",
- "rand_chacha",
- "rayon",
- "serde",
- "sumcheck 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.2)",
- "tracing",
- "transcript 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.2)",
- "transpose",
- "witness 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.2)",
+ "witness",
 ]
 
 [[package]]
@@ -4179,24 +4032,11 @@ dependencies = [
 [[package]]
 name = "witness"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/gkr-backend.git?branch=main#bb539824d63f670573c696585ae05795633176da"
+source = "git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.4#583ea620b703e45ac5d0bdd8cff424a1c171d47b"
 dependencies = [
- "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=main)",
- "multilinear_extensions 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=main)",
- "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=main)",
- "rand",
- "rayon",
- "tracing",
-]
-
-[[package]]
-name = "witness"
-version = "0.1.0"
-source = "git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.2#3bb5e60cbf90bec644a320df50d45b2e190c7aae"
-dependencies = [
- "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.2)",
- "multilinear_extensions 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.2)",
- "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=v1.0.0-alpha.2)",
+ "ff_ext",
+ "multilinear_extensions",
+ "p3",
  "rand",
  "rayon",
  "tracing",

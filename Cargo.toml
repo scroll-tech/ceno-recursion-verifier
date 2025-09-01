@@ -38,15 +38,15 @@ ark-poly = "0.5"
 ark-serialize = "0.5"
 
 # Ceno
-ceno_mle = { git = "https://github.com/scroll-tech/gkr-backend.git", branch = "main", package = "multilinear_extensions" }
-ceno_sumcheck = { git = "https://github.com/scroll-tech/gkr-backend.git", branch = "main", package = "sumcheck" }
-ceno_transcript = { git = "https://github.com/scroll-tech/gkr-backend.git", branch = "main", package = "transcript" }
-ceno_witness = { git = "https://github.com/scroll-tech/gkr-backend.git", branch = "main", package = "witness" }
-ceno_zkvm = { git = "https://github.com/scroll-tech/ceno.git", branch = "master" }
-ceno_emul = { git = "https://github.com/scroll-tech/ceno.git", branch = "master" }
-gkr_iop = { git = "https://github.com/scroll-tech/ceno.git", branch = "master" }
-mpcs = { git = "https://github.com/scroll-tech/gkr-backend.git", branch = "main" }
-ff_ext = { git = "https://github.com/scroll-tech/gkr-backend.git", branch = "main" }
+ceno_mle = { git = "https://github.com/scroll-tech/gkr-backend.git", rev = "v1.0.0-alpha.4", package = "multilinear_extensions" }
+ceno_sumcheck = { git = "https://github.com/scroll-tech/gkr-backend.git", rev = "v1.0.0-alpha.4", package = "sumcheck" }
+ceno_transcript = { git = "https://github.com/scroll-tech/gkr-backend.git", rev = "v1.0.0-alpha.4", package = "transcript" }
+ceno_witness = { git = "https://github.com/scroll-tech/gkr-backend.git", rev = "v1.0.0-alpha.4", package = "witness" }
+ceno_zkvm = { git = "https://github.com/scroll-tech/ceno.git", branch = "chore/bump-gkr-backend" }
+ceno_emul = { git = "https://github.com/scroll-tech/ceno.git", branch = "chore/bump-gkr-backend" }
+gkr_iop = { git = "https://github.com/scroll-tech/ceno.git", branch = "chore/bump-gkr-backend" }
+mpcs = { git = "https://github.com/scroll-tech/gkr-backend.git", rev = "v1.0.0-alpha.4" }
+ff_ext = { git = "https://github.com/scroll-tech/gkr-backend.git", rev = "v1.0.0-alpha.4" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 
