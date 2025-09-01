@@ -339,86 +339,107 @@ pub fn build_zkvm_verifier_program(
     program
 }
 
-pub fn inner_test_thread() {
-    setup_tracing_with_log_level(tracing::Level::WARN);
-
-    let proof_path = "./src/e2e/encoded/proof.bin";
-    let vk_path = "./src/e2e/encoded/vk.bin";
-
-    let zkvm_proof: ZKVMProof<E, Basefold<E, BasefoldRSParams>> =
-        bincode::deserialize_from(File::open(proof_path).expect("Failed to open proof file"))
-            .expect("Failed to deserialize proof file");
-
-    let vk: ZKVMVerifyingKey<E, Basefold<E, BasefoldRSParams>> =
-        bincode::deserialize_from(File::open(vk_path).expect("Failed to open vk file"))
-            .expect("Failed to deserialize vk file");
-
-    let program = build_zkvm_verifier_program(&vk);
-
-    // Construct zkvm proof input
-    let zkvm_proof_input = parse_zkvm_proof_import(zkvm_proof, &vk);
-
-    // Pass in witness stream
-    let mut witness_stream: Vec<Vec<F>> = Vec::new();
-    witness_stream.extend(zkvm_proof_input.write());
-
-    let mut system_config = SystemConfig::default()
-        .with_public_values(4)
-        .with_max_segment_len((1 << 25) - 100);
-    system_config.profiling = true;
-    let config = NativeConfig::new(system_config, Native);
-
-    let executor = VmExecutor::<F, NativeConfig>::new(config);
-
-    let res = executor
-        .execute_and_then(
-            program.clone(),
-            witness_stream.clone(),
-            |_, seg| Ok(seg),
-            |err| err,
-        )
-        .unwrap();
-
-    for (i, seg) in res.iter().enumerate() {
-        println!("=> segment {:?} metrics: {:?}", i, seg.metrics);
-    }
-
-    let poseidon2_max_constraint_degree = 3;
-    let log_blowup = 1;
-
-    let fri_params = if matches!(std::env::var("OPENVM_FAST_TEST"), Ok(x) if &x == "1") {
-        FriParameters {
-            log_blowup,
-            log_final_poly_len: 0,
-            num_queries: 10,
-            proof_of_work_bits: 0,
-        }
-    } else {
-        standard_fri_params_with_100_bits_conjectured_security(log_blowup)
+mod tests {
+    use crate::e2e::build_zkvm_verifier_program;
+    use crate::e2e::parse_zkvm_proof_import;
+    use crate::zkvm_verifier::binding::{E, F};
+    use ceno_zkvm::scheme::ZKVMProof;
+    use ceno_zkvm::structs::ZKVMVerifyingKey;
+    use mpcs::{Basefold, BasefoldRSParams};
+    use openvm_circuit::arch::verify_single;
+    use openvm_circuit::arch::VirtualMachine;
+    use openvm_circuit::arch::{SystemConfig, VmExecutor};
+    use openvm_native_circuit::{Native, NativeConfig};
+    use openvm_native_recursion::hints::Hintable;
+    use openvm_stark_sdk::config::{
+        baby_bear_poseidon2::BabyBearPoseidon2Engine,
+        fri_params::standard_fri_params_with_100_bits_conjectured_security,
+        setup_tracing_with_log_level, FriParameters,
     };
+    use openvm_stark_sdk::engine::StarkFriEngine;
+    use std::fs::File;
 
-    let engine = BabyBearPoseidon2Engine::new(fri_params);
-    let mut config = NativeConfig::aggregation(0, poseidon2_max_constraint_degree);
-    config.system.memory_config.max_access_adapter_n = 16;
+    pub fn inner_test_thread() {
+        setup_tracing_with_log_level(tracing::Level::WARN);
 
-    let vm = VirtualMachine::new(engine, config);
+        let proof_path = "./src/e2e/encoded/proof.bin";
+        let vk_path = "./src/e2e/encoded/vk.bin";
 
-    let pk = vm.keygen();
-    let result = vm.execute_and_generate(program, witness_stream).unwrap();
-    let proofs = vm.prove(&pk, result);
-    for proof in proofs {
-        verify_single(&vm.engine, &pk.get_vk(), &proof).expect("Verification failed");
+        let zkvm_proof: ZKVMProof<E, Basefold<E, BasefoldRSParams>> =
+            bincode::deserialize_from(File::open(proof_path).expect("Failed to open proof file"))
+                .expect("Failed to deserialize proof file");
+
+        let vk: ZKVMVerifyingKey<E, Basefold<E, BasefoldRSParams>> =
+            bincode::deserialize_from(File::open(vk_path).expect("Failed to open vk file"))
+                .expect("Failed to deserialize vk file");
+
+        let program = build_zkvm_verifier_program(&vk);
+
+        // Construct zkvm proof input
+        let zkvm_proof_input = parse_zkvm_proof_import(zkvm_proof, &vk);
+
+        // Pass in witness stream
+        let mut witness_stream: Vec<Vec<F>> = Vec::new();
+        witness_stream.extend(zkvm_proof_input.write());
+
+        let mut system_config = SystemConfig::default()
+            .with_public_values(4)
+            .with_max_segment_len((1 << 25) - 100);
+        system_config.profiling = true;
+        let config = NativeConfig::new(system_config, Native);
+
+        let executor = VmExecutor::<F, NativeConfig>::new(config);
+
+        let res = executor
+            .execute_and_then(
+                program.clone(),
+                witness_stream.clone(),
+                |_, seg| Ok(seg),
+                |err| err,
+            )
+            .unwrap();
+
+        for (i, seg) in res.iter().enumerate() {
+            println!("=> segment {:?} metrics: {:?}", i, seg.metrics);
+        }
+
+        let poseidon2_max_constraint_degree = 3;
+        let log_blowup = 1;
+
+        let fri_params = if matches!(std::env::var("OPENVM_FAST_TEST"), Ok(x) if &x == "1") {
+            FriParameters {
+                log_blowup,
+                log_final_poly_len: 0,
+                num_queries: 10,
+                proof_of_work_bits: 0,
+            }
+        } else {
+            standard_fri_params_with_100_bits_conjectured_security(log_blowup)
+        };
+
+        let engine = BabyBearPoseidon2Engine::new(fri_params);
+        let mut config = NativeConfig::aggregation(0, poseidon2_max_constraint_degree);
+        config.system.memory_config.max_access_adapter_n = 16;
+
+        let vm = VirtualMachine::new(engine, config);
+
+        let pk = vm.keygen();
+        let result = vm.execute_and_generate(program, witness_stream).unwrap();
+        let proofs = vm.prove(&pk, result);
+        for proof in proofs {
+            verify_single(&vm.engine, &pk.get_vk(), &proof).expect("Verification failed");
+        }
     }
-}
 
-#[test]
-pub fn test_zkvm_verifier() {
-    let stack_size = 64 * 1024 * 1024; // 64 MB
+    #[test]
+    pub fn test_zkvm_verifier() {
+        let stack_size = 64 * 1024 * 1024; // 64 MB
 
-    let handler = std::thread::Builder::new()
-        .stack_size(stack_size)
-        .spawn(inner_test_thread)
-        .expect("Failed to spawn thread");
+        let handler = std::thread::Builder::new()
+            .stack_size(stack_size)
+            .spawn(inner_test_thread)
+            .expect("Failed to spawn thread");
 
-    handler.join().expect("Thread panicked");
+        handler.join().expect("Thread panicked");
+    }
 }
