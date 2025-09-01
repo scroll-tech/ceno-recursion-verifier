@@ -47,7 +47,7 @@ use ceno_zkvm::{
 
 pub fn parse_zkvm_proof_import(
     zkvm_proof: ZKVMProof<BabyBearExt4, Basefold<BabyBearExt4, BasefoldRSParams>>,
-    verifier: &ZKVMVerifier<BabyBearExt4, Basefold<BabyBearExt4, BasefoldRSParams>>,
+    vk: &ZKVMVerifyingKey<BabyBearExt4, Basefold<BabyBearExt4, BasefoldRSParams>>,
 ) -> ZKVMProofInput {
     let raw_pi = zkvm_proof
         .raw_pi
@@ -197,8 +197,8 @@ pub fn parse_zkvm_proof_import(
             fixed_in_evals.push(v_e);
         }
 
-        let circuit_name = &verifier.vk.circuit_index_to_name[chip_id];
-        let circuit_vk = &verifier.vk.circuit_vks[circuit_name];
+        let circuit_name = &vk.circuit_index_to_name[chip_id];
+        let circuit_vk = &vk.circuit_vks[circuit_name];
 
         let composed_cs = circuit_vk.get_cs();
         let num_instances = chip_proof.num_instances;
@@ -316,65 +316,59 @@ pub fn parse_zkvm_proof_import(
     }
 }
 
+/// Build Ceno's zkVM verifier program from vk in OpenVM's eDSL
+pub fn build_zkvm_verifier_program(
+    vk: &ZKVMVerifyingKey<E, Basefold<E, BasefoldRSParams>>,
+) -> Program<F> {
+    let mut builder = AsmBuilder::<F, E>::default();
+
+    let zkvm_proof_input_variables = ZKVMProofInput::read(&mut builder);
+    verify_zkvm_proof(&mut builder, zkvm_proof_input_variables, vk);
+    builder.halt();
+
+    // Compile program
+    #[cfg(feature = "bench-metrics")]
+    let options = CompilerOptions::default().with_cycle_tracker();
+    #[cfg(not(feature = "bench-metrics"))]
+    let options = CompilerOptions::default();
+    let mut compiler = AsmCompiler::new(options.word_size);
+    compiler.build(builder.operations);
+    let asm_code = compiler.code();
+
+    let program: Program<F> = convert_program(asm_code, options);
+    program
+}
+
 pub fn inner_test_thread() {
     setup_tracing_with_log_level(tracing::Level::WARN);
 
     let proof_path = "./src/e2e/encoded/proof.bin";
     let vk_path = "./src/e2e/encoded/vk.bin";
 
-    let zkvm_proof: ZKVMProof<BabyBearExt4, Basefold<BabyBearExt4, BasefoldRSParams>> =
+    let zkvm_proof: ZKVMProof<E, Basefold<E, BasefoldRSParams>> =
         bincode::deserialize_from(File::open(proof_path).expect("Failed to open proof file"))
             .expect("Failed to deserialize proof file");
 
-    let vk: ZKVMVerifyingKey<BabyBearExt4, Basefold<BabyBearExt4, BasefoldRSParams>> =
+    let vk: ZKVMVerifyingKey<E, Basefold<E, BasefoldRSParams>> =
         bincode::deserialize_from(File::open(vk_path).expect("Failed to open vk file"))
             .expect("Failed to deserialize vk file");
 
-    let verifier = ZKVMVerifier::new(vk);
-    let zkvm_proof_input = parse_zkvm_proof_import(zkvm_proof.clone(), &verifier);
+    let program = build_zkvm_verifier_program(&vk);
 
-    // let transcript = BasicTranscript::new(b"riscv");
-    // verifier
-    //     .verify_proof(zkvm_proof, transcript)
-    //     .expect("ZKVM proof verification failed");
-    // OpenVM DSL
-    let mut builder = AsmBuilder::<F, EF>::default();
-
-    // Obtain witness inputs
-    let zkvm_proof_input_variables = ZKVMProofInput::read(&mut builder);
-    verify_zkvm_proof(&mut builder, zkvm_proof_input_variables, &verifier);
-    builder.halt();
+    // Construct zkvm proof input
+    let zkvm_proof_input = parse_zkvm_proof_import(zkvm_proof, &vk);
 
     // Pass in witness stream
-    let mut witness_stream: Vec<
-        Vec<p3_monty_31::MontyField31<openvm_stark_sdk::p3_baby_bear::BabyBearParameters>>,
-    > = Vec::new();
-
+    let mut witness_stream: Vec<Vec<F>> = Vec::new();
     witness_stream.extend(zkvm_proof_input.write());
 
-    // Compile program
-    let options = CompilerOptions::default();
-    let mut compiler = AsmCompiler::new(options.word_size);
-    compiler.build(builder.operations);
-    let asm_code = compiler.code();
-
-    // _debug: print out assembly
-    /*
-    println!("=> AssemblyCode:");
-    println!("{asm_code}");
-    return ();
-    */
-
-    let program: Program<
-        p3_monty_31::MontyField31<openvm_stark_sdk::p3_baby_bear::BabyBearParameters>,
-    > = convert_program(asm_code, options);
     let mut system_config = SystemConfig::default()
         .with_public_values(4)
         .with_max_segment_len((1 << 25) - 100);
     system_config.profiling = true;
     let config = NativeConfig::new(system_config, Native);
 
-    let executor = VmExecutor::<BabyBear, NativeConfig>::new(config);
+    let executor = VmExecutor::<F, NativeConfig>::new(config);
 
     let res = executor
         .execute_and_then(
