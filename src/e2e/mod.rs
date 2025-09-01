@@ -339,6 +339,7 @@ pub fn build_zkvm_verifier_program(
     program
 }
 
+#[cfg(test)]
 mod tests {
     use crate::e2e::build_zkvm_verifier_program;
     use crate::e2e::parse_zkvm_proof_import;

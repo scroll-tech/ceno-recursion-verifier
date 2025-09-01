@@ -51,6 +51,8 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 
 [features]
+default = ["parallel"]
+parallel = ["openvm-stark-backend/parallel"]
 bench-metrics = ["openvm-circuit/bench-metrics"]
 
 # [patch."https://github.com/scroll-tech/ceno.git"]

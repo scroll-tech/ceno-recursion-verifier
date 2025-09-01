@@ -2238,6 +2238,7 @@ dependencies = [
  "p3-maybe-rayon",
  "p3-uni-stark",
  "p3-util",
+ "rayon",
  "rustc-hash",
  "serde",
  "thiserror",
