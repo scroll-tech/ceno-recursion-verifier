@@ -25,16 +25,16 @@ serde_json = "1.0"
 # Plonky3
 # replace all dep with `p3` from gkr-backend
 p3-air = { git = "https://github.com/Plonky3/Plonky3.git", rev = "539bbc84085efb609f4f62cb03cf49588388abdb" }
-p3-baby-bear = { git = "https://github.com/Plonky3/plonky3", rev = "539bbc84085efb609f4f62cb03cf49588388abdb" }
-p3-field = { git = "https://github.com/Plonky3/plonky3", rev = "539bbc84085efb609f4f62cb03cf49588388abdb" }
-p3-commit = { git = "https://github.com/Plonky3/plonky3", rev = "539bbc84085efb609f4f62cb03cf49588388abdb" }
-p3-matrix = { git = "https://github.com/Plonky3/plonky3", rev = "539bbc84085efb609f4f62cb03cf49588388abdb" }
-p3-util = { git = "https://github.com/Plonky3/plonky3", rev = "539bbc84085efb609f4f62cb03cf49588388abdb" }
-p3-challenger = { git = "https://github.com/Plonky3/plonky3", rev = "539bbc84085efb609f4f62cb03cf49588388abdb" }
-p3-monty-31 = { git = "https://github.com/Plonky3/plonky3", rev = "539bbc84085efb609f4f62cb03cf49588388abdb" }
-p3-symmetric = { git = "https://github.com/Plonky3/plonky3", rev = "539bbc84085efb609f4f62cb03cf49588388abdb" }
-p3-fri = { git = "https://github.com/Plonky3/plonky3", rev = "539bbc84085efb609f4f62cb03cf49588388abdb" }
-p3-goldilocks = { git = "https://github.com/Plonky3/plonky3", rev = "539bbc84085efb609f4f62cb03cf49588388abdb" }
+p3-baby-bear = { git = "https://github.com/Plonky3/Plonky3.git", rev = "539bbc84085efb609f4f62cb03cf49588388abdb" }
+p3-field = { git = "https://github.com/Plonky3/Plonky3.git", rev = "539bbc84085efb609f4f62cb03cf49588388abdb" }
+p3-commit = { git = "https://github.com/Plonky3/Plonky3.git", rev = "539bbc84085efb609f4f62cb03cf49588388abdb" }
+p3-matrix = { git = "https://github.com/Plonky3/Plonky3.git", rev = "539bbc84085efb609f4f62cb03cf49588388abdb" }
+p3-util = { git = "https://github.com/Plonky3/Plonky3.git", rev = "539bbc84085efb609f4f62cb03cf49588388abdb" }
+p3-challenger = { git = "https://github.com/Plonky3/Plonky3.git", rev = "539bbc84085efb609f4f62cb03cf49588388abdb" }
+p3-monty-31 = { git = "https://github.com/Plonky3/Plonky3.git", rev = "539bbc84085efb609f4f62cb03cf49588388abdb" }
+p3-symmetric = { git = "https://github.com/Plonky3/Plonky3.git", rev = "539bbc84085efb609f4f62cb03cf49588388abdb" }
+p3-fri = { git = "https://github.com/Plonky3/Plonky3.git", rev = "539bbc84085efb609f4f62cb03cf49588388abdb" }
+p3-goldilocks = { git = "https://github.com/Plonky3/Plonky3.git", rev = "539bbc84085efb609f4f62cb03cf49588388abdb" }
 
 # WHIR
 ark-std = { version = "0.5", features = ["std"] }
