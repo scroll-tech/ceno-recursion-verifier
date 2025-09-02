@@ -410,9 +410,13 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
     );
     builder.assign(&prod_r, prod_r * finalize_global_state);
 
-    /* TODO: Temporarily disable product check for missing subcircuits
-        builder.assert_ext_eq(prod_r, prod_w);
-    */
+    // memory consistency check
+    builder.assert_ext_eq(prod_r, prod_w);
+
+    // logup check
+    let zero: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
+    builder.assert_ext_eq(logup_sum, zero);
+
 }
 
 pub fn verify_opcode_proof<C: Config>(
