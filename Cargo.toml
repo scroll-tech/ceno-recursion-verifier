@@ -5,7 +5,9 @@ edition = "2021"
 
 [dependencies]
 openvm = { git = "https://github.com/scroll-tech/openvm.git", default-features = false }
-openvm-circuit = { git = "https://github.com/scroll-tech/openvm.git", default-features = false, features = ["bench-metrics"] }
+openvm-circuit = { git = "https://github.com/scroll-tech/openvm.git", default-features = false, features = [
+  "bench-metrics",
+] }
 openvm-native-circuit = { git = "https://github.com/scroll-tech/openvm.git", default-features = false }
 openvm-native-compiler = { git = "https://github.com/scroll-tech/openvm.git", default-features = false }
 openvm-native-compiler-derive = { git = "https://github.com/scroll-tech/openvm.git", default-features = false }
@@ -17,18 +19,21 @@ rand = { version = "0.8.5", default-features = false }
 itertools = { version = "0.13.0", default-features = false }
 bincode = "1.3.3"
 tracing = "0.1.40"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
 
 # Plonky3
+# replace all dep with `p3` from gkr-backend
 p3-air = { git = "https://github.com/Plonky3/Plonky3.git", rev = "539bbc84085efb609f4f62cb03cf49588388abdb" }
-p3-baby-bear = { git = "https://github.com/Plonky3/Plonky3.git", rev = "539bbc84085efb609f4f62cb03cf49588388abdb" }
-p3-field = { git = "https://github.com/Plonky3/Plonky3.git", rev = "539bbc84085efb609f4f62cb03cf49588388abdb" }
-p3-commit = { git = "https://github.com/Plonky3/Plonky3.git", rev = "539bbc84085efb609f4f62cb03cf49588388abdb" }
-p3-matrix = { git = "https://github.com/Plonky3/Plonky3.git", rev = "539bbc84085efb609f4f62cb03cf49588388abdb" }
-p3-util = { git = "https://github.com/Plonky3/Plonky3.git", rev = "539bbc84085efb609f4f62cb03cf49588388abdb" }
-p3-challenger = { git = "https://github.com/Plonky3/Plonky3.git", rev = "539bbc84085efb609f4f62cb03cf49588388abdb" }
-p3-monty-31 = { git = "https://github.com/Plonky3/Plonky3.git", rev = "539bbc84085efb609f4f62cb03cf49588388abdb" }
-p3-symmetric = { git = "https://github.com/Plonky3/Plonky3.git", rev = "539bbc84085efb609f4f62cb03cf49588388abdb" }
-p3-fri = { git = "https://github.com/Plonky3/Plonky3.git", rev = "539bbc84085efb609f4f62cb03cf49588388abdb" }
+p3-baby-bear = { git = "https://github.com/Plonky3/plonky3", rev = "539bbc84085efb609f4f62cb03cf49588388abdb" }
+p3-field = { git = "https://github.com/Plonky3/plonky3", rev = "539bbc84085efb609f4f62cb03cf49588388abdb" }
+p3-commit = { git = "https://github.com/Plonky3/plonky3", rev = "539bbc84085efb609f4f62cb03cf49588388abdb" }
+p3-matrix = { git = "https://github.com/Plonky3/plonky3", rev = "539bbc84085efb609f4f62cb03cf49588388abdb" }
+p3-util = { git = "https://github.com/Plonky3/plonky3", rev = "539bbc84085efb609f4f62cb03cf49588388abdb" }
+p3-challenger = { git = "https://github.com/Plonky3/plonky3", rev = "539bbc84085efb609f4f62cb03cf49588388abdb" }
+p3-monty-31 = { git = "https://github.com/Plonky3/plonky3", rev = "539bbc84085efb609f4f62cb03cf49588388abdb" }
+p3-symmetric = { git = "https://github.com/Plonky3/plonky3", rev = "539bbc84085efb609f4f62cb03cf49588388abdb" }
+p3-fri = { git = "https://github.com/Plonky3/plonky3", rev = "539bbc84085efb609f4f62cb03cf49588388abdb" }
 p3-goldilocks = { git = "https://github.com/Plonky3/plonky3", rev = "539bbc84085efb609f4f62cb03cf49588388abdb" }
 
 # WHIR
@@ -38,29 +43,36 @@ ark-poly = "0.5"
 ark-serialize = "0.5"
 
 # Ceno
-ceno_mle = { git = "https://github.com/scroll-tech/gkr-backend.git", rev = "v1.0.0-alpha.4", package = "multilinear_extensions" }
-ceno_sumcheck = { git = "https://github.com/scroll-tech/gkr-backend.git", rev = "v1.0.0-alpha.4", package = "sumcheck" }
-ceno_transcript = { git = "https://github.com/scroll-tech/gkr-backend.git", rev = "v1.0.0-alpha.4", package = "transcript" }
-ceno_witness = { git = "https://github.com/scroll-tech/gkr-backend.git", rev = "v1.0.0-alpha.4", package = "witness" }
-ceno_zkvm = { git = "https://github.com/scroll-tech/ceno.git", branch = "chore/bump-gkr-backend" }
-ceno_emul = { git = "https://github.com/scroll-tech/ceno.git", branch = "chore/bump-gkr-backend" }
-gkr_iop = { git = "https://github.com/scroll-tech/ceno.git", branch = "chore/bump-gkr-backend" }
-mpcs = { git = "https://github.com/scroll-tech/gkr-backend.git", rev = "v1.0.0-alpha.4" }
-ff_ext = { git = "https://github.com/scroll-tech/gkr-backend.git", rev = "v1.0.0-alpha.4" }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+ceno_mle = { git = "https://github.com/scroll-tech/gkr-backend.git", rev = "v1.0.0-alpha.6", package = "multilinear_extensions", default-features = false }
+ceno_sumcheck = { git = "https://github.com/scroll-tech/gkr-backend.git", rev = "v1.0.0-alpha.6", package = "sumcheck", default-features = false }
+ceno_transcript = { git = "https://github.com/scroll-tech/gkr-backend.git", rev = "v1.0.0-alpha.6", package = "transcript", default-features = false }
+ceno_witness = { git = "https://github.com/scroll-tech/gkr-backend.git", rev = "v1.0.0-alpha.6", package = "witness", default-features = false }
+ceno_zkvm = { git = "https://github.com/scroll-tech/ceno.git", branch = "chore/bump-gkr-backend", default-features = false }
+ceno_emul = { git = "https://github.com/scroll-tech/ceno.git", branch = "chore/bump-gkr-backend", default-features = false }
+gkr_iop = { git = "https://github.com/scroll-tech/ceno.git", branch = "chore/bump-gkr-backend", default-features = false }
+mpcs = { git = "https://github.com/scroll-tech/gkr-backend.git", rev = "v1.0.0-alpha.6", default-features = false }
+ff_ext = { git = "https://github.com/scroll-tech/gkr-backend.git", rev = "v1.0.0-alpha.6", default-features = false }
 
 [features]
-default = ["parallel"]
+default = ["parallel", "nightly-features"]
+nightly-features = [
+  "ceno_zkvm/nightly-features",
+  "openvm-stark-sdk/nightly-features",
+]
 parallel = ["openvm-stark-backend/parallel"]
 bench-metrics = ["openvm-circuit/bench-metrics"]
 
-# [patch."https://github.com/scroll-tech/ceno.git"]
-# ceno_mle = { path = "../ceno/multilinear_extensions", package = "multilinear_extensions" }
-# ceno_sumcheck = { path = "../ceno/sumcheck", package = "sumcheck" }
-# ceno_transcript = { path = "../ceno/transcript", package = "transcript" }
-# ceno_witness = { path = "../ceno/witness", package = "witness" }
-# ceno_zkvm = { path = "../ceno/ceno_zkvm" }
-# ceno_emul = { path = "../ceno/ceno_emul" }
-# mpcs = { path = "../ceno/mpcs" }
-# ff_ext = { path = "../ceno/ff_ext" }
+# [patch."https://github.com/scroll-tech/gkr-backend"]
+# ff_ext = { path = "../gkr-backend/crates/ff_ext", package = "ff_ext", default-features = false }
+# ceno_mle = { path = "../gkr-backend/crates/multilinear_extensions", package = "multilinear_extensions", default-features = false }
+# mpcs = { path = "../gkr-backend/crates/mpcs", package = "mpcs", default-features = false }
+# ceno_poseidon = { path = "../gkr-backend/crates/poseidon", package = "poseidon", default-features = false }
+# ceno_sumcheck = { path = "../gkr-backend/crates/sumcheck", package = "sumcheck", default-features = false }
+# ceno_transcript = { path = "../gkr-backend/crates/transcript", package = "transcript", default-features = false }
+# ceno_whir = { path = "../gkr-backend/crates/whir", package = "whir", default-features = false }
+# ceno_witness = { path = "../gkr-backend/crates/witness", package = "witness", default-features = false }
+
+# [patch."https://github.com/scroll-tech/ceno"]
+# ceno_zkvm = { path = "../ceno/ceno_zkvm", package = "ceno_zkvm", default-features = false }
+# ceno_emul = { path = "../ceno/ceno_emul", package = "ceno_emul", default-features = false }
+# gkr_iop = { path = "../ceno/gkr_iop", package = "gkr_iop", default-features = false }
