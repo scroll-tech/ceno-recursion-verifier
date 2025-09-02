@@ -1,19 +1,17 @@
 use super::binding::{IOPProverMessageVariable, PointAndEvalVariable, PointVariable};
 use crate::arithmetics::{
-    challenger_multi_observe, dot_product, eq_eval, evaluate_at_point_degree_1, extend,
-    exts_to_felts, fixed_dot_product, gen_alpha_pows, is_smaller_than, print_ext_arr, reverse,
-    UniPolyExtrapolator,
+    challenger_multi_observe, eq_eval, evaluate_at_point_degree_1, extend, exts_to_felts,
+    fixed_dot_product, reverse, UniPolyExtrapolator,
 };
 use crate::transcript::transcript_observe_label;
 use crate::zkvm_verifier::binding::TowerProofInputVariable;
 use ceno_zkvm::scheme::constants::NUM_FANIN;
 use openvm_native_compiler::prelude::*;
 use openvm_native_compiler_derive::iter_zip;
-use openvm_native_recursion::challenger::ChallengerVariable;
 use openvm_native_recursion::challenger::{
     duplex::DuplexChallengerVariable, CanObserveVariable, FeltChallenger,
 };
-use p3_field::FieldAlgebra;
+use openvm_stark_backend::p3_field::FieldAlgebra;
 
 pub(crate) fn interpolate_uni_poly<C: Config>(
     builder: &mut Builder<C>,
@@ -86,51 +84,6 @@ pub(crate) fn interpolate_uni_poly<C: Config>(
     res
 }
 
-// Interpolate a uni-variate degree-`p_i.len()-1` polynomial and evaluate this
-// polynomial at `eval_at`:
-//
-//   \sum_{i=0}^len p_i * (\prod_{j!=i} (eval_at - j)/(i-j) )
-//
-pub(crate) fn interpolate_uni_poly_with_weights<C: Config>(
-    builder: &mut Builder<C>,
-    p_i: &Array<C, Ext<C::F, C::EF>>,
-    eval_at: Ext<C::F, C::EF>,
-    interpolation_weights: &Array<C, Array<C, Ext<C::F, C::EF>>>,
-) -> Ext<C::F, C::EF> {
-    // \prod_i (eval_at - i)
-    let weights_idx: Usize<C::N> = builder.eval(p_i.len() - Usize::from(2));
-    let weights = builder.get(interpolation_weights, weights_idx);
-    let num_points = p_i.len().get_var();
-
-    let one: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
-    let zero: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
-    let mut iter_i: Ext<C::F, C::EF> = builder.eval(zero + zero); // 0 + 0 to take advantage of AddE
-    let prod: Ext<C::F, C::EF> = builder.eval(one + zero); // 1 + 0 to take advantage of AddE
-    builder.range(0, num_points).for_each(|_, builder| {
-        builder.assign(&prod, prod * (eval_at - iter_i));
-        builder.assign(&iter_i, iter_i + one);
-    });
-
-    iter_i = builder.eval(zero + zero); // reset to 0
-    let result = zero; // take ownership
-    iter_zip!(builder, p_i, weights).for_each(|ptr_vec, builder| {
-        let pi_ptr = ptr_vec[0];
-        let w_ptr = ptr_vec[1];
-
-        let p_i_val = builder.iter_ptr_get(p_i, pi_ptr);
-        let weight = builder.iter_ptr_get(&weights, w_ptr);
-
-        // weight_i = \prod_{j!=i} 1/(i-j)
-        // \sum_{i=0}^len p_i * weight_i * prod / (eval_at-i)
-        let e: Ext<C::F, C::EF> = builder.eval(eval_at - iter_i);
-        let term = p_i_val * weight * prod / e; // TODO: how to handle e = 0
-        builder.assign(&iter_i, iter_i + one);
-        builder.assign(&result, result + term);
-    });
-
-    result
-}
-
 pub fn iop_verifier_state_verify<C: Config>(
     builder: &mut Builder<C>,
     challenger: &mut DuplexChallengerVariable<C>,
@@ -164,6 +117,7 @@ pub fn iop_verifier_state_verify<C: Config>(
         .range(0, max_num_variables_usize.clone())
         .for_each(|i_vec, builder| {
             let i = i_vec[0];
+
             // TODO: this takes 7 cycles, can we optimize it?
             let prover_msg = builder.get(&prover_messages, i);
 
@@ -178,6 +132,7 @@ pub fn iop_verifier_state_verify<C: Config>(
             let e1 = builder.get(&prover_msg.evaluations, 0);
             let e2 = builder.get(&prover_msg.evaluations, 1);
             let target: Ext<<C as Config>::F, <C as Config>::EF> = builder.eval(e1 + e2);
+
             builder.assert_ext_eq(expected, target);
 
             let p_r = unipoly_extrapolator.extrapolate_uni_poly(
@@ -349,7 +304,7 @@ pub fn verify_tower_proof<C: Config>(
             builder.set(&interleaved_point_n_eval, q_i, q);
         });
 
-    let mut initial_claim: Ext<C::F, C::EF> = builder.eval(zero + zero);
+    let initial_claim: Ext<C::F, C::EF> = builder.eval(zero + zero);
 
     iter_zip!(builder, prod_spec_point_n_eval).for_each(|ptr_vec, builder| {
         let ptr = ptr_vec[0];
@@ -371,11 +326,9 @@ pub fn verify_tower_proof<C: Config>(
     let op_range: RVar<C::N> = builder.eval_expr(max_num_variables - Usize::from(1));
     let round: Felt<C::F> = builder.constant(C::F::ZERO);
 
-    let mut next_rt = PointAndEvalVariable {
-        point: PointVariable {
-            fs: builder.dyn_array(1),
-        },
-        eval: builder.constant(C::EF::ZERO),
+    let next_rt = PointAndEvalVariable {
+        point: PointVariable { fs: initial_rt },
+        eval: initial_claim,
     };
 
     builder

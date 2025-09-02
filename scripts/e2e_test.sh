@@ -9,11 +9,11 @@ if [ ! -d "$REPO_ROOT/build/ceno" ] || [ -z "$(ls -A "$REPO_ROOT/build/ceno" 2>/
 fi
 
 # Enter the ceno directory
-cd $REPO_ROOT/build/ceno && git checkout build/smaller_field_support_plonky3_539bbc
+cd $REPO_ROOT/build/ceno && git checkout feat/smaller_field_support
 
 # Execute the ceno_zkvm e2e test
 RUST_LOG=info cargo run --release --package ceno_zkvm --bin e2e -- --platform=ceno \
-    --hints=10 --public-io=4191 examples/target/riscv32im-ceno-zkvm-elf/release/examples/fibonacci \
+    examples/target/riscv32im-ceno-zkvm-elf/release/examples/keccak_syscall \
     --field=baby-bear
 
 mkdir -p $REPO_ROOT/src/e2e/encoded

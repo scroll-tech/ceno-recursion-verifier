@@ -2,15 +2,10 @@ use crate::arithmetics::next_pow2_instance_padding;
 use crate::basefold_verifier::basefold::{
     BasefoldCommitment, BasefoldCommitmentVariable, BasefoldProof, BasefoldProofVariable,
 };
-use crate::basefold_verifier::query_phase::{
-    QueryPhaseVerifierInput, QueryPhaseVerifierInputVariable,
-};
 use crate::{
     arithmetics::ceil_log2,
-    tower_verifier::binding::{IOPProverMessage, IOPProverMessageVariable},
+    tower_verifier::binding::{IOPProverMessage, IOPProverMessageVariable, PointVariable},
 };
-use ark_std::iterable::Iterable;
-use ff_ext::BabyBearExt4;
 use itertools::Itertools;
 use openvm_native_compiler::{
     asm::AsmConfig,
@@ -19,8 +14,8 @@ use openvm_native_compiler::{
 };
 use openvm_native_compiler_derive::iter_zip;
 use openvm_native_recursion::hints::{Hintable, VecAutoHintable};
+use openvm_stark_backend::p3_field::{extension::BinomialExtensionField, FieldAlgebra};
 use openvm_stark_sdk::p3_baby_bear::BabyBear;
-use p3_field::{extension::BinomialExtensionField, FieldAlgebra};
 
 pub type F = BabyBear;
 pub type E = BinomialExtensionField<F, 4>;
@@ -71,6 +66,9 @@ pub struct ZKVMChipProofInputVariable<C: Config> {
     pub main_sel_sumcheck_proofs: Array<C, IOPProverMessageVariable<C>>,
     pub wits_in_evals: Array<C, Ext<C::F, C::EF>>,
     pub fixed_in_evals: Array<C, Ext<C::F, C::EF>>,
+
+    pub has_gkr_proof: Usize<C::N>,
+    pub gkr_iop_proof: GKRProofVariable<C>,
 }
 
 pub(crate) struct ZKVMProofInput {
@@ -121,7 +119,7 @@ impl Hintable<InnerConfig> for ZKVMProofInput {
         let witin_num_vars = self
             .chip_proofs
             .iter()
-            .map(|proof| ceil_log2(proof.num_instances).max(1))
+            .map(|proof| proof.num_vars)
             .collect::<Vec<_>>();
         let witin_max_widths = self
             .chip_proofs
@@ -132,7 +130,7 @@ impl Hintable<InnerConfig> for ZKVMProofInput {
             .chip_proofs
             .iter()
             .filter(|proof| proof.fixed_in_evals.len() > 0)
-            .map(|proof| ceil_log2(proof.num_instances).max(1))
+            .map(|proof| proof.num_vars)
             .collect::<Vec<_>>();
         let fixed_max_widths = self
             .chip_proofs
@@ -253,7 +251,11 @@ impl Hintable<InnerConfig> for TowerProofInput {
 
 pub struct ZKVMChipProofInput {
     pub idx: usize,
+    // this is the number of instructions before padding
+    // it's possible that an instruction has multiple rows.
     pub num_instances: usize,
+    // this is the number of variables of each polynomial in the witness matrix
+    pub num_vars: usize,
 
     // product constraints
     pub record_r_out_evals_len: usize,
@@ -269,6 +271,10 @@ pub struct ZKVMChipProofInput {
     pub main_sumcheck_proofs: Vec<IOPProverMessage>,
     pub wits_in_evals: Vec<E>,
     pub fixed_in_evals: Vec<E>,
+
+    // gkr proof
+    pub has_gkr_proof: bool,
+    pub gkr_iop_proof: GKRProofInput,
 }
 
 impl VecAutoHintable for ZKVMChipProofInput {}
@@ -296,6 +302,9 @@ impl Hintable<InnerConfig> for ZKVMChipProofInput {
         let wits_in_evals = Vec::<E>::read(builder);
         let fixed_in_evals = Vec::<E>::read(builder);
 
+        let has_gkr_proof = Usize::Var(usize::read(builder));
+        let gkr_iop_proof = GKRProofInput::read(builder);
+
         ZKVMChipProofInputVariable {
             idx,
             idx_felt,
@@ -312,6 +321,8 @@ impl Hintable<InnerConfig> for ZKVMChipProofInput {
             main_sel_sumcheck_proofs,
             wits_in_evals,
             fixed_in_evals,
+            has_gkr_proof,
+            gkr_iop_proof,
         }
     }
 
@@ -353,7 +364,148 @@ impl Hintable<InnerConfig> for ZKVMChipProofInput {
         stream.extend(self.main_sumcheck_proofs.write());
         stream.extend(self.wits_in_evals.write());
         stream.extend(self.fixed_in_evals.write());
+        if self.has_gkr_proof {
+            stream.extend(<usize as Hintable<InnerConfig>>::write(&1));
+        } else {
+            stream.extend(<usize as Hintable<InnerConfig>>::write(&0));
+        }
+        stream.extend(self.gkr_iop_proof.write());
 
         stream
     }
+}
+
+#[derive(Default)]
+pub struct SumcheckLayerProofInput {
+    pub proof: Vec<IOPProverMessage>,
+    pub evals: Vec<E>,
+}
+#[derive(DslVariable, Clone)]
+pub struct SumcheckLayerProofVariable<C: Config> {
+    pub proof: Array<C, IOPProverMessageVariable<C>>,
+    pub evals: Array<C, Ext<C::F, C::EF>>,
+    pub evals_len_div_3: Var<C::N>,
+}
+impl VecAutoHintable for SumcheckLayerProofInput {}
+impl Hintable<InnerConfig> for SumcheckLayerProofInput {
+    type HintVariable = SumcheckLayerProofVariable<InnerConfig>;
+
+    fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
+        let proof = Vec::<IOPProverMessage>::read(builder);
+        let evals = Vec::<E>::read(builder);
+        let evals_len_div_3 = usize::read(builder);
+
+        Self::HintVariable {
+            proof,
+            evals,
+            evals_len_div_3,
+        }
+    }
+    fn write(&self) -> Vec<Vec<<InnerConfig as Config>::N>> {
+        let mut stream = Vec::new();
+        stream.extend(self.proof.write());
+        stream.extend(self.evals.write());
+        let evals_len_div_3 = self.evals.len() / 3;
+        stream.extend(<usize as Hintable<InnerConfig>>::write(&evals_len_div_3));
+        stream
+    }
+}
+pub struct LayerProofInput {
+    pub has_rotation: usize,
+    pub rotation: SumcheckLayerProofInput,
+    pub main: SumcheckLayerProofInput,
+}
+#[derive(DslVariable, Clone)]
+pub struct LayerProofVariable<C: Config> {
+    pub has_rotation: Usize<C::N>,
+    pub rotation: SumcheckLayerProofVariable<C>,
+    pub main: SumcheckLayerProofVariable<C>,
+}
+impl VecAutoHintable for LayerProofInput {}
+impl Hintable<InnerConfig> for LayerProofInput {
+    type HintVariable = LayerProofVariable<InnerConfig>;
+
+    fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
+        let has_rotation = Usize::Var(usize::read(builder));
+        let rotation = SumcheckLayerProofInput::read(builder);
+        let main = SumcheckLayerProofInput::read(builder);
+
+        Self::HintVariable {
+            has_rotation,
+            rotation,
+            main,
+        }
+    }
+    fn write(&self) -> Vec<Vec<<InnerConfig as Config>::N>> {
+        let mut stream = Vec::new();
+        stream.extend(<usize as Hintable<InnerConfig>>::write(&self.has_rotation));
+        stream.extend(self.rotation.write());
+        stream.extend(self.main.write());
+        stream
+    }
+}
+#[derive(Default)]
+pub struct GKRProofInput {
+    pub num_var_with_rotation: usize,
+    pub num_instances: usize,
+    pub layer_proofs: Vec<LayerProofInput>,
+}
+#[derive(DslVariable, Clone)]
+pub struct GKRProofVariable<C: Config> {
+    pub num_var_with_rotation: Usize<C::N>,
+    pub num_instances_minus_one_bit_decomposition: Array<C, Felt<C::F>>,
+    pub layer_proofs: Array<C, LayerProofVariable<C>>,
+}
+impl Hintable<InnerConfig> for GKRProofInput {
+    type HintVariable = GKRProofVariable<InnerConfig>;
+
+    fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
+        let num_var_with_rotation = Usize::Var(usize::read(builder));
+        let num_instances_minus_one_bit_decomposition = Vec::<F>::read(builder);
+        let layer_proofs = Vec::<LayerProofInput>::read(builder);
+        Self::HintVariable {
+            num_var_with_rotation,
+            num_instances_minus_one_bit_decomposition,
+            layer_proofs,
+        }
+    }
+    fn write(&self) -> Vec<Vec<<InnerConfig as Config>::N>> {
+        let mut stream = Vec::new();
+        stream.extend(<usize as Hintable<InnerConfig>>::write(
+            &self.num_var_with_rotation,
+        ));
+
+        let eq_instance = self.num_instances - 1;
+        let mut bit_decomp: Vec<F> = vec![];
+        for i in 0..32usize {
+            bit_decomp.push(F::from_canonical_usize((eq_instance >> i) & 1));
+        }
+        stream.extend(bit_decomp.write());
+        stream.extend(self.layer_proofs.write());
+        stream
+    }
+}
+
+#[derive(DslVariable, Clone)]
+pub struct ClaimAndPoint<C: Config> {
+    pub evals: Array<C, Ext<C::F, C::EF>>,
+    pub has_point: Usize<C::N>,
+    pub point: PointVariable<C>,
+}
+
+#[derive(DslVariable, Clone)]
+pub struct RotationClaim<C: Config> {
+    pub left_evals: Array<C, Ext<C::F, C::EF>>,
+    pub right_evals: Array<C, Ext<C::F, C::EF>>,
+    pub target_evals: Array<C, Ext<C::F, C::EF>>,
+    pub left_point: Array<C, Ext<C::F, C::EF>>,
+    pub right_point: Array<C, Ext<C::F, C::EF>>,
+    pub origin_point: Array<C, Ext<C::F, C::EF>>,
+}
+
+#[derive(DslVariable, Clone)]
+pub struct GKRClaimEvaluation<C: Config> {
+    pub value: Ext<C::F, C::EF>,
+    pub point: PointVariable<C>,
+    pub poly: Usize<C::N>,
 }

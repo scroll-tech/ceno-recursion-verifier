@@ -1,22 +1,53 @@
 use crate::basefold_verifier::basefold::BasefoldCommitment;
+use crate::basefold_verifier::query_phase::QueryPhaseVerifierInput;
 use crate::tower_verifier::binding::IOPProverMessage;
-use crate::zkvm_verifier::binding::{TowerProofInput, ZKVMChipProofInput, ZKVMProofInput, E, F};
-use crate::zkvm_verifier::verifier::verify_zkvm_proof;
-
-use ceno_zkvm::scheme::ZKVMProof;
-use ceno_zkvm::structs::ZKVMVerifyingKey;
+use crate::zkvm_verifier::binding::{
+    GKRProofInput, LayerProofInput, SumcheckLayerProofInput, TowerProofInput, ZKVMChipProofInput,
+    ZKVMProofInput, E, F,
+};
+use crate::zkvm_verifier::verifier::{verify_gkr_circuit, verify_zkvm_proof};
+use ceno_mle::util::ceil_log2;
+use ceno_transcript::BasicTranscript;
+use ff_ext::BabyBearExt4;
+use gkr_iop::gkr::{
+    layer::sumcheck_layer::{SumcheckLayer, SumcheckLayerProof},
+    GKRCircuit,
+};
+use itertools::Itertools;
 use mpcs::{Basefold, BasefoldRSParams};
-
-use openvm_circuit::arch::instructions::program::Program;
+use openvm_circuit::arch::{
+    instructions::program::Program, verify_single, SystemConfig, VirtualMachine, VmExecutor,
+};
+use openvm_native_circuit::{Native, NativeConfig};
 use openvm_native_compiler::{
     asm::AsmBuilder,
     conversion::{convert_program, CompilerOptions},
     prelude::AsmCompiler,
 };
 use openvm_native_recursion::hints::Hintable;
+use openvm_stark_backend::config::StarkGenericConfig;
+use openvm_stark_sdk::{
+    config::{
+        baby_bear_poseidon2::{BabyBearPoseidon2Config, BabyBearPoseidon2Engine},
+        fri_params::standard_fri_params_with_100_bits_conjectured_security,
+        setup_tracing_with_log_level, FriParameters,
+    },
+    engine::StarkFriEngine,
+    p3_baby_bear::BabyBear,
+};
+use std::fs::File;
+
+type SC = BabyBearPoseidon2Config;
+type EF = <SC as StarkGenericConfig>::Challenge;
+
+use ceno_zkvm::{
+    scheme::{verifier::ZKVMVerifier, ZKVMProof},
+    structs::{ComposedConstrainSystem, ZKVMVerifyingKey},
+};
 
 pub fn parse_zkvm_proof_import(
-    zkvm_proof: ZKVMProof<E, Basefold<E, BasefoldRSParams>>,
+    zkvm_proof: ZKVMProof<BabyBearExt4, Basefold<BabyBearExt4, BasefoldRSParams>>,
+    vk: &ZKVMVerifyingKey<BabyBearExt4, Basefold<BabyBearExt4, BasefoldRSParams>>,
 ) -> ZKVMProofInput {
     let raw_pi = zkvm_proof
         .raw_pi
@@ -166,9 +197,95 @@ pub fn parse_zkvm_proof_import(
             fixed_in_evals.push(v_e);
         }
 
+        let circuit_name = &vk.circuit_index_to_name[chip_id];
+        let circuit_vk = &vk.circuit_vks[circuit_name];
+
+        let composed_cs = circuit_vk.get_cs();
+        let num_instances = chip_proof.num_instances;
+        let next_pow2_instance = num_instances.next_power_of_two().max(2);
+        let log2_num_instances = ceil_log2(next_pow2_instance);
+        let num_var_with_rotation = log2_num_instances + composed_cs.rotation_vars().unwrap_or(0);
+
+        let has_gkr_proof = chip_proof.gkr_iop_proof.is_some();
+        let mut gkr_iop_proof = GKRProofInput {
+            num_var_with_rotation,
+            num_instances,
+            layer_proofs: vec![],
+        };
+
+        if has_gkr_proof {
+            let gkr_proof = chip_proof.gkr_iop_proof.clone().unwrap();
+
+            for layer_proof in gkr_proof.0 {
+                // rotation
+                let (has_rotation, rotation): (usize, SumcheckLayerProofInput) = if let Some(p) =
+                    layer_proof.rotation
+                {
+                    let mut iop_messages: Vec<IOPProverMessage> = vec![];
+                    for m in p.proof.proofs {
+                        let mut evaluations: Vec<E> = vec![];
+                        for e in m.evaluations {
+                            let v_e: E =
+                                serde_json::from_value(serde_json::to_value(e.clone()).unwrap())
+                                    .unwrap();
+                            evaluations.push(v_e);
+                        }
+                        iop_messages.push(IOPProverMessage { evaluations });
+                    }
+                    let mut evals: Vec<E> = vec![];
+                    for e in p.evals {
+                        let v_e: E =
+                            serde_json::from_value(serde_json::to_value(e.clone()).unwrap())
+                                .unwrap();
+                        evals.push(v_e);
+                    }
+                    (
+                        1,
+                        SumcheckLayerProofInput {
+                            proof: iop_messages,
+                            evals,
+                        },
+                    )
+                } else {
+                    (0, SumcheckLayerProofInput::default())
+                };
+
+                // main sumcheck
+                let mut iop_messages: Vec<IOPProverMessage> = vec![];
+                let mut evals: Vec<E> = vec![];
+                for m in layer_proof.main.proof.proofs {
+                    let mut evaluations: Vec<E> = vec![];
+                    for e in m.evaluations {
+                        let v_e: E =
+                            serde_json::from_value(serde_json::to_value(e.clone()).unwrap())
+                                .unwrap();
+                        evaluations.push(v_e);
+                    }
+                    iop_messages.push(IOPProverMessage { evaluations });
+                }
+                for e in layer_proof.main.evals {
+                    let v_e: E =
+                        serde_json::from_value(serde_json::to_value(e.clone()).unwrap()).unwrap();
+                    evals.push(v_e);
+                }
+
+                let main = SumcheckLayerProofInput {
+                    proof: iop_messages,
+                    evals,
+                };
+
+                gkr_iop_proof.layer_proofs.push(LayerProofInput {
+                    has_rotation,
+                    rotation,
+                    main,
+                });
+            }
+        }
+
         chip_proofs.push(ZKVMChipProofInput {
             idx: chip_id.clone(),
             num_instances: chip_proof.num_instances,
+            num_vars: num_var_with_rotation,
             record_r_out_evals_len,
             record_w_out_evals_len,
             record_lk_out_evals_len,
@@ -179,10 +296,12 @@ pub fn parse_zkvm_proof_import(
             main_sumcheck_proofs,
             wits_in_evals,
             fixed_in_evals,
+            has_gkr_proof,
+            gkr_iop_proof,
         });
     }
 
-    let witin_commit: mpcs::BasefoldCommitment<E> =
+    let witin_commit: mpcs::BasefoldCommitment<BabyBearExt4> =
         serde_json::from_value(serde_json::to_value(zkvm_proof.witin_commit).unwrap()).unwrap();
     let witin_commit: BasefoldCommitment = witin_commit.into();
 
@@ -258,7 +377,7 @@ mod tests {
         let program = build_zkvm_verifier_program(&vk);
 
         // Construct zkvm proof input
-        let zkvm_proof_input = parse_zkvm_proof_import(zkvm_proof);
+        let zkvm_proof_input = parse_zkvm_proof_import(zkvm_proof, &vk);
 
         // Pass in witness stream
         let mut witness_stream: Vec<Vec<F>> = Vec::new();
@@ -286,8 +405,7 @@ mod tests {
         }
 
         let poseidon2_max_constraint_degree = 3;
-        // TODO: use log_blowup = 1 when native multi_observe chip reduces max constraint degree to 3
-        let log_blowup = 2;
+        let log_blowup = 1;
 
         let fri_params = if matches!(std::env::var("OPENVM_FAST_TEST"), Ok(x) if &x == "1") {
             FriParameters {
