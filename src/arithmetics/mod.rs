@@ -1,5 +1,8 @@
 use crate::tower_verifier::binding::PointAndEvalVariable;
 use crate::zkvm_verifier::binding::ZKVMChipProofInputVariable;
+use ceno_mle::StructuralWitInType::{
+    EqualDistanceSequence, InnerRepeatingIncrementalSequence, OuterRepeatingIncrementalSequence,
+};
 use ceno_mle::{Expression, Fixed, Instance};
 use ceno_zkvm::structs::{ChallengeId, WitnessId};
 use ff_ext::ExtensionField;
@@ -573,10 +576,11 @@ pub fn evaluate_ceno_expr<C: Config, T>(
     match expr {
         Expression::Fixed(f) => fixed_in(builder, f),
         Expression::WitIn(witness_id) => wit_in(builder, *witness_id),
-        Expression::StructuralWitIn(witness_id, max_len, offset, multi_factor) => {
-            structural_wit_in(builder, *witness_id, *max_len, *offset, *multi_factor)
+        Expression::StructuralWitIn(witness_id, _) => {
+            structural_wit_in(builder, *witness_id, 0, 0, 0)
         }
         Expression::Instance(i) => instance(builder, *i),
+        Expression::InstanceScalar(i) => instance(builder, *i),
         Expression::Constant(scalar) => match scalar {
             Either::Left(s) => constant(builder, E::from_base(*s)),
             Either::Right(s) => constant(builder, *s),
@@ -688,7 +692,7 @@ pub fn evaluate_ceno_expr<C: Config, T>(
 }
 
 /// evaluate MLE M(x0, x1, x2, ..., xn) address vector with it evaluation format a*[0, 1, 2, 3, ....2^n-1] + b
-/// on r = [r0, r1, r2, ...rn] succintly
+/// on r = [r0, r1, r2, ...rn] succinctly
 /// a, b, is constant
 /// the result M(r0, r1,... rn) = r0 + r1 * 2 + r2 * 2^2 + .... rn * 2^n
 pub fn eval_wellform_address_vec<C: Config>(
@@ -718,6 +722,58 @@ pub fn eval_wellform_address_vec<C: Config>(
     }
 
     let res: Ext<C::F, C::EF> = builder.eval(offset + shift);
+
+    res
+}
+
+/// Evaluate MLE M(x0, x1, ..., xn) whose evaluations are [0, 0, 1, 1, 2, 2, 2, 2, ...]
+/// on r = [r0, r1, r2, ... rn] succinctly
+pub fn eval_stacked_constant<C: Config>(
+    builder: &mut Builder<C>,
+    r: &Array<C, Ext<C::F, C::EF>>,
+) -> Ext<C::F, C::EF> {
+    let one: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
+    let res: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
+    let loop_i: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
+
+    builder.range(1, r.len()).for_each(|i_vec, builder| {
+        let i: Var<C::N> = builder.eval(i_vec[0]);
+        let ri = builder.get(r, i);
+        // res = res * (1-ri) + ri * i
+        builder.assign(&res, res * (one.clone() - ri.clone()) + ri * loop_i);
+        builder.assign(&loop_i, loop_i + one);
+    });
+
+    res
+}
+
+pub fn eval_stacked_wellform_address_vec<C: Config>(
+    builder: &mut Builder<C>,
+    r: &Array<C, Ext<C::F, C::EF>>,
+) -> Ext<C::F, C::EF> {
+    let one: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
+
+    let two: Ext<C::F, C::EF> = builder.constant(C::EF::TWO);
+    let pow_two: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
+
+    // compute \sum_j r_j * 2^j in an incremental way
+    let well_formed_inc: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
+    let res: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
+
+    builder.range(1, r.len()).for_each(|i_vec, builder| {
+        let i: Var<C::N> = builder.eval(i_vec[0]);
+        let i_minus_1: Var<C::N> = builder.eval(i.clone() - RVar::from(1));
+        let ri = builder.get(r, i);
+        let r_i_minus_1 = builder.get(r, i_minus_1);
+        // res = res * (1-ri) + ri * (\sum_{j < i} 2^j * rj)
+        builder.assign(&well_formed_inc, well_formed_inc * pow_two + r_i_minus_1);
+        builder.assign(&pow_two, pow_two * two);
+
+        builder.assign(
+            &res,
+            res * (one - ri.clone()) + ri * well_formed_inc.clone(),
+        );
+    });
 
     res
 }

@@ -504,7 +504,7 @@ dependencies = [
 [[package]]
 name = "ceno-examples"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=chore%2Fbump-gkr-backend#6c6efbfb1afc08d1aeee2e3f084cd19a5eb5d9ca"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=master#c546283049306fb3f6dc323c42cc27996e640b0b"
 dependencies = [
  "glob",
 ]
@@ -556,7 +556,7 @@ dependencies = [
 [[package]]
 name = "ceno_emul"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=chore%2Fbump-gkr-backend#6c6efbfb1afc08d1aeee2e3f084cd19a5eb5d9ca"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=master#c546283049306fb3f6dc323c42cc27996e640b0b"
 dependencies = [
  "anyhow",
  "ceno_rt",
@@ -578,7 +578,7 @@ dependencies = [
 [[package]]
 name = "ceno_host"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=chore%2Fbump-gkr-backend#6c6efbfb1afc08d1aeee2e3f084cd19a5eb5d9ca"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=master#c546283049306fb3f6dc323c42cc27996e640b0b"
 dependencies = [
  "anyhow",
  "ceno_emul",
@@ -590,7 +590,7 @@ dependencies = [
 [[package]]
 name = "ceno_rt"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=chore%2Fbump-gkr-backend#6c6efbfb1afc08d1aeee2e3f084cd19a5eb5d9ca"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=master#c546283049306fb3f6dc323c42cc27996e640b0b"
 dependencies = [
  "getrandom 0.2.16",
  "rkyv",
@@ -599,7 +599,7 @@ dependencies = [
 [[package]]
 name = "ceno_zkvm"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=chore%2Fbump-gkr-backend#6c6efbfb1afc08d1aeee2e3f084cd19a5eb5d9ca"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=master#c546283049306fb3f6dc323c42cc27996e640b0b"
 dependencies = [
  "base64",
  "bincode",
@@ -1116,7 +1116,7 @@ checksum = "07e28edb80900c19c28f1072f2e8aeca7fa06b23cd4169cefe1af5aa3260783f"
 [[package]]
 name = "gkr_iop"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=chore%2Fbump-gkr-backend#6c6efbfb1afc08d1aeee2e3f084cd19a5eb5d9ca"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=master#c546283049306fb3f6dc323c42cc27996e640b0b"
 dependencies = [
  "bincode",
  "either",

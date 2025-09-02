@@ -3,8 +3,8 @@ use super::binding::{
     ZKVMProofInputVariable,
 };
 use crate::arithmetics::{
-    challenger_multi_observe, eq_eval, eval_ceno_expr_with_instance, PolyEvaluator,
-    UniPolyExtrapolator,
+    challenger_multi_observe, eq_eval, eval_ceno_expr_with_instance, eval_stacked_constant,
+    eval_stacked_wellform_address_vec, PolyEvaluator, UniPolyExtrapolator,
 };
 use crate::basefold_verifier::basefold::{
     BasefoldCommitmentVariable, RoundOpeningVariable, RoundVariable,
@@ -31,6 +31,10 @@ use crate::{
     },
 };
 use ceno_mle::expression::{Expression, Instance, StructuralWitIn};
+use ceno_mle::StructuralWitInType::{
+    EqualDistanceSequence, InnerRepeatingIncrementalSequence, OuterRepeatingIncrementalSequence,
+    StackedConstantSequence, StackedIncrementalSequence,
+};
 use ceno_zkvm::structs::{VerifyingKey, ZKVMVerifyingKey};
 use ceno_zkvm::{
     circuit_builder::SetTableSpec, scheme::verifier::ZKVMVerifier, structs::ComposedConstrainSystem,
@@ -945,7 +949,7 @@ pub fn evaluate_selector<C: Config>(
     };
 
     // TODO: just return eval and check it with respect to evals
-    let Expression::StructuralWitIn(wit_id, _, _, _) = expr else {
+    let Expression::StructuralWitIn(wit_id, _) = expr else {
         panic!("Wrong selector expression format");
     };
     let wit_id = *wit_id as usize + offset_eq_id;
@@ -1297,37 +1301,53 @@ pub fn verify_table_proof<C: Config>(
             table_spec
                 .structural_witins
                 .iter()
-                .map(
-                    |StructuralWitIn {
-                         offset,
-                         multi_factor,
-                         descending,
-                         ..
-                     }| {
-                        // TODO: Remove modulo field prime
-                        // OpenVM Config cannot automatically accept u32 exceeding its prime limit
-                        // Use Babybear prime defined as p = 15 * 2^27 + 1
-                        let babybear_prime: u32 = 2013265921;
-                        let offset = if *offset > babybear_prime {
-                            *offset - babybear_prime
-                        } else {
-                            *offset
-                        };
-                        let multi_factor = if *multi_factor > babybear_prime as usize {
-                            *multi_factor - babybear_prime as usize
-                        } else {
-                            *multi_factor
-                        };
+                .map(|StructuralWitIn { id: _, witin_type }| {
+                    match witin_type {
+                        EqualDistanceSequence {
+                            max_len: _,
+                            offset,
+                            multi_factor,
+                            descending,
+                        } => {
+                            // TODO: Remove modulo field prime
+                            // OpenVM Config cannot automatically accept u32 exceeding its prime limit
+                            // Use Babybear prime defined as p = 15 * 2^27 + 1
+                            let babybear_prime: u32 = 0x78000001;
+                            let offset = if *offset > babybear_prime {
+                                *offset - babybear_prime
+                            } else {
+                                *offset
+                            };
+                            let multi_factor = if *multi_factor > babybear_prime as usize {
+                                *multi_factor - babybear_prime as usize
+                            } else {
+                                *multi_factor
+                            };
 
-                        eval_wellform_address_vec(
-                            builder,
-                            offset as u32,
-                            multi_factor as u32,
-                            &rt_tower.fs,
-                            *descending,
-                        )
-                    },
-                )
+                            eval_wellform_address_vec(
+                                builder,
+                                offset as u32,
+                                multi_factor as u32,
+                                &rt_tower.fs,
+                                *descending,
+                            )
+                        }
+                        InnerRepeatingIncrementalSequence { k, n } => {
+                            let r_s = rt_tower.fs.slice(builder, *k, *n);
+                            eval_wellform_address_vec(builder, 0, 1, &r_s, false)
+                        }
+                        OuterRepeatingIncrementalSequence { k, n: _ } => {
+                            let r_s = rt_tower.fs.slice(builder, 0, *k);
+                            eval_wellform_address_vec(builder, 0, 1, &r_s, false)
+                        }
+                        StackedIncrementalSequence { max_bits: _ } => {
+                            eval_stacked_wellform_address_vec(builder, &rt_tower.fs)
+                        }
+                        StackedConstantSequence { max_value: _ } => {
+                            eval_stacked_constant(builder, &rt_tower.fs)
+                        }
+                    }
+                })
                 .collect::<Vec<Ext<C::F, C::EF>>>()
         })
         .collect::<Vec<Ext<C::F, C::EF>>>();
