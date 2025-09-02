@@ -9,7 +9,7 @@ if [ ! -d "$REPO_ROOT/build/ceno" ] || [ -z "$(ls -A "$REPO_ROOT/build/ceno" 2>/
 fi
 
 # Enter the ceno directory
-cd $REPO_ROOT/build/ceno && git checkout feat/smaller_field_support
+cd $REPO_ROOT/build/ceno && git checkout master && git pull origin master
 
 # Execute the ceno_zkvm e2e test
 RUST_LOG=info cargo run --release --package ceno_zkvm --bin e2e -- --platform=ceno \
