@@ -265,19 +265,23 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
             builder.cycle_tracker_start("Verify chip proof");
             let input_opening_point = if chip_vk.get_cs().is_opcode_circuit() {
                 // getting the number of dummy padding item that we used in this opcode circuit
-                let num_lks = chip_vk.get_cs().num_lks();
-                // FIXME: use builder to compute this
-                let num_instances = pow_2(builder, chip_proof.log2_num_instances.get_var());
-                let num_padded_instance: Var<C::N> =
-                    builder.eval(num_instances - chip_proof.num_instances.clone());
+                let num_lks: Var<C::N> = builder.eval(C::N::from_canonical_usize(chip_vk.get_cs().num_lks()));
 
-                let new_multiplicity: Usize<C::N> =
-                    builder.eval(Usize::from(num_lks) * Usize::from(num_padded_instance));
+                // each padding instance contribute to (2^rotation_vars) dummy lookup padding
+                let next_pow2_instance: Var<C::N> = pow_2(builder, chip_proof.log2_num_instances.get_var());
+                let num_padded_instance: Var<C::N> = builder.eval(next_pow2_instance - chip_proof.num_instances.clone());
+                let rotation_var: Var<C::N> = builder.constant(C::N::from_canonical_usize(1 << circuit_vk.get_cs().rotation_vars().unwrap_or(0)));
+                let rotation_subgroup_size: Var<C::N> = builder.constant(C::N::from_canonical_usize(circuit_vk.get_cs().rotation_subgroup_size().unwrap_or(0)));
+                builder.assign(&num_padded_instance, num_padded_instance * rotation_var);
+
+                // each instance contribute to (2^rotation_vars - rotated) dummy lookup padding
+                let num_instance_non_selected: Var<C::N> = builder.eval(chip_proof.num_instances.clone() * (rotation_var - rotation_subgroup_size - C::N::ONE));
+                let new_multiplicity: Var<C::N> = builder.eval(num_lks * (num_padded_instance + num_instance_non_selected));
                 builder.assign(
                     &dummy_table_item_multiplicity,
                     dummy_table_item_multiplicity + new_multiplicity,
                 );
-
+                
                 builder.assign(&logup_sum, logup_sum + chip_logup_sum);
                 verify_opcode_proof(
                     builder,
