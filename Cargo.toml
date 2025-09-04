@@ -17,8 +17,11 @@ rand = { version = "0.8.5", default-features = false }
 itertools = { version = "0.13.0", default-features = false }
 bincode = "1.3.3"
 tracing = "0.1.40"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
 
 # Plonky3
+# replace all dep with `p3` from gkr-backend
 p3-air = { git = "https://github.com/Plonky3/Plonky3.git", rev = "539bbc84085efb609f4f62cb03cf49588388abdb" }
 p3-baby-bear = { git = "https://github.com/Plonky3/Plonky3.git", rev = "539bbc84085efb609f4f62cb03cf49588388abdb" }
 p3-field = { git = "https://github.com/Plonky3/Plonky3.git", rev = "539bbc84085efb609f4f62cb03cf49588388abdb" }
@@ -29,7 +32,7 @@ p3-challenger = { git = "https://github.com/Plonky3/Plonky3.git", rev = "539bbc8
 p3-monty-31 = { git = "https://github.com/Plonky3/Plonky3.git", rev = "539bbc84085efb609f4f62cb03cf49588388abdb" }
 p3-symmetric = { git = "https://github.com/Plonky3/Plonky3.git", rev = "539bbc84085efb609f4f62cb03cf49588388abdb" }
 p3-fri = { git = "https://github.com/Plonky3/Plonky3.git", rev = "539bbc84085efb609f4f62cb03cf49588388abdb" }
-p3-goldilocks = { git = "https://github.com/Plonky3/plonky3", rev = "539bbc84085efb609f4f62cb03cf49588388abdb" }
+p3-goldilocks = { git = "https://github.com/Plonky3/Plonky3.git", rev = "539bbc84085efb609f4f62cb03cf49588388abdb" }
 
 # WHIR
 ark-std = { version = "0.5", features = ["std"] }
@@ -38,29 +41,36 @@ ark-poly = "0.5"
 ark-serialize = "0.5"
 
 # Ceno
-ceno_mle = { git = "https://github.com/scroll-tech/ceno.git", branch = "feat/smaller_field_support", package = "multilinear_extensions" }
-ceno_sumcheck = { git = "https://github.com/scroll-tech/ceno.git", branch = "feat/smaller_field_support", package = "sumcheck" }
-ceno_transcript = { git = "https://github.com/scroll-tech/ceno.git", branch = "feat/smaller_field_support", package = "transcript" }
-ceno_witness = { git = "https://github.com/scroll-tech/ceno.git", branch = "feat/smaller_field_support", package = "witness" }
-ceno_zkvm = { git = "https://github.com/scroll-tech/ceno.git", branch = "feat/smaller_field_support" }
-ceno_emul = { git = "https://github.com/scroll-tech/ceno.git", branch = "feat/smaller_field_support" }
-gkr_iop = { git = "https://github.com/scroll-tech/ceno.git", branch = "feat/smaller_field_support" }
-mpcs = { git = "https://github.com/scroll-tech/ceno.git", branch = "feat/smaller_field_support" }
-ff_ext = { git = "https://github.com/scroll-tech/ceno.git", branch = "feat/smaller_field_support" }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+ceno_mle = { git = "https://github.com/scroll-tech/gkr-backend.git", rev = "v1.0.0-alpha.6", package = "multilinear_extensions" }
+ceno_sumcheck = { git = "https://github.com/scroll-tech/gkr-backend.git", rev = "v1.0.0-alpha.6", package = "sumcheck" }
+ceno_transcript = { git = "https://github.com/scroll-tech/gkr-backend.git", rev = "v1.0.0-alpha.6", package = "transcript" }
+ceno_witness = { git = "https://github.com/scroll-tech/gkr-backend.git", rev = "v1.0.0-alpha.6", package = "witness" }
+ceno_zkvm = { git = "https://github.com/scroll-tech/ceno.git", branch = "master" }
+ceno_emul = { git = "https://github.com/scroll-tech/ceno.git", branch = "master" }
+gkr_iop = { git = "https://github.com/scroll-tech/ceno.git", branch = "master" }
+mpcs = { git = "https://github.com/scroll-tech/gkr-backend.git", rev = "v1.0.0-alpha.6" }
+ff_ext = { git = "https://github.com/scroll-tech/gkr-backend.git", rev = "v1.0.0-alpha.6" }
 
 [features]
-default = ["parallel"]
+default = ["parallel", "nightly-features"]
+nightly-features = [
+  "ceno_zkvm/nightly-features",
+  "openvm-stark-sdk/nightly-features",
+]
 parallel = ["openvm-stark-backend/parallel"]
 bench-metrics = ["openvm-circuit/bench-metrics"]
 
-# [patch."https://github.com/scroll-tech/ceno.git"]
-# ceno_mle = { path = "../ceno/multilinear_extensions", package = "multilinear_extensions" }
-# ceno_sumcheck = { path = "../ceno/sumcheck", package = "sumcheck" }
-# ceno_transcript = { path = "../ceno/transcript", package = "transcript" }
-# ceno_witness = { path = "../ceno/witness", package = "witness" }
-# ceno_zkvm = { path = "../ceno/ceno_zkvm" }
-# ceno_emul = { path = "../ceno/ceno_emul" }
-# mpcs = { path = "../ceno/mpcs" }
-# ff_ext = { path = "../ceno/ff_ext" }
+# [patch."https://github.com/scroll-tech/gkr-backend"]
+# ff_ext = { path = "../gkr-backend/crates/ff_ext", package = "ff_ext" }
+# ceno_mle = { path = "../gkr-backend/crates/multilinear_extensions", package = "multilinear_extensions" }
+# mpcs = { path = "../gkr-backend/crates/mpcs", package = "mpcs" }
+# ceno_poseidon = { path = "../gkr-backend/crates/poseidon", package = "poseidon" }
+# ceno_sumcheck = { path = "../gkr-backend/crates/sumcheck", package = "sumcheck" }
+# ceno_transcript = { path = "../gkr-backend/crates/transcript", package = "transcript" }
+# ceno_whir = { path = "../gkr-backend/crates/whir", package = "whir" }
+# ceno_witness = { path = "../gkr-backend/crates/witness", package = "witness" }
+
+# [patch."https://github.com/scroll-tech/ceno"]
+# ceno_zkvm = { path = "../ceno/ceno_zkvm", package = "ceno_zkvm" }
+# ceno_emul = { path = "../ceno/ceno_emul", package = "ceno_emul" }
+# gkr_iop = { path = "../ceno/gkr_iop", package = "gkr_iop" }

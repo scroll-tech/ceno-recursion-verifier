@@ -3,8 +3,8 @@ use super::binding::{
     ZKVMProofInputVariable,
 };
 use crate::arithmetics::{
-    challenger_multi_observe, eq_eval, eval_ceno_expr_with_instance, PolyEvaluator,
-    UniPolyExtrapolator,
+    challenger_multi_observe, eq_eval, eval_ceno_expr_with_instance, eval_stacked_constant,
+    eval_stacked_wellform_address_vec, PolyEvaluator, UniPolyExtrapolator,
 };
 use crate::basefold_verifier::basefold::{
     BasefoldCommitmentVariable, RoundOpeningVariable, RoundVariable,
@@ -31,6 +31,10 @@ use crate::{
     },
 };
 use ceno_mle::expression::{Expression, Instance, StructuralWitIn};
+use ceno_mle::StructuralWitInType::{
+    EqualDistanceSequence, InnerRepeatingIncrementalSequence, OuterRepeatingIncrementalSequence,
+    StackedConstantSequence, StackedIncrementalSequence,
+};
 use ceno_zkvm::structs::{VerifyingKey, ZKVMVerifyingKey};
 use ceno_zkvm::{
     circuit_builder::SetTableSpec, scheme::verifier::ZKVMVerifier, structs::ComposedConstrainSystem,
@@ -261,14 +265,30 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
             builder.cycle_tracker_start("Verify chip proof");
             let input_opening_point = if chip_vk.get_cs().is_opcode_circuit() {
                 // getting the number of dummy padding item that we used in this opcode circuit
-                let num_lks = chip_vk.get_cs().num_lks();
-                // FIXME: use builder to compute this
-                let num_instances = pow_2(builder, chip_proof.log2_num_instances.get_var());
-                let num_padded_instance: Var<C::N> =
-                    builder.eval(num_instances - chip_proof.num_instances.clone());
+                let num_lks: Var<C::N> =
+                    builder.eval(C::N::from_canonical_usize(chip_vk.get_cs().num_lks()));
 
-                let new_multiplicity: Usize<C::N> =
-                    builder.eval(Usize::from(num_lks) * Usize::from(num_padded_instance));
+                // each padding instance contribute to (2^rotation_vars) dummy lookup padding
+                let next_pow2_instance: Var<C::N> =
+                    pow_2(builder, chip_proof.log2_num_instances.get_var());
+                let num_padded_instance: Var<C::N> =
+                    builder.eval(next_pow2_instance - chip_proof.num_instances.clone());
+                let rotation_var: Var<C::N> = builder.constant(C::N::from_canonical_usize(
+                    1 << circuit_vk.get_cs().rotation_vars().unwrap_or(0),
+                ));
+                let rotation_subgroup_size: Var<C::N> =
+                    builder.constant(C::N::from_canonical_usize(
+                        circuit_vk.get_cs().rotation_subgroup_size().unwrap_or(0),
+                    ));
+                builder.assign(&num_padded_instance, num_padded_instance * rotation_var);
+
+                // each instance contribute to (2^rotation_vars - rotated) dummy lookup padding
+                let num_instance_non_selected: Var<C::N> = builder.eval(
+                    chip_proof.num_instances.clone()
+                        * (rotation_var - rotation_subgroup_size - C::N::ONE),
+                );
+                let new_multiplicity: Var<C::N> =
+                    builder.eval(num_lks * (num_padded_instance + num_instance_non_selected));
                 builder.assign(
                     &dummy_table_item_multiplicity,
                     dummy_table_item_multiplicity + new_multiplicity,
@@ -406,9 +426,12 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
     );
     builder.assign(&prod_r, prod_r * finalize_global_state);
 
-    /* TODO: Temporarily disable product check for missing subcircuits
-        builder.assert_ext_eq(prod_r, prod_w);
-    */
+    // memory consistency check
+    builder.assert_ext_eq(prod_r, prod_w);
+
+    // logup check
+    let zero: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
+    builder.assert_ext_eq(logup_sum, zero);
 }
 
 pub fn verify_opcode_proof<C: Config>(
@@ -945,7 +968,7 @@ pub fn evaluate_selector<C: Config>(
     };
 
     // TODO: just return eval and check it with respect to evals
-    let Expression::StructuralWitIn(wit_id, _, _, _) = expr else {
+    let Expression::StructuralWitIn(wit_id, _) = expr else {
         panic!("Wrong selector expression format");
     };
     let wit_id = *wit_id as usize + offset_eq_id;
@@ -1297,37 +1320,53 @@ pub fn verify_table_proof<C: Config>(
             table_spec
                 .structural_witins
                 .iter()
-                .map(
-                    |StructuralWitIn {
-                         offset,
-                         multi_factor,
-                         descending,
-                         ..
-                     }| {
-                        // TODO: Remove modulo field prime
-                        // OpenVM Config cannot automatically accept u32 exceeding its prime limit
-                        // Use Babybear prime defined as p = 15 * 2^27 + 1
-                        let babybear_prime: u32 = 2013265921;
-                        let offset = if *offset > babybear_prime {
-                            *offset - babybear_prime
-                        } else {
-                            *offset
-                        };
-                        let multi_factor = if *multi_factor > babybear_prime as usize {
-                            *multi_factor - babybear_prime as usize
-                        } else {
-                            *multi_factor
-                        };
+                .map(|StructuralWitIn { id: _, witin_type }| {
+                    match witin_type {
+                        EqualDistanceSequence {
+                            max_len: _,
+                            offset,
+                            multi_factor,
+                            descending,
+                        } => {
+                            // TODO: Remove modulo field prime
+                            // OpenVM Config cannot automatically accept u32 exceeding its prime limit
+                            // Use Babybear prime defined as p = 15 * 2^27 + 1
+                            let babybear_prime: u32 = 0x78000001;
+                            let offset = if *offset > babybear_prime {
+                                *offset - babybear_prime
+                            } else {
+                                *offset
+                            };
+                            let multi_factor = if *multi_factor > babybear_prime as usize {
+                                *multi_factor - babybear_prime as usize
+                            } else {
+                                *multi_factor
+                            };
 
-                        eval_wellform_address_vec(
-                            builder,
-                            offset as u32,
-                            multi_factor as u32,
-                            &rt_tower.fs,
-                            *descending,
-                        )
-                    },
-                )
+                            eval_wellform_address_vec(
+                                builder,
+                                offset as u32,
+                                multi_factor as u32,
+                                &rt_tower.fs,
+                                *descending,
+                            )
+                        }
+                        InnerRepeatingIncrementalSequence { k, n } => {
+                            let r_s = rt_tower.fs.slice(builder, *k, *n);
+                            eval_wellform_address_vec(builder, 0, 1, &r_s, false)
+                        }
+                        OuterRepeatingIncrementalSequence { k, n: _ } => {
+                            let r_s = rt_tower.fs.slice(builder, 0, *k);
+                            eval_wellform_address_vec(builder, 0, 1, &r_s, false)
+                        }
+                        StackedIncrementalSequence { max_bits: _ } => {
+                            eval_stacked_wellform_address_vec(builder, &rt_tower.fs)
+                        }
+                        StackedConstantSequence { max_value: _ } => {
+                            eval_stacked_constant(builder, &rt_tower.fs)
+                        }
+                    }
+                })
                 .collect::<Vec<Ext<C::F, C::EF>>>()
         })
         .collect::<Vec<Ext<C::F, C::EF>>>();
