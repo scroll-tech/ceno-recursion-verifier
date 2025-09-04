@@ -5,9 +5,7 @@ edition = "2021"
 
 [dependencies]
 openvm = { git = "https://github.com/scroll-tech/openvm.git", default-features = false }
-openvm-circuit = { git = "https://github.com/scroll-tech/openvm.git", default-features = false, features = [
-  "bench-metrics",
-] }
+openvm-circuit = { git = "https://github.com/scroll-tech/openvm.git", default-features = false, features = ["bench-metrics"] }
 openvm-native-circuit = { git = "https://github.com/scroll-tech/openvm.git", default-features = false }
 openvm-native-compiler = { git = "https://github.com/scroll-tech/openvm.git", default-features = false }
 openvm-native-compiler-derive = { git = "https://github.com/scroll-tech/openvm.git", default-features = false }
@@ -43,15 +41,15 @@ ark-poly = "0.5"
 ark-serialize = "0.5"
 
 # Ceno
-ceno_mle = { git = "https://github.com/scroll-tech/gkr-backend.git", rev = "v1.0.0-alpha.6", package = "multilinear_extensions", default-features = false }
-ceno_sumcheck = { git = "https://github.com/scroll-tech/gkr-backend.git", rev = "v1.0.0-alpha.6", package = "sumcheck", default-features = false }
-ceno_transcript = { git = "https://github.com/scroll-tech/gkr-backend.git", rev = "v1.0.0-alpha.6", package = "transcript", default-features = false }
-ceno_witness = { git = "https://github.com/scroll-tech/gkr-backend.git", rev = "v1.0.0-alpha.6", package = "witness", default-features = false }
-ceno_zkvm = { git = "https://github.com/scroll-tech/ceno.git", branch = "master", default-features = false }
-ceno_emul = { git = "https://github.com/scroll-tech/ceno.git", branch = "master", default-features = false }
-gkr_iop = { git = "https://github.com/scroll-tech/ceno.git", branch = "master", default-features = false }
-mpcs = { git = "https://github.com/scroll-tech/gkr-backend.git", rev = "v1.0.0-alpha.6", default-features = false }
-ff_ext = { git = "https://github.com/scroll-tech/gkr-backend.git", rev = "v1.0.0-alpha.6", default-features = false }
+ceno_mle = { git = "https://github.com/scroll-tech/gkr-backend.git", rev = "v1.0.0-alpha.6", package = "multilinear_extensions" }
+ceno_sumcheck = { git = "https://github.com/scroll-tech/gkr-backend.git", rev = "v1.0.0-alpha.6", package = "sumcheck" }
+ceno_transcript = { git = "https://github.com/scroll-tech/gkr-backend.git", rev = "v1.0.0-alpha.6", package = "transcript" }
+ceno_witness = { git = "https://github.com/scroll-tech/gkr-backend.git", rev = "v1.0.0-alpha.6", package = "witness" }
+ceno_zkvm = { git = "https://github.com/scroll-tech/ceno.git", branch = "master" }
+ceno_emul = { git = "https://github.com/scroll-tech/ceno.git", branch = "master" }
+gkr_iop = { git = "https://github.com/scroll-tech/ceno.git", branch = "master" }
+mpcs = { git = "https://github.com/scroll-tech/gkr-backend.git", rev = "v1.0.0-alpha.6" }
+ff_ext = { git = "https://github.com/scroll-tech/gkr-backend.git", rev = "v1.0.0-alpha.6" }
 
 [features]
 default = ["parallel", "nightly-features"]
@@ -63,16 +61,16 @@ parallel = ["openvm-stark-backend/parallel"]
 bench-metrics = ["openvm-circuit/bench-metrics"]
 
 # [patch."https://github.com/scroll-tech/gkr-backend"]
-# ff_ext = { path = "../gkr-backend/crates/ff_ext", package = "ff_ext", default-features = false }
-# ceno_mle = { path = "../gkr-backend/crates/multilinear_extensions", package = "multilinear_extensions", default-features = false }
-# mpcs = { path = "../gkr-backend/crates/mpcs", package = "mpcs", default-features = false }
-# ceno_poseidon = { path = "../gkr-backend/crates/poseidon", package = "poseidon", default-features = false }
-# ceno_sumcheck = { path = "../gkr-backend/crates/sumcheck", package = "sumcheck", default-features = false }
-# ceno_transcript = { path = "../gkr-backend/crates/transcript", package = "transcript", default-features = false }
-# ceno_whir = { path = "../gkr-backend/crates/whir", package = "whir", default-features = false }
-# ceno_witness = { path = "../gkr-backend/crates/witness", package = "witness", default-features = false }
+# ff_ext = { path = "../gkr-backend/crates/ff_ext", package = "ff_ext" }
+# ceno_mle = { path = "../gkr-backend/crates/multilinear_extensions", package = "multilinear_extensions" }
+# mpcs = { path = "../gkr-backend/crates/mpcs", package = "mpcs" }
+# ceno_poseidon = { path = "../gkr-backend/crates/poseidon", package = "poseidon" }
+# ceno_sumcheck = { path = "../gkr-backend/crates/sumcheck", package = "sumcheck" }
+# ceno_transcript = { path = "../gkr-backend/crates/transcript", package = "transcript" }
+# ceno_whir = { path = "../gkr-backend/crates/whir", package = "whir" }
+# ceno_witness = { path = "../gkr-backend/crates/witness", package = "witness" }
 
 # [patch."https://github.com/scroll-tech/ceno"]
-# ceno_zkvm = { path = "../ceno/ceno_zkvm", package = "ceno_zkvm", default-features = false }
-# ceno_emul = { path = "../ceno/ceno_emul", package = "ceno_emul", default-features = false }
-# gkr_iop = { path = "../ceno/gkr_iop", package = "gkr_iop", default-features = false }
+# ceno_zkvm = { path = "../ceno/ceno_zkvm", package = "ceno_zkvm" }
+# ceno_emul = { path = "../ceno/ceno_emul", package = "ceno_emul" }
+# gkr_iop = { path = "../ceno/gkr_iop", package = "gkr_iop" }
