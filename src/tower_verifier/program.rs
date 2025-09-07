@@ -112,7 +112,8 @@ pub fn iop_verifier_state_verify<C: Config>(
     let challenges: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(max_num_variables_usize.clone());
     let expected: Ext<C::F, C::EF> = builder.eval(out_claim.clone() + zero);
 
-    builder.cycle_tracker_start("IOPVerifierState::verify_round_and_update_state");
+    // _debug
+    // builder.cycle_tracker_start("IOPVerifierState::verify_round_and_update_state");
     builder
         .range(0, max_num_variables_usize.clone())
         .for_each(|i_vec, builder| {
@@ -144,7 +145,8 @@ pub fn iop_verifier_state_verify<C: Config>(
             builder.assign(&expected, p_r + zero);
             builder.set_value(&challenges, i, challenge);
         });
-    builder.cycle_tracker_end("IOPVerifierState::verify_round_and_update_state");
+    // _debug
+    // builder.cycle_tracker_end("IOPVerifierState::verify_round_and_update_state");
 
     (challenges, expected)
 }
@@ -288,22 +290,6 @@ pub fn verify_tower_proof<C: Config>(
         );
     });
 
-    let interleaved_len = builder.eval_expr(num_logup_spec.clone() * RVar::from(2));
-    let interleaved_point_n_eval: Array<C, PointAndEvalVariable<C>> =
-        builder.dyn_array(interleaved_len);
-    builder
-        .range(0, num_logup_spec.clone())
-        .for_each(|i_vec, builder| {
-            let i = i_vec[0];
-            let p_i = builder.eval_expr(i * RVar::from(2));
-            let q_i = builder.eval_expr(i * RVar::from(2) + RVar::from(1));
-
-            let p = builder.get(&logup_spec_p_point_n_eval, i);
-            builder.set(&interleaved_point_n_eval, p_i, p);
-            let q = builder.get(&logup_spec_q_point_n_eval, i);
-            builder.set(&interleaved_point_n_eval, q_i, q);
-        });
-
     let initial_claim: Ext<C::F, C::EF> = builder.eval(zero + zero);
 
     iter_zip!(builder, prod_spec_point_n_eval).for_each(|ptr_vec, builder| {
@@ -313,12 +299,16 @@ pub fn verify_tower_proof<C: Config>(
         builder.assign(&alpha_acc, alpha_acc * alpha);
     });
 
-    iter_zip!(builder, interleaved_point_n_eval).for_each(|ptr_vec, builder| {
-        let ptr = ptr_vec[0];
-        let logup_eval = builder.iter_ptr_get(&interleaved_point_n_eval, ptr);
-        builder.assign(&initial_claim, initial_claim + logup_eval.eval * alpha_acc);
-        builder.assign(&alpha_acc, alpha_acc * alpha);
-    });
+    builder
+        .range(0, num_logup_spec.clone())
+        .for_each(|i_vec, builder| {
+            let p = builder.get(&logup_spec_p_point_n_eval, i_vec[0]);
+            builder.assign(&initial_claim, initial_claim + p.eval * alpha_acc);
+            builder.assign(&alpha_acc, alpha_acc * alpha);
+            let q = builder.get(&logup_spec_q_point_n_eval, i_vec[0]);
+            builder.assign(&initial_claim, initial_claim + q.eval * alpha_acc);
+            builder.assign(&alpha_acc, alpha_acc * alpha);
+        });
     builder.cycle_tracker_end("initial sum");
 
     let curr_pt = initial_rt.clone();
@@ -344,7 +334,8 @@ pub fn verify_tower_proof<C: Config>(
 
             let max_degree = builder.constant(C::F::from_canonical_usize(3));
 
-            builder.cycle_tracker_start("sumcheck verify");
+            // _debug
+            // builder.cycle_tracker_start("sumcheck verify");
             let (sub_rt, sub_e) = iop_verifier_state_verify(
                 builder,
                 challenger,
@@ -354,7 +345,8 @@ pub fn verify_tower_proof<C: Config>(
                 max_degree,
                 unipoly_extrapolator,
             );
-            builder.cycle_tracker_end("sumcheck verify");
+            // _debug
+            // builder.cycle_tracker_end("sumcheck verify");
 
             builder.cycle_tracker_start("check expected evaluation");
             let eq_e = eq_eval(builder, &out_rt, &sub_rt, one, zero);
@@ -365,7 +357,8 @@ pub fn verify_tower_proof<C: Config>(
             builder
                 .range(0, num_prod_spec.clone())
                 .for_each(|i_vec, builder| {
-                    builder.cycle_tracker_start("accumulate expected eval for prod specs");
+                    // _debug
+                    // builder.cycle_tracker_start("accumulate expected eval for prod specs");
                     let spec_index = i_vec[0];
                     let skip = builder.get(&should_skip, spec_index.clone());
                     let max_round = builder.get(&num_variables, spec_index);
@@ -396,7 +389,8 @@ pub fn verify_tower_proof<C: Config>(
 
                     builder.assign(&expected_evaluation, expected_evaluation + alpha_acc * prod);
                     builder.assign(&alpha_acc, alpha_acc * alpha.clone());
-                    builder.cycle_tracker_end("accumulate expected eval for prod specs");
+                    // _debug
+                    // builder.cycle_tracker_end("accumulate expected eval for prod specs");
                 });
 
             let num_variables_len = num_variables.len();
@@ -406,7 +400,8 @@ pub fn verify_tower_proof<C: Config>(
             builder
                 .range(0, num_logup_spec.clone())
                 .for_each(|i_vec, builder| {
-                    builder.cycle_tracker_start("accumulate expected eval for logup specs");
+                    // _debug
+                    // builder.cycle_tracker_start("accumulate expected eval for logup specs");
                     let spec_index = i_vec[0];
 
                     let alpha_numerator: Ext<<C as Config>::F, <C as Config>::EF> =
@@ -446,20 +441,23 @@ pub fn verify_tower_proof<C: Config>(
                     });
 
                     builder.assign(&expected_evaluation, expected_evaluation + prod);
-                    builder.cycle_tracker_end("accumulate expected eval for logup specs");
+                    // _debug
+                    // builder.cycle_tracker_end("accumulate expected eval for logup specs");
                 });
 
             builder.assign(&expected_evaluation, expected_evaluation * eq_e);
             builder.assert_ext_eq(expected_evaluation, sub_e);
             builder.cycle_tracker_end("check expected evaluation");
 
-            builder.cycle_tracker_start("derive next layer's expected sum");
+            // _debug
+            // builder.cycle_tracker_start("derive next layer's expected sum");
             // derive single eval
             // rt' = r_merge || rt
             // r_merge.len() == ceil_log2(num_product_fanin)
             transcript_observe_label(builder, challenger, b"merge");
 
-            builder.cycle_tracker_start("derive rt_prime");
+            // _debug
+            // builder.cycle_tracker_start("derive rt_prime");
             let r_merge = challenger.sample_ext(builder);
 
             let c1: Ext<<C as Config>::F, <C as Config>::EF> = builder.eval(one - r_merge.clone());
@@ -467,7 +465,8 @@ pub fn verify_tower_proof<C: Config>(
             let coeffs = vec![c1, c2];
 
             let rt_prime = extend(builder, &sub_rt, &r_merge);
-            builder.cycle_tracker_end("derive rt_prime");
+            // _debug
+            // builder.cycle_tracker_end("derive rt_prime");
 
             // generate next round challenge
             transcript_observe_label(builder, challenger, b"combine subset evals");
@@ -482,7 +481,8 @@ pub fn verify_tower_proof<C: Config>(
             builder
                 .range(0, num_prod_spec.clone())
                 .for_each(|i_vec, builder| {
-                    builder.cycle_tracker_start("derive next layer for prod specs");
+                    // _debug
+                    // builder.cycle_tracker_start("derive next layer for prod specs");
                     let spec_index = i_vec[0];
                     let skip = builder.get(&should_skip, spec_index.clone());
                     let max_round = builder.get(&num_variables, spec_index.clone());
@@ -521,7 +521,8 @@ pub fn verify_tower_proof<C: Config>(
                     });
 
                     builder.assign(&alpha_acc, alpha_acc * alpha.clone());
-                    builder.cycle_tracker_end("derive next layer for prod specs");
+                    // _debug
+                    // builder.cycle_tracker_end("derive next layer for prod specs");
                 });
 
             let next_logup_spec_evals: Ext<<C as Config>::F, <C as Config>::EF> =
@@ -532,7 +533,8 @@ pub fn verify_tower_proof<C: Config>(
             builder
                 .range(0, num_logup_spec.clone())
                 .for_each(|i_vec, builder| {
-                    builder.cycle_tracker_start("derive next layer for logup specs");
+                    // _debug
+                    // builder.cycle_tracker_start("derive next layer for logup specs");
                     let spec_index = i_vec[0];
                     let max_round = builder.get(&logup_num_variables_slice, spec_index);
                     let round_limit: RVar<C::N> = builder.eval_expr(max_round - RVar::from(1));
@@ -591,14 +593,16 @@ pub fn verify_tower_proof<C: Config>(
                             },
                         );
                     });
-                    builder.cycle_tracker_end("derive next layer for logup specs");
+                    // _debug
+                    // builder.cycle_tracker_end("derive next layer for logup specs");
                 });
 
             builder.assign(&curr_pt, rt_prime.clone());
             builder.assign(&curr_eval, next_prod_spec_evals + next_logup_spec_evals);
             builder.assign(&round, round + C::F::ONE);
 
-            builder.cycle_tracker_end("derive next layer's expected sum");
+            // _debug
+            // builder.cycle_tracker_end("derive next layer's expected sum");
 
             builder.assign(
                 &next_rt,
