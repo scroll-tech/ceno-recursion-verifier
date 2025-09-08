@@ -1,6 +1,9 @@
 use crate::basefold_verifier::basefold::BasefoldCommitment;
-use crate::tower_verifier::binding::IOPProverMessageVec;
-use crate::zkvm_verifier::binding::{TowerProofInput, ZKVMChipProofInput, ZKVMProofInput, E, F};
+use crate::tower_verifier::binding::{IOPProverMessage, IOPProverMessageVec};
+use crate::zkvm_verifier::binding::{
+    GKRProofInput, LayerProofInput, SumcheckLayerProofInput, TowerProofInput, ZKVMChipProofInput,
+    ZKVMProofInput, E, F,
+};
 
 use crate::basefold_verifier::query_phase::QueryPhaseVerifierInput;
 use crate::zkvm_verifier::verifier::{verify_gkr_circuit, verify_zkvm_proof};
@@ -40,10 +43,7 @@ use std::fs::File;
 type SC = BabyBearPoseidon2Config;
 type EF = <SC as StarkGenericConfig>::Challenge;
 
-use ceno_zkvm::{
-    scheme::{verifier::ZKVMVerifier, ZKVMProof},
-    structs::{ComposedConstrainSystem, ZKVMVerifyingKey},
-};
+use ceno_zkvm::{scheme::verifier::ZKVMVerifier, structs::ComposedConstrainSystem};
 
 pub fn parse_zkvm_proof_import(
     zkvm_proof: ZKVMProof<BabyBearExt4, Basefold<BabyBearExt4, BasefoldRSParams>>,

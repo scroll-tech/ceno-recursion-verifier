@@ -376,7 +376,7 @@ pub struct SumcheckLayerProofInput {
 }
 #[derive(DslVariable, Clone)]
 pub struct SumcheckLayerProofVariable<C: Config> {
-    pub proof: Array<C, IOPProverMessageVariable<C>>,
+    pub proof: IOPProverMessageVecVariable<C>,
     pub evals: Array<C, Ext<C::F, C::EF>>,
     pub evals_len_div_3: Var<C::N>,
 }
@@ -385,7 +385,7 @@ impl Hintable<InnerConfig> for SumcheckLayerProofInput {
     type HintVariable = SumcheckLayerProofVariable<InnerConfig>;
 
     fn read(builder: &mut Builder<InnerConfig>) -> Self::HintVariable {
-        let proof = Vec::<IOPProverMessage>::read(builder);
+        let proof = IOPProverMessageVec::read(builder);
         let evals = Vec::<E>::read(builder);
         let evals_len_div_3 = usize::read(builder);
 
