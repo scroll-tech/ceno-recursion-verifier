@@ -1,5 +1,8 @@
 use crate::tower_verifier::binding::PointAndEvalVariable;
 use crate::zkvm_verifier::binding::ZKVMChipProofInputVariable;
+use ceno_mle::StructuralWitInType::{
+    EqualDistanceSequence, InnerRepeatingIncrementalSequence, OuterRepeatingIncrementalSequence,
+};
 use ceno_mle::{Expression, Fixed, Instance};
 use ceno_zkvm::structs::{ChallengeId, WitnessId};
 use ff_ext::ExtensionField;
@@ -7,30 +10,26 @@ use ff_ext::{BabyBearExt4, SmallField};
 use itertools::Either;
 use openvm_native_compiler::prelude::*;
 use openvm_native_compiler_derive::iter_zip;
-use openvm_native_recursion::challenger::ChallengerVariable;
-use openvm_native_recursion::challenger::{
-    duplex::DuplexChallengerVariable, CanObserveVariable, FeltChallenger,
-};
-use p3_field::{FieldAlgebra, FieldExtensionAlgebra};
+use openvm_native_recursion::challenger::{duplex::DuplexChallengerVariable, FeltChallenger};
+use openvm_stark_backend::p3_field::{FieldAlgebra, FieldExtensionAlgebra};
 type E = BabyBearExt4;
-const HASH_RATE: usize = 8;
 const MAX_NUM_VARS: usize = 25;
 
-pub fn print_ext_arr<C: Config>(builder: &mut Builder<C>, arr: &Array<C, Ext<C::F, C::EF>>) {
+pub fn _print_ext_arr<C: Config>(builder: &mut Builder<C>, arr: &Array<C, Ext<C::F, C::EF>>) {
     iter_zip!(builder, arr).for_each(|ptr_vec, builder| {
         let e = builder.iter_ptr_get(arr, ptr_vec[0]);
         builder.print_e(e);
     });
 }
 
-pub fn print_felt_arr<C: Config>(builder: &mut Builder<C>, arr: &Array<C, Felt<C::F>>) {
+pub fn _print_felt_arr<C: Config>(builder: &mut Builder<C>, arr: &Array<C, Felt<C::F>>) {
     iter_zip!(builder, arr).for_each(|ptr_vec, builder| {
         let f = builder.iter_ptr_get(arr, ptr_vec[0]);
         builder.print_f(f);
     });
 }
 
-pub fn print_usize_arr<C: Config>(builder: &mut Builder<C>, arr: &Array<C, Usize<C::N>>) {
+pub fn _print_usize_arr<C: Config>(builder: &mut Builder<C>, arr: &Array<C, Usize<C::N>>) {
     iter_zip!(builder, arr).for_each(|ptr_vec, builder| {
         let n = builder.iter_ptr_get(arr, ptr_vec[0]);
         builder.print_v(n.get_var());
@@ -204,24 +203,6 @@ pub fn dot_product<C: Config>(
     acc
 }
 
-pub fn dot_product_pt_n_eval<C: Config>(
-    builder: &mut Builder<C>,
-    pt_and_eval: &Array<C, PointAndEvalVariable<C>>,
-    b: &Array<C, Ext<C::F, C::EF>>,
-) -> Ext<<C as Config>::F, <C as Config>::EF> {
-    let acc: Ext<C::F, C::EF> = builder.eval(C::F::ZERO);
-
-    iter_zip!(builder, pt_and_eval, b).for_each(|idx_vec, builder| {
-        let ptr_a = idx_vec[0];
-        let ptr_b = idx_vec[1];
-        let v_a = builder.iter_ptr_get(&pt_and_eval, ptr_a);
-        let v_b = builder.iter_ptr_get(&b, ptr_b);
-        builder.assign(&acc, acc + v_a.eval * v_b);
-    });
-
-    acc
-}
-
 pub fn reverse<C: Config, T: MemVariable<C>>(
     builder: &mut Builder<C>,
     arr: &Array<C, T>,
@@ -321,20 +302,6 @@ pub fn eq_eval_with_index<C: Config>(
     acc
 }
 
-// Multiply all elements in the Array
-pub fn product<C: Config>(
-    builder: &mut Builder<C>,
-    arr: &Array<C, Ext<C::F, C::EF>>,
-) -> Ext<C::F, C::EF> {
-    let acc = builder.constant(C::EF::ONE);
-    iter_zip!(builder, arr).for_each(|idx_vec, builder| {
-        let el = builder.iter_ptr_get(arr, idx_vec[0]);
-        builder.assign(&acc, acc * el);
-    });
-
-    acc
-}
-
 // Multiply all elements in a nested Array
 pub fn nested_product<C: Config>(
     builder: &mut Builder<C>,
@@ -351,47 +318,6 @@ pub fn nested_product<C: Config>(
     });
 
     acc
-}
-
-// Add all elements in the Array
-pub fn sum<C: Config>(
-    builder: &mut Builder<C>,
-    arr: &Array<C, Ext<C::F, C::EF>>,
-) -> Ext<C::F, C::EF> {
-    let acc = builder.constant(C::EF::ZERO);
-    iter_zip!(builder, arr).for_each(|idx_vec, builder| {
-        let el = builder.iter_ptr_get(arr, idx_vec[0]);
-        builder.assign(&acc, acc + el);
-    });
-
-    acc
-}
-
-// Join two arrays
-pub fn join<C: Config>(
-    builder: &mut Builder<C>,
-    a: &Array<C, Ext<C::F, C::EF>>,
-    b: &Array<C, Ext<C::F, C::EF>>,
-) -> Array<C, Ext<C::F, C::EF>> {
-    let a_len = a.len();
-    let b_len = b.len();
-    let out_len = builder.eval_expr(a_len.clone() + b_len.clone());
-    let out = builder.dyn_array(out_len);
-
-    builder.range(0, a_len.clone()).for_each(|i_vec, builder| {
-        let i = i_vec[0];
-        let a_val = builder.get(a, i);
-        builder.set(&out, i, a_val);
-    });
-
-    builder.range(0, b_len).for_each(|i_vec, builder| {
-        let b_i = i_vec[0];
-        let i = builder.eval_expr(b_i + a_len.clone());
-        let b_val = builder.get(b, b_i);
-        builder.set(&out, i, b_val);
-    });
-
-    out
 }
 
 // Generate alpha power challenges
@@ -421,7 +347,6 @@ pub fn gen_alpha_pows<C: Config>(
 ///         = \sum_{\mathbf{b}=0}^{max_idx} \prod_{i=0}^{n-1} (x_i y_i b_i + (1 - x_i)(1 - y_i)(1 - b_i))
 pub fn eq_eval_less_or_equal_than<C: Config>(
     builder: &mut Builder<C>,
-    _challenger: &mut DuplexChallengerVariable<C>,
     opcode_proof: &ZKVMChipProofInputVariable<C>,
     a: &Array<C, Ext<C::F, C::EF>>,
     b: &Array<C, Ext<C::F, C::EF>>,
@@ -516,35 +441,6 @@ pub fn build_eq_x_r_vec_sequential<C: Config>(
         });
     });
 
-    evals
-}
-
-pub fn build_eq_x_r_vec_sequential_with_offset<C: Config>(
-    builder: &mut Builder<C>,
-    r: &Array<C, Ext<C::F, C::EF>>,
-    offset: Usize<C::N>,
-) -> Array<C, Ext<C::F, C::EF>> {
-    // we build eq(x,r) from its evaluations
-    // we want to evaluate eq(x,r) over x \in {0, 1}^num_vars
-    // for example, with num_vars = 4, x is a binary vector of 4, then
-    //  0 0 0 0 -> (1-r0)   * (1-r1)    * (1-r2)    * (1-r3)
-    //  1 0 0 0 -> r0       * (1-r1)    * (1-r2)    * (1-r3)
-    //  0 1 0 0 -> (1-r0)   * r1        * (1-r2)    * (1-r3)
-    //  1 1 0 0 -> r0       * r1        * (1-r2)    * (1-r3)
-    //  ....
-    //  1 1 1 1 -> r0       * r1        * r2        * r3
-    // we will need 2^num_var evaluations
-
-    let r_len: Var<C::N> = builder.eval(r.len() - offset);
-    let evals_len: Felt<C::F> = builder.constant(C::F::ONE);
-    let evals_len = builder.exp_power_of_2_v::<Felt<C::F>>(evals_len, r_len);
-    let evals_len = builder.cast_felt_to_var(evals_len);
-
-    let evals: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(evals_len);
-    // _debug
-    // build_eq_x_r_helper_sequential_offset(r, &mut evals, E::ONE);
-    // unsafe { std::mem::transmute(evals) }
-    // FIXME: this function is not implemented yet
     evals
 }
 
@@ -680,10 +576,11 @@ pub fn evaluate_ceno_expr<C: Config, T>(
     match expr {
         Expression::Fixed(f) => fixed_in(builder, f),
         Expression::WitIn(witness_id) => wit_in(builder, *witness_id),
-        Expression::StructuralWitIn(witness_id, max_len, offset, multi_factor) => {
-            structural_wit_in(builder, *witness_id, *max_len, *offset, *multi_factor)
+        Expression::StructuralWitIn(witness_id, _) => {
+            structural_wit_in(builder, *witness_id, 0, 0, 0)
         }
         Expression::Instance(i) => instance(builder, *i),
+        Expression::InstanceScalar(i) => instance(builder, *i),
         Expression::Constant(scalar) => match scalar {
             Either::Left(s) => constant(builder, E::from_base(*s)),
             Either::Right(s) => constant(builder, *s),
@@ -795,7 +692,7 @@ pub fn evaluate_ceno_expr<C: Config, T>(
 }
 
 /// evaluate MLE M(x0, x1, x2, ..., xn) address vector with it evaluation format a*[0, 1, 2, 3, ....2^n-1] + b
-/// on r = [r0, r1, r2, ...rn] succintly
+/// on r = [r0, r1, r2, ...rn] succinctly
 /// a, b, is constant
 /// the result M(r0, r1,... rn) = r0 + r1 * 2 + r2 * 2^2 + .... rn * 2^n
 pub fn eval_wellform_address_vec<C: Config>(
@@ -825,6 +722,62 @@ pub fn eval_wellform_address_vec<C: Config>(
     }
 
     let res: Ext<C::F, C::EF> = builder.eval(offset + shift);
+
+    res
+}
+
+/// Evaluate MLE M(x0, x1, ..., xn) whose evaluations are [0, 0, 1, 1, 2, 2, 2, 2, ...]
+/// on r = [r0, r1, r2, ... rn] succinctly
+pub fn eval_stacked_constant<C: Config>(
+    builder: &mut Builder<C>,
+    r: &Array<C, Ext<C::F, C::EF>>,
+) -> Ext<C::F, C::EF> {
+    let one: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
+    let res: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
+    let loop_i: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
+
+    builder.range(1, r.len()).for_each(|i_vec, builder| {
+        let i: Var<C::N> = builder.eval(i_vec[0]);
+        let ri = builder.get(r, i);
+        // res = res * (1-ri) + ri * i
+        builder.assign(&res, res * (one.clone() - ri.clone()) + ri * loop_i);
+        builder.assign(&loop_i, loop_i + one);
+    });
+
+    res
+}
+
+/// Evaluate MLE M(x0, x1, ..., xn) whose evaluations are [0, 0, 0, 1, 0, 1, 2, 3, ...]
+/// on r = [r0, r1, r2, ... rn] succinctly
+pub fn eval_stacked_wellform_address_vec<C: Config>(
+    builder: &mut Builder<C>,
+    r: &Array<C, Ext<C::F, C::EF>>,
+) -> Ext<C::F, C::EF> {
+    let one: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
+
+    let two: Ext<C::F, C::EF> = builder.constant(C::EF::TWO);
+    let pow_two: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
+
+    // compute \sum_j r_j * 2^j in an incremental way
+    let well_formed_inc: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
+    let res: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
+
+    builder.range(1, r.len()).for_each(|i_vec, builder| {
+        let i: Var<C::N> = builder.eval(i_vec[0]);
+        let i_minus_1: Var<C::N> = builder.eval(i.clone() - RVar::from(1));
+        let ri = builder.get(r, i);
+        let r_i_minus_1 = builder.get(r, i_minus_1);
+
+        // well_formed_inc += 2^{i-1} * r_{i-1}
+        builder.assign(&well_formed_inc, well_formed_inc + pow_two * r_i_minus_1);
+        builder.assign(&pow_two, pow_two * two);
+
+        // res = res * (1-ri) + ri * (\sum_{j < i} 2^j * rj)
+        builder.assign(
+            &res,
+            res * (one - ri.clone()) + ri * well_formed_inc.clone(),
+        );
+    });
 
     res
 }
@@ -1074,4 +1027,67 @@ pub fn extend<C: Config>(
     builder.set_value(&out, arr.len(), elem.clone());
 
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use ff_ext::BabyBearExt4;
+    use openvm_circuit::arch::{instructions::program::Program, SystemConfig, VmExecutor};
+    use openvm_native_circuit::{Native, NativeConfig};
+    use openvm_native_compiler::{
+        asm::{AsmBuilder, AsmCompiler},
+        conversion::{convert_program, CompilerOptions},
+        ir::Ext,
+    };
+    use p3_baby_bear::BabyBear;
+    use p3_field::FieldAlgebra;
+
+    use crate::arithmetics::eval_stacked_wellform_address_vec;
+
+    type E = BabyBearExt4;
+    type F = BabyBear;
+
+    fn run_test_program(program: Program<F>) {
+        let system_config = SystemConfig::default()
+            .with_public_values(20)
+            .with_max_segment_len((1 << 22) - 100);
+        let config = NativeConfig::new(system_config, Native);
+
+        let executor = VmExecutor::<F, NativeConfig>::new(config);
+
+        executor
+            .execute_and_then(program.clone(), vec![], |_, seg| Ok(seg), |err| err)
+            .unwrap();
+    }
+
+    #[test]
+    fn test_structural_witness() {
+        let mut builder = AsmBuilder::<F, E>::default();
+
+        // eval_stacked_wellform_address_vec
+        let r = builder.dyn_array(4);
+        let expected = vec![0, 0, 0, 1, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7];
+
+        for i in 0..16 {
+            for b in 0..4 {
+                let bit = (i >> b) & 1;
+                let bit: Ext<F, E> = builder.constant(E::from_canonical_u32(bit));
+                builder.set_value(&r, b, bit);
+            }
+            let val = eval_stacked_wellform_address_vec(&mut builder, &r);
+            let expected_val: Ext<F, E> =
+                builder.constant(E::from_canonical_u32(expected[i as usize]));
+
+            builder.assert_ext_eq(val, expected_val);
+        }
+        builder.halt();
+
+        let options = CompilerOptions::default();
+        let mut compiler = AsmCompiler::new(options.word_size);
+        compiler.build(builder.operations);
+        let asm_code = compiler.code();
+
+        let program: Program<F> = convert_program(asm_code, options);
+        run_test_program(program);
+    }
 }

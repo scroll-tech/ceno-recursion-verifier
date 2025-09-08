@@ -4,15 +4,14 @@ use openvm_native_compiler::{
     ir::{Array, Builder, Config},
     prelude::*,
 };
-use openvm_native_compiler_derive::iter_zip;
 use openvm_native_recursion::hints::{Hintable, VecAutoHintable};
 pub type F = BabyBear;
 pub type E = BinomialExtensionField<F, 4>;
 pub type InnerConfig = AsmConfig<F, E>;
 
+use openvm_stark_backend::p3_field::extension::BinomialExtensionField;
 use openvm_stark_sdk::p3_baby_bear::BabyBear;
-use p3_field::extension::BinomialExtensionField;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 #[derive(DslVariable, Clone)]
 pub struct PointVariable<C: Config> {

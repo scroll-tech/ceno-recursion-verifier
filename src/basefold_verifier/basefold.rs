@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use itertools::Itertools;
-use mpcs::basefold::BasefoldProof as InnerBasefoldProof;
+use mpcs::basefold::structure::BasefoldProof as InnerBasefoldProof;
 use openvm_native_compiler::{asm::AsmConfig, prelude::*};
 use openvm_native_compiler_derive::iter_zip;
 use openvm_native_recursion::hints::{Hintable, VecAutoHintable};
