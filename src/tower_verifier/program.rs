@@ -1,4 +1,4 @@
-use super::binding::{IOPProverMessageVariable, PointAndEvalVariable, PointVariable};
+use super::binding::{PointAndEvalVariable, PointVariable};
 use crate::arithmetics::{
     challenger_multi_observe, eq_eval, evaluate_at_point_degree_1, extend, exts_to_felts,
     fixed_dot_product, reverse, UniPolyExtrapolator,

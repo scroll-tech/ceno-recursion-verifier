@@ -157,7 +157,7 @@ impl Hintable<InnerConfig> for IOPProverMessage {
 impl VecAutoHintable for IOPProverMessage {}
 
 /// Assume that all the prover messages have the same size.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Default)]
 pub struct IOPProverMessageVec {
     pub prover_message_size: usize,
     pub data: Vec<E>,
@@ -295,21 +295,4 @@ impl Hintable<InnerConfig> for ThreeDimensionalVector {
         stream.extend(self.data.write());
         stream
     }
-}
-
-pub struct TowerVerifierInput {
-    pub prod_out_evals: Vec<Vec<E>>,
-    pub logup_out_evals: Vec<Vec<E>>,
-    pub num_variables: Vec<usize>,
-    pub num_fanin: usize,
-
-    // TowerProof
-    pub num_proofs: usize,
-    pub num_prod_specs: usize,
-    pub num_logup_specs: usize,
-    pub _max_num_variables: usize,
-
-    pub proofs: Vec<Vec<IOPProverMessage>>,
-    pub prod_specs_eval: Vec<Vec<Vec<E>>>,
-    pub logup_specs_eval: Vec<Vec<Vec<E>>>,
 }

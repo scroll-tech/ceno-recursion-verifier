@@ -5,23 +5,13 @@ use crate::zkvm_verifier::binding::{
     ZKVMProofInput, E, F,
 };
 
-use crate::basefold_verifier::query_phase::QueryPhaseVerifierInput;
-use crate::zkvm_verifier::verifier::{verify_gkr_circuit, verify_zkvm_proof};
+use crate::zkvm_verifier::verifier::verify_zkvm_proof;
 use ceno_mle::util::ceil_log2;
-use ceno_transcript::BasicTranscript;
 use ceno_zkvm::scheme::ZKVMProof;
 use ceno_zkvm::structs::ZKVMVerifyingKey;
 use ff_ext::BabyBearExt4;
-use gkr_iop::gkr::{
-    layer::sumcheck_layer::{SumcheckLayer, SumcheckLayerProof},
-    GKRCircuit,
-};
-use itertools::Itertools;
 use mpcs::{Basefold, BasefoldRSParams};
-use openvm_circuit::arch::{
-    instructions::program::Program, verify_single, SystemConfig, VirtualMachine, VmExecutor,
-};
-use openvm_native_circuit::{Native, NativeConfig};
+use openvm_circuit::arch::instructions::program::Program;
 use openvm_native_compiler::{
     asm::AsmBuilder,
     conversion::{convert_program, CompilerOptions},
@@ -29,21 +19,10 @@ use openvm_native_compiler::{
 };
 use openvm_native_recursion::hints::Hintable;
 use openvm_stark_backend::config::StarkGenericConfig;
-use openvm_stark_sdk::{
-    config::{
-        baby_bear_poseidon2::{BabyBearPoseidon2Config, BabyBearPoseidon2Engine},
-        fri_params::standard_fri_params_with_100_bits_conjectured_security,
-        setup_tracing_with_log_level, FriParameters,
-    },
-    engine::StarkFriEngine,
-    p3_baby_bear::BabyBear,
-};
-use std::fs::File;
+use openvm_stark_sdk::config::baby_bear_poseidon2::BabyBearPoseidon2Config;
 
 type SC = BabyBearPoseidon2Config;
 type EF = <SC as StarkGenericConfig>::Challenge;
-
-use ceno_zkvm::{scheme::verifier::ZKVMVerifier, structs::ComposedConstrainSystem};
 
 pub fn parse_zkvm_proof_import(
     zkvm_proof: ZKVMProof<BabyBearExt4, Basefold<BabyBearExt4, BasefoldRSParams>>,
@@ -262,7 +241,7 @@ pub fn parse_zkvm_proof_import(
                     (
                         1,
                         SumcheckLayerProofInput {
-                            proof: iop_messages,
+                            proof: iop_messages.into(),
                             evals,
                         },
                     )
@@ -290,7 +269,7 @@ pub fn parse_zkvm_proof_import(
                 }
 
                 let main = SumcheckLayerProofInput {
-                    proof: iop_messages,
+                    proof: iop_messages.into(),
                     evals,
                 };
 

@@ -2,17 +2,12 @@ use crate::arithmetics::next_pow2_instance_padding;
 use crate::basefold_verifier::basefold::{
     BasefoldCommitment, BasefoldCommitmentVariable, BasefoldProof, BasefoldProofVariable,
 };
-use crate::basefold_verifier::query_phase::{
-    QueryPhaseVerifierInput, QueryPhaseVerifierInputVariable,
-};
+
 use crate::tower_verifier::binding::{
     IOPProverMessageVec, IOPProverMessageVecVariable, ThreeDimensionalVecVariable,
     ThreeDimensionalVector,
 };
-use crate::{
-    arithmetics::ceil_log2,
-    tower_verifier::binding::{IOPProverMessage, IOPProverMessageVariable, PointVariable},
-};
+use crate::{arithmetics::ceil_log2, tower_verifier::binding::PointVariable};
 use itertools::Itertools;
 use openvm_native_compiler::{
     asm::AsmConfig,
@@ -371,7 +366,7 @@ impl Hintable<InnerConfig> for ZKVMChipProofInput {
 
 #[derive(Default)]
 pub struct SumcheckLayerProofInput {
-    pub proof: Vec<IOPProverMessage>,
+    pub proof: IOPProverMessageVec,
     pub evals: Vec<E>,
 }
 #[derive(DslVariable, Clone)]
