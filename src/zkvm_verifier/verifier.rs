@@ -544,6 +544,7 @@ pub fn verify_opcode_proof<C: Config>(
             builder.set(&q_slice, idx_vec[0], cpt);
         });
 
+    builder.cycle_tracker_start("Verify GKR Circuit");
     let opening_evaluations = verify_gkr_circuit(
         builder,
         challenger,
@@ -555,6 +556,7 @@ pub fn verify_opcode_proof<C: Config>(
         opcode_proof,
         unipoly_extrapolator,
     );
+    builder.cycle_tracker_end("Verify GKR Circuit");
 
     builder.eval(opening_evaluations[0].point.fs.clone())
 }
