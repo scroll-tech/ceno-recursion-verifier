@@ -36,9 +36,7 @@ use ceno_mle::StructuralWitInType::{
     StackedConstantSequence, StackedIncrementalSequence,
 };
 use ceno_zkvm::structs::{VerifyingKey, ZKVMVerifyingKey};
-use ceno_zkvm::{
-    circuit_builder::SetTableSpec, scheme::verifier::ZKVMVerifier, structs::ComposedConstrainSystem,
-};
+use ceno_zkvm::{circuit_builder::SetTableSpec, structs::ComposedConstrainSystem};
 use ff_ext::BabyBearExt4;
 use gkr_iop::gkr::layer::ROTATION_OPENING_COUNT;
 use gkr_iop::{
