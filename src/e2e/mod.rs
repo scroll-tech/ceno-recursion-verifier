@@ -403,7 +403,6 @@ mod tests {
             println!("=> segment {:?} metrics: {:?}", i, seg.metrics);
         }
 
-        /* _debug
         let poseidon2_max_constraint_degree = 3;
         let log_blowup = 1;
 
@@ -430,7 +429,6 @@ mod tests {
         for proof in proofs {
             verify_single(&vm.engine, &pk.get_vk(), &proof).expect("Verification failed");
         }
-        */
     }
 
     #[test]
