@@ -10,7 +10,7 @@ use p3_field::FieldAlgebra;
 use serde::Deserialize;
 
 use super::structs::*;
-use super::utils::{pow_felt, pow_felt_bits};
+use super::utils::pow_felt_bits;
 
 pub type F = BabyBear;
 pub type E = BinomialExtensionField<F, DEGREE>;

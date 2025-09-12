@@ -36,9 +36,7 @@ use ceno_mle::StructuralWitInType::{
     StackedConstantSequence, StackedIncrementalSequence,
 };
 use ceno_zkvm::structs::{VerifyingKey, ZKVMVerifyingKey};
-use ceno_zkvm::{
-    circuit_builder::SetTableSpec, scheme::verifier::ZKVMVerifier, structs::ComposedConstrainSystem,
-};
+use ceno_zkvm::{circuit_builder::SetTableSpec, structs::ComposedConstrainSystem};
 use ff_ext::BabyBearExt4;
 use gkr_iop::gkr::layer::ROTATION_OPENING_COUNT;
 use gkr_iop::{
@@ -220,7 +218,12 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
             builder.set(&chip_indices, i, chip_proof.idx);
         });
 
-    for (i, (circuit_name, chip_vk)) in vk.circuit_vks.iter().enumerate() {
+    // _debug
+    // for (i, (circuit_name, chip_vk)) in vk.circuit_vks.iter().enumerate() {
+    for (i, (circuit_name, chip_vk)) in vk.circuit_vks.iter().take(100).enumerate() {
+        // _debug
+        println!("=> circuit_name: {:?}", circuit_name);
+
         let chip_id: Var<C::N> = builder.get(&chip_indices, num_chips_verified.get_var());
 
         builder.if_eq(chip_id, RVar::from(i)).then(|builder| {
@@ -539,6 +542,7 @@ pub fn verify_opcode_proof<C: Config>(
             builder.set(&q_slice, idx_vec[0], cpt);
         });
 
+    builder.cycle_tracker_start("Verify GKR Circuit");
     let opening_evaluations = verify_gkr_circuit(
         builder,
         challenger,
@@ -550,6 +554,7 @@ pub fn verify_opcode_proof<C: Config>(
         opcode_proof,
         unipoly_extrapolator,
     );
+    builder.cycle_tracker_end("Verify GKR Circuit");
 
     builder.eval(opening_evaluations[0].point.fs.clone())
 }
@@ -789,6 +794,7 @@ pub fn verify_rotation<C: Config>(
     challenger: &mut DuplexChallengerVariable<C>,
     unipoly_extrapolator: &mut UniPolyExtrapolator<C>,
 ) -> RotationClaim<C> {
+    builder.cycle_tracker_start("Verify rotation");
     let SumcheckLayerProofVariable {
         proof,
         evals,
@@ -865,6 +871,8 @@ pub fn verify_rotation<C: Config>(
 
     let (left_point, right_point) =
         get_rotation_points(builder, rotation_cyclic_group_log2, &origin_point);
+
+    builder.cycle_tracker_end("Verify rotation");
 
     RotationClaim {
         left_evals,

@@ -1,24 +1,17 @@
 use crate::basefold_verifier::basefold::BasefoldCommitment;
-use crate::basefold_verifier::query_phase::QueryPhaseVerifierInput;
-use crate::tower_verifier::binding::IOPProverMessage;
+use crate::tower_verifier::binding::{IOPProverMessage, IOPProverMessageVec};
 use crate::zkvm_verifier::binding::{
     GKRProofInput, LayerProofInput, SumcheckLayerProofInput, TowerProofInput, ZKVMChipProofInput,
     ZKVMProofInput, E, F,
 };
-use crate::zkvm_verifier::verifier::{verify_gkr_circuit, verify_zkvm_proof};
+
+use crate::zkvm_verifier::verifier::verify_zkvm_proof;
 use ceno_mle::util::ceil_log2;
-use ceno_transcript::BasicTranscript;
+use ceno_zkvm::scheme::ZKVMProof;
+use ceno_zkvm::structs::ZKVMVerifyingKey;
 use ff_ext::BabyBearExt4;
-use gkr_iop::gkr::{
-    layer::sumcheck_layer::{SumcheckLayer, SumcheckLayerProof},
-    GKRCircuit,
-};
-use itertools::Itertools;
 use mpcs::{Basefold, BasefoldRSParams};
-use openvm_circuit::arch::{
-    instructions::program::Program, verify_single, SystemConfig, VirtualMachine, VmExecutor,
-};
-use openvm_native_circuit::{Native, NativeConfig};
+use openvm_circuit::arch::instructions::program::Program;
 use openvm_native_compiler::{
     asm::AsmBuilder,
     conversion::{convert_program, CompilerOptions},
@@ -26,24 +19,10 @@ use openvm_native_compiler::{
 };
 use openvm_native_recursion::hints::Hintable;
 use openvm_stark_backend::config::StarkGenericConfig;
-use openvm_stark_sdk::{
-    config::{
-        baby_bear_poseidon2::{BabyBearPoseidon2Config, BabyBearPoseidon2Engine},
-        fri_params::standard_fri_params_with_100_bits_conjectured_security,
-        setup_tracing_with_log_level, FriParameters,
-    },
-    engine::StarkFriEngine,
-    p3_baby_bear::BabyBear,
-};
-use std::fs::File;
+use openvm_stark_sdk::config::baby_bear_poseidon2::BabyBearPoseidon2Config;
 
 type SC = BabyBearPoseidon2Config;
 type EF = <SC as StarkGenericConfig>::Challenge;
-
-use ceno_zkvm::{
-    scheme::{verifier::ZKVMVerifier, ZKVMProof},
-    structs::{ComposedConstrainSystem, ZKVMVerifyingKey},
-};
 
 pub fn parse_zkvm_proof_import(
     zkvm_proof: ZKVMProof<BabyBearExt4, Basefold<BabyBearExt4, BasefoldRSParams>>,
@@ -112,10 +91,11 @@ pub fn parse_zkvm_proof_import(
 
         // Tower proof
         let mut tower_proof = TowerProofInput::default();
-        let mut proofs: Vec<Vec<IOPProverMessage>> = vec![];
+        let mut proofs: Vec<IOPProverMessageVec> = vec![];
 
         for proof in &chip_proof.tower_proof.proofs {
-            let mut proof_messages: Vec<IOPProverMessage> = vec![];
+            let mut proof_messages: Vec<E> = vec![];
+            let mut prover_message_size = None;
             for m in proof {
                 let mut evaluations_vec: Vec<E> = vec![];
 
@@ -124,11 +104,17 @@ pub fn parse_zkvm_proof_import(
                         serde_json::from_value(serde_json::to_value(v.clone()).unwrap()).unwrap();
                     evaluations_vec.push(v_e);
                 }
-                proof_messages.push(IOPProverMessage {
-                    evaluations: evaluations_vec,
-                });
+                if let Some(size) = prover_message_size {
+                    assert_eq!(size, evaluations_vec.len());
+                } else {
+                    prover_message_size = Some(evaluations_vec.len());
+                }
+                proof_messages.extend_from_slice(&evaluations_vec);
             }
-            proofs.push(proof_messages);
+            proofs.push(IOPProverMessageVec {
+                prover_message_size: prover_message_size.unwrap(),
+                data: proof_messages,
+            });
         }
         tower_proof.num_proofs = proofs.len();
         tower_proof.proofs = proofs;
@@ -149,7 +135,7 @@ pub fn parse_zkvm_proof_import(
             prod_specs_eval.push(inner_v);
         }
         tower_proof.num_prod_specs = prod_specs_eval.len();
-        tower_proof.prod_specs_eval = prod_specs_eval;
+        tower_proof.prod_specs_eval = prod_specs_eval.into();
 
         let mut logup_specs_eval: Vec<Vec<Vec<E>>> = vec![];
         for inner_val in &chip_proof.tower_proof.logup_specs_eval {
@@ -167,11 +153,12 @@ pub fn parse_zkvm_proof_import(
             logup_specs_eval.push(inner_v);
         }
         tower_proof.num_logup_specs = logup_specs_eval.len();
-        tower_proof.logup_specs_eval = logup_specs_eval;
+        tower_proof.logup_specs_eval = logup_specs_eval.into();
 
         // main constraint and select sumcheck proof
-        let mut main_sumcheck_proofs: Vec<IOPProverMessage> = vec![];
-        if chip_proof.main_sumcheck_proofs.is_some() {
+        let main_sumcheck_proofs = if chip_proof.main_sumcheck_proofs.is_some() {
+            let mut main_sumcheck_proofs: Vec<E> = vec![];
+            let mut prover_message_size = None;
             for m in chip_proof.main_sumcheck_proofs.as_ref().unwrap() {
                 let mut evaluations_vec: Vec<E> = vec![];
                 for v in &m.evaluations {
@@ -179,11 +166,23 @@ pub fn parse_zkvm_proof_import(
                         serde_json::from_value(serde_json::to_value(v.clone()).unwrap()).unwrap();
                     evaluations_vec.push(v_e);
                 }
-                main_sumcheck_proofs.push(IOPProverMessage {
-                    evaluations: evaluations_vec,
-                });
+                main_sumcheck_proofs.extend_from_slice(&evaluations_vec);
+                if let Some(size) = prover_message_size {
+                    assert_eq!(size, evaluations_vec.len());
+                } else {
+                    prover_message_size = Some(evaluations_vec.len());
+                }
             }
-        }
+            IOPProverMessageVec {
+                prover_message_size: prover_message_size.unwrap(),
+                data: main_sumcheck_proofs,
+            }
+        } else {
+            IOPProverMessageVec {
+                prover_message_size: 0,
+                data: vec![],
+            }
+        };
 
         let mut wits_in_evals: Vec<E> = vec![];
         for v in &chip_proof.wits_in_evals {
@@ -242,7 +241,7 @@ pub fn parse_zkvm_proof_import(
                     (
                         1,
                         SumcheckLayerProofInput {
-                            proof: iop_messages,
+                            proof: iop_messages.into(),
                             evals,
                         },
                     )
@@ -270,7 +269,7 @@ pub fn parse_zkvm_proof_import(
                 }
 
                 let main = SumcheckLayerProofInput {
-                    proof: iop_messages,
+                    proof: iop_messages.into(),
                     evals,
                 };
 
