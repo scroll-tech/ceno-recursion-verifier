@@ -352,105 +352,55 @@ pub fn verify_tower_proof<C: Config>(
             builder.cycle_tracker_start("check expected evaluation");
             let eq_e = eq_eval(builder, &out_rt, &sub_rt, one, zero);
 
-            let expected_evaluation: Ext<C::F, C::EF> = builder.eval(zero + zero);
-            let alpha_acc: Ext<C::F, C::EF> = builder.eval(zero + one);
-
-            builder
-                .range(0, num_prod_spec.clone())
-                .for_each(|i_vec, builder| {
-                    // _debug
-                    // builder.cycle_tracker_start("accumulate expected eval for prod specs");
-                    let spec_index = i_vec[0];
-                    let skip = builder.get(&should_skip, spec_index.clone());
-                    let max_round = builder.get(&num_variables, spec_index);
-                    let round_limit: RVar<C::N> = builder.eval_expr(max_round - RVar::from(1));
-
-                    let prod: Ext<C::F, C::EF> = builder.eval(zero + zero);
-
-                    // invariant: skip == 0 implies previous round_var is smaller than round_limit.
-                    //
-                    // if skip == 0 and current round_var is also not equal to round_limit,
-                    // then we know round_var is also smaller than round_limit.
-                    builder.if_eq(skip, var_zero.clone()).then(|builder| {
-                        builder.if_ne(round_var, round_limit).then_or_else(
-                            |builder| {
-                                let prod_round_slice = proof.prod_specs_eval.get_inner(
-                                    builder,
-                                    spec_index.variable(),
-                                    round_var.variable(),
-                                );
-                                builder.assign(&prod, one * one);
-                                for j in 0..NUM_FANIN {
-                                    let prod_j = builder.get(&prod_round_slice, j);
-                                    builder.assign(&prod, prod * prod_j);
-                                }
-                            },
-                            |builder| {
-                                builder.set_value(&should_skip, spec_index, var_one.clone());
-                            },
-                        );
-                    });
-
-                    builder.assign(&expected_evaluation, expected_evaluation + alpha_acc * prod);
-                    builder.assign(&alpha_acc, alpha_acc * alpha.clone());
-                    // _debug
-                    // builder.cycle_tracker_end("accumulate expected eval for prod specs");
-                });
-
+            let input_ctx_len: Usize<C::N> = Usize::Var(builder.uninit());
             let num_variables_len = num_variables.len();
-            let logup_num_variables_slice =
-                num_variables.slice(builder, num_prod_spec.clone(), num_variables_len.clone());
+            builder.assign(&input_ctx_len, Usize::from(8) + num_variables_len.clone());
+            let input_ctx: Array<C, Usize<C::N>> = builder.dyn_array(input_ctx_len);
 
-            builder
-                .range(0, num_logup_spec.clone())
-                .for_each(|i_vec, builder| {
-                    // _debug
-                    // builder.cycle_tracker_start("accumulate expected eval for logup specs");
-                    let spec_index = i_vec[0];
+            builder.set(&input_ctx, 0, round_var);
+            builder.set(&input_ctx, 1, num_prod_spec.clone());
+            builder.set(&input_ctx, 2, num_logup_spec.clone());
+            builder.set(&input_ctx, 3, Usize::from(proof.prod_specs_eval.inner_length));
+            builder.set(&input_ctx, 4, Usize::from(proof.prod_specs_eval.inner_inner_length));
+            builder.set(&input_ctx, 5, Usize::from(proof.logup_specs_eval.inner_length));
+            builder.set(&input_ctx, 6, Usize::from(proof.logup_specs_eval.inner_inner_length));
+            builder.set(&input_ctx, 7, Usize::from(1));
 
-                    let alpha_numerator: Ext<<C as Config>::F, <C as Config>::EF> =
-                        builder.eval(alpha_acc * one);
-                    builder.assign(&alpha_acc, alpha_acc * alpha);
-                    let alpha_denominator: Ext<C::F, C::EF> = builder.eval(alpha_acc * one);
-                    builder.assign(&alpha_acc, alpha_acc * alpha);
+            let input_ctx_variables_slice = input_ctx.slice(builder, 8, input_ctx.len());
+            iter_zip!(builder, input_ctx_variables_slice, num_variables).for_each(|ptr_vec, builder| {
+                let n_v = builder.iter_ptr_get(&num_variables, ptr_vec[1]);
+                builder.iter_ptr_set(&input_ctx_variables_slice, ptr_vec[0], n_v);
+            });
 
-                    let idx: Var<C::N> =
-                        builder.eval(spec_index.variable() + num_prod_spec.get_var());
-                    let skip = builder.get(&should_skip, idx);
-                    let max_round = builder.get(&logup_num_variables_slice, spec_index);
-                    let round_limit: RVar<C::N> = builder.eval_expr(max_round - RVar::from(1));
+            let challenges: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(3);
+            builder.set(&challenges, 0, alpha.clone());
 
-                    let prod: Ext<C::F, C::EF> = builder.eval(zero + zero);
+            builder.sumcheck_layer_eval(&input_ctx, &challenges, &proof.prod_specs_eval.data, &proof.logup_specs_eval.data, &next_layer_evals);
+            let expected_evaluation = builder.get(&next_layer_evals, 0);
 
-                    builder.if_eq(skip, var_zero).then(|builder| {
-                        builder.if_ne(round_var, round_limit).then_or_else(
-                            |builder| {
-                                let prod_round_slice = proof.logup_specs_eval.get_inner(
-                                    builder,
-                                    spec_index.variable(),
-                                    round_var.variable(),
-                                );
 
-                                let p1 = builder.get(&prod_round_slice, 0);
-                                let p2 = builder.get(&prod_round_slice, 1);
-                                let q1 = builder.get(&prod_round_slice, 2);
-                                let q2 = builder.get(&prod_round_slice, 3);
-                                builder.assign(
-                                    &prod,
-                                    alpha_numerator * (p1 * q2 + p2 * q1)
-                                        + alpha_denominator * (q1 * q2),
-                                );
-                            },
-                            |builder| {
-                                builder.set_value(&should_skip, idx, var_one.clone());
-                            },
-                        );
-                    });
+            
 
-                    builder.assign(&expected_evaluation, expected_evaluation + prod);
-                    // _debug
-                    // builder.cycle_tracker_end("accumulate expected eval for logup specs");
-                });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                
 
             builder.assign(&expected_evaluation, expected_evaluation * eq_e);
             builder.assert_ext_eq(expected_evaluation, sub_e);
@@ -477,10 +427,8 @@ pub fn verify_tower_proof<C: Config>(
             transcript_observe_label(builder, challenger, b"combine subset evals");
             let new_alpha = challenger.sample_ext(builder);
             builder.assign(&alpha, new_alpha);
-            builder.assign(&alpha_acc, zero + one);
 
             // Use native opcode
-            // [round_var, num_prod_spec, num_logup_spec, num_variables]
             let input_ctx_len: Usize<C::N> = Usize::Var(builder.uninit());
             builder.assign(&input_ctx_len, Usize::from(8) + num_variables_len.clone());
             let input_ctx: Array<C, Usize<C::N>> = builder.dyn_array(input_ctx_len);
@@ -504,7 +452,7 @@ pub fn verify_tower_proof<C: Config>(
             builder.set(&challenges, 1, c1.clone());
             builder.set(&challenges, 2, c2.clone());
 
-            builder.sumcheck_layer_eval(input_ctx, challenges, &proof.prod_specs_eval.data, &proof.logup_specs_eval.data, &next_layer_evals);
+            builder.sumcheck_layer_eval(&input_ctx, &challenges, &proof.prod_specs_eval.data, &proof.logup_specs_eval.data, &next_layer_evals);
 
             let next_round = builder.eval_expr(round_var + RVar::from(1));
             builder
@@ -517,7 +465,6 @@ pub fn verify_tower_proof<C: Config>(
 
                     // now skip is 0 if and only if current round_var is smaller than round_limit.
                     builder.if_eq(skip, var_zero.clone()).then(|builder| {
-                        
                         builder.if_eq(next_round, round_limit).then(
                             |builder| {
                                 let evals_idx: Usize<C::N> = builder.eval(spec_index + Usize::from(1));
