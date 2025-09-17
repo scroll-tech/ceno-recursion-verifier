@@ -378,30 +378,6 @@ pub fn verify_tower_proof<C: Config>(
             builder.sumcheck_layer_eval(&input_ctx, &challenges, &proof.prod_specs_eval.data, &proof.logup_specs_eval.data, &next_layer_evals);
             let expected_evaluation = builder.get(&next_layer_evals, 0);
 
-
-            
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                
-
             builder.assign(&expected_evaluation, expected_evaluation * eq_e);
             builder.assert_ext_eq(expected_evaluation, sub_e);
             builder.cycle_tracker_end("check expected evaluation");
@@ -429,26 +405,8 @@ pub fn verify_tower_proof<C: Config>(
             builder.assign(&alpha, new_alpha);
 
             // Use native opcode
-            let input_ctx_len: Usize<C::N> = Usize::Var(builder.uninit());
-            builder.assign(&input_ctx_len, Usize::from(8) + num_variables_len.clone());
-            let input_ctx: Array<C, Usize<C::N>> = builder.dyn_array(input_ctx_len);
-
-            builder.set(&input_ctx, 0, round_var);
-            builder.set(&input_ctx, 1, num_prod_spec.clone());
-            builder.set(&input_ctx, 2, num_logup_spec.clone());
-            builder.set(&input_ctx, 3, Usize::from(proof.prod_specs_eval.inner_length));
-            builder.set(&input_ctx, 4, Usize::from(proof.prod_specs_eval.inner_inner_length));
-            builder.set(&input_ctx, 5, Usize::from(proof.logup_specs_eval.inner_length));
-            builder.set(&input_ctx, 6, Usize::from(proof.logup_specs_eval.inner_inner_length));
-
-            let input_ctx_variables_slice = input_ctx.slice(builder, 8, input_ctx.len());
-            iter_zip!(builder, input_ctx_variables_slice, num_variables).for_each(|ptr_vec, builder| {
-                let n_v = builder.iter_ptr_get(&num_variables, ptr_vec[1]);
-                builder.iter_ptr_set(&input_ctx_variables_slice, ptr_vec[0], n_v);
-            });
-
-            let challenges: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(3);
-            builder.set(&challenges, 0, alpha.clone());
+            builder.set(&input_ctx, 7, Usize::from(0));     // Turn `in_round` off
+            builder.set(&challenges, 0, new_alpha.clone());
             builder.set(&challenges, 1, c1.clone());
             builder.set(&challenges, 2, c2.clone());
 
