@@ -319,8 +319,10 @@ pub fn verify_tower_proof<C: Config>(
         eval: initial_claim,
     };
 
-    let next_layer_evals_output_len: Usize<C::N> = builder.eval(Usize::from(1) + num_prod_spec.clone() + Usize::from(2) * num_logup_spec.clone());
-    let next_layer_evals: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(next_layer_evals_output_len);
+    let next_layer_evals_output_len: Usize<C::N> = builder
+        .eval(Usize::from(1) + num_prod_spec.clone() + Usize::from(2) * num_logup_spec.clone());
+    let next_layer_evals: Array<C, Ext<C::F, C::EF>> =
+        builder.dyn_array(next_layer_evals_output_len);
 
     builder
         .range(0, op_range.clone())
@@ -360,22 +362,46 @@ pub fn verify_tower_proof<C: Config>(
             builder.set(&input_ctx, 0, round_var);
             builder.set(&input_ctx, 1, num_prod_spec.clone());
             builder.set(&input_ctx, 2, num_logup_spec.clone());
-            builder.set(&input_ctx, 3, Usize::from(proof.prod_specs_eval.inner_length));
-            builder.set(&input_ctx, 4, Usize::from(proof.prod_specs_eval.inner_inner_length));
-            builder.set(&input_ctx, 5, Usize::from(proof.logup_specs_eval.inner_length));
-            builder.set(&input_ctx, 6, Usize::from(proof.logup_specs_eval.inner_inner_length));
+            builder.set(
+                &input_ctx,
+                3,
+                Usize::from(proof.prod_specs_eval.inner_length),
+            );
+            builder.set(
+                &input_ctx,
+                4,
+                Usize::from(proof.prod_specs_eval.inner_inner_length),
+            );
+            builder.set(
+                &input_ctx,
+                5,
+                Usize::from(proof.logup_specs_eval.inner_length),
+            );
+            builder.set(
+                &input_ctx,
+                6,
+                Usize::from(proof.logup_specs_eval.inner_inner_length),
+            );
             builder.set(&input_ctx, 7, Usize::from(1));
 
             let input_ctx_variables_slice = input_ctx.slice(builder, 8, input_ctx.len());
-            iter_zip!(builder, input_ctx_variables_slice, num_variables).for_each(|ptr_vec, builder| {
-                let n_v = builder.iter_ptr_get(&num_variables, ptr_vec[1]);
-                builder.iter_ptr_set(&input_ctx_variables_slice, ptr_vec[0], n_v);
-            });
+            iter_zip!(builder, input_ctx_variables_slice, num_variables).for_each(
+                |ptr_vec, builder| {
+                    let n_v = builder.iter_ptr_get(&num_variables, ptr_vec[1]);
+                    builder.iter_ptr_set(&input_ctx_variables_slice, ptr_vec[0], n_v);
+                },
+            );
 
             let challenges: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(3);
             builder.set(&challenges, 0, alpha.clone());
 
-            builder.sumcheck_layer_eval(&input_ctx, &challenges, &proof.prod_specs_eval.data, &proof.logup_specs_eval.data, &next_layer_evals);
+            builder.sumcheck_layer_eval(
+                &input_ctx,
+                &challenges,
+                &proof.prod_specs_eval.data,
+                &proof.logup_specs_eval.data,
+                &next_layer_evals,
+            );
             let expected_evaluation = builder.get(&next_layer_evals, 0);
 
             builder.assign(&expected_evaluation, expected_evaluation * eq_e);
@@ -405,12 +431,18 @@ pub fn verify_tower_proof<C: Config>(
             builder.assign(&alpha, new_alpha);
 
             // Use native opcode
-            builder.set(&input_ctx, 7, Usize::from(0));     // Turn `in_round` off
+            builder.set(&input_ctx, 7, Usize::from(0)); // Turn `in_round` off
             builder.set(&challenges, 0, new_alpha.clone());
             builder.set(&challenges, 1, c1.clone());
             builder.set(&challenges, 2, c2.clone());
 
-            builder.sumcheck_layer_eval(&input_ctx, &challenges, &proof.prod_specs_eval.data, &proof.logup_specs_eval.data, &next_layer_evals);
+            builder.sumcheck_layer_eval(
+                &input_ctx,
+                &challenges,
+                &proof.prod_specs_eval.data,
+                &proof.logup_specs_eval.data,
+                &next_layer_evals,
+            );
 
             let next_round = builder.eval_expr(round_var + RVar::from(1));
             builder
@@ -423,25 +455,19 @@ pub fn verify_tower_proof<C: Config>(
 
                     // now skip is 0 if and only if current round_var is smaller than round_limit.
                     builder.if_eq(skip, var_zero.clone()).then(|builder| {
-                        builder.if_eq(next_round, round_limit).then(
-                            |builder| {
-                                let evals_idx: Usize<C::N> = builder.eval(spec_index + Usize::from(1));
-                                let evals = builder.get(&next_layer_evals, evals_idx);
+                        builder.if_eq(next_round, round_limit).then(|builder| {
+                            let evals_idx: Usize<C::N> = builder.eval(spec_index + Usize::from(1));
+                            let evals = builder.get(&next_layer_evals, evals_idx);
 
-                                let point_and_eval: PointAndEvalVariable<C> =
-                                    builder.eval(PointAndEvalVariable {
-                                        point: PointVariable {
-                                            fs: rt_prime.clone(),
-                                        },
-                                        eval: evals,
-                                    });
-                                builder.set_value(
-                                    &prod_spec_point_n_eval,
-                                    spec_index,
-                                    point_and_eval,
-                                );
-                            }
-                        );
+                            let point_and_eval: PointAndEvalVariable<C> =
+                                builder.eval(PointAndEvalVariable {
+                                    point: PointVariable {
+                                        fs: rt_prime.clone(),
+                                    },
+                                    eval: evals,
+                                });
+                            builder.set_value(&prod_spec_point_n_eval, spec_index, point_and_eval);
+                        });
                     });
                 });
 
@@ -460,31 +486,30 @@ pub fn verify_tower_proof<C: Config>(
 
                     // now skip is 0 if and only if current round_var is smaller than round_limit.
                     builder.if_eq(skip, var_zero).then(|builder| {
-                        builder.if_eq(next_round, round_limit).then(
-                            |builder| {
-                                let p_idx: Usize<C::N> = builder.eval(idx + Usize::from(1));
-                                let q_idx: Usize<C::N> = builder.eval(idx + Usize::from(1) + num_logup_spec.clone());
-                                let p_eval = builder.get(&next_layer_evals, p_idx);
-                                let q_eval = builder.get(&next_layer_evals, q_idx);
+                        builder.if_eq(next_round, round_limit).then(|builder| {
+                            let p_idx: Usize<C::N> = builder.eval(idx + Usize::from(1));
+                            let q_idx: Usize<C::N> =
+                                builder.eval(idx + Usize::from(1) + num_logup_spec.clone());
+                            let p_eval = builder.get(&next_layer_evals, p_idx);
+                            let q_eval = builder.get(&next_layer_evals, q_idx);
 
-                                let p_eval: PointAndEvalVariable<C> =
-                                    builder.eval(PointAndEvalVariable {
-                                        point: PointVariable {
-                                            fs: rt_prime.clone(),
-                                        },
-                                        eval: p_eval,
-                                    });
-                                let q_eval: PointAndEvalVariable<C> =
-                                    builder.eval(PointAndEvalVariable {
-                                        point: PointVariable {
-                                            fs: rt_prime.clone(),
-                                        },
-                                        eval: q_eval,
-                                    });
-                                builder.set_value(&logup_spec_p_point_n_eval, spec_index, p_eval);
-                                builder.set_value(&logup_spec_q_point_n_eval, spec_index, q_eval);
-                            }
-                        );
+                            let p_eval: PointAndEvalVariable<C> =
+                                builder.eval(PointAndEvalVariable {
+                                    point: PointVariable {
+                                        fs: rt_prime.clone(),
+                                    },
+                                    eval: p_eval,
+                                });
+                            let q_eval: PointAndEvalVariable<C> =
+                                builder.eval(PointAndEvalVariable {
+                                    point: PointVariable {
+                                        fs: rt_prime.clone(),
+                                    },
+                                    eval: q_eval,
+                                });
+                            builder.set_value(&logup_spec_p_point_n_eval, spec_index, p_eval);
+                            builder.set_value(&logup_spec_q_point_n_eval, spec_index, q_eval);
+                        });
                     });
                 });
 
