@@ -116,9 +116,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.99"
+version = "1.0.100"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b0674a1ddeecb70197781e945de4b3b8ffb61fa939a5597bcf48503737663100"
+checksum = "a23eb6b1614318a8071c9b2521f36b424b2c83db5eb3a0fead4a6c0809af6e61"
 
 [[package]]
 name = "ark-ff"
@@ -493,9 +493,9 @@ checksum = "d71b6127be86fdcfddb610f7182ac57211d4b18a3e9c82eb2d17662f2227ad6a"
 
 [[package]]
 name = "cc"
-version = "1.2.35"
+version = "1.2.38"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "590f9024a68a8c40351881787f1934dc11afd69090f5edb6831464694d836ea3"
+checksum = "80f41ae168f955c12fb8960b057d70d0ca153fb83182b57d86380443527be7e9"
 dependencies = [
  "find-msvc-tools",
  "shlex",
@@ -504,7 +504,7 @@ dependencies = [
 [[package]]
 name = "ceno-examples"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=master#ec4f614c5b04a83acf70de2e84af5de61ab93fb2"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=master#e3062a0357c646022b1c569365f5540b7d1a232d"
 dependencies = [
  "glob",
 ]
@@ -556,7 +556,7 @@ dependencies = [
 [[package]]
 name = "ceno_emul"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=master#ec4f614c5b04a83acf70de2e84af5de61ab93fb2"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=master#e3062a0357c646022b1c569365f5540b7d1a232d"
 dependencies = [
  "anyhow",
  "ceno_rt",
@@ -578,7 +578,7 @@ dependencies = [
 [[package]]
 name = "ceno_host"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=master#ec4f614c5b04a83acf70de2e84af5de61ab93fb2"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=master#e3062a0357c646022b1c569365f5540b7d1a232d"
 dependencies = [
  "anyhow",
  "ceno_emul",
@@ -590,7 +590,7 @@ dependencies = [
 [[package]]
 name = "ceno_rt"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=master#ec4f614c5b04a83acf70de2e84af5de61ab93fb2"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=master#e3062a0357c646022b1c569365f5540b7d1a232d"
 dependencies = [
  "getrandom 0.2.16",
  "rkyv",
@@ -599,7 +599,7 @@ dependencies = [
 [[package]]
 name = "ceno_zkvm"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=master#ec4f614c5b04a83acf70de2e84af5de61ab93fb2"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=master#e3062a0357c646022b1c569365f5540b7d1a232d"
 dependencies = [
  "base64",
  "bincode",
@@ -616,6 +616,7 @@ dependencies = [
  "mpcs",
  "multilinear_extensions",
  "ndarray",
+ "once_cell",
  "p3",
  "parse-size",
  "prettytable-rs",
@@ -644,9 +645,9 @@ checksum = "2fd1289c04a9ea8cb22300a459a72a385d7c73d3259e2ed7dcb2af674838cfa9"
 
 [[package]]
 name = "clap"
-version = "4.5.46"
+version = "4.5.48"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2c5e4fcf9c21d2e544ca1ee9d8552de13019a42aa7dbf32747fa7aaf1df76e57"
+checksum = "e2134bb3ea021b78629caa971416385309e0131b351b25e01dc16fb54e1b5fae"
 dependencies = [
  "clap_builder",
  "clap_derive",
@@ -654,9 +655,9 @@ dependencies = [
 
 [[package]]
 name = "clap_builder"
-version = "4.5.46"
+version = "4.5.48"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fecb53a0e6fcfb055f686001bc2e2592fa527efaf38dbe81a6a9563562e57d41"
+checksum = "c2ba64afa3c0a6df7fa517765e31314e983f51dda798ffba27b988194fb65dc9"
 dependencies = [
  "anstream",
  "anstyle",
@@ -666,9 +667,9 @@ dependencies = [
 
 [[package]]
 name = "clap_derive"
-version = "4.5.45"
+version = "4.5.47"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "14cb31bb0a7d536caef2639baa7fad459e15c3144efefa6dbd1c84562c4739f6"
+checksum = "bbfd7eae0b0f1a6e63d4b13c9c478de77c2eb546fba158ad50b4203dc24b9f9c"
 dependencies = [
  "heck",
  "proc-macro2",
@@ -955,12 +956,12 @@ checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
 
 [[package]]
 name = "errno"
-version = "0.3.13"
+version = "0.3.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "778e2ac28f6c47af28e4907f13ffd1e1ddbd400980a9abd7c8df189bf578a5ad"
+checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.0",
 ]
 
 [[package]]
@@ -1031,9 +1032,9 @@ dependencies = [
 
 [[package]]
 name = "find-msvc-tools"
-version = "0.1.0"
+version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e178e4fba8a2726903f6ba98a6d221e76f9c12c650d5dc0e6afdc50677b49650"
+checksum = "1ced73b1dacfc750a6db6c0a0c3a3853c8b41997e2e2c563dc90804ae6867959"
 
 [[package]]
 name = "fnv"
@@ -1092,7 +1093,7 @@ dependencies = [
  "cfg-if",
  "libc",
  "r-efi",
- "wasi 0.14.3+wasi-0.2.4",
+ "wasi 0.14.7+wasi-0.2.4",
 ]
 
 [[package]]
@@ -1116,7 +1117,7 @@ checksum = "07e28edb80900c19c28f1072f2e8aeca7fa06b23cd4169cefe1af5aa3260783f"
 [[package]]
 name = "gkr_iop"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno.git?branch=master#ec4f614c5b04a83acf70de2e84af5de61ab93fb2"
+source = "git+https://github.com/scroll-tech/ceno.git?branch=master#e3062a0357c646022b1c569365f5540b7d1a232d"
 dependencies = [
  "bincode",
  "either",
@@ -1124,6 +1125,7 @@ dependencies = [
  "itertools 0.13.0",
  "mpcs",
  "multilinear_extensions",
+ "once_cell",
  "p3",
  "rand",
  "rayon",
@@ -1134,15 +1136,17 @@ dependencies = [
  "thiserror",
  "thread_local",
  "tracing",
+ "tracing-forest",
+ "tracing-subscriber",
  "transcript",
  "witness",
 ]
 
 [[package]]
 name = "glam"
-version = "0.30.5"
+version = "0.30.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f2d1aab06663bdce00d6ca5e5ed586ec8d18033a771906c993a1e3755b368d85"
+checksum = "e12d847aeb25f41be4c0ec9587d624e9cd631bc007a8fd7ce3f5851e064c6460"
 
 [[package]]
 name = "glob"
@@ -1258,6 +1262,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "hashbrown"
+version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5419bdc4f6a9207fbeba6d11b604d481addf78ecd10c11ad51e76c2f6482748d"
+
+[[package]]
 name = "heck"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1295,12 +1305,12 @@ checksum = "964de6e86d545b246d84badc0fef527924ace5134f30641c203ef52ba83f58d5"
 
 [[package]]
 name = "indexmap"
-version = "2.11.0"
+version = "2.11.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f2481980430f9f78649238835720ddccc57e52df14ffce1c6f37391d61b563e9"
+checksum = "4b0f83760fb341a774ed326568e19f5a863af4a952def8c39f9ab92fd95b88e5"
 dependencies = [
  "equivalent",
- "hashbrown 0.15.5",
+ "hashbrown 0.16.0",
 ]
 
 [[package]]
@@ -1355,9 +1365,9 @@ checksum = "4a5f13b858c8d314ee3e8f639011f7ccefe71f97f96e50151fb991f267928e2c"
 
 [[package]]
 name = "js-sys"
-version = "0.3.77"
+version = "0.3.81"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1cfaf33c695fc6e08064efbc1f72ec937429614f25eef83af942d0e227c3a28f"
+checksum = "ec48937a97411dcb524a265206ccd4c90bb711fca92b2792c407f268825b9305"
 dependencies = [
  "once_cell",
  "wasm-bindgen",
@@ -1397,9 +1407,9 @@ dependencies = [
 
 [[package]]
 name = "libc"
-version = "0.2.175"
+version = "0.2.176"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6a82ae493e598baaea5209805c49bbf2ea7de956d50d7da0da1164f9c6d28543"
+checksum = "58f929b4d672ea937a23a1ab494143d968337a5f47e56d0815df1e0890ddf174"
 
 [[package]]
 name = "libm"
@@ -1409,9 +1419,9 @@ checksum = "f9fbbcab51052fe104eb5e5d351cf728d30a5be1fe14d9be8a3b097481fb97de"
 
 [[package]]
 name = "libredox"
-version = "0.1.9"
+version = "0.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "391290121bad3d37fbddad76d8f5d1c1c314cfc646d143d7e07a3086ddff0ce3"
+checksum = "416f7e718bdb06000964960ffa43b4335ad4012ae8b99060261aa4a8088d5ccb"
 dependencies = [
  "bitflags",
  "libc",
@@ -1419,9 +1429,9 @@ dependencies = [
 
 [[package]]
 name = "linux-raw-sys"
-version = "0.9.4"
+version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cd945864f07fe9f5371a27ad7b52a172b4b499999f1d97574c9fa68373937e12"
+checksum = "df1d3c3b53da64cf5760482273a98e575c651a67eec7f77df96b5b642de8f039"
 
 [[package]]
 name = "lockfree-object-pool"
@@ -1431,9 +1441,9 @@ checksum = "9374ef4228402d4b7e403e5838cb880d9ee663314b0a900d5a6aabf0c213552e"
 
 [[package]]
 name = "log"
-version = "0.4.27"
+version = "0.4.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "13dc2df351e3202783a1fe0d44375f7295ffb4049267b0f3018346dc122a1d94"
+checksum = "34080505efa8e45a4b816c349525ebe327ceaa8559756f0356cba97ef3bf7432"
 
 [[package]]
 name = "matchers"
@@ -1456,9 +1466,9 @@ dependencies = [
 
 [[package]]
 name = "memchr"
-version = "2.7.5"
+version = "2.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "32a282da65faaf38286cf3be983213fcf1d2e2a58700e808f83f4ea9a4804bc0"
+checksum = "f52b00d39961fc5b2736ea853c9cc86238e165017a493d1d5c8eac6bdc4cc273"
 
 [[package]]
 name = "memuse"
@@ -1740,7 +1750,7 @@ checksum = "a4895175b425cb1f87721b59f0f286c2092bd4af812243672510e1ac53e2e0ad"
 [[package]]
 name = "openvm"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#18f0b755754aed537775ade393ca94a8f334d9e0"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#25a72ba9c6ba1e3aee91fd77c025787afae9e8a7"
 dependencies = [
  "bytemuck",
  "num-bigint 0.4.6",
@@ -1753,7 +1763,7 @@ dependencies = [
 [[package]]
 name = "openvm-circuit"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#18f0b755754aed537775ade393ca94a8f334d9e0"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#25a72ba9c6ba1e3aee91fd77c025787afae9e8a7"
 dependencies = [
  "backtrace",
  "cfg-if",
@@ -1784,7 +1794,7 @@ dependencies = [
 [[package]]
 name = "openvm-circuit-derive"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#18f0b755754aed537775ade393ca94a8f334d9e0"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#25a72ba9c6ba1e3aee91fd77c025787afae9e8a7"
 dependencies = [
  "itertools 0.14.0",
  "quote",
@@ -1794,7 +1804,7 @@ dependencies = [
 [[package]]
 name = "openvm-circuit-primitives"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#18f0b755754aed537775ade393ca94a8f334d9e0"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#25a72ba9c6ba1e3aee91fd77c025787afae9e8a7"
 dependencies = [
  "derive-new 0.6.0",
  "itertools 0.14.0",
@@ -1809,7 +1819,7 @@ dependencies = [
 [[package]]
 name = "openvm-circuit-primitives-derive"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#18f0b755754aed537775ade393ca94a8f334d9e0"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#25a72ba9c6ba1e3aee91fd77c025787afae9e8a7"
 dependencies = [
  "itertools 0.14.0",
  "quote",
@@ -1819,7 +1829,7 @@ dependencies = [
 [[package]]
 name = "openvm-custom-insn"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#18f0b755754aed537775ade393ca94a8f334d9e0"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#25a72ba9c6ba1e3aee91fd77c025787afae9e8a7"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1829,7 +1839,7 @@ dependencies = [
 [[package]]
 name = "openvm-instructions"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#18f0b755754aed537775ade393ca94a8f334d9e0"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#25a72ba9c6ba1e3aee91fd77c025787afae9e8a7"
 dependencies = [
  "backtrace",
  "derive-new 0.6.0",
@@ -1846,7 +1856,7 @@ dependencies = [
 [[package]]
 name = "openvm-instructions-derive"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#18f0b755754aed537775ade393ca94a8f334d9e0"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#25a72ba9c6ba1e3aee91fd77c025787afae9e8a7"
 dependencies = [
  "quote",
  "syn 2.0.106",
@@ -1855,7 +1865,7 @@ dependencies = [
 [[package]]
 name = "openvm-native-circuit"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#18f0b755754aed537775ade393ca94a8f334d9e0"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#25a72ba9c6ba1e3aee91fd77c025787afae9e8a7"
 dependencies = [
  "derive-new 0.6.0",
  "derive_more 1.0.0",
@@ -1882,7 +1892,7 @@ dependencies = [
 [[package]]
 name = "openvm-native-compiler"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#18f0b755754aed537775ade393ca94a8f334d9e0"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#25a72ba9c6ba1e3aee91fd77c025787afae9e8a7"
 dependencies = [
  "backtrace",
  "itertools 0.14.0",
@@ -1904,7 +1914,7 @@ dependencies = [
 [[package]]
 name = "openvm-native-compiler-derive"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#18f0b755754aed537775ade393ca94a8f334d9e0"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#25a72ba9c6ba1e3aee91fd77c025787afae9e8a7"
 dependencies = [
  "quote",
  "syn 2.0.106",
@@ -1913,7 +1923,7 @@ dependencies = [
 [[package]]
 name = "openvm-native-recursion"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#18f0b755754aed537775ade393ca94a8f334d9e0"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#25a72ba9c6ba1e3aee91fd77c025787afae9e8a7"
 dependencies = [
  "cfg-if",
  "itertools 0.14.0",
@@ -1937,7 +1947,7 @@ dependencies = [
 [[package]]
 name = "openvm-platform"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#18f0b755754aed537775ade393ca94a8f334d9e0"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#25a72ba9c6ba1e3aee91fd77c025787afae9e8a7"
 dependencies = [
  "libm",
  "openvm-custom-insn",
@@ -1947,7 +1957,7 @@ dependencies = [
 [[package]]
 name = "openvm-poseidon2-air"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#18f0b755754aed537775ade393ca94a8f334d9e0"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#25a72ba9c6ba1e3aee91fd77c025787afae9e8a7"
 dependencies = [
  "derivative",
  "lazy_static",
@@ -1964,7 +1974,7 @@ dependencies = [
 [[package]]
 name = "openvm-rv32im-circuit"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#18f0b755754aed537775ade393ca94a8f334d9e0"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#25a72ba9c6ba1e3aee91fd77c025787afae9e8a7"
 dependencies = [
  "derive-new 0.6.0",
  "derive_more 1.0.0",
@@ -1987,7 +1997,7 @@ dependencies = [
 [[package]]
 name = "openvm-rv32im-guest"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#18f0b755754aed537775ade393ca94a8f334d9e0"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#25a72ba9c6ba1e3aee91fd77c025787afae9e8a7"
 dependencies = [
  "openvm-custom-insn",
  "p3-field",
@@ -1997,7 +2007,7 @@ dependencies = [
 [[package]]
 name = "openvm-rv32im-transpiler"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#18f0b755754aed537775ade393ca94a8f334d9e0"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#25a72ba9c6ba1e3aee91fd77c025787afae9e8a7"
 dependencies = [
  "openvm-instructions",
  "openvm-instructions-derive",
@@ -2075,7 +2085,7 @@ dependencies = [
 [[package]]
 name = "openvm-transpiler"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#18f0b755754aed537775ade393ca94a8f334d9e0"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#25a72ba9c6ba1e3aee91fd77c025787afae9e8a7"
 dependencies = [
  "elf",
  "eyre",
@@ -2707,9 +2717,9 @@ dependencies = [
 
 [[package]]
 name = "raw-cpuid"
-version = "11.5.0"
+version = "11.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c6df7ab838ed27997ba19a4664507e6f82b41fe6e20be42929332156e5e85146"
+checksum = "498cd0dc59d73224351ee52a95fee0f1a617a2eae0e7d9d720cc622c73a54186"
 dependencies = [
  "bitflags",
 ]
@@ -2753,9 +2763,9 @@ dependencies = [
 
 [[package]]
 name = "regex-automata"
-version = "0.4.10"
+version = "0.4.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6b9458fa0bfeeac22b5ca447c63aaf45f28439a709ccd244698632f9aa6394d6"
+checksum = "833eb9ce86d40ef33cb1306d8accf7bc8ec2bfea4355cbdebb3df68b40925cad"
 dependencies = [
  "aho-corasick",
  "memchr",
@@ -2857,15 +2867,15 @@ dependencies = [
 
 [[package]]
 name = "rustix"
-version = "1.0.8"
+version = "1.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "11181fbabf243db407ef8df94a6ce0b2f9a733bd8be4ad02b4eda9602296cac8"
+checksum = "cd15f8a2c5551a84d56efdc1cd049089e409ac19a3072d5037a17fd70719ff3e"
 dependencies = [
  "bitflags",
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.0",
 ]
 
 [[package]]
@@ -2914,16 +2924,17 @@ dependencies = [
 
 [[package]]
 name = "semver"
-version = "1.0.26"
+version = "1.0.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "56e6fa9c48d24d85fb3de5ad847117517440f6beceb7798af16b4a87d616b8d0"
+checksum = "d767eb0aabc880b29956c35734170f26ed551a859dbd361d140cdbeca61ab1e2"
 
 [[package]]
 name = "serde"
-version = "1.0.219"
+version = "1.0.226"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5f0e2c6ed6606019b4e29e69dbaba95b11854410e5347d525002456dbbb786b6"
+checksum = "0dca6411025b24b60bfa7ec1fe1f8e710ac09782dca409ee8237ba74b51295fd"
 dependencies = [
+ "serde_core",
  "serde_derive",
 ]
 
@@ -2946,10 +2957,19 @@ dependencies = [
 ]
 
 [[package]]
-name = "serde_derive"
-version = "1.0.219"
+name = "serde_core"
+version = "1.0.226"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5b0276cf7f2c73365f7157c8123c21cd9a50fbbd844757af28ca1f5925fc2a00"
+checksum = "ba2ba63999edb9dac981fb34b3e5c0d111a69b0924e253ed29d83f7c99e966a4"
+dependencies = [
+ "serde_derive",
+]
+
+[[package]]
+name = "serde_derive"
+version = "1.0.226"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8db53ae22f34573731bafa1db20f04027b2d25e02d8205921b569171699cdb33"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2958,14 +2978,15 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.143"
+version = "1.0.145"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d401abef1d108fbd9cbaebc3e46611f4b1021f714a0597a71f41ee463f5f4a5a"
+checksum = "402a6f66d8c709116cf22f558eab210f5a50187f702eb4d7e5ef38d9a7f1c79c"
 dependencies = [
  "itoa",
  "memchr",
  "ryu",
  "serde",
+ "serde_core",
 ]
 
 [[package]]
@@ -3157,15 +3178,15 @@ checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
 
 [[package]]
 name = "tempfile"
-version = "3.21.0"
+version = "3.23.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "15b61f8f20e3a6f7e0649d825294eaf317edce30f82cf6026e7e4cb9222a7d1e"
+checksum = "2d31c77bdf42a745371d260a26ca7163f1e0924b64afa0b688e61b5a9fa02f16"
 dependencies = [
  "fastrand",
  "getrandom 0.3.3",
  "once_cell",
  "rustix",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.0",
 ]
 
 [[package]]
@@ -3407,9 +3428,9 @@ checksum = "1dccffe3ce07af9386bfd29e80c0ab1a8205a2fc34e4bcd40364df902cfa8f3f"
 
 [[package]]
 name = "unicode-ident"
-version = "1.0.18"
+version = "1.0.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5a5f39404a5da50712a4c1eecf25e90dd62b613502b7e925fd4e4d19b5c96512"
+checksum = "f63a545481291138910575129486daeaf8ac54aee4387fe7906919f7830c7d9d"
 
 [[package]]
 name = "unicode-width"
@@ -3469,30 +3490,40 @@ checksum = "ccf3ec651a847eb01de73ccad15eb7d99f80485de043efb2f370cd654f4ea44b"
 
 [[package]]
 name = "wasi"
-version = "0.14.3+wasi-0.2.4"
+version = "0.14.7+wasi-0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6a51ae83037bdd272a9e28ce236db8c07016dd0d50c27038b3f407533c030c95"
+checksum = "883478de20367e224c0090af9cf5f9fa85bed63a95c1abf3afc5c083ebc06e8c"
+dependencies = [
+ "wasip2",
+]
+
+[[package]]
+name = "wasip2"
+version = "1.0.1+wasi-0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0562428422c63773dad2c345a1882263bbf4d65cf3f42e90921f787ef5ad58e7"
 dependencies = [
  "wit-bindgen",
 ]
 
 [[package]]
 name = "wasm-bindgen"
-version = "0.2.100"
+version = "0.2.104"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1edc8929d7499fc4e8f0be2262a241556cfc54a0bea223790e71446f2aab1ef5"
+checksum = "c1da10c01ae9f1ae40cbfac0bac3b1e724b320abfcf52229f80b547c0d250e2d"
 dependencies = [
  "cfg-if",
  "once_cell",
  "rustversion",
  "wasm-bindgen-macro",
+ "wasm-bindgen-shared",
 ]
 
 [[package]]
 name = "wasm-bindgen-backend"
-version = "0.2.100"
+version = "0.2.104"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2f0a0651a5c2bc21487bde11ee802ccaf4c51935d0d3d42a6101f98161700bc6"
+checksum = "671c9a5a66f49d8a47345ab942e2cb93c7d1d0339065d4f8139c486121b43b19"
 dependencies = [
  "bumpalo",
  "log",
@@ -3504,9 +3535,9 @@ dependencies = [
 
 [[package]]
 name = "wasm-bindgen-macro"
-version = "0.2.100"
+version = "0.2.104"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7fe63fc6d09ed3792bd0897b314f53de8e16568c2b3f7982f468c0bf9bd0b407"
+checksum = "7ca60477e4c59f5f2986c50191cd972e3a50d8a95603bc9434501cf156a9a119"
 dependencies = [
  "quote",
  "wasm-bindgen-macro-support",
@@ -3514,9 +3545,9 @@ dependencies = [
 
 [[package]]
 name = "wasm-bindgen-macro-support"
-version = "0.2.100"
+version = "0.2.104"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8ae87ea40c9f689fc23f209965b6fb8a99ad69aeeb0231408be24920604395de"
+checksum = "9f07d2f20d4da7b26400c9f4a0511e6e0345b040694e8a75bd41d578fa4421d7"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3527,18 +3558,18 @@ dependencies = [
 
 [[package]]
 name = "wasm-bindgen-shared"
-version = "0.2.100"
+version = "0.2.104"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1a05d73b933a847d6cccdda8f838a22ff101ad9bf93e33684f39c1f5f0eece3d"
+checksum = "bad67dc8b2a1a6e5448428adec4c3e84c43e561d8c9ee8a9e5aabeb193ec41d1"
 dependencies = [
  "unicode-ident",
 ]
 
 [[package]]
 name = "web-sys"
-version = "0.3.77"
+version = "0.3.81"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "33b6dd2ef9186f1f2072e409e99cd22a975331a6b3591b12c764e0e55c60d5d2"
+checksum = "9367c417a924a74cae129e6a2ae3b47fabb1f8995595ab474029da749a8be120"
 dependencies = [
  "js-sys",
  "wasm-bindgen",
@@ -3596,6 +3627,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5e6ad25900d524eaabdbbb96d20b4311e1e7ae1699af4fb28c17ae66c80d798a"
 
 [[package]]
+name = "windows-link"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "45e46c0661abb7180e7b9c281db115305d49ca1709ab8242adf09666d2173c65"
+
+[[package]]
 name = "windows-sys"
 version = "0.52.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3623,6 +3660,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "windows-sys"
+version = "0.61.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e201184e40b2ede64bc2ea34968b28e33622acdbbf37104f0e4a33f7abe657aa"
+dependencies = [
+ "windows-link 0.2.0",
+]
+
+[[package]]
 name = "windows-targets"
 version = "0.52.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3644,7 +3690,7 @@ version = "0.53.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d5fe6031c4041849d7c496a8ded650796e7b6ecc19df1a431c1a363342e5dc91"
 dependencies = [
- "windows-link",
+ "windows-link 0.1.3",
  "windows_aarch64_gnullvm 0.53.0",
  "windows_aarch64_msvc 0.53.0",
  "windows_i686_gnu 0.53.0",
@@ -3771,9 +3817,9 @@ dependencies = [
 
 [[package]]
 name = "wit-bindgen"
-version = "0.45.0"
+version = "0.46.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "052283831dbae3d879dc7f51f3d92703a316ca49f91540417d38591826127814"
+checksum = "f17a85883d4e6d00e8a97c586de764dabcc06133f7f1d55dce5cdc070ad7fe59"
 
 [[package]]
 name = "witness"
@@ -3799,18 +3845,18 @@ dependencies = [
 
 [[package]]
 name = "zerocopy"
-version = "0.8.26"
+version = "0.8.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1039dd0d3c310cf05de012d8a39ff557cb0d23087fd44cad61df08fc31907a2f"
+checksum = "0894878a5fa3edfd6da3f88c4805f4c8558e2b996227a3d864f47fe11e38282c"
 dependencies = [
  "zerocopy-derive",
 ]
 
 [[package]]
 name = "zerocopy-derive"
-version = "0.8.26"
+version = "0.8.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9ecf5b4cc5364572d7f4c329661bcc82724222973f2cab6f050a4e5c22f75181"
+checksum = "88d2b8d9c68ad2b9e4340d7832716a4d21a22a1154777ad56ea55c51a9cf3831"
 dependencies = [
  "proc-macro2",
  "quote",
