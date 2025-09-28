@@ -114,8 +114,7 @@ pub fn iop_verifier_state_verify<C: Config>(
     let challenges: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(max_num_variables_usize.clone());
     let expected: Ext<C::F, C::EF> = builder.eval(out_claim.clone() + zero);
 
-    // _debug
-    // builder.cycle_tracker_start("IOPVerifierState::verify_round_and_update_state");
+    builder.cycle_tracker_start("IOPVerifierState::verify_round_and_update_state");
     builder
         .range(0, max_num_variables_usize.clone())
         .for_each(|i_vec, builder| {
@@ -143,8 +142,7 @@ pub fn iop_verifier_state_verify<C: Config>(
             builder.assign(&expected, p_r + zero);
             builder.set_value(&challenges, i, challenge);
         });
-    // _debug
-    // builder.cycle_tracker_end("IOPVerifierState::verify_round_and_update_state");
+    builder.cycle_tracker_end("IOPVerifierState::verify_round_and_update_state");
 
     (challenges, expected)
 }
@@ -337,8 +335,7 @@ pub fn verify_tower_proof<C: Config>(
 
             let max_degree = builder.constant(C::F::from_canonical_usize(3));
 
-            // _debug
-            // builder.cycle_tracker_start("sumcheck verify");
+            builder.cycle_tracker_start("sumcheck verify");
             let (sub_rt, sub_e) = iop_verifier_state_verify(
                 builder,
                 challenger,
@@ -348,8 +345,7 @@ pub fn verify_tower_proof<C: Config>(
                 max_degree,
                 unipoly_extrapolator,
             );
-            // _debug
-            // builder.cycle_tracker_end("sumcheck verify");
+            builder.cycle_tracker_end("sumcheck verify");
 
             builder.cycle_tracker_start("check expected evaluation");
             let eq_e = eq_eval(builder, &out_rt, &sub_rt, one, zero);
@@ -414,16 +410,14 @@ pub fn verify_tower_proof<C: Config>(
             // r_merge.len() == ceil_log2(num_product_fanin)
             transcript_observe_label(builder, challenger, b"merge");
 
-            // _debug
-            // builder.cycle_tracker_start("derive rt_prime");
+            builder.cycle_tracker_start("derive rt_prime");
             let r_merge = challenger.sample_ext(builder);
 
             let c1: Ext<<C as Config>::F, <C as Config>::EF> = builder.eval(one - r_merge.clone());
             let c2: Ext<<C as Config>::F, <C as Config>::EF> = builder.eval(r_merge.clone());
 
             let rt_prime = extend(builder, &sub_rt, &r_merge);
-            // _debug
-            // builder.cycle_tracker_end("derive rt_prime");
+            builder.cycle_tracker_end("derive rt_prime");
 
             // generate next round challenge
             transcript_observe_label(builder, challenger, b"combine subset evals");
