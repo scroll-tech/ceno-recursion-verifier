@@ -218,7 +218,12 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
             builder.set(&chip_indices, i, chip_proof.idx);
         });
 
-    for (i, (circuit_name, chip_vk)) in vk.circuit_vks.iter().enumerate() {
+    // _debug
+    // for (i, (circuit_name, chip_vk)) in vk.circuit_vks.iter().enumerate() {
+    for (i, (circuit_name, chip_vk)) in vk.circuit_vks.iter().take(1).enumerate() {
+        // _debug
+        println!("=> circuit_name: {:?}", circuit_name);
+
         let chip_id: Var<C::N> = builder.get(&chip_indices, num_chips_verified.get_var());
 
         builder.if_eq(chip_id, RVar::from(i)).then(|builder| {
