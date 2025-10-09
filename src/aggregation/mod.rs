@@ -66,10 +66,6 @@ mod tests {
             .native(Default::default())
             .castf(Default::default())
             .bigint(Default::default())
-            .modular(Default::default())
-            .fp2(Default::default())
-            .pairing(Default::default())
-            .ecc(Default::default())
             .build();
         let app_config = AppConfig::new(fri_params, vm_config);
 
