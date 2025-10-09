@@ -77,7 +77,11 @@ mod tests {
         let (agg_stark_pk, _dummy_internal_proof) =
             AggStarkProvingKey::dummy_proof_and_keygen(agg_config.agg_stark_config);
         let stark_prover: StarkProver<SdkVmConfig, BabyBearPoseidon2Engine> = StarkProver::new(app_pk, app_committed_exe, agg_stark_pk, *sdk.agg_tree_config());
-        compress_to_root_proof(stark_prover, stdin);
+
+        stark_prover.generate_proof_for_outer_recursion(stdin);
+
+        // _debug
+        // compress_to_root_proof(stark_prover, stdin);
     }
 
     #[test]
