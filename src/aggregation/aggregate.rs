@@ -171,7 +171,6 @@ pub fn compress_to_root_proof(
     */
 
     // Generate leaf proofs
-    let leaf_proofs = stark_prover.agg_prover.generate_leaf_proofs(&segmented_continuation_proof);
     let leaf_prover = stark_prover.agg_prover.leaf_prover;
 
     let mut leaf_proofs = leaf_inputs.into_iter().enumerate().map(|(leaf_node_idx, input)| {
