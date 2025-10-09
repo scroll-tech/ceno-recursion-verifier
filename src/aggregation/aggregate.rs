@@ -78,7 +78,7 @@ pub fn compress_to_root_proof(
     let leaf_inputs = LeafVmVerifierInput::chunk_continuation_vm_proof(&segmented_continuation_proof, NUM_CHILDREN);
     let leaf_layer_len = leaf_inputs.len();
 
-    /* _debug
+    // /* _debug
     // Calculate tree height
     let mut expected_height: usize = if leaf_layer_len == 1 { 0 } else { 1 };
     let mut num_layer_inputs = leaf_layer_len;
@@ -165,11 +165,10 @@ pub fn compress_to_root_proof(
             });
             prover_handles.push(handle);
         }
-
-        // TODO: Generate input for the next layer
     });
-    */
+    // */
 
+    /* _debug
     // Generate leaf proofs
     let leaf_prover = stark_prover.agg_prover.leaf_prover;
 
@@ -213,5 +212,6 @@ pub fn compress_to_root_proof(
 
     // stark_prover.agg_prover.wrap_e2e_stark_proof(root_stark_proof)
     // stark_prover.agg_prover.generate_root_proof_impl(root_verifier_input)
+    */
 }
     
