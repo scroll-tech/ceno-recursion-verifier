@@ -38,6 +38,8 @@ mod tests {
         let program = build_zkvm_verifier_program(&vk);
         let exe: VmExe<_> = program.into();
 
+        
+
         // Construct zkvm proof input
         let zkvm_proof_input = parse_zkvm_proof_import(zkvm_proof, &vk);
         let mut witness_stream: Vec<Vec<F>> = Vec::new();
@@ -68,17 +70,18 @@ mod tests {
             .bigint(Default::default())
             .build();
         let app_config = AppConfig::new(fri_params, vm_config);
-
         let sdk = Sdk::new();
         let app_committed_exe = sdk.commit_app_exe(fri_params, exe).expect("commit_app_exe");
         let app_pk = Arc::new(sdk.app_keygen(app_config).expect("app_keygen"));
-
         let agg_config = AggConfig::default();
+        
         let (agg_stark_pk, _dummy_internal_proof) =
             AggStarkProvingKey::dummy_proof_and_keygen(agg_config.agg_stark_config);
         let stark_prover: StarkProver<SdkVmConfig, BabyBearPoseidon2Engine> = StarkProver::new(app_pk, app_committed_exe, agg_stark_pk, *sdk.agg_tree_config());
 
+        /* _debug
         stark_prover.generate_proof_for_outer_recursion(stdin);
+        */
 
         // _debug
         // compress_to_root_proof(stark_prover, stdin);
@@ -86,7 +89,7 @@ mod tests {
 
     #[test]
     pub fn test_aggregation() {
-        let stack_size = 64 * 1024 * 1024; // 64 MB
+        let stack_size = 256 * 1024 * 1024; // 64 MB
 
         let handler = std::thread::Builder::new()
             .stack_size(stack_size)
