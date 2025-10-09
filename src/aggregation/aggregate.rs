@@ -89,6 +89,8 @@ pub fn compress_to_root_proof(
     let mut internal_node_idx = -1;
     let mut internal_node_height = 0;
     let mut proofs = leaf_proofs;
+
+    /* _debug
     // We will always generate at least one internal proof, even if there is only one leaf
     // proof, in order to shrink the proof size
     while proofs.len() > 1 || internal_node_height == 0 {
@@ -115,6 +117,7 @@ pub fn compress_to_root_proof(
         proof: proofs.pop().unwrap(),
         user_public_values: public_values,
     };
+    */
 
     // stark_prover.agg_prover.wrap_e2e_stark_proof(root_stark_proof)
     // stark_prover.agg_prover.generate_root_proof_impl(root_verifier_input)
