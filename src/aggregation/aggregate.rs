@@ -27,7 +27,7 @@ pub fn compress_to_root_proof(
     let aggregation_start_timestamp = Instant::now();
     // Generate the continuation proof
     let segmented_continuation_proof = stark_prover.app_prover.generate_app_proof(witness_stream.into());
-    println!("Aggreation - Generated segemented continuation proof at: {:?}", aggregation_start_timestamp.elapsed());
+    println!("Aggreation - Generated segemented (count: {:?}) continuation proof at: {:?}", segmented_continuation_proof.per_segment.len(), aggregation_start_timestamp.elapsed());
 
     let public_values = segmented_continuation_proof.user_public_values.public_values.clone();
     let leaf_inputs = LeafVmVerifierInput::chunk_continuation_vm_proof(&segmented_continuation_proof, NUM_CHILDREN);
@@ -38,7 +38,8 @@ pub fn compress_to_root_proof(
             SingleSegmentVmProver::prove(&leaf_prover, input.write_to_stream())
         })
         .collect::<Vec<_>>();
-    println!("Aggregation - Generated leaf proofs at: {:?}", aggregation_start_timestamp.elapsed());
+
+    println!("Aggregation - Generated {:?} leaf proofs at: {:?}", leaf_proofs.len(), aggregation_start_timestamp.elapsed());
 
     // Aggregate tree to root proof
     let internal_prover = stark_prover.agg_prover.internal_prover;
@@ -68,6 +69,7 @@ pub fn compress_to_root_proof(
             .collect();
         internal_node_height += 1;
     }
+    println!("Aggregation - Final height: {:?}", internal_node_height);
     
     let root_stark_proof = VmStarkProof {
         proof: proofs.pop().unwrap(),
