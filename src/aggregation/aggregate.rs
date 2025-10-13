@@ -69,6 +69,7 @@ enum RecursionInputData<SC: StarkGenericConfig> {
     Internal(InternalVmVerifierInput<SC>),
 }
 
+/* _debug
 pub fn compress_to_root_proof(
     stark_prover: StarkProver<SdkVmConfig, BabyBearPoseidon2Engine>,
     stdin: StdIn,
@@ -77,7 +78,6 @@ pub fn compress_to_root_proof(
     let public_values = segmented_continuation_proof.user_public_values.public_values.clone();
     let leaf_inputs = LeafVmVerifierInput::chunk_continuation_vm_proof(&segmented_continuation_proof, NUM_CHILDREN);
 
-    /* _debug
     // Generate leaf proofs
     let leaf_prover = stark_prover.agg_prover.leaf_prover;
 
@@ -118,9 +118,9 @@ pub fn compress_to_root_proof(
         proof: proofs.pop().unwrap(),
         user_public_values: public_values,
     };
-    */
-
+    
     // stark_prover.agg_prover.wrap_e2e_stark_proof(root_stark_proof)
     // stark_prover.agg_prover.generate_root_proof_impl(root_verifier_input)
 }
+*/
     

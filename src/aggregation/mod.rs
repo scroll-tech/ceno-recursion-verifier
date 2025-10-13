@@ -21,7 +21,9 @@ mod tests {
     use crate::e2e::{build_zkvm_verifier_program, parse_zkvm_proof_import};
     use std::fs::File;
     use std::sync::Arc;
-    use crate::aggregation::aggregate::compress_to_root_proof;
+    use std::io::Write;
+    // _debug
+    // use crate::aggregation::aggregate::compress_to_root_proof;
     use openvm_stark_sdk::engine::StarkFriEngine;
     use openvm_circuit::arch::verify_single;
     use openvm_circuit::arch::VirtualMachine;
@@ -107,9 +109,11 @@ mod tests {
             AggStarkProvingKey::dummy_proof_and_keygen(agg_stark_config);
         let stark_prover: StarkProver<SdkVmConfig, BabyBearPoseidon2Engine> = StarkProver::new(Arc::new(app_pk), app_committed_exe, agg_stark_pk, *sdk.agg_tree_config());
 
-        // _debug
-        // compress_to_root_proof(stark_prover, stdin);
-        let segmented_continuation_proof = stark_prover.app_prover.generate_app_proof(witness_stream.into());
+        let root = stark_prover.generate_proof_for_outer_recursion(witness_stream.into());
+
+        let json = serde_json::to_string(&root).unwrap();
+        let mut file = File::create("root_proof.json").expect("Root proof export");
+        file.write_all(json.as_bytes()).expect("Writing root proof");
 
         /* _debug: verify single passes
         let log_blowup = 1;
