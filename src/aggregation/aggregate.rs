@@ -77,6 +77,7 @@ pub fn compress_to_root_proof(
     let public_values = segmented_continuation_proof.user_public_values.public_values.clone();
     let leaf_inputs = LeafVmVerifierInput::chunk_continuation_vm_proof(&segmented_continuation_proof, NUM_CHILDREN);
 
+    /* _debug
     // Generate leaf proofs
     let leaf_prover = stark_prover.agg_prover.leaf_prover;
 
@@ -85,12 +86,12 @@ pub fn compress_to_root_proof(
         })
         .collect::<Vec<_>>();
 
+    
     let internal_prover = stark_prover.agg_prover.internal_prover;
     let mut internal_node_idx = -1;
     let mut internal_node_height = 0;
     let mut proofs = leaf_proofs;
 
-    /* _debug
     // We will always generate at least one internal proof, even if there is only one leaf
     // proof, in order to shrink the proof size
     while proofs.len() > 1 || internal_node_height == 0 {
