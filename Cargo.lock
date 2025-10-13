@@ -646,6 +646,7 @@ dependencies = [
  "serde_json",
  "sumcheck",
  "tracing",
+ "tracing-subscriber",
  "transcript",
  "witness",
 ]

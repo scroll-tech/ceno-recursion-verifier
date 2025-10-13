@@ -39,6 +39,8 @@ mod tests {
     const ROOT_LOG_BLOWUP: usize = 4;
 
     pub fn aggregation_inner_thread() {
+        tracing_subscriber::fmt::init();
+
         let proof_path = "./src/e2e/encoded/proof.bin";
         let vk_path = "./src/e2e/encoded/vk.bin";
 
@@ -57,11 +59,6 @@ mod tests {
         let mut witness_stream: Vec<Vec<F>> = Vec::new();
         witness_stream.extend(zkvm_proof_input.write());
 
-        // _debug
-        // let mut stdin = StdIn::default();
-        // stdin.write(&witness_stream);
-
-        
         let sdk = Sdk::new();
         let exe: VmExe<F> = program.into();
         
@@ -108,13 +105,6 @@ mod tests {
             AggStarkProvingKey::dummy_proof_and_keygen(agg_stark_config);
         let stark_prover: StarkProver<SdkVmConfig, BabyBearPoseidon2Engine> = StarkProver::new(Arc::new(app_pk), app_committed_exe, agg_stark_pk, *sdk.agg_tree_config());
         compress_to_root_proof(stark_prover, witness_stream);
-
-        /* _debug: verify single passes
-        let root = stark_prover.generate_proof_for_outer_recursion(witness_stream.into());
-        let json = serde_json::to_string(&root).unwrap();
-        let mut file = File::create("root_proof.json").expect("Root proof export");
-        file.write_all(json.as_bytes()).expect("Writing root proof");
-        */
 
         /* _debug: verify single passes
         let log_blowup = 1;

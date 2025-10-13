@@ -36,6 +36,9 @@ use std::{
     },
     thread,
 };
+use tracing::{info, info_span};
+use std::time::Duration;
+use std::thread::sleep;
 
 /// A turn-based synchronization primitive.
 pub struct TurnBasedSync {
@@ -74,45 +77,56 @@ pub fn compress_to_root_proof(
     stark_prover: StarkProver<SdkVmConfig, BabyBearPoseidon2Engine>,
     witness_stream: Vec<Vec<F>>,
 ) {
-    let segmented_continuation_proof = stark_prover.app_prover.generate_app_proof(witness_stream.into());
+    // Generate the continuation proof
+    let segmented_continuation_proof = info_span!("Compression - Generate continuation proof").in_scope(|| {
+        stark_prover.app_prover.generate_app_proof(witness_stream.into())
+    });
+
     let public_values = segmented_continuation_proof.user_public_values.public_values.clone();
     let leaf_inputs = LeafVmVerifierInput::chunk_continuation_vm_proof(&segmented_continuation_proof, NUM_CHILDREN);
 
     // Generate leaf proofs
-    let leaf_prover = stark_prover.agg_prover.leaf_prover;
+    let mut leaf_proofs = info_span!("Compression - Leaf proofs").in_scope(|| {
+        let leaf_prover = stark_prover.agg_prover.leaf_prover;
 
-    let mut leaf_proofs = leaf_inputs.into_iter().enumerate().map(|(leaf_node_idx, input)| {
-            SingleSegmentVmProver::prove(&leaf_prover, input.write_to_stream())
-        })
-        .collect::<Vec<_>>();
-
-    let internal_prover = stark_prover.agg_prover.internal_prover;
-    let mut internal_node_idx = -1;
-    let mut internal_node_height = 0;
-    let mut proofs = leaf_proofs;
-
-    // We will always generate at least one internal proof, even if there is only one leaf
-    // proof, in order to shrink the proof size
-    while proofs.len() > 1 || internal_node_height == 0 {
-        let internal_inputs = InternalVmVerifierInput::chunk_leaf_or_internal_proofs(
-            internal_prover
-                .committed_exe
-                .get_program_commit()
-                .into(),
-            &proofs,
-            stark_prover.agg_prover.num_children_internal,
-        );
-        proofs = internal_inputs
-            .into_iter()
-            .map(|input| {
-                internal_node_idx += 1;
-                // info_span!("single_internal_agg", idx = internal_node_idx,).in_scope(|| {})
-                SingleSegmentVmProver::prove(&internal_prover, input.write())
+        leaf_inputs.into_iter().enumerate().map(|(leaf_node_idx, input)| {
+                SingleSegmentVmProver::prove(&leaf_prover, input.write_to_stream())
             })
-            .collect();
-        internal_node_height += 1;
-    }
+            .collect::<Vec<_>>()
+    });
 
+    // Aggregate tree to root proof
+    let mut proofs = info_span!("Compression - Aggregated root proof").in_scope(|| {
+        let internal_prover = stark_prover.agg_prover.internal_prover;
+        let mut internal_node_idx = -1;
+        let mut internal_node_height = 0;
+        let mut proofs = leaf_proofs;
+
+        // We will always generate at least one internal proof, even if there is only one leaf
+        // proof, in order to shrink the proof size
+        while proofs.len() > 1 || internal_node_height == 0 {
+            let internal_inputs = InternalVmVerifierInput::chunk_leaf_or_internal_proofs(
+                internal_prover
+                    .committed_exe
+                    .get_program_commit()
+                    .into(),
+                &proofs,
+                stark_prover.agg_prover.num_children_internal,
+            );
+            proofs = internal_inputs
+                .into_iter()
+                .map(|input| {
+                    internal_node_idx += 1;
+                    // info_span!("single_internal_agg", idx = internal_node_idx,).in_scope(|| {})
+                    SingleSegmentVmProver::prove(&internal_prover, input.write())
+                })
+                .collect();
+            internal_node_height += 1;
+        }
+
+        proofs
+    });
+    
     let root_stark_proof = VmStarkProof {
         proof: proofs.pop().unwrap(),
         user_public_values: public_values,
