@@ -17,7 +17,7 @@ use openvm_continuations::verifier::{
     root::types::RootVmVerifierInput,
 };
 use openvm_native_recursion::hints::Hintable;
-const NUM_CHILDREN: usize = 2;
+const NUM_CHILDREN: usize = 1;
 use std::time::Instant;
 
 pub fn compress_to_root_proof(
