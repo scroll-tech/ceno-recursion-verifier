@@ -86,7 +86,6 @@ pub fn compress_to_root_proof(
         })
         .collect::<Vec<_>>();
 
-    /* _debug
     let internal_prover = stark_prover.agg_prover.internal_prover;
     let mut internal_node_idx = -1;
     let mut internal_node_height = 0;
@@ -118,8 +117,7 @@ pub fn compress_to_root_proof(
         proof: proofs.pop().unwrap(),
         user_public_values: public_values,
     };
-    */
-    
+
     // stark_prover.agg_prover.wrap_e2e_stark_proof(root_stark_proof)
     // stark_prover.agg_prover.generate_root_proof_impl(root_verifier_input)
 }
