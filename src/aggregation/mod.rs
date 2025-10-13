@@ -72,7 +72,7 @@ mod tests {
         let vm_config = SdkVmConfig::builder()
             .system(SdkSystemConfig {
                 config: SystemConfig::default()
-                    .with_max_segment_len(200)
+                    .with_max_segment_len(1000000)
                     .with_continuations()
                     .with_public_values(NUM_PUB_VALUES),
             })
