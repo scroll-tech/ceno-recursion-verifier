@@ -3,6 +3,7 @@ use openvm_stark_backend::proof::Proof;
 use openvm_stark_sdk::config::baby_bear_poseidon2::{BabyBearPoseidon2Engine, BabyBearPermutationConfig};
 use openvm_stark_sdk::engine::StarkFriEngine;
 use p3_baby_bear::Poseidon2BabyBear;
+use crate::zkvm_verifier::binding::{E, F};
 use openvm_circuit::arch::{SingleSegmentVmExecutor, VirtualMachine};
 use openvm_sdk::{
     config::{AggConfig, AppConfig, SdkVmConfig}, Sdk, StdIn,
@@ -69,12 +70,11 @@ enum RecursionInputData<SC: StarkGenericConfig> {
     Internal(InternalVmVerifierInput<SC>),
 }
 
-/* _debug
 pub fn compress_to_root_proof(
     stark_prover: StarkProver<SdkVmConfig, BabyBearPoseidon2Engine>,
-    stdin: StdIn,
+    witness_stream: Vec<Vec<F>>,
 ) {
-    let segmented_continuation_proof = stark_prover.app_prover.generate_app_proof(stdin);
+    let segmented_continuation_proof = stark_prover.app_prover.generate_app_proof(witness_stream.into());
     let public_values = segmented_continuation_proof.user_public_values.public_values.clone();
     let leaf_inputs = LeafVmVerifierInput::chunk_continuation_vm_proof(&segmented_continuation_proof, NUM_CHILDREN);
 
@@ -86,7 +86,7 @@ pub fn compress_to_root_proof(
         })
         .collect::<Vec<_>>();
 
-    
+    /* _debug
     let internal_prover = stark_prover.agg_prover.internal_prover;
     let mut internal_node_idx = -1;
     let mut internal_node_height = 0;
@@ -118,9 +118,9 @@ pub fn compress_to_root_proof(
         proof: proofs.pop().unwrap(),
         user_public_values: public_values,
     };
+    */
     
     // stark_prover.agg_prover.wrap_e2e_stark_proof(root_stark_proof)
     // stark_prover.agg_prover.generate_root_proof_impl(root_verifier_input)
 }
-*/
     
