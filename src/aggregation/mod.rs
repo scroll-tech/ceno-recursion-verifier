@@ -8,11 +8,10 @@ mod tests {
     use mpcs::{Basefold, BasefoldRSParams};
     use openvm_stark_sdk::config::{
         baby_bear_poseidon2::BabyBearPoseidon2Engine,
-        fri_params::standard_fri_params_with_100_bits_conjectured_security,
         FriParameters,
     };
     use openvm_sdk::{
-        config::{AggConfig, AppConfig, SdkVmConfig, AggStarkConfig}, Sdk, StdIn,
+        config::{AppConfig, SdkVmConfig, AggStarkConfig}, Sdk,
         keygen::AggStarkProvingKey,
         prover::StarkProver,
     };
@@ -21,13 +20,14 @@ mod tests {
     use crate::e2e::{build_zkvm_verifier_program, parse_zkvm_proof_import};
     use std::fs::File;
     use std::sync::Arc;
-    use std::io::Write;
     use crate::aggregation::aggregate::compress_to_root_proof;
+    use openvm_native_compiler::{conversion::CompilerOptions};
+    /* _debug: single proof verification
     use openvm_stark_sdk::engine::StarkFriEngine;
     use openvm_circuit::arch::verify_single;
     use openvm_circuit::arch::VirtualMachine;
     use openvm_native_circuit::{Native, NativeConfig};
-    use openvm_native_compiler::{conversion::CompilerOptions, prelude::*};
+    */
 
     use openvm_sdk::{
         config::SdkSystemConfig,
@@ -63,7 +63,6 @@ mod tests {
         let exe: VmExe<F> = program.into();
         
         let app_log_blowup: usize = 1;
-        let leaf_log_blowup: usize = 2;
         let app_fri_params = FriParameters::new_for_testing(app_log_blowup);
         let leaf_fri_params = FriParameters::new_for_testing(LEAF_LOG_BLOWUP);
 
@@ -101,7 +100,7 @@ mod tests {
             root_max_constraint_degree: (1 << ROOT_LOG_BLOWUP) + 1,
         };
 
-        let (agg_stark_pk, dummy_internal_proof) =
+        let (agg_stark_pk, _dummy_internal_proof) =
             AggStarkProvingKey::dummy_proof_and_keygen(agg_stark_config);
         let stark_prover: StarkProver<SdkVmConfig, BabyBearPoseidon2Engine> = StarkProver::new(Arc::new(app_pk), app_committed_exe, agg_stark_pk, *sdk.agg_tree_config());
         compress_to_root_proof(stark_prover, witness_stream);
