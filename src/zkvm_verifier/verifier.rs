@@ -358,7 +358,6 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
         });
     }
 
-    /* _debug
     builder.assert_usize_eq(num_chips_have_fixed, Usize::from(num_fixed_opening));
     builder.assert_eq::<Usize<_>>(num_chips_verified, chip_indices.len());
 
@@ -434,7 +433,6 @@ pub fn verify_zkvm_proof<C: Config<F = F>>(
     // logup check
     let zero: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
     builder.assert_ext_eq(logup_sum, zero);
-    */
 }
 
 pub fn verify_opcode_proof<C: Config>(
