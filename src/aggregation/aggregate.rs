@@ -30,7 +30,7 @@ pub fn compress_to_root_proof(
     let aggregation_start_timestamp = Instant::now();
     // Generate the continuation proof
     let segmented_continuation_proof = stark_prover.app_prover.generate_app_proof(witness_stream.into());
-    println!("Aggreation - Generated segemented (count: {:?}) continuation proof at: {:?}", segmented_continuation_proof.per_segment.len(), aggregation_start_timestamp.elapsed());
+    println!("Aggregation - Generated segemented (count: {:?}) continuation proof at: {:?}", segmented_continuation_proof.per_segment.len(), aggregation_start_timestamp.elapsed());
 
     // _debug: export
     let json = serde_json::to_string_pretty(&segmented_continuation_proof).unwrap();
