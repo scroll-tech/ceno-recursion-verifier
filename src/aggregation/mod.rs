@@ -39,8 +39,6 @@ mod tests {
     const ROOT_LOG_BLOWUP: usize = 4;
 
     pub fn aggregation_inner_thread() {
-        tracing_subscriber::fmt::init();
-
         let proof_path = "./src/e2e/encoded/proof.bin";
         let vk_path = "./src/e2e/encoded/vk.bin";
 
