@@ -19,7 +19,7 @@ use openvm_continuations::verifier::{
 use std::fs::File;
 use std::io::Write;
 use openvm_native_recursion::hints::Hintable;
-const NUM_CHILDREN: usize = 2;  // _debug: param
+const NUM_CHILDREN: usize = 1;  // _debug: param
 const NUM_CHILDREN_INTERNAL: usize = 2;
 use std::time::Instant;
 
@@ -70,7 +70,8 @@ pub fn compress_to_root_proof(
                 .get_program_commit()
                 .into(),
             &proofs,
-            stark_prover.agg_prover.num_children_internal,
+            NUM_CHILDREN_INTERNAL,
+            // stark_prover.agg_prover.num_children_internal,   // _debug: param
         );
         proofs = internal_inputs
             .into_iter()

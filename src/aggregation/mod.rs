@@ -67,7 +67,7 @@ mod tests {
         let vm_config = SdkVmConfig::builder()
             .system(SdkSystemConfig {
                 config: SystemConfig::default()
-                    // .with_max_segment_len(500000)    // _debug: param
+                    .with_max_segment_len(500000)    // _debug: param
                     .with_continuations()
                     .with_public_values(NUM_PUB_VALUES),
             })
