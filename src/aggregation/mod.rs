@@ -33,7 +33,7 @@ mod tests {
         config::SdkSystemConfig,
     };
 
-    const NUM_PUB_VALUES: usize = 16;
+    const NUM_PUB_VALUES: usize = 32;
     const LEAF_LOG_BLOWUP: usize = 2;
     const INTERNAL_LOG_BLOWUP: usize = 3;
     const ROOT_LOG_BLOWUP: usize = 4;
