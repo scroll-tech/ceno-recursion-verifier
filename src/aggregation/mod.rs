@@ -58,15 +58,7 @@ mod tests {
 
         let sdk = Sdk::new();
         let exe: VmExe<F> = program.into();
-        
-        // let app_log_blowup: usize = 1;
-        // let app_fri_params = FriParameters::new_for_testing(app_log_blowup);
-        // let leaf_fri_params = FriParameters::new_for_testing(LEAF_LOG_BLOWUP);
 
-        // let mut app_config =
-        //     AppConfig::new_with_leaf_fri_params(app_fri_params, vm_config, leaf_fri_params);
-
-        // let app_vm_config = Rv32ImConfig::with_public_values_and_segment_len(NUM_PUB_VALUES, 4_000_000);
         let app_vm_config = SdkVmConfig::builder()
             .system(SdkSystemConfig {
                 config: SystemConfig::default()
@@ -74,9 +66,6 @@ mod tests {
                     .with_continuations()
                     .with_public_values(NUM_PUB_VALUES),
             })
-            // .rv32i(Default::default())
-            // .rv32m(Default::default())
-            // .io(Default::default())
             .native(Default::default())
             .build();
 
@@ -98,25 +87,6 @@ mod tests {
         let app_pk = Arc::new(sdk.app_keygen(app_config).expect("app_keygen"));
         let app_committed_exe = commit_app_exe(app_pk.app_fri_params(), exe);
         
-        // _debug
-        // let app_committed_exe = sdk
-        //     .commit_app_exe(app_fri_params, exe)
-        //     .expect("failed to commit exe");
-        // let app_pk = sdk.app_keygen(app_config).unwrap();
-
-        // let agg_stark_config = AggStarkConfig {
-        //     max_num_user_public_values: NUM_PUB_VALUES,
-        //     leaf_fri_params: FriParameters::new_for_testing(LEAF_LOG_BLOWUP),
-        //     internal_fri_params: FriParameters::new_for_testing(INTERNAL_LOG_BLOWUP),
-        //     root_fri_params: FriParameters::new_for_testing(ROOT_LOG_BLOWUP),
-        //     profiling: false,
-        //     compiler_options: CompilerOptions {
-        //         enable_cycle_tracker: false,
-        //         ..Default::default()
-        //     },
-        //     root_max_constraint_degree: (1 << ROOT_LOG_BLOWUP) + 1,
-        // };
-
         let [leaf_fri_params, internal_fri_params, root_fri_params] =
             [DEFAULT_LEAF_LOG_BLOWUP, DEFAULT_INTERNAL_LOG_BLOWUP, DEFAULT_ROOT_LOG_BLOWUP]
                 .map(FriParameters::standard_with_100_bits_conjectured_security);
