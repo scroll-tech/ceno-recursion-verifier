@@ -95,7 +95,7 @@ mod tests {
             root_fri_params: FriParameters::new_for_testing(ROOT_LOG_BLOWUP),
             profiling: false,
             compiler_options: CompilerOptions {
-                enable_cycle_tracker: true,
+                enable_cycle_tracker: false,
                 ..Default::default()
             },
             root_max_constraint_degree: (1 << ROOT_LOG_BLOWUP) + 1,
