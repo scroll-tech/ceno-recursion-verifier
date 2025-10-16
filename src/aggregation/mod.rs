@@ -63,22 +63,23 @@ mod tests {
         // let app_fri_params = FriParameters::new_for_testing(app_log_blowup);
         // let leaf_fri_params = FriParameters::new_for_testing(LEAF_LOG_BLOWUP);
 
-        // let vm_config = SdkVmConfig::builder()
-        //     .system(SdkSystemConfig {
-        //         config: SystemConfig::default()
-        //             // .with_max_segment_len(500000)    // _debug: param
-        //             // .with_continuations()
-        //             .with_public_values(NUM_PUB_VALUES),
-        //     })
-        //     .rv32i(Default::default())
-        //     .rv32m(Default::default())
-        //     .io(Default::default())
-        //     .native(Default::default())
-        //     .build();
         // let mut app_config =
         //     AppConfig::new_with_leaf_fri_params(app_fri_params, vm_config, leaf_fri_params);
 
-        let app_vm_config = Rv32ImConfig::with_public_values_and_segment_len(NUM_PUB_VALUES, 4_000_000);
+        // let app_vm_config = Rv32ImConfig::with_public_values_and_segment_len(NUM_PUB_VALUES, 4_000_000);
+        let app_vm_config = SdkVmConfig::builder()
+            .system(SdkSystemConfig {
+                config: SystemConfig::default()
+                    // .with_max_segment_len(500000)    // _debug: param
+                    .with_continuations()
+                    .with_public_values(NUM_PUB_VALUES),
+            })
+            // .rv32i(Default::default())
+            // .rv32m(Default::default())
+            // .io(Default::default())
+            .native(Default::default())
+            .build();
+
         let app_config = AppConfig {
             app_fri_params: FriParameters::standard_with_100_bits_conjectured_security(
                 DEFAULT_APP_LOG_BLOWUP,
@@ -136,7 +137,7 @@ mod tests {
         let (agg_stark_pk, _dummy_internal_proof) =
             AggStarkProvingKey::dummy_proof_and_keygen(agg_stark_config);
 
-        let stark_prover: StarkProver<Rv32ImConfig, BabyBearPoseidon2Engine> = StarkProver::new(app_pk, app_committed_exe, agg_stark_pk, *sdk.agg_tree_config());
+        let stark_prover: StarkProver<SdkVmConfig, BabyBearPoseidon2Engine> = StarkProver::new(app_pk, app_committed_exe, agg_stark_pk, *sdk.agg_tree_config());
         compress_to_root_proof(stark_prover, witness_stream);
 
         /* _debug: verify single passes
