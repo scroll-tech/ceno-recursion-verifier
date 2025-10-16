@@ -47,7 +47,7 @@ pub fn compress_to_root_proof(
     let mut file = File::create("segmented_continuation_proof.json").expect("Create export proof file");
     file.write_all(json.as_bytes()).expect("Export proof");
 
-    /* _debug
+    
     let public_values = segmented_continuation_proof.user_public_values.public_values.clone();
     let leaf_inputs = LeafVmVerifierInput::chunk_continuation_vm_proof(&segmented_continuation_proof, NUM_CHILDREN);
 
@@ -114,9 +114,9 @@ pub fn compress_to_root_proof(
 
     println!("Aggregation - Completed root proof: {:?}", aggregation_start_timestamp.elapsed());
 
+    /* _debug
     // stark_prover.agg_prover.wrap_e2e_stark_proof(root_stark_proof)
     // stark_prover.agg_prover.generate_root_proof_impl(root_verifier_input)
-
     */
 }
     
