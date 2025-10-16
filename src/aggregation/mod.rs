@@ -28,6 +28,7 @@ mod tests {
     use openvm_circuit::arch::VirtualMachine;
     use openvm_native_circuit::{Native, NativeConfig};
     */
+    use openvm_stark_sdk::config::setup_tracing_with_log_level;
 
     use openvm_sdk::{
         config::SdkSystemConfig,
@@ -39,6 +40,8 @@ mod tests {
     const ROOT_LOG_BLOWUP: usize = 4;
 
     pub fn aggregation_inner_thread() {
+        setup_tracing_with_log_level(tracing::Level::WARN);
+
         let proof_path = "./src/e2e/encoded/proof.bin";
         let vk_path = "./src/e2e/encoded/vk.bin";
 
