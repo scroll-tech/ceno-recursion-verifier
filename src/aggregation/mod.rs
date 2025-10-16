@@ -11,9 +11,7 @@ mod tests {
         FriParameters,
     };
     use openvm_sdk::{
-        config::{AppConfig, SdkVmConfig, AggStarkConfig}, Sdk,
-        keygen::AggStarkProvingKey,
-        prover::StarkProver,
+        config::{AggStarkConfig, AppConfig, SdkVmConfig, SdkSystemConfig, DEFAULT_APP_LOG_BLOWUP, DEFAULT_LEAF_LOG_BLOWUP, DEFAULT_INTERNAL_LOG_BLOWUP, DEFAULT_ROOT_LOG_BLOWUP}, keygen::AggStarkProvingKey, prover::StarkProver, Sdk
     };
     use openvm_circuit::arch::{instructions::exe::VmExe, SystemConfig};
     use openvm_native_recursion::hints::Hintable;
@@ -30,10 +28,6 @@ mod tests {
     use openvm_native_circuit::{Native, NativeConfig};
     */
     use openvm_stark_sdk::config::setup_tracing_with_log_level;
-
-    use openvm_sdk::{
-        config::SdkSystemConfig, config::{DEFAULT_LEAF_LOG_BLOWUP, DEFAULT_INTERNAL_LOG_BLOWUP, DEFAULT_ROOT_LOG_BLOWUP}
-    };
     use openvm_rv32im_circuit::Rv32ImConfig;
 
     const NUM_PUB_VALUES: usize = 32;
@@ -65,7 +59,7 @@ mod tests {
         let sdk = Sdk::new();
         let exe: VmExe<F> = program.into();
         
-        let app_log_blowup: usize = 1;
+        // let app_log_blowup: usize = 1;
         // let app_fri_params = FriParameters::new_for_testing(app_log_blowup);
         // let leaf_fri_params = FriParameters::new_for_testing(LEAF_LOG_BLOWUP);
 
@@ -87,12 +81,12 @@ mod tests {
         let app_vm_config = Rv32ImConfig::with_public_values_and_segment_len(NUM_PUB_VALUES, 4_000_000);
         let app_config = AppConfig {
             app_fri_params: FriParameters::standard_with_100_bits_conjectured_security(
-                app_log_blowup,
+                DEFAULT_APP_LOG_BLOWUP,
             )
             .into(),
             app_vm_config,
             leaf_fri_params: FriParameters::standard_with_100_bits_conjectured_security(
-                LEAF_LOG_BLOWUP,
+                DEFAULT_LEAF_LOG_BLOWUP,
             )
             .into(),
             compiler_options: CompilerOptions {
