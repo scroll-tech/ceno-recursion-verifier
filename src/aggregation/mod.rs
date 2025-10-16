@@ -11,7 +11,7 @@ mod tests {
         FriParameters,
     };
     use openvm_sdk::{
-        config::{AggStarkConfig, AppConfig, SdkVmConfig, SdkSystemConfig, DEFAULT_APP_LOG_BLOWUP, DEFAULT_LEAF_LOG_BLOWUP, DEFAULT_INTERNAL_LOG_BLOWUP, DEFAULT_ROOT_LOG_BLOWUP}, keygen::AggStarkProvingKey, prover::StarkProver, Sdk
+        config::{AggStarkConfig, AppConfig, SdkVmConfig, SdkSystemConfig}, keygen::AggStarkProvingKey, prover::StarkProver, Sdk
     };
     use openvm_circuit::arch::{instructions::exe::VmExe, SystemConfig};
     use openvm_native_recursion::hints::Hintable;
@@ -31,6 +31,7 @@ mod tests {
     use openvm_rv32im_circuit::Rv32ImConfig;
 
     const NUM_PUB_VALUES: usize = 32;
+    const APP_LOG_BLOWUP: usize = 1;
     const LEAF_LOG_BLOWUP: usize = 2;
     const INTERNAL_LOG_BLOWUP: usize = 3;
     const ROOT_LOG_BLOWUP: usize = 4;
@@ -71,12 +72,12 @@ mod tests {
 
         let app_config = AppConfig {
             app_fri_params: FriParameters::standard_with_100_bits_conjectured_security(
-                DEFAULT_APP_LOG_BLOWUP,
+                APP_LOG_BLOWUP,
             )
             .into(),
             app_vm_config,
             leaf_fri_params: FriParameters::standard_with_100_bits_conjectured_security(
-                DEFAULT_LEAF_LOG_BLOWUP,
+                LEAF_LOG_BLOWUP,
             )
             .into(),
             compiler_options: CompilerOptions {
@@ -88,7 +89,7 @@ mod tests {
         let app_committed_exe = commit_app_exe(app_pk.app_fri_params(), exe);
         
         let [leaf_fri_params, internal_fri_params, root_fri_params] =
-            [DEFAULT_LEAF_LOG_BLOWUP, DEFAULT_INTERNAL_LOG_BLOWUP, DEFAULT_ROOT_LOG_BLOWUP]
+            [LEAF_LOG_BLOWUP, INTERNAL_LOG_BLOWUP, ROOT_LOG_BLOWUP]
                 .map(FriParameters::standard_with_100_bits_conjectured_security);
 
         let agg_stark_config = AggStarkConfig {
