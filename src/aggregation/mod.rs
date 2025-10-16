@@ -90,7 +90,7 @@ mod tests {
             leaf_fri_params: FriParameters::new_for_testing(LEAF_LOG_BLOWUP),
             internal_fri_params: FriParameters::new_for_testing(INTERNAL_LOG_BLOWUP),
             root_fri_params: FriParameters::new_for_testing(ROOT_LOG_BLOWUP),
-            profiling: false,
+            profiling: true,
             compiler_options: CompilerOptions {
                 enable_cycle_tracker: true,
                 ..Default::default()
