@@ -28,6 +28,16 @@ pub fn compress_to_root_proof(
     witness_stream: Vec<Vec<F>>,
 ) {
     let aggregation_start_timestamp = Instant::now();
+
+    // Non-continuous base proof
+    let base_proof = stark_prover.app_prover.generate_app_proof_without_continuations(witness_stream.into());
+    println!("Aggregation - Generated non-continuous base proof at: {:?}", aggregation_start_timestamp.elapsed());
+
+    let json = serde_json::to_string_pretty(&base_proof).unwrap();
+    let mut file = File::create("base_proof.json").expect("Create export proof file");
+    file.write_all(json.as_bytes()).expect("Export proof");
+    
+    /* _debug
     // Generate the continuation proof
     let segmented_continuation_proof = stark_prover.app_prover.generate_app_proof(witness_stream.into());
     println!("Aggregation - Generated segemented (count: {:?}) continuation proof at: {:?}", segmented_continuation_proof.per_segment.len(), aggregation_start_timestamp.elapsed());
@@ -105,5 +115,7 @@ pub fn compress_to_root_proof(
 
     // stark_prover.agg_prover.wrap_e2e_stark_proof(root_stark_proof)
     // stark_prover.agg_prover.generate_root_proof_impl(root_verifier_input)
+
+    */
 }
     

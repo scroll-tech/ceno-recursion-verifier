@@ -71,7 +71,7 @@ mod tests {
             .system(SdkSystemConfig {
                 config: SystemConfig::default()
                     // .with_max_segment_len(500000)    // _debug: param
-                    .with_continuations()
+                    // .with_continuations()
                     .with_public_values(NUM_PUB_VALUES),
             })
             .rv32i(Default::default())
