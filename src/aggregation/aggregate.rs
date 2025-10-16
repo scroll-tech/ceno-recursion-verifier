@@ -16,6 +16,7 @@ use openvm_continuations::verifier::{
     leaf::types::LeafVmVerifierInput,
     root::types::RootVmVerifierInput,
 };
+use openvm_rv32im_circuit::Rv32ImConfig;
 use std::fs::File;
 use std::io::Write;
 use openvm_native_recursion::hints::Hintable;
@@ -24,7 +25,7 @@ const NUM_CHILDREN_INTERNAL: usize = 2;
 use std::time::Instant;
 
 pub fn compress_to_root_proof(
-    stark_prover: StarkProver<SdkVmConfig, BabyBearPoseidon2Engine>,
+    stark_prover: StarkProver<Rv32ImConfig, BabyBearPoseidon2Engine>,
     witness_stream: Vec<Vec<F>>,
 ) {
     let aggregation_start_timestamp = Instant::now();

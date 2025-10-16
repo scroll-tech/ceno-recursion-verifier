@@ -22,6 +22,7 @@ mod tests {
     use std::sync::Arc;
     use crate::aggregation::aggregate::compress_to_root_proof;
     use openvm_native_compiler::{conversion::CompilerOptions};
+    use openvm_sdk::commit::commit_app_exe;
     /* _debug: single proof verification
     use openvm_stark_sdk::engine::StarkFriEngine;
     use openvm_circuit::arch::verify_single;
@@ -31,8 +32,9 @@ mod tests {
     use openvm_stark_sdk::config::setup_tracing_with_log_level;
 
     use openvm_sdk::{
-        config::SdkSystemConfig,
+        config::SdkSystemConfig, config::{DEFAULT_LEAF_LOG_BLOWUP, DEFAULT_INTERNAL_LOG_BLOWUP, DEFAULT_ROOT_LOG_BLOWUP}
     };
+    use openvm_rv32im_circuit::Rv32ImConfig;
 
     const NUM_PUB_VALUES: usize = 32;
     const LEAF_LOG_BLOWUP: usize = 2;
@@ -64,46 +66,83 @@ mod tests {
         let exe: VmExe<F> = program.into();
         
         let app_log_blowup: usize = 1;
-        let app_fri_params = FriParameters::new_for_testing(app_log_blowup);
-        let leaf_fri_params = FriParameters::new_for_testing(LEAF_LOG_BLOWUP);
+        // let app_fri_params = FriParameters::new_for_testing(app_log_blowup);
+        // let leaf_fri_params = FriParameters::new_for_testing(LEAF_LOG_BLOWUP);
 
-        let vm_config = SdkVmConfig::builder()
-            .system(SdkSystemConfig {
-                config: SystemConfig::default()
-                    // .with_max_segment_len(500000)    // _debug: param
-                    // .with_continuations()
-                    .with_public_values(NUM_PUB_VALUES),
-            })
-            .rv32i(Default::default())
-            .rv32m(Default::default())
-            .io(Default::default())
-            .native(Default::default())
-            .build();
-        let mut app_config =
-            AppConfig::new_with_leaf_fri_params(app_fri_params, vm_config, leaf_fri_params);
-        app_config.compiler_options.enable_cycle_tracker = true;
+        // let vm_config = SdkVmConfig::builder()
+        //     .system(SdkSystemConfig {
+        //         config: SystemConfig::default()
+        //             // .with_max_segment_len(500000)    // _debug: param
+        //             // .with_continuations()
+        //             .with_public_values(NUM_PUB_VALUES),
+        //     })
+        //     .rv32i(Default::default())
+        //     .rv32m(Default::default())
+        //     .io(Default::default())
+        //     .native(Default::default())
+        //     .build();
+        // let mut app_config =
+        //     AppConfig::new_with_leaf_fri_params(app_fri_params, vm_config, leaf_fri_params);
 
-        let app_committed_exe = sdk
-            .commit_app_exe(app_fri_params, exe)
-            .expect("failed to commit exe");
-        let app_pk = sdk.app_keygen(app_config).unwrap();
+        let app_vm_config = Rv32ImConfig::with_public_values_and_segment_len(NUM_PUB_VALUES, 4_000_000);
+        let app_config = AppConfig {
+            app_fri_params: FriParameters::standard_with_100_bits_conjectured_security(
+                app_log_blowup,
+            )
+            .into(),
+            app_vm_config,
+            leaf_fri_params: FriParameters::standard_with_100_bits_conjectured_security(
+                LEAF_LOG_BLOWUP,
+            )
+            .into(),
+            compiler_options: CompilerOptions {
+                enable_cycle_tracker: false,
+                ..Default::default()
+            },
+        };
+        let app_pk = Arc::new(sdk.app_keygen(app_config).expect("app_keygen"));
+        let app_committed_exe = commit_app_exe(app_pk.app_fri_params(), exe);
+        
+        // _debug
+        // let app_committed_exe = sdk
+        //     .commit_app_exe(app_fri_params, exe)
+        //     .expect("failed to commit exe");
+        // let app_pk = sdk.app_keygen(app_config).unwrap();
+
+        // let agg_stark_config = AggStarkConfig {
+        //     max_num_user_public_values: NUM_PUB_VALUES,
+        //     leaf_fri_params: FriParameters::new_for_testing(LEAF_LOG_BLOWUP),
+        //     internal_fri_params: FriParameters::new_for_testing(INTERNAL_LOG_BLOWUP),
+        //     root_fri_params: FriParameters::new_for_testing(ROOT_LOG_BLOWUP),
+        //     profiling: false,
+        //     compiler_options: CompilerOptions {
+        //         enable_cycle_tracker: false,
+        //         ..Default::default()
+        //     },
+        //     root_max_constraint_degree: (1 << ROOT_LOG_BLOWUP) + 1,
+        // };
+
+        let [leaf_fri_params, internal_fri_params, root_fri_params] =
+            [DEFAULT_LEAF_LOG_BLOWUP, DEFAULT_INTERNAL_LOG_BLOWUP, DEFAULT_ROOT_LOG_BLOWUP]
+                .map(FriParameters::standard_with_100_bits_conjectured_security);
 
         let agg_stark_config = AggStarkConfig {
-            max_num_user_public_values: NUM_PUB_VALUES,
-            leaf_fri_params: FriParameters::new_for_testing(LEAF_LOG_BLOWUP),
-            internal_fri_params: FriParameters::new_for_testing(INTERNAL_LOG_BLOWUP),
-            root_fri_params: FriParameters::new_for_testing(ROOT_LOG_BLOWUP),
+            leaf_fri_params,
+            internal_fri_params,
+            root_fri_params,
             profiling: false,
             compiler_options: CompilerOptions {
                 enable_cycle_tracker: false,
                 ..Default::default()
             },
-            root_max_constraint_degree: (1 << ROOT_LOG_BLOWUP) + 1,
+            root_max_constraint_degree: root_fri_params.max_constraint_degree(),
+            ..Default::default()
         };
 
         let (agg_stark_pk, _dummy_internal_proof) =
             AggStarkProvingKey::dummy_proof_and_keygen(agg_stark_config);
-        let stark_prover: StarkProver<SdkVmConfig, BabyBearPoseidon2Engine> = StarkProver::new(Arc::new(app_pk), app_committed_exe, agg_stark_pk, *sdk.agg_tree_config());
+
+        let stark_prover: StarkProver<Rv32ImConfig, BabyBearPoseidon2Engine> = StarkProver::new(app_pk, app_committed_exe, agg_stark_pk, *sdk.agg_tree_config());
         compress_to_root_proof(stark_prover, witness_stream);
 
         /* _debug: verify single passes

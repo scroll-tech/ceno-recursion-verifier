@@ -12,6 +12,7 @@ openvm-native-compiler = { git = "https://github.com/scroll-tech/openvm.git", br
 openvm-native-compiler-derive = { git = "https://github.com/scroll-tech/openvm.git", branch = "feat/native_sumcheck_layer_eval", default-features = false }
 openvm-native-recursion = { git = "https://github.com/scroll-tech/openvm.git", branch = "feat/native_sumcheck_layer_eval", default-features = false }
 openvm-continuations = { git = "https://github.com/scroll-tech/openvm.git", branch = "feat/native_sumcheck_layer_eval", default-features = false }
+openvm-rv32im-circuit = { git = "https://github.com/scroll-tech/openvm.git", branch = "feat/native_sumcheck_layer_eval", default-features = false }
 
 # openvm = { path = "../openvm-scroll-tech/crates/toolchain/openvm", default-features = false }
 # openvm-circuit = { path = "../openvm-scroll-tech/crates/vm", default-features = false, features = ["bench-metrics"] }
@@ -21,6 +22,7 @@ openvm-continuations = { git = "https://github.com/scroll-tech/openvm.git", bran
 # openvm-native-compiler-derive = { path = "../openvm-scroll-tech/extensions/native/compiler/derive", default-features = false }
 # openvm-native-recursion = { path = "../openvm-scroll-tech/extensions/native/recursion", default-features = false }
 # openvm-continuations = { path = "../openvm-scroll-tech/crates/continuations", default-features = false }
+# openvm-rv32im-circuit = { path = "../openvm-scroll-tech/extensions/rv32im/circuit", default-features = false }
 
 openvm-stark-backend = { git = "https://github.com/openvm-org/stark-backend.git", tag = "v1.1.1", default-features = false }
 openvm-stark-sdk = { git = "https://github.com/openvm-org/stark-backend.git", tag = "v1.1.1", default-features = false }
