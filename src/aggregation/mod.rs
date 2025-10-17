@@ -11,7 +11,7 @@ mod tests {
         FriParameters,
     };
     use openvm_sdk::{
-        config::{AggStarkConfig, AppConfig, SdkVmConfig, SdkSystemConfig}, keygen::AggStarkProvingKey, prover::StarkProver, Sdk
+        config::{AggStarkConfig, AppConfig, SdkVmConfig, SdkSystemConfig, DEFAULT_APP_LOG_BLOWUP, DEFAULT_LEAF_LOG_BLOWUP, DEFAULT_INTERNAL_LOG_BLOWUP, DEFAULT_ROOT_LOG_BLOWUP}, keygen::AggStarkProvingKey, prover::StarkProver, Sdk
     };
     use openvm_circuit::arch::{instructions::exe::VmExe, SystemConfig};
     use openvm_native_recursion::hints::Hintable;
@@ -32,9 +32,9 @@ mod tests {
 
     const NUM_PUB_VALUES: usize = 32;
     const APP_LOG_BLOWUP: usize = 1;
-    const LEAF_LOG_BLOWUP: usize = 2;
-    const INTERNAL_LOG_BLOWUP: usize = 3;
-    const ROOT_LOG_BLOWUP: usize = 4;
+    const LEAF_LOG_BLOWUP: usize = 1;
+    const INTERNAL_LOG_BLOWUP: usize = 2;
+    const ROOT_LOG_BLOWUP: usize = 3;
 
     pub fn aggregation_inner_thread() {
         setup_tracing_with_log_level(tracing::Level::WARN);
