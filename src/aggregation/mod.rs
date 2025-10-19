@@ -22,6 +22,7 @@ mod tests {
     use std::sync::Arc;
     use crate::aggregation::aggregate::compress_to_root_proof;
     use openvm_native_compiler::{conversion::CompilerOptions};
+    use openvm_stark_sdk::config::setup_tracing_with_log_level;
     /* _debug: single proof verification
     use openvm_stark_sdk::engine::StarkFriEngine;
     use openvm_circuit::arch::verify_single;
@@ -39,6 +40,8 @@ mod tests {
     const ROOT_LOG_BLOWUP: usize = 4;
 
     pub fn aggregation_inner_thread() {
+        setup_tracing_with_log_level(tracing::Level::WARN);
+
         let proof_path = "./src/e2e/encoded/proof.bin";
         let vk_path = "./src/e2e/encoded/vk.bin";
 
