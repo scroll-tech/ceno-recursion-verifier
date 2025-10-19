@@ -81,7 +81,7 @@ mod tests {
             .build();
         let mut app_config =
             AppConfig::new_with_leaf_fri_params(app_fri_params, vm_config, leaf_fri_params);
-        app_config.compiler_options.enable_cycle_tracker = true;
+        // app_config.compiler_options.enable_cycle_tracker = true;
 
         let app_committed_exe = sdk
             .commit_app_exe(app_fri_params, exe)
@@ -95,7 +95,7 @@ mod tests {
             root_fri_params: FriParameters::new_for_testing(ROOT_LOG_BLOWUP),
             profiling: false,
             compiler_options: CompilerOptions {
-                enable_cycle_tracker: true,
+                enable_cycle_tracker: false,
                 ..Default::default()
             },
             root_max_constraint_degree: (1 << ROOT_LOG_BLOWUP) + 1,
