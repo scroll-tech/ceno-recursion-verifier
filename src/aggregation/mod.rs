@@ -35,9 +35,9 @@ mod tests {
     };
 
     const NUM_PUB_VALUES: usize = 32;
-    const LEAF_LOG_BLOWUP: usize = 2;
-    const INTERNAL_LOG_BLOWUP: usize = 3;
-    const ROOT_LOG_BLOWUP: usize = 4;
+    const LEAF_LOG_BLOWUP: usize = 1;
+    const INTERNAL_LOG_BLOWUP: usize = 2;
+    const ROOT_LOG_BLOWUP: usize = 3;
 
     pub fn aggregation_inner_thread() {
         setup_tracing_with_log_level(tracing::Level::WARN);
