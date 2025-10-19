@@ -33,7 +33,7 @@ pub fn compress_to_root_proof(
     println!("Aggregation - Generated segemented (count: {:?}) continuation proof at: {:?}", segmented_continuation_proof.per_segment.len(), aggregation_start_timestamp.elapsed());
 
     // _debug: export
-    let json = serde_json::to_string_pretty(&segmented_continuation_proof).unwrap();
+    let json = serde_json::to_string(&segmented_continuation_proof).unwrap();
     let mut file = File::create("segmented_continuation_proof.json").expect("Create export proof file");
     file.write_all(json.as_bytes()).expect("Export proof");
 
@@ -50,7 +50,7 @@ pub fn compress_to_root_proof(
 
     // _debug: export
     leaf_proofs.iter().enumerate().for_each(|(idx, p)| {
-        let json = serde_json::to_string_pretty(p).unwrap();
+        let json = serde_json::to_string(p).unwrap();
         let mut file = File::create(format!("leaf_proof_{:?}.json", idx)).expect("Create export proof file");
         file.write_all(json.as_bytes()).expect("Export proof");
     });
@@ -80,7 +80,7 @@ pub fn compress_to_root_proof(
                 println!("Aggregation - Completed internal node (idx: {:?}) at height {:?}: {:?}", internal_node_idx, internal_node_height, aggregation_start_timestamp.elapsed());
 
                 // _debug: export
-                let json = serde_json::to_string_pretty(&internal_proof).unwrap();
+                let json = serde_json::to_string(&internal_proof).unwrap();
                 let mut file = File::create(format!("internal_proof_{:?}_height_{:?}.json", internal_node_idx, internal_node_height)).expect("Create export proof file");
                 file.write_all(json.as_bytes()).expect("Export proof");
 
@@ -97,7 +97,7 @@ pub fn compress_to_root_proof(
     };
 
     // _debug: export
-    let json = serde_json::to_string_pretty(&root_stark_proof).unwrap();
+    let json = serde_json::to_string(&root_stark_proof).unwrap();
     let mut file = File::create("root_proof_with_public_values.json").expect("Create export proof file");
     file.write_all(json.as_bytes()).expect("Export proof");
 
