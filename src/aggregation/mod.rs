@@ -74,9 +74,6 @@ mod tests {
                     .with_continuations()
                     .with_public_values(NUM_PUB_VALUES),
             })
-            .rv32i(Default::default())
-            .rv32m(Default::default())
-            .io(Default::default())
             .native(Default::default())
             .build();
         let mut app_config =
