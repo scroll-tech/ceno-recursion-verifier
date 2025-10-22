@@ -6,6 +6,7 @@ mod tests {
     use ceno_zkvm::scheme::ZKVMProof;
     use ceno_zkvm::structs::ZKVMVerifyingKey;
     use mpcs::{Basefold, BasefoldRSParams};
+    use openvm_native_circuit::NativeConfig;
     use openvm_stark_sdk::config::{
         baby_bear_poseidon2::BabyBearPoseidon2Engine,
         FriParameters,
@@ -35,6 +36,7 @@ mod tests {
     const LEAF_LOG_BLOWUP: usize = 1;
     const INTERNAL_LOG_BLOWUP: usize = 2;
     const ROOT_LOG_BLOWUP: usize = 3;
+    const SBOX_SIZE: usize = 7;
 
     pub fn aggregation_inner_thread() {
         setup_tracing_with_log_level(tracing::Level::WARN);
@@ -60,21 +62,24 @@ mod tests {
         let sdk = Sdk::new();
         let exe: VmExe<F> = program.into();
 
-        let app_vm_config = SdkVmConfig::builder()
-            .system(SdkSystemConfig {
-                config: SystemConfig::default()
-                    // .with_max_segment_len(500000)    // _debug: param
-                    .with_continuations()
-                    .with_public_values(NUM_PUB_VALUES),
-            })
-            .native(Default::default())
-            .build();
+        let app_fri_params = FriParameters::standard_with_100_bits_conjectured_security(APP_LOG_BLOWUP);
+        let app_vm_config = NativeConfig::app(
+            NUM_PUB_VALUES,
+            SBOX_SIZE.min(app_fri_params.max_constraint_degree()),
+        );
+        
+        // SdkVmConfig::builder()
+        //     .system(SdkSystemConfig {
+        //         config: SystemConfig::default()
+        //             // .with_max_segment_len(500000)    // _debug: param
+        //             .with_continuations()
+        //             .with_public_values(NUM_PUB_VALUES),
+        //     })
+        //     .native(Default::default())
+        //     .build();
 
         let app_config = AppConfig {
-            app_fri_params: FriParameters::standard_with_100_bits_conjectured_security(
-                APP_LOG_BLOWUP,
-            )
-            .into(),
+            app_fri_params: app_fri_params.into(),
             app_vm_config,
             leaf_fri_params: FriParameters::standard_with_100_bits_conjectured_security(
                 LEAF_LOG_BLOWUP,
@@ -85,7 +90,7 @@ mod tests {
                 ..Default::default()
             },
         };
-        let app_pk = Arc::new(sdk.app_keygen(app_config).expect("app_keygen"));
+        let app_pk = Arc::new(sdk.app_keygen(app_config.clone()).expect("app_keygen"));
         let app_committed_exe = commit_app_exe(app_pk.app_fri_params(), exe);
         
         let [leaf_fri_params, internal_fri_params, root_fri_params] =
@@ -106,9 +111,9 @@ mod tests {
         };
 
         let (agg_stark_pk, _dummy_internal_proof) =
-            AggStarkProvingKey::dummy_proof_and_keygen(agg_stark_config);
+            AggStarkProvingKey::dummy_proof_and_keygen(agg_stark_config, app_config);
 
-        let stark_prover: StarkProver<SdkVmConfig, BabyBearPoseidon2Engine> = StarkProver::new(app_pk, app_committed_exe, agg_stark_pk, *sdk.agg_tree_config());
+        let stark_prover: StarkProver<NativeConfig, BabyBearPoseidon2Engine> = StarkProver::new(app_pk, app_committed_exe, agg_stark_pk, *sdk.agg_tree_config());
         compress_to_root_proof(stark_prover, witness_stream);
 
         /* _debug: verify single passes

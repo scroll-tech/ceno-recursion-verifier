@@ -5,3 +5,4 @@ vm_run_output.log
 *.log
 build/ceno
 *.bin
+*.json

@@ -1,3 +1,4 @@
+use openvm_native_circuit::NativeConfig;
 use openvm_stark_backend::config::StarkGenericConfig;
 use openvm_stark_backend::proof::Proof;
 use openvm_stark_sdk::config::baby_bear_poseidon2::{BabyBearPoseidon2Engine, BabyBearPermutationConfig};
@@ -25,19 +26,11 @@ const NUM_CHILDREN_INTERNAL: usize = 2;
 use std::time::Instant;
 
 pub fn compress_to_root_proof(
-    stark_prover: StarkProver<SdkVmConfig, BabyBearPoseidon2Engine>,
+    stark_prover: StarkProver<NativeConfig, BabyBearPoseidon2Engine>,
     witness_stream: Vec<Vec<F>>,
 ) {
     let aggregation_start_timestamp = Instant::now();
 
-    // Non-continuous base proof
-    // let base_proof = stark_prover.app_prover.generate_app_proof_without_continuations(witness_stream.into());
-    // println!("Aggregation - Generated non-continuous base proof at: {:?}", aggregation_start_timestamp.elapsed());
-
-    // let json = serde_json::to_string(&base_proof).unwrap();
-    // let mut file = File::create("base_proof.json").expect("Create export proof file");
-    // file.write_all(json.as_bytes()).expect("Export proof");
-    
     // Generate the continuation proof
     let segmented_continuation_proof = stark_prover.app_prover.generate_app_proof(witness_stream.into());
     println!("Aggregation - Generated segemented (count: {:?}) continuation proof at: {:?}", segmented_continuation_proof.per_segment.len(), aggregation_start_timestamp.elapsed());
@@ -47,30 +40,12 @@ pub fn compress_to_root_proof(
     let mut file = File::create("segmented_continuation_proof.json").expect("Create export proof file");
     file.write_all(json.as_bytes()).expect("Export proof");
 
-    
-    let public_values = segmented_continuation_proof.user_public_values.public_values.clone();
-    let leaf_inputs = LeafVmVerifierInput::chunk_continuation_vm_proof(&segmented_continuation_proof, NUM_CHILDREN);
-
-    // Generate leaf proofs
-    let leaf_prover = stark_prover.agg_prover.leaf_prover;
-    let mut leaf_proofs = leaf_inputs.into_iter().enumerate().map(|(leaf_node_idx, input)| {
-            SingleSegmentVmProver::prove(&leaf_prover, input.write_to_stream())
-        })
-        .collect::<Vec<_>>();
-    println!("Aggregation - Generated {:?} leaf proofs at: {:?}", leaf_proofs.len(), aggregation_start_timestamp.elapsed());
-
-    // _debug: export
-    leaf_proofs.iter().enumerate().for_each(|(idx, p)| {
-        let json = serde_json::to_string(p).unwrap();
-        let mut file = File::create(format!("leaf_proof_{:?}.json", idx)).expect("Create export proof file");
-        file.write_all(json.as_bytes()).expect("Export proof");
-    });
-
     // Aggregate tree to root proof
     let internal_prover = stark_prover.agg_prover.internal_prover;
     let mut internal_node_idx = -1;
     let mut internal_node_height = 0;
-    let mut proofs = leaf_proofs;
+    let public_values = segmented_continuation_proof.user_public_values.public_values.clone();
+    let mut proofs = segmented_continuation_proof.per_segment;
 
     // We will always generate at least one internal proof, even if there is only one leaf
     // proof, in order to shrink the proof size
