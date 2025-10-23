@@ -67,16 +67,6 @@ mod tests {
             NUM_PUB_VALUES,
             SBOX_SIZE.min(app_fri_params.max_constraint_degree()),
         );
-        
-        // SdkVmConfig::builder()
-        //     .system(SdkSystemConfig {
-        //         config: SystemConfig::default()
-        //             // .with_max_segment_len(500000)    // _debug: param
-        //             .with_continuations()
-        //             .with_public_values(NUM_PUB_VALUES),
-        //     })
-        //     .native(Default::default())
-        //     .build();
 
         let app_config = AppConfig {
             app_fri_params: app_fri_params.into(),
