@@ -45,12 +45,14 @@ pub fn compress_to_root_proof(
     let mut internal_node_idx = -1;
     let mut internal_node_height = 0;
     let public_values = segmented_continuation_proof.user_public_values.public_values.clone();
-    let mut proofs = segmented_continuation_proof.per_segment;
+    let mut proofs = segmented_continuation_proof.per_segment.clone();
 
     // We will always generate at least one internal proof, even if there is only one leaf
     // proof, in order to shrink the proof size
     while proofs.len() > 1 || internal_node_height == 0 {
         let internal_inputs = InternalVmVerifierInput::chunk_leaf_or_internal_proofs(
+            (internal_node_height == 0),
+            &segmented_continuation_proof,
             internal_prover
                 .committed_exe
                 .get_program_commit()
