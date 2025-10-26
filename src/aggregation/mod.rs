@@ -1,11 +1,13 @@
 pub mod aggregate;
+pub mod scheme;
 
 #[cfg(test)]
 mod tests {
-    use crate::zkvm_verifier::binding::{E, F};
+    use crate::{aggregation::scheme::{CenoLeafVmVerifierConfig, RecursionProvingKeys}, zkvm_verifier::binding::{E, F}};
     use ceno_zkvm::scheme::ZKVMProof;
     use ceno_zkvm::structs::ZKVMVerifyingKey;
     use mpcs::{Basefold, BasefoldRSParams};
+    use openvm_native_circuit::NativeConfig;
     use openvm_stark_sdk::config::{
         baby_bear_poseidon2::BabyBearPoseidon2Engine,
         FriParameters,
@@ -29,12 +31,43 @@ mod tests {
     */
     use openvm_stark_sdk::config::setup_tracing_with_log_level;
     use openvm_rv32im_circuit::Rv32ImConfig;
+    use openvm_circuit::system::program::trace::VmCommittedExe;
+    use openvm_sdk::{
+    config::AggregationTreeConfig,
+    prover::{
+        vm::{local::VmLocalProver, SingleSegmentVmProver},
+        RootVerifierLocalProver,
+    },
+    NonRootCommittedExe, RootSC, SC,
+};
+
+    use openvm_circuit::{
+        arch::{
+            ExecutionBridge, InitFileGenerator, MemoryConfig, SystemPort, VmExtension,
+            VmInventory, VmInventoryBuilder, VmInventoryError,
+        },
+        system::phantom::PhantomChip,
+    };
+    use openvm_stark_sdk::{
+        config::{
+            baby_bear_poseidon2_root::BabyBearPoseidon2RootEngine,
+        },
+        engine::StarkFriEngine,
+        openvm_stark_backend::{
+            config::{Com, StarkGenericConfig},
+            keygen::types::MultiStarkVerifyingKey,
+            proof::Proof,
+            Chip,
+        },
+        p3_bn254_fr::Bn254Fr,
+    };
 
     const NUM_PUB_VALUES: usize = 32;
     const APP_LOG_BLOWUP: usize = 1;
     const LEAF_LOG_BLOWUP: usize = 1;
     const INTERNAL_LOG_BLOWUP: usize = 2;
     const ROOT_LOG_BLOWUP: usize = 3;
+    const SBOX_SIZE: usize = 7;
 
     pub fn aggregation_inner_thread() {
         setup_tracing_with_log_level(tracing::Level::WARN);
@@ -50,7 +83,7 @@ mod tests {
             bincode::deserialize_from(File::open(vk_path).expect("Failed to open vk file"))
                 .expect("Failed to deserialize vk file");
 
-        let program = build_zkvm_verifier_program(&vk);
+        // let program = build_zkvm_verifier_program(&vk);
         
         // Construct zkvm proof input
         let zkvm_proof_input = parse_zkvm_proof_import(zkvm_proof, &vk);
@@ -58,58 +91,77 @@ mod tests {
         witness_stream.extend(zkvm_proof_input.write());
 
         let sdk = Sdk::new();
-        let exe: VmExe<F> = program.into();
+        // let exe: VmExe<F> = program.into();
 
-        let app_vm_config = SdkVmConfig::builder()
-            .system(SdkSystemConfig {
-                config: SystemConfig::default()
-                    // .with_max_segment_len(500000)    // _debug: param
-                    .with_continuations()
-                    .with_public_values(NUM_PUB_VALUES),
-            })
-            .native(Default::default())
-            .build();
+        // let app_vm_config = SdkVmConfig::builder()
+        //     .system(SdkSystemConfig {
+        //         config: SystemConfig::default()
+        //             // .with_max_segment_len(500000)    // _debug: param
+        //             .with_continuations()
+        //             .with_public_values(NUM_PUB_VALUES),
+        //     })
+        //     .native(Default::default())
+        //     .build();
 
-        let app_config = AppConfig {
-            app_fri_params: FriParameters::standard_with_100_bits_conjectured_security(
-                APP_LOG_BLOWUP,
-            )
-            .into(),
-            app_vm_config,
-            leaf_fri_params: FriParameters::standard_with_100_bits_conjectured_security(
-                LEAF_LOG_BLOWUP,
-            )
-            .into(),
-            compiler_options: CompilerOptions {
-                enable_cycle_tracker: false,
-                ..Default::default()
-            },
-        };
-        let app_pk = Arc::new(sdk.app_keygen(app_config).expect("app_keygen"));
-        let app_committed_exe = commit_app_exe(app_pk.app_fri_params(), exe);
+        // let app_config = AppConfig {
+        //     app_fri_params: FriParameters::standard_with_100_bits_conjectured_security(
+        //         APP_LOG_BLOWUP,
+        //     )
+        //     .into(),
+        //     app_vm_config,
+        //     leaf_fri_params: FriParameters::standard_with_100_bits_conjectured_security(
+        //         LEAF_LOG_BLOWUP,
+        //     )
+        //     .into(),
+        //     compiler_options: CompilerOptions {
+        //         enable_cycle_tracker: false,
+        //         ..Default::default()
+        //     },
+        // };
         
         let [leaf_fri_params, internal_fri_params, root_fri_params] =
             [LEAF_LOG_BLOWUP, INTERNAL_LOG_BLOWUP, ROOT_LOG_BLOWUP]
                 .map(FriParameters::standard_with_100_bits_conjectured_security);
 
-        let agg_stark_config = AggStarkConfig {
-            leaf_fri_params,
-            internal_fri_params,
-            root_fri_params,
-            profiling: false,
-            compiler_options: CompilerOptions {
-                enable_cycle_tracker: false,
-                ..Default::default()
-            },
-            root_max_constraint_degree: root_fri_params.max_constraint_degree(),
-            ..Default::default()
+        let leaf_vm_config = NativeConfig {
+            system: SystemConfig::new(
+                SBOX_SIZE.min(leaf_fri_params.max_constraint_degree()),
+                MemoryConfig {
+                    max_access_adapter_n: 16,
+                    ..Default::default()
+                },
+                NUM_PUB_VALUES,
+            )
+            .with_max_segment_len((1 << 24) - 100),
+            native: Default::default(),
         };
 
-        let (agg_stark_pk, _dummy_internal_proof) =
-            AggStarkProvingKey::dummy_proof_and_keygen(agg_stark_config);
+        let leaf_committed_exe = {
+            let leaf_engine = BabyBearPoseidon2Engine::new(leaf_fri_params);
+            let leaf_program = CenoLeafVmVerifierConfig {
+                vk,
+                compiler_options: CompilerOptions::default(),
+            }
+            .build_program();
 
-        let stark_prover: StarkProver<SdkVmConfig, BabyBearPoseidon2Engine> = StarkProver::new(app_pk, app_committed_exe, agg_stark_pk, *sdk.agg_tree_config());
-        compress_to_root_proof(stark_prover, witness_stream);
+            Arc::new(VmCommittedExe::commit(
+                leaf_program.into(),
+                leaf_engine.config.pcs(),
+            ))
+        };
+
+        let recursion_proving_keys = RecursionProvingKeys::keygen(leaf_fri_params, leaf_vm_config);
+
+        let leaf_prover = VmLocalProver::<SC, NativeConfig, BabyBearPoseidon2Engine>::new(recursion_proving_keys.ceno_leaf_vm_pk, leaf_committed_exe);
+        let leaf_proof = SingleSegmentVmProver::prove(&leaf_prover, witness_stream);
+
+
+
+
+        // let app_pk = Arc::new(sdk.app_keygen(app_config).expect("app_keygen"));
+        // let app_committed_exe = commit_app_exe(app_pk.app_fri_params(), exe);
+        // let stark_prover: StarkProver<SdkVmConfig, BabyBearPoseidon2Engine> = StarkProver::new(app_pk, app_committed_exe, agg_stark_pk, *sdk.agg_tree_config());
+        // compress_to_root_proof(stark_prover, witness_stream);
 
         /* _debug: verify single passes
         let log_blowup = 1;

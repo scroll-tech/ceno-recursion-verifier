@@ -28,6 +28,7 @@ pub fn compress_to_root_proof(
     stark_prover: StarkProver<SdkVmConfig, BabyBearPoseidon2Engine>,
     witness_stream: Vec<Vec<F>>,
 ) {
+    /* _debug
     let aggregation_start_timestamp = Instant::now();
 
     // Non-continuous base proof
@@ -117,6 +118,8 @@ pub fn compress_to_root_proof(
     /* _debug
     // stark_prover.agg_prover.wrap_e2e_stark_proof(root_stark_proof)
     // stark_prover.agg_prover.generate_root_proof_impl(root_verifier_input)
+    */
+
     */
 }
     
