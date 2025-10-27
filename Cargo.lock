@@ -588,9 +588,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.2.41"
+version = "1.2.43"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ac9fe6cdbb24b6ade63616c0a0688e45bb56732262c158df3c0c4bea4ca47cb7"
+checksum = "739eb0f94557554b3ca9a86d2d37bebd49c5e6d0c1d2bda35ba5bdac830befc2"
 dependencies = [
  "find-msvc-tools",
  "shlex",
@@ -717,7 +717,7 @@ dependencies = [
  "derive",
  "either",
  "ff_ext",
- "generic-array 1.3.4",
+ "generic-array 1.3.5",
  "generic_static",
  "gkr_iop",
  "glob",
@@ -1065,9 +1065,9 @@ dependencies = [
 
 [[package]]
 name = "deranged"
-version = "0.5.4"
+version = "0.5.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a41953f86f8a05768a6cda24def994fd2f424b04ec5c719cf89989779f199071"
+checksum = "ececcb659e7ba858fb4f10388c250a7252eb0a27373f1a72b8748afdd248e587"
 dependencies = [
  "powerfmt",
  "serde_core",
@@ -1424,9 +1424,9 @@ dependencies = [
 
 [[package]]
 name = "generic-array"
-version = "1.3.4"
+version = "1.3.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "985a5578ebdb02351d484a77fb27e7cb79272f1ba9bc24692d8243c3cfe40660"
+checksum = "eaf57c49a95fd1fe24b90b3033bee6dc7e8f1288d51494cb44e627c295e38542"
 dependencies = [
  "rustversion",
  "serde_core",
@@ -2342,7 +2342,7 @@ checksum = "384b8ab6d37215f3c5301a95a4accb5d64aa607f1fcb26a11b5303878451b4fe"
 [[package]]
 name = "openvm"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#2a4331b7026c4b61db4ca4da2f5d241376137c45"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fceno_leaves#caec16ae3bebef4390c6382095d86ae70b2936c0"
 dependencies = [
  "bytemuck",
  "num-bigint 0.4.6",
@@ -2355,7 +2355,7 @@ dependencies = [
 [[package]]
 name = "openvm-algebra-circuit"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#2a4331b7026c4b61db4ca4da2f5d241376137c45"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fceno_leaves#caec16ae3bebef4390c6382095d86ae70b2936c0"
 dependencies = [
  "derive-new 0.6.0",
  "derive_more 1.0.0",
@@ -2384,7 +2384,7 @@ dependencies = [
 [[package]]
 name = "openvm-algebra-complex-macros"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#2a4331b7026c4b61db4ca4da2f5d241376137c45"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fceno_leaves#caec16ae3bebef4390c6382095d86ae70b2936c0"
 dependencies = [
  "openvm-macros-common",
  "quote",
@@ -2394,7 +2394,7 @@ dependencies = [
 [[package]]
 name = "openvm-algebra-guest"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#2a4331b7026c4b61db4ca4da2f5d241376137c45"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fceno_leaves#caec16ae3bebef4390c6382095d86ae70b2936c0"
 dependencies = [
  "halo2curves-axiom",
  "num-bigint 0.4.6",
@@ -2410,7 +2410,7 @@ dependencies = [
 [[package]]
 name = "openvm-algebra-moduli-macros"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#2a4331b7026c4b61db4ca4da2f5d241376137c45"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fceno_leaves#caec16ae3bebef4390c6382095d86ae70b2936c0"
 dependencies = [
  "num-bigint 0.4.6",
  "num-prime",
@@ -2422,7 +2422,7 @@ dependencies = [
 [[package]]
 name = "openvm-algebra-transpiler"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#2a4331b7026c4b61db4ca4da2f5d241376137c45"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fceno_leaves#caec16ae3bebef4390c6382095d86ae70b2936c0"
 dependencies = [
  "openvm-algebra-guest",
  "openvm-instructions",
@@ -2436,7 +2436,7 @@ dependencies = [
 [[package]]
 name = "openvm-bigint-circuit"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#2a4331b7026c4b61db4ca4da2f5d241376137c45"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fceno_leaves#caec16ae3bebef4390c6382095d86ae70b2936c0"
 dependencies = [
  "derive-new 0.6.0",
  "derive_more 1.0.0",
@@ -2458,7 +2458,7 @@ dependencies = [
 [[package]]
 name = "openvm-bigint-guest"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#2a4331b7026c4b61db4ca4da2f5d241376137c45"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fceno_leaves#caec16ae3bebef4390c6382095d86ae70b2936c0"
 dependencies = [
  "openvm-platform",
  "strum_macros",
@@ -2467,7 +2467,7 @@ dependencies = [
 [[package]]
 name = "openvm-bigint-transpiler"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#2a4331b7026c4b61db4ca4da2f5d241376137c45"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fceno_leaves#caec16ae3bebef4390c6382095d86ae70b2936c0"
 dependencies = [
  "openvm-bigint-guest",
  "openvm-instructions",
@@ -2482,7 +2482,7 @@ dependencies = [
 [[package]]
 name = "openvm-build"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#2a4331b7026c4b61db4ca4da2f5d241376137c45"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fceno_leaves#caec16ae3bebef4390c6382095d86ae70b2936c0"
 dependencies = [
  "cargo_metadata",
  "eyre",
@@ -2494,7 +2494,7 @@ dependencies = [
 [[package]]
 name = "openvm-circuit"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#2a4331b7026c4b61db4ca4da2f5d241376137c45"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fceno_leaves#caec16ae3bebef4390c6382095d86ae70b2936c0"
 dependencies = [
  "backtrace",
  "cfg-if",
@@ -2525,7 +2525,7 @@ dependencies = [
 [[package]]
 name = "openvm-circuit-derive"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#2a4331b7026c4b61db4ca4da2f5d241376137c45"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fceno_leaves#caec16ae3bebef4390c6382095d86ae70b2936c0"
 dependencies = [
  "itertools 0.14.0",
  "quote",
@@ -2535,7 +2535,7 @@ dependencies = [
 [[package]]
 name = "openvm-circuit-primitives"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#2a4331b7026c4b61db4ca4da2f5d241376137c45"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fceno_leaves#caec16ae3bebef4390c6382095d86ae70b2936c0"
 dependencies = [
  "derive-new 0.6.0",
  "itertools 0.14.0",
@@ -2550,7 +2550,7 @@ dependencies = [
 [[package]]
 name = "openvm-circuit-primitives-derive"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#2a4331b7026c4b61db4ca4da2f5d241376137c45"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fceno_leaves#caec16ae3bebef4390c6382095d86ae70b2936c0"
 dependencies = [
  "itertools 0.14.0",
  "quote",
@@ -2560,7 +2560,7 @@ dependencies = [
 [[package]]
 name = "openvm-continuations"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#2a4331b7026c4b61db4ca4da2f5d241376137c45"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fceno_leaves#caec16ae3bebef4390c6382095d86ae70b2936c0"
 dependencies = [
  "derivative",
  "openvm-circuit",
@@ -2575,7 +2575,7 @@ dependencies = [
 [[package]]
 name = "openvm-custom-insn"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#2a4331b7026c4b61db4ca4da2f5d241376137c45"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fceno_leaves#caec16ae3bebef4390c6382095d86ae70b2936c0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2585,7 +2585,7 @@ dependencies = [
 [[package]]
 name = "openvm-ecc-circuit"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#2a4331b7026c4b61db4ca4da2f5d241376137c45"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fceno_leaves#caec16ae3bebef4390c6382095d86ae70b2936c0"
 dependencies = [
  "derive-new 0.6.0",
  "derive_more 1.0.0",
@@ -2613,7 +2613,7 @@ dependencies = [
 [[package]]
 name = "openvm-ecc-guest"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#2a4331b7026c4b61db4ca4da2f5d241376137c45"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fceno_leaves#caec16ae3bebef4390c6382095d86ae70b2936c0"
 dependencies = [
  "ecdsa",
  "elliptic-curve",
@@ -2632,7 +2632,7 @@ dependencies = [
 [[package]]
 name = "openvm-ecc-sw-macros"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#2a4331b7026c4b61db4ca4da2f5d241376137c45"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fceno_leaves#caec16ae3bebef4390c6382095d86ae70b2936c0"
 dependencies = [
  "openvm-macros-common",
  "quote",
@@ -2642,7 +2642,7 @@ dependencies = [
 [[package]]
 name = "openvm-ecc-transpiler"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#2a4331b7026c4b61db4ca4da2f5d241376137c45"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fceno_leaves#caec16ae3bebef4390c6382095d86ae70b2936c0"
 dependencies = [
  "openvm-ecc-guest",
  "openvm-instructions",
@@ -2656,7 +2656,7 @@ dependencies = [
 [[package]]
 name = "openvm-instructions"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#2a4331b7026c4b61db4ca4da2f5d241376137c45"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fceno_leaves#caec16ae3bebef4390c6382095d86ae70b2936c0"
 dependencies = [
  "backtrace",
  "derive-new 0.6.0",
@@ -2673,7 +2673,7 @@ dependencies = [
 [[package]]
 name = "openvm-instructions-derive"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#2a4331b7026c4b61db4ca4da2f5d241376137c45"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fceno_leaves#caec16ae3bebef4390c6382095d86ae70b2936c0"
 dependencies = [
  "quote",
  "syn 2.0.108",
@@ -2682,7 +2682,7 @@ dependencies = [
 [[package]]
 name = "openvm-keccak256-circuit"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#2a4331b7026c4b61db4ca4da2f5d241376137c45"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fceno_leaves#caec16ae3bebef4390c6382095d86ae70b2936c0"
 dependencies = [
  "derive-new 0.6.0",
  "derive_more 1.0.0",
@@ -2708,7 +2708,7 @@ dependencies = [
 [[package]]
 name = "openvm-keccak256-guest"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#2a4331b7026c4b61db4ca4da2f5d241376137c45"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fceno_leaves#caec16ae3bebef4390c6382095d86ae70b2936c0"
 dependencies = [
  "openvm-platform",
 ]
@@ -2716,7 +2716,7 @@ dependencies = [
 [[package]]
 name = "openvm-keccak256-transpiler"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#2a4331b7026c4b61db4ca4da2f5d241376137c45"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fceno_leaves#caec16ae3bebef4390c6382095d86ae70b2936c0"
 dependencies = [
  "openvm-instructions",
  "openvm-instructions-derive",
@@ -2730,7 +2730,7 @@ dependencies = [
 [[package]]
 name = "openvm-macros-common"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#2a4331b7026c4b61db4ca4da2f5d241376137c45"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fceno_leaves#caec16ae3bebef4390c6382095d86ae70b2936c0"
 dependencies = [
  "syn 2.0.108",
 ]
@@ -2738,7 +2738,7 @@ dependencies = [
 [[package]]
 name = "openvm-mod-circuit-builder"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#2a4331b7026c4b61db4ca4da2f5d241376137c45"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fceno_leaves#caec16ae3bebef4390c6382095d86ae70b2936c0"
 dependencies = [
  "itertools 0.14.0",
  "num-bigint 0.4.6",
@@ -2757,7 +2757,7 @@ dependencies = [
 [[package]]
 name = "openvm-native-circuit"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#2a4331b7026c4b61db4ca4da2f5d241376137c45"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fceno_leaves#caec16ae3bebef4390c6382095d86ae70b2936c0"
 dependencies = [
  "derive-new 0.6.0",
  "derive_more 1.0.0",
@@ -2784,7 +2784,7 @@ dependencies = [
 [[package]]
 name = "openvm-native-compiler"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#2a4331b7026c4b61db4ca4da2f5d241376137c45"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fceno_leaves#caec16ae3bebef4390c6382095d86ae70b2936c0"
 dependencies = [
  "backtrace",
  "itertools 0.14.0",
@@ -2806,7 +2806,7 @@ dependencies = [
 [[package]]
 name = "openvm-native-compiler-derive"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#2a4331b7026c4b61db4ca4da2f5d241376137c45"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fceno_leaves#caec16ae3bebef4390c6382095d86ae70b2936c0"
 dependencies = [
  "quote",
  "syn 2.0.108",
@@ -2815,7 +2815,7 @@ dependencies = [
 [[package]]
 name = "openvm-native-recursion"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#2a4331b7026c4b61db4ca4da2f5d241376137c45"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fceno_leaves#caec16ae3bebef4390c6382095d86ae70b2936c0"
 dependencies = [
  "cfg-if",
  "itertools 0.14.0",
@@ -2839,7 +2839,7 @@ dependencies = [
 [[package]]
 name = "openvm-native-transpiler"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#2a4331b7026c4b61db4ca4da2f5d241376137c45"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fceno_leaves#caec16ae3bebef4390c6382095d86ae70b2936c0"
 dependencies = [
  "openvm-instructions",
  "openvm-transpiler",
@@ -2849,7 +2849,7 @@ dependencies = [
 [[package]]
 name = "openvm-pairing-circuit"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#2a4331b7026c4b61db4ca4da2f5d241376137c45"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fceno_leaves#caec16ae3bebef4390c6382095d86ae70b2936c0"
 dependencies = [
  "derive-new 0.6.0",
  "derive_more 1.0.0",
@@ -2880,7 +2880,7 @@ dependencies = [
 [[package]]
 name = "openvm-pairing-guest"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#2a4331b7026c4b61db4ca4da2f5d241376137c45"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fceno_leaves#caec16ae3bebef4390c6382095d86ae70b2936c0"
 dependencies = [
  "halo2curves-axiom",
  "hex-literal",
@@ -2901,7 +2901,7 @@ dependencies = [
 [[package]]
 name = "openvm-pairing-transpiler"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#2a4331b7026c4b61db4ca4da2f5d241376137c45"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fceno_leaves#caec16ae3bebef4390c6382095d86ae70b2936c0"
 dependencies = [
  "openvm-instructions",
  "openvm-instructions-derive",
@@ -2915,7 +2915,7 @@ dependencies = [
 [[package]]
 name = "openvm-platform"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#2a4331b7026c4b61db4ca4da2f5d241376137c45"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fceno_leaves#caec16ae3bebef4390c6382095d86ae70b2936c0"
 dependencies = [
  "libm",
  "openvm-custom-insn",
@@ -2925,7 +2925,7 @@ dependencies = [
 [[package]]
 name = "openvm-poseidon2-air"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#2a4331b7026c4b61db4ca4da2f5d241376137c45"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fceno_leaves#caec16ae3bebef4390c6382095d86ae70b2936c0"
 dependencies = [
  "derivative",
  "lazy_static",
@@ -2942,7 +2942,7 @@ dependencies = [
 [[package]]
 name = "openvm-rv32-adapters"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#2a4331b7026c4b61db4ca4da2f5d241376137c45"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fceno_leaves#caec16ae3bebef4390c6382095d86ae70b2936c0"
 dependencies = [
  "derive-new 0.6.0",
  "itertools 0.14.0",
@@ -2962,7 +2962,7 @@ dependencies = [
 [[package]]
 name = "openvm-rv32im-circuit"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#2a4331b7026c4b61db4ca4da2f5d241376137c45"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fceno_leaves#caec16ae3bebef4390c6382095d86ae70b2936c0"
 dependencies = [
  "derive-new 0.6.0",
  "derive_more 1.0.0",
@@ -2985,7 +2985,7 @@ dependencies = [
 [[package]]
 name = "openvm-rv32im-guest"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#2a4331b7026c4b61db4ca4da2f5d241376137c45"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fceno_leaves#caec16ae3bebef4390c6382095d86ae70b2936c0"
 dependencies = [
  "openvm-custom-insn",
  "p3-field",
@@ -2995,7 +2995,7 @@ dependencies = [
 [[package]]
 name = "openvm-rv32im-transpiler"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#2a4331b7026c4b61db4ca4da2f5d241376137c45"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fceno_leaves#caec16ae3bebef4390c6382095d86ae70b2936c0"
 dependencies = [
  "openvm-instructions",
  "openvm-instructions-derive",
@@ -3011,7 +3011,7 @@ dependencies = [
 [[package]]
 name = "openvm-sdk"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#2a4331b7026c4b61db4ca4da2f5d241376137c45"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fceno_leaves#caec16ae3bebef4390c6382095d86ae70b2936c0"
 dependencies = [
  "async-trait",
  "bitcode",
@@ -3063,7 +3063,7 @@ dependencies = [
 [[package]]
 name = "openvm-sha256-air"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#2a4331b7026c4b61db4ca4da2f5d241376137c45"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fceno_leaves#caec16ae3bebef4390c6382095d86ae70b2936c0"
 dependencies = [
  "openvm-circuit-primitives",
  "openvm-stark-backend",
@@ -3074,7 +3074,7 @@ dependencies = [
 [[package]]
 name = "openvm-sha256-circuit"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#2a4331b7026c4b61db4ca4da2f5d241376137c45"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fceno_leaves#caec16ae3bebef4390c6382095d86ae70b2936c0"
 dependencies = [
  "derive-new 0.6.0",
  "derive_more 1.0.0",
@@ -3097,7 +3097,7 @@ dependencies = [
 [[package]]
 name = "openvm-sha256-guest"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#2a4331b7026c4b61db4ca4da2f5d241376137c45"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fceno_leaves#caec16ae3bebef4390c6382095d86ae70b2936c0"
 dependencies = [
  "openvm-platform",
 ]
@@ -3105,7 +3105,7 @@ dependencies = [
 [[package]]
 name = "openvm-sha256-transpiler"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#2a4331b7026c4b61db4ca4da2f5d241376137c45"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fceno_leaves#caec16ae3bebef4390c6382095d86ae70b2936c0"
 dependencies = [
  "openvm-instructions",
  "openvm-instructions-derive",
@@ -3181,7 +3181,7 @@ dependencies = [
 [[package]]
 name = "openvm-transpiler"
 version = "1.3.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fnative_sumcheck_layer_eval#2a4331b7026c4b61db4ca4da2f5d241376137c45"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fceno_leaves#caec16ae3bebef4390c6382095d86ae70b2936c0"
 dependencies = [
  "elf",
  "eyre",
@@ -4421,7 +4421,7 @@ dependencies = [
  "dashu",
  "elliptic-curve",
  "ff_ext",
- "generic-array 1.3.4",
+ "generic-array 1.3.5",
  "itertools 0.13.0",
  "k256",
  "multilinear_extensions",

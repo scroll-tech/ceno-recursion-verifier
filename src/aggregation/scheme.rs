@@ -82,7 +82,6 @@ impl RecursionProvingKeys {
                 vm_pk,
             }
         });
-        // let leaf_vm_vk = ceno_leaf_vm_pk.vm_pk.get_vk();
         
         Self {
             ceno_leaf_vm_pk,
