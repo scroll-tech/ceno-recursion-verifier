@@ -938,7 +938,7 @@ pub fn evaluate_selector<C: Config>(
             let zero = builder.constant(C::EF::ZERO);
             (expr, eq_eval(builder, out_point, in_point, one, zero))
         }
-        SelectorType::Prefix(_, expr) => (
+        SelectorType::Prefix(expr) => (
             expr,
             eq_eval_less_or_equal_than(builder, &opcode_proof.num_instances_minus_one_bit_decomposition, out_point, in_point),
         ),
@@ -971,13 +971,16 @@ pub fn evaluate_selector<C: Config>(
 
             (expression, eval)
         },
+        _ => {
+            unreachable!()
+        }
     };
 
     // TODO: just return eval and check it with respect to evals
     let Expression::StructuralWitIn(wit_id, _) = expr else {
         panic!("Wrong selector expression format");
     };
-    let wit_id = *wit_id as usize + offset_eq_id;
+    let wit_id = wit_id.clone() as usize + offset_eq_id;
     builder.set(evals, wit_id, eval);
 }
 
@@ -995,7 +998,7 @@ pub fn evaluate_ecc_selector<C: Config>(
             builder.assert_nonzero(&proof.num_instances);
             // assert!(ctx.num_instances <= (1 << out_point.len()));
             builder.assert_nonzero(&out_point.len());
-            builder.assert_eq(out_point.len(), in_point.len());
+            builder.assert_usize_eq(out_point.len(), in_point.len());
             let one: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
 
             let prefix_one_seq = reverse(builder, &proof.prefix_one_seq);
@@ -1003,8 +1006,8 @@ pub fn evaluate_ecc_selector<C: Config>(
             let res: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
             let prefix_one_seq_0 = builder.get(&prefix_one_seq, 0);
 
-            builder.if_ne(prefix_one_seq_0, Usize::from(0)).then(|builder| {
-                builder.assert_eq(prefix_one_seq_0, Usize::from(1));
+            builder.if_ne(prefix_one_seq_0.clone(), Usize::from(0)).then(|builder| {
+                builder.assert_usize_eq(prefix_one_seq_0.clone(), Usize::from(1));
                 let out_point_0 = builder.get(out_point, 0);
                 let in_point_0 = builder.get(in_point, 0);
                 builder.assign(&res, (one - out_point_0) * (one - in_point_0));
@@ -1032,6 +1035,9 @@ pub fn evaluate_ecc_selector<C: Config>(
             });
 
             (expr, res)
+        },
+        _ => {
+            unreachable!()
         }
     };
 
@@ -1532,7 +1538,7 @@ pub fn verify_ecc_proof<C: Config>(
     proof: EccQuarkProofVariable<C>,
     unipoly_extrapolator: &mut UniPolyExtrapolator<C>,
 ) {
-    let num_vars = proof.num_vars;
+    let num_vars = proof.num_vars.clone();
     let one = builder.constant(C::EF::ONE);
     let zero = builder.constant(C::EF::ZERO);
 
@@ -1616,7 +1622,7 @@ pub fn verify_ecc_proof<C: Config>(
     let sel_evals: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(1);
     evaluate_ecc_selector(
         builder, 
-        sel_add_expr, 
+        &sel_add_expr, 
         &sel_evals,
         &out_rt,
         &rt,
