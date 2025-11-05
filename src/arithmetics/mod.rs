@@ -203,6 +203,19 @@ pub fn dot_product<C: Config>(
     acc
 }
 
+// In-place masking of a value array with randomness
+pub fn mask_arr<C: Config>(
+    builder: &mut Builder<C>,
+    a: &Array<C, Ext<C::F, C::EF>>,
+    mask: &Array<C, Ext<C::F, C::EF>>,
+) {
+    builder.range(0, a.len()).for_each(|idx_vec, builder| {
+        let a_i = builder.get(a, idx_vec[0]);
+        let m_i = builder.get(mask, idx_vec[0]);
+        builder.set(a, idx_vec[0], a_i * m_i);
+    });
+}
+
 pub fn reverse<C: Config, T: MemVariable<C>>(
     builder: &mut Builder<C>,
     arr: &Array<C, T>,
@@ -320,6 +333,19 @@ pub fn nested_product<C: Config>(
     acc
 }
 
+// Multiply all elements in an Array
+pub fn arr_product<C: Config>(
+    builder: &mut Builder<C>,
+    arr: &Array<C, Ext<C::F, C::EF>>,
+) -> Ext<C::F, C::EF> {
+    let acc = builder.constant(C::EF::ONE);
+    iter_zip!(builder, arr).for_each(|ptr_vec, builder| {
+        let el = builder.iter_ptr_get(&arr, ptr_vec[0]);
+        builder.assign(&acc, acc * el);
+    });
+    acc
+}
+
 // Generate alpha power challenges
 pub fn gen_alpha_pows<C: Config>(
     builder: &mut Builder<C>,
@@ -347,14 +373,13 @@ pub fn gen_alpha_pows<C: Config>(
 ///         = \sum_{\mathbf{b}=0}^{max_idx} \prod_{i=0}^{n-1} (x_i y_i b_i + (1 - x_i)(1 - y_i)(1 - b_i))
 pub fn eq_eval_less_or_equal_than<C: Config>(
     builder: &mut Builder<C>,
-    opcode_proof: &ZKVMChipProofInputVariable<C>,
+    // opcode_proof: &ZKVMChipProofInputVariable<C>,
+    eq_bit_decomp: &Array<C, Felt<C::F>>,
     a: &Array<C, Ext<C::F, C::EF>>,
     b: &Array<C, Ext<C::F, C::EF>>,
 ) -> Ext<C::F, C::EF> {
     builder.cycle_tracker_start("Compute eq_eval_less_or_equal_than");
-    let eq_bit_decomp: Array<C, Felt<C::F>> = opcode_proof
-        .num_instances_minus_one_bit_decomposition
-        .slice(builder, 0, b.len());
+    let eq_bit_decomp: Array<C, Felt<C::F>> = eq_bit_decomp.slice(builder, 0, b.len());
 
     let one_ext: Ext<C::F, C::EF> = builder.constant(C::EF::ONE);
     let rp_len = builder.eval_expr(b.len() + C::N::ONE);
