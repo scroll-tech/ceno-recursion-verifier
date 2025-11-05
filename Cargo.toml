@@ -49,15 +49,15 @@ ark-poly = "0.5"
 ark-serialize = "0.5"
 
 # Ceno
-ceno_mle = { git = "https://github.com/scroll-tech/gkr-backend.git", rev = "v1.0.0-alpha.6", package = "multilinear_extensions" }
-ceno_sumcheck = { git = "https://github.com/scroll-tech/gkr-backend.git", rev = "v1.0.0-alpha.6", package = "sumcheck" }
-ceno_transcript = { git = "https://github.com/scroll-tech/gkr-backend.git", rev = "v1.0.0-alpha.6", package = "transcript" }
-ceno_witness = { git = "https://github.com/scroll-tech/gkr-backend.git", rev = "v1.0.0-alpha.6", package = "witness" }
-ceno_zkvm = { git = "https://github.com/scroll-tech/ceno.git", branch = "master" }
-ceno_emul = { git = "https://github.com/scroll-tech/ceno.git", branch = "master" }
-gkr_iop = { git = "https://github.com/scroll-tech/ceno.git", branch = "master" }
-mpcs = { git = "https://github.com/scroll-tech/gkr-backend.git", rev = "v1.0.0-alpha.6" }
-ff_ext = { git = "https://github.com/scroll-tech/gkr-backend.git", rev = "v1.0.0-alpha.6" }
+ceno_mle = { git = "https://github.com/scroll-tech/gkr-backend.git", branch = "chore/sw_curve_default", package = "multilinear_extensions" }
+ceno_sumcheck = { git = "https://github.com/scroll-tech/gkr-backend.git", branch = "chore/sw_curve_default", package = "sumcheck" }
+ceno_transcript = { git = "https://github.com/scroll-tech/gkr-backend.git", branch = "chore/sw_curve_default", package = "transcript" }
+ceno_witness = { git = "https://github.com/scroll-tech/gkr-backend.git", branch = "chore/sw_curve_default", package = "witness" }
+mpcs = { git = "https://github.com/scroll-tech/gkr-backend.git", branch = "chore/sw_curve_default" }
+ff_ext = { git = "https://github.com/scroll-tech/gkr-backend.git", branch = "chore/sw_curve_default" }
+ceno_zkvm = { git = "https://github.com/scroll-tech/ceno.git", branch = "feat/septic_global_chip" }
+ceno_emul = { git = "https://github.com/scroll-tech/ceno.git", branch = "feat/septic_global_chip" }
+gkr_iop = { git = "https://github.com/scroll-tech/ceno.git", branch = "feat/septic_global_chip" }
 
 [features]
 default = ["parallel", "nightly-features"]
