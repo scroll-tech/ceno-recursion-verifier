@@ -1,11 +1,23 @@
 use std::sync::Arc;
 
+use crate::zkvm_verifier::binding::{ZKVMProofInput, E, F};
+use crate::zkvm_verifier::verifier::verify_zkvm_proof;
+use ceno_zkvm::structs::ZKVMVerifyingKey;
+use mpcs::{Basefold, BasefoldRSParams};
+use openvm_circuit::arch::VirtualMachine;
 use openvm_circuit::arch::VmConfig;
+use openvm_circuit::{
+    arch::{instructions::program::Program, SystemConfig},
+    system::memory::tree::public_values::PUBLIC_VALUES_ADDRESS_SPACE_OFFSET,
+};
 use openvm_continuations::verifier::{
     internal::types::VmStarkProof, root::types::RootVmVerifierInput,
 };
-use openvm_stark_backend::{proof::Proof, Chip};
-use openvm_stark_sdk::{config::FriParameters, engine::StarkFriEngine};
+use openvm_continuations::C;
+use openvm_native_circuit::NativeConfig;
+use openvm_native_compiler::{conversion::CompilerOptions, prelude::*};
+use openvm_native_recursion::hints::Hintable;
+use openvm_sdk::prover::vm::types::VmProvingKey;
 use openvm_sdk::{
     config::AggregationTreeConfig,
     keygen::AggStarkProvingKey,
@@ -15,22 +27,10 @@ use openvm_sdk::{
     },
     NonRootCommittedExe, RootSC, SC,
 };
-use openvm_circuit::{
-    arch::{instructions::program::Program, SystemConfig},
-    system::memory::tree::public_values::PUBLIC_VALUES_ADDRESS_SPACE_OFFSET,
-};
-use openvm_circuit::arch::VirtualMachine;
-use openvm_native_compiler::{conversion::CompilerOptions, prelude::*};
-use openvm_native_recursion::hints::Hintable;
-use crate::zkvm_verifier::binding::{ZKVMProofInput, E, F};
-use openvm_continuations::C;
-use openvm_native_circuit::NativeConfig;
-use ceno_zkvm::structs::ZKVMVerifyingKey;
-use mpcs::{Basefold, BasefoldRSParams};
-use crate::zkvm_verifier::verifier::verify_zkvm_proof;
-use openvm_sdk::prover::vm::types::VmProvingKey;
-use serde::{Deserialize, Serialize};
+use openvm_stark_backend::{proof::Proof, Chip};
 use openvm_stark_sdk::config::baby_bear_poseidon2::BabyBearPoseidon2Engine;
+use openvm_stark_sdk::{config::FriParameters, engine::StarkFriEngine};
+use serde::{Deserialize, Serialize};
 
 /// Config to generate leaf VM verifier program.
 pub struct CenoLeafVmVerifierConfig {
@@ -39,9 +39,7 @@ pub struct CenoLeafVmVerifierConfig {
 }
 
 impl CenoLeafVmVerifierConfig {
-    pub fn build_program(
-        &self,
-    ) -> Program<F> {
+    pub fn build_program(&self) -> Program<F> {
         let mut builder = Builder::<C>::default();
 
         {
@@ -82,9 +80,7 @@ impl RecursionProvingKeys {
                 vm_pk,
             }
         });
-        
-        Self {
-            ceno_leaf_vm_pk,
-        }
+
+        Self { ceno_leaf_vm_pk }
     }
 }

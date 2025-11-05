@@ -5,7 +5,7 @@ mod tower_verifier;
 mod transcript;
 pub mod zkvm_verifier;
 
+mod aggregation;
 #[allow(dead_code)]
 mod e2e;
-mod aggregation;
 mod extensions;
