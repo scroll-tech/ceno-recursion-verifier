@@ -4,8 +4,8 @@ use crate::basefold_verifier::basefold::{
 };
 
 use crate::tower_verifier::binding::{
-    IOPProverMessageVec, IOPProverMessageVecVariable, ThreeDimensionalVecVariable,
-    ThreeDimensionalVector, IOPProverMessageVariable
+    IOPProverMessageVariable, IOPProverMessageVec, IOPProverMessageVecVariable,
+    ThreeDimensionalVecVariable, ThreeDimensionalVector,
 };
 use crate::{arithmetics::ceil_log2, tower_verifier::binding::PointVariable};
 use itertools::Itertools;
@@ -501,14 +501,12 @@ pub struct GKRClaimEvaluation<C: Config> {
 
 #[derive(DslVariable, Clone)]
 pub struct SepticExtensionVariable<C: Config> {
-    pub vs: Array<C, Ext<C::F, C::EF>>
+    pub vs: Array<C, Ext<C::F, C::EF>>,
 }
 
 impl<C: Config> From<Array<C, Ext<C::F, C::EF>>> for SepticExtensionVariable<C> {
     fn from(slice: Array<C, Ext<C::F, C::EF>>) -> Self {
-        Self {
-            vs: slice
-        }
+        Self { vs: slice }
     }
 }
 
@@ -524,7 +522,7 @@ pub struct EccQuarkProofVariable<C: Config> {
     pub zerocheck_proof: IOPProverMessageVecVariable<C>,
     pub num_instances: Usize<C::N>,
     pub num_instances_minus_one_bit_decomposition: Array<C, Felt<C::F>>,
-    pub num_vars: Usize<C::N>,      // next_pow2_instance_padding(proof.num_instances).ilog2()
+    pub num_vars: Usize<C::N>, // next_pow2_instance_padding(proof.num_instances).ilog2()
     pub evals: Array<C, Ext<C::F, C::EF>>,
     pub rt: PointVariable<C>,
     pub sum: SepticPointVariable<C>,

@@ -3,7 +3,9 @@ use super::binding::{
     ZKVMProofInputVariable,
 };
 use crate::arithmetics::{
-    arr_product, challenger_multi_observe, eq_eval, eval_ceno_expr_with_instance, eval_stacked_constant, eval_stacked_wellform_address_vec, mask_arr, reverse, PolyEvaluator, UniPolyExtrapolator
+    arr_product, challenger_multi_observe, eq_eval, eval_ceno_expr_with_instance,
+    eval_stacked_constant, eval_stacked_wellform_address_vec, mask_arr, reverse, PolyEvaluator,
+    UniPolyExtrapolator,
 };
 use crate::basefold_verifier::basefold::{
     BasefoldCommitmentVariable, RoundOpeningVariable, RoundVariable,
@@ -16,7 +18,8 @@ use crate::basefold_verifier::verifier::batch_verify;
 use crate::tower_verifier::program::verify_tower_proof;
 use crate::transcript::transcript_observe_label;
 use crate::zkvm_verifier::binding::{
-    EccQuarkProofVariable, GKRProofVariable, LayerProofVariable, SepticExtensionVariable, SumcheckLayerProofVariable
+    EccQuarkProofVariable, GKRProofVariable, LayerProofVariable, SepticExtensionVariable,
+    SumcheckLayerProofVariable,
 };
 use crate::{
     arithmetics::{
@@ -940,7 +943,12 @@ pub fn evaluate_selector<C: Config>(
         }
         SelectorType::Prefix(expr) => (
             expr,
-            eq_eval_less_or_equal_than(builder, &opcode_proof.num_instances_minus_one_bit_decomposition, out_point, in_point),
+            eq_eval_less_or_equal_than(
+                builder,
+                &opcode_proof.num_instances_minus_one_bit_decomposition,
+                out_point,
+                in_point,
+            ),
         ),
         SelectorType::OrderedSparse32 {
             indices,
@@ -970,7 +978,7 @@ pub fn evaluate_selector<C: Config>(
             builder.assign(&eval, eval * sel);
 
             (expression, eval)
-        },
+        }
         _ => {
             unreachable!()
         }
@@ -1006,36 +1014,50 @@ pub fn evaluate_ecc_selector<C: Config>(
             let res: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
             let prefix_one_seq_0 = builder.get(&prefix_one_seq, 0);
 
-            builder.if_ne(prefix_one_seq_0.clone(), Usize::from(0)).then(|builder| {
-                builder.assert_usize_eq(prefix_one_seq_0.clone(), Usize::from(1));
-                let out_point_0 = builder.get(out_point, 0);
-                let in_point_0 = builder.get(in_point, 0);
-                builder.assign(&res, (one - out_point_0) * (one - in_point_0));
-            });
-
-            builder.range(1, out_point.len()).for_each(|idx_vec, builder| {
-                let i = idx_vec[0];
-
-                let num_prefix_one_lhs = builder.get(&prefix_one_seq, i);
-                let out_point_i = builder.get(&out_point, i);
-                let in_point_i = builder.get(&in_point, i);
-
-                let lhs_res: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
-                builder.if_ne(num_prefix_one_lhs, Usize::from(0)).then(|builder| {
-                    let out_point_slice = out_point.slice(builder, 0, i);
-                    let in_point_slice = in_point.slice(builder, 0, i);
-
-                    let eq_eval = eq_eval_less_or_equal_than(builder, &proof.num_instances_minus_one_bit_decomposition, &out_point_slice, &in_point_slice);
-                    builder.assign(&lhs_res, (one - out_point_i) * (one - in_point_i) * eq_eval);
+            builder
+                .if_ne(prefix_one_seq_0.clone(), Usize::from(0))
+                .then(|builder| {
+                    builder.assert_usize_eq(prefix_one_seq_0.clone(), Usize::from(1));
+                    let out_point_0 = builder.get(out_point, 0);
+                    let in_point_0 = builder.get(in_point, 0);
+                    builder.assign(&res, (one - out_point_0) * (one - in_point_0));
                 });
 
-                let rhs_res: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
-                builder.assign(&rhs_res, out_point_i * in_point_i * res);
-                builder.assign(&res, lhs_res + rhs_res);
-            });
+            builder
+                .range(1, out_point.len())
+                .for_each(|idx_vec, builder| {
+                    let i = idx_vec[0];
+
+                    let num_prefix_one_lhs = builder.get(&prefix_one_seq, i);
+                    let out_point_i = builder.get(&out_point, i);
+                    let in_point_i = builder.get(&in_point, i);
+
+                    let lhs_res: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
+                    builder
+                        .if_ne(num_prefix_one_lhs, Usize::from(0))
+                        .then(|builder| {
+                            let out_point_slice = out_point.slice(builder, 0, i);
+                            let in_point_slice = in_point.slice(builder, 0, i);
+
+                            let eq_eval = eq_eval_less_or_equal_than(
+                                builder,
+                                &proof.num_instances_minus_one_bit_decomposition,
+                                &out_point_slice,
+                                &in_point_slice,
+                            );
+                            builder.assign(
+                                &lhs_res,
+                                (one - out_point_i) * (one - in_point_i) * eq_eval,
+                            );
+                        });
+
+                    let rhs_res: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
+                    builder.assign(&rhs_res, out_point_i * in_point_i * res);
+                    builder.assign(&res, lhs_res + rhs_res);
+                });
 
             (expr, res)
-        },
+        }
         _ => {
             unreachable!()
         }
@@ -1545,37 +1567,80 @@ pub fn verify_ecc_proof<C: Config>(
     // Derive out_rt
     transcript_observe_label(builder, challenger, b"ecc");
     let out_rt: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(num_vars.clone());
-    builder.range(0, num_vars.clone()).for_each(|idx_vec, builder| {
-        let e = challenger.sample_ext(builder);
-        builder.set(&out_rt, idx_vec[0], e);
-    });
+    builder
+        .range(0, num_vars.clone())
+        .for_each(|idx_vec, builder| {
+            let e = challenger.sample_ext(builder);
+            builder.set(&out_rt, idx_vec[0], e);
+        });
 
     // Derive alpha_pows
     transcript_observe_label(builder, challenger, b"ecc_alpha");
-    let alpha_pows = gen_alpha_pows(builder, challenger, Usize::from(SEPTIC_EXTENSION_DEGREE * 3 + SEPTIC_EXTENSION_DEGREE * 2));
+    let alpha_pows = gen_alpha_pows(
+        builder,
+        challenger,
+        Usize::from(SEPTIC_EXTENSION_DEGREE * 3 + SEPTIC_EXTENSION_DEGREE * 2),
+    );
 
     let zero_ext: Ext<C::F, C::EF> = builder.constant(C::EF::ZERO);
     let three_f: Felt<C::F> = builder.constant(C::F::from_canonical_u32(3));
     let num_vars_f = builder.unsafe_cast_var_to_felt(num_vars.get_var());
     let (rt, expected_evaluation) = iop_verifier_state_verify(
-        builder, 
-        challenger, 
-        &zero_ext, 
-        &proof.zerocheck_proof, 
+        builder,
+        challenger,
+        &zero_ext,
+        &proof.zerocheck_proof,
         num_vars_f,
         three_f,
-        unipoly_extrapolator
+        unipoly_extrapolator,
     );
 
     // Calculate v1, v2, v3, v4, v5
     let cord_slice = proof.evals.slice(builder, 2, proof.evals.len());
-    let s0: SepticExtensionVariable<C> = cord_slice.slice(builder, 0, SEPTIC_EXTENSION_DEGREE).into();
-    let x0: SepticExtensionVariable<C> = cord_slice.slice(builder, SEPTIC_EXTENSION_DEGREE, 2 * SEPTIC_EXTENSION_DEGREE).into();
-    let y0: SepticExtensionVariable<C> = cord_slice.slice(builder, 2 * SEPTIC_EXTENSION_DEGREE, 3 * SEPTIC_EXTENSION_DEGREE).into();
-    let x1: SepticExtensionVariable<C> = cord_slice.slice(builder, 3 * SEPTIC_EXTENSION_DEGREE, 4 * SEPTIC_EXTENSION_DEGREE).into();
-    let y1: SepticExtensionVariable<C> = cord_slice.slice(builder, 4 * SEPTIC_EXTENSION_DEGREE, 5 * SEPTIC_EXTENSION_DEGREE).into();
-    let x3: SepticExtensionVariable<C> = cord_slice.slice(builder, 5 * SEPTIC_EXTENSION_DEGREE, 6 * SEPTIC_EXTENSION_DEGREE).into();
-    let y3: SepticExtensionVariable<C> = cord_slice.slice(builder, 6 * SEPTIC_EXTENSION_DEGREE, 7 * SEPTIC_EXTENSION_DEGREE).into();
+    let s0: SepticExtensionVariable<C> =
+        cord_slice.slice(builder, 0, SEPTIC_EXTENSION_DEGREE).into();
+    let x0: SepticExtensionVariable<C> = cord_slice
+        .slice(
+            builder,
+            SEPTIC_EXTENSION_DEGREE,
+            2 * SEPTIC_EXTENSION_DEGREE,
+        )
+        .into();
+    let y0: SepticExtensionVariable<C> = cord_slice
+        .slice(
+            builder,
+            2 * SEPTIC_EXTENSION_DEGREE,
+            3 * SEPTIC_EXTENSION_DEGREE,
+        )
+        .into();
+    let x1: SepticExtensionVariable<C> = cord_slice
+        .slice(
+            builder,
+            3 * SEPTIC_EXTENSION_DEGREE,
+            4 * SEPTIC_EXTENSION_DEGREE,
+        )
+        .into();
+    let y1: SepticExtensionVariable<C> = cord_slice
+        .slice(
+            builder,
+            4 * SEPTIC_EXTENSION_DEGREE,
+            5 * SEPTIC_EXTENSION_DEGREE,
+        )
+        .into();
+    let x3: SepticExtensionVariable<C> = cord_slice
+        .slice(
+            builder,
+            5 * SEPTIC_EXTENSION_DEGREE,
+            6 * SEPTIC_EXTENSION_DEGREE,
+        )
+        .into();
+    let y3: SepticExtensionVariable<C> = cord_slice
+        .slice(
+            builder,
+            6 * SEPTIC_EXTENSION_DEGREE,
+            7 * SEPTIC_EXTENSION_DEGREE,
+        )
+        .into();
     let s0_squared = septic_ext_squared(builder, &s0);
 
     let v1: SepticExtensionVariable<C> = builder.dyn_array(SEPTIC_EXTENSION_DEGREE).into();
@@ -1602,10 +1667,26 @@ pub fn verify_ecc_proof<C: Config>(
     }
 
     let mask1 = alpha_pows.slice(builder, 0, SEPTIC_EXTENSION_DEGREE);
-    let mask2 = alpha_pows.slice(builder, SEPTIC_EXTENSION_DEGREE, 2 * SEPTIC_EXTENSION_DEGREE);
-    let mask3 = alpha_pows.slice(builder, 2 * SEPTIC_EXTENSION_DEGREE, 3 * SEPTIC_EXTENSION_DEGREE);
-    let mask4 = alpha_pows.slice(builder, 3 * SEPTIC_EXTENSION_DEGREE, 4 * SEPTIC_EXTENSION_DEGREE);
-    let mask5 = alpha_pows.slice(builder, 4 * SEPTIC_EXTENSION_DEGREE, 5 * SEPTIC_EXTENSION_DEGREE);
+    let mask2 = alpha_pows.slice(
+        builder,
+        SEPTIC_EXTENSION_DEGREE,
+        2 * SEPTIC_EXTENSION_DEGREE,
+    );
+    let mask3 = alpha_pows.slice(
+        builder,
+        2 * SEPTIC_EXTENSION_DEGREE,
+        3 * SEPTIC_EXTENSION_DEGREE,
+    );
+    let mask4 = alpha_pows.slice(
+        builder,
+        3 * SEPTIC_EXTENSION_DEGREE,
+        4 * SEPTIC_EXTENSION_DEGREE,
+    );
+    let mask5 = alpha_pows.slice(
+        builder,
+        4 * SEPTIC_EXTENSION_DEGREE,
+        5 * SEPTIC_EXTENSION_DEGREE,
+    );
 
     mask_arr(builder, &v1.vs, &mask1);
     mask_arr(builder, &v2.vs, &mask2);
@@ -1620,15 +1701,7 @@ pub fn verify_ecc_proof<C: Config>(
         StackedConstantSequence { max_value: 0 },
     ));
     let sel_evals: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(1);
-    evaluate_ecc_selector(
-        builder, 
-        &sel_add_expr, 
-        &sel_evals,
-        &out_rt,
-        &rt,
-        &proof,
-        0
-    );
+    evaluate_ecc_selector(builder, &sel_add_expr, &sel_evals, &out_rt, &rt, &proof, 0);
     let expected_sel_add = builder.get(&sel_evals, 0);
 
     // Assertions
@@ -1639,7 +1712,10 @@ pub fn verify_ecc_proof<C: Config>(
     let out_rt_prod = arr_product(builder, &out_rt);
     let rt_prod = arr_product(builder, &rt);
     let expected_sel_bypass: Ext<C::F, C::EF> = builder.uninit();
-    builder.assign(&expected_sel_bypass, e - expected_sel_add - (out_rt_prod * rt_prod));
+    builder.assign(
+        &expected_sel_bypass,
+        e - expected_sel_add - (out_rt_prod * rt_prod),
+    );
 
     let proof_eval_1 = builder.get(&proof.evals, 1);
     builder.assert_ext_eq(proof_eval_1, expected_sel_bypass);
@@ -1659,13 +1735,16 @@ pub fn verify_ecc_proof<C: Config>(
     }
 
     let calculated_evaluation: Ext<C::F, C::EF> = builder.uninit();
-    builder.assign(&calculated_evaluation, add_evaluations * expected_sel_add + bypass_evaluations * expected_sel_bypass);
+    builder.assign(
+        &calculated_evaluation,
+        add_evaluations * expected_sel_add + bypass_evaluations * expected_sel_bypass,
+    );
     builder.assert_ext_eq(expected_evaluation, calculated_evaluation);
 }
 
 pub fn septic_ext_squared<C: Config>(
-    builder: &mut Builder<C>, 
-    a: &SepticExtensionVariable<C>
+    builder: &mut Builder<C>,
+    a: &SepticExtensionVariable<C>,
 ) -> SepticExtensionVariable<C> {
     let r: Array<C, Ext<C::F, C::EF>> = builder.dyn_array(SEPTIC_EXTENSION_DEGREE);
 
@@ -1682,7 +1761,6 @@ pub fn septic_ext_squared<C: Config>(
             let term: Ext<C::F, C::EF> = builder.uninit();
             builder.assign(&term, two_ext * i_term * j_term);
 
-            
             if index < 7 {
                 let r_v = builder.get(&r, index);
                 builder.set(&r, index, r_v + term);

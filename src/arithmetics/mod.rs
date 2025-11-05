@@ -340,9 +340,9 @@ pub fn arr_product<C: Config>(
 ) -> Ext<C::F, C::EF> {
     let acc = builder.constant(C::EF::ONE);
     iter_zip!(builder, arr).for_each(|ptr_vec, builder| {
-            let el = builder.iter_ptr_get(&arr, ptr_vec[0]);
-            builder.assign(&acc, acc * el);
-        });
+        let el = builder.iter_ptr_get(&arr, ptr_vec[0]);
+        builder.assign(&acc, acc * el);
+    });
     acc
 }
 
